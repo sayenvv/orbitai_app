@@ -1,0 +1,14 @@
+{
+  "widgets": [
+    { "id": "w0000000-0000-4000-8000-000000000001", "key": "text",           "name": "Text Message",       "description": "Plain markdown reply",      "iconKey": "MessageSquare" },
+    { "id": "w0000000-0000-4000-8000-000000000002", "key": "hotel_results",  "name": "Hotel Results",      "description": "Cards for hotel listings",  "iconKey": "Hotel" },
+    { "id": "w0000000-0000-4000-8000-000000000003", "key": "flight_results", "name": "Flight Results",     "description": "Flight cards with timings", "iconKey": "Plane" },
+    { "id": "w0000000-0000-4000-8000-000000000004", "key": "train_results",  "name": "Train Results",      "description": "Train route + coach info",  "iconKey": "Train" },
+    { "id": "w0000000-0000-4000-8000-000000000005", "key": "bus_results",    "name": "Bus Results",        "description": "Bus operator listings",     "iconKey": "Bus" },
+    { "id": "w0000000-0000-4000-8000-000000000006", "key": "place_results",  "name": "Place Results",      "description": "Points of interest",        "iconKey": "MapPin" },
+    { "id": "w0000000-0000-4000-8000-000000000007", "key": "itinerary",      "name": "Itinerary Timeline", "description": "Day-by-day plan",           "iconKey": "FileText" },
+    { "id": "w0000000-0000-4000-8000-000000000008", "key": "chart",          "name": "Chart / Stats",      "description": "Inline charts",             "iconKey": "BarChart3" },
+    { "id": "w0000000-0000-4000-8000-000000000009", "key": "image",          "name": "Image Gallery",      "description": "Inline image carousel",     "iconKey": "Image" },
+    { "id": "w0000000-0000-4000-8000-000000000010", "key": "code_block",     "name": "Code Block",         "description": "Syntax-highlighted code",   "iconKey": "Code2" }
+  ]
+}

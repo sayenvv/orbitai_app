@@ -1,0 +1,403 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Helvetica Neue", "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* macOS / iOS light — warm off-white, hairline grays, system blue */
+  --background: oklch(0.985 0.002 270);
+  --foreground: oklch(0.18 0.012 264);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.012 264);
+  --popover: oklch(0.995 0.002 270);
+  --popover-foreground: oklch(0.18 0.012 264);
+  --primary: oklch(0.62 0.19 256);            /* #007AFF iOS system blue */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.965 0.004 270);
+  --secondary-foreground: oklch(0.22 0.018 264);
+  --muted: oklch(0.965 0.004 270);
+  --muted-foreground: oklch(0.52 0.012 264);
+  --accent: oklch(0.955 0.008 256);
+  --accent-foreground: oklch(0.22 0.018 264);
+  --destructive: oklch(0.62 0.22 25);          /* #FF3B30 */
+  --border: oklch(0.90 0.004 270 / 0.6);       /* hairline */
+  --input: oklch(0.93 0.004 270);
+  --ring: oklch(0.62 0.19 256);
+  --chart-1: oklch(0.62 0.19 256);
+  --chart-2: oklch(0.72 0.17 152);             /* iOS green */
+  --chart-3: oklch(0.78 0.15 75);              /* iOS orange */
+  --chart-4: oklch(0.62 0.22 350);             /* iOS pink */
+  --chart-5: oklch(0.70 0.14 220);             /* iOS teal */
+  --radius: 0.875rem;                          /* iOS-ish 14px */
+  --sidebar: oklch(0.975 0.003 270 / 0.72);    /* translucent vibrancy */
+  --sidebar-foreground: oklch(0.20 0.014 264);
+  --sidebar-primary: oklch(0.62 0.19 256);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.945 0.008 256);
+  --sidebar-accent-foreground: oklch(0.22 0.018 264);
+  --sidebar-border: oklch(0.90 0.004 270 / 0.5);
+  --sidebar-ring: oklch(0.62 0.19 256);
+}
+
+.dark {
+  /* macOS dark — true grays with iOS dark-mode blue */
+  --background: oklch(0.16 0.006 270);         /* ~#1C1C1E */
+  --foreground: oklch(0.96 0.004 270);
+  --card: oklch(0.205 0.008 270);              /* ~#2C2C2E */
+  --card-foreground: oklch(0.96 0.004 270);
+  --popover: oklch(0.21 0.008 270);
+  --popover-foreground: oklch(0.96 0.004 270);
+  --primary: oklch(0.68 0.19 256);             /* #0A84FF dark mode blue */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.235 0.008 270);
+  --secondary-foreground: oklch(0.94 0.004 270);
+  --muted: oklch(0.235 0.008 270);
+  --muted-foreground: oklch(0.68 0.008 270);
+  --accent: oklch(0.27 0.012 256);
+  --accent-foreground: oklch(0.95 0.004 270);
+  --destructive: oklch(0.66 0.22 25);          /* #FF453A */
+  --border: oklch(0.34 0.006 270 / 0.6);       /* hairline */
+  --input: oklch(0.30 0.008 270);
+  --ring: oklch(0.68 0.19 256);
+  --chart-1: oklch(0.68 0.19 256);
+  --chart-2: oklch(0.76 0.17 152);
+  --chart-3: oklch(0.80 0.15 75);
+  --chart-4: oklch(0.68 0.20 350);
+  --chart-5: oklch(0.74 0.14 220);
+  --sidebar: oklch(0.18 0.006 270 / 0.72);     /* translucent vibrancy */
+  --sidebar-foreground: oklch(0.95 0.004 270);
+  --sidebar-primary: oklch(0.68 0.19 256);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.255 0.012 256);
+  --sidebar-accent-foreground: oklch(0.94 0.004 270);
+  --sidebar-border: oklch(0.34 0.006 270 / 0.5);
+  --sidebar-ring: oklch(0.68 0.19 256);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    letter-spacing: -0.011em;
+  }
+  html {
+    @apply font-sans scroll-smooth;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+    letter-spacing: -0.022em;
+  }
+  button, a {
+    transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1),
+                color 180ms cubic-bezier(0.32, 0.72, 0, 1),
+                border-color 180ms cubic-bezier(0.32, 0.72, 0, 1),
+                transform 180ms cubic-bezier(0.32, 0.72, 0, 1),
+                box-shadow 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+/* ─── macOS / iOS premium utilities ─────────────────────────────── */
+
+/* Frosted-glass vibrancy panel (sidebars, headers, popovers) */
+.glass {
+  background-color: color-mix(in oklab, var(--background) 65%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-color: color-mix(in oklab, var(--border) 80%, transparent);
+}
+.glass-strong {
+  background-color: color-mix(in oklab, var(--card) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(28px);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+}
+
+/* macOS soft layered shadows */
+.shadow-mac {
+  box-shadow:
+    0 0.5px 0 0 rgba(255, 255, 255, 0.04) inset,
+    0 1px 2px -1px rgba(0, 0, 0, 0.06),
+    0 4px 12px -2px rgba(0, 0, 0, 0.08);
+}
+.shadow-mac-lg {
+  box-shadow:
+    0 0.5px 0 0 rgba(255, 255, 255, 0.05) inset,
+    0 2px 6px -2px rgba(0, 0, 0, 0.08),
+    0 12px 32px -8px rgba(0, 0, 0, 0.16);
+}
+.dark .shadow-mac {
+  box-shadow:
+    0 0.5px 0 0 rgba(255, 255, 255, 0.04) inset,
+    0 1px 2px -1px rgba(0, 0, 0, 0.5),
+    0 6px 20px -4px rgba(0, 0, 0, 0.55);
+}
+.dark .shadow-mac-lg {
+  box-shadow:
+    0 0.5px 0 0 rgba(255, 255, 255, 0.05) inset,
+    0 2px 6px -2px rgba(0, 0, 0, 0.55),
+    0 16px 40px -10px rgba(0, 0, 0, 0.7);
+}
+
+/* iOS button press feedback */
+.press {
+  transition: transform 120ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+/* Thin translucent macOS-style scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--foreground) 25%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--foreground) 20%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--foreground) 35%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Streaming cursor animation */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-cursor {
+  animation: cursor-blink 0.8s ease-in-out infinite;
+}
+
+/* ─── Stylish background & motion utilities ─────────────────────── */
+
+/* Aurora / mesh background — soft animated blobs */
+.aurora {
+  position: relative;
+  isolation: isolate;
+}
+.aurora::before,
+.aurora::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(80px) saturate(140%);
+  opacity: 0.55;
+  background:
+    radial-gradient(40% 35% at 18% 22%, oklch(0.78 0.18 256 / 0.55), transparent 60%),
+    radial-gradient(35% 30% at 82% 18%, oklch(0.78 0.18 330 / 0.45), transparent 60%),
+    radial-gradient(45% 40% at 50% 95%, oklch(0.80 0.16 200 / 0.45), transparent 60%),
+    radial-gradient(30% 25% at 88% 78%, oklch(0.82 0.15 152 / 0.40), transparent 60%);
+  animation: aurora-drift 24s ease-in-out infinite alternate;
+}
+.aurora::after {
+  filter: blur(110px) saturate(160%);
+  opacity: 0.35;
+  animation-duration: 36s;
+  animation-direction: alternate-reverse;
+}
+.dark .aurora::before,
+.dark .aurora::after {
+  opacity: 0.45;
+}
+
+@keyframes aurora-drift {
+  0%   { transform: translate3d(0,0,0) rotate(0deg) scale(1); }
+  50%  { transform: translate3d(2%, -1%, 0) rotate(8deg) scale(1.06); }
+  100% { transform: translate3d(-2%, 2%, 0) rotate(-6deg) scale(1.03); }
+}
+
+/* Subtle dotted grid overlay */
+.grid-dots {
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 8%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 80%);
+}
+
+/* Animated conic gradient border (for premium cards / pricing) */
+.gradient-border {
+  position: relative;
+  isolation: isolate;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--angle, 0deg),
+    oklch(0.70 0.18 256),
+    oklch(0.70 0.20 330),
+    oklch(0.75 0.16 200),
+    oklch(0.80 0.16 152),
+    oklch(0.70 0.18 256));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 400ms ease;
+  pointer-events: none;
+  animation: gradient-spin 6s linear infinite;
+}
+.gradient-border:hover::before,
+.gradient-border:focus-within::before {
+  opacity: 1;
+}
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes gradient-spin {
+  to { --angle: 360deg; }
+}
+
+/* Shimmer sweep (on hover) */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg,
+    transparent 30%,
+    color-mix(in oklab, white 35%, transparent) 50%,
+    transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 900ms cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+.shimmer:hover::after {
+  transform: translateX(120%);
+}
+
+/* Lift on hover */
+.hover-lift {
+  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+              box-shadow 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+}
+
+/* Gradient text */
+.text-gradient {
+  background: linear-gradient(120deg,
+    var(--foreground) 0%,
+    var(--foreground) 35%,
+    oklch(0.62 0.19 256) 65%,
+    oklch(0.68 0.20 330) 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  background-size: 200% 100%;
+  animation: text-pan 8s ease-in-out infinite alternate;
+}
+@keyframes text-pan {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+/* Floating motion (badges, icons) */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.float-slow { animation: float-y 6s ease-in-out infinite; }
+
+/* Pulsing dot (live indicator) */
+@keyframes ping-soft {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  80%, 100% { transform: scale(2.4); opacity: 0; }
+}
+.dot-live {
+  position: relative;
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: oklch(0.72 0.17 152);
+}
+.dot-live::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before, .aurora::after,
+  .float-slow, .text-gradient,
+  .gradient-border::before, .dot-live::before {
+    animation: none !important;
+  }
+}

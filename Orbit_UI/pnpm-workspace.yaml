@@ -1,0 +1,15 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - sharp
+  - unrs-resolver
+  - msw
+
+verifyDepsBeforeRun: false
+autoInstallPeers: true
+allowBuilds:
+  msw: true
+  sharp: true
+  unrs-resolver: true

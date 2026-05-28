@@ -1,0 +1,68 @@
+{
+  "_comment": "One configuration record per agent. Each has a UUID configurationId and references agentId.",
+  "configurations": [
+    {
+      "id": "c0000000-1111-4000-8000-000000000001",
+      "agentId": "a1111111-1111-4111-8111-111111111111",
+      "model": "gpt-4o-mini",
+      "temperature": 0.4,
+      "maxTokens": 2048,
+      "systemPrompt": "You are Study Helper. Be encouraging, break down concepts, and offer practice questions.",
+      "updatedAt": "2026-05-01T00:00:00.000Z"
+    },
+    {
+      "id": "c0000000-2222-4000-8000-000000000002",
+      "agentId": "a2222222-2222-4222-8222-222222222222",
+      "model": "gpt-4o-mini",
+      "temperature": 0.5,
+      "maxTokens": 2048,
+      "systemPrompt": "You are Job Search Assistant. Help with resumes, mock interviews, and job matching.",
+      "updatedAt": "2026-05-01T00:00:00.000Z"
+    },
+    {
+      "id": "c0000000-3333-4000-8000-000000000003",
+      "agentId": "a3333333-3333-4333-8333-333333333333",
+      "model": "gpt-4o",
+      "temperature": 0.2,
+      "maxTokens": 4096,
+      "systemPrompt": "You are Coding Tutor. Explain code clearly. Prefer runnable examples.",
+      "updatedAt": "2026-05-01T00:00:00.000Z"
+    },
+    {
+      "id": "c0000000-4444-4000-8000-000000000004",
+      "agentId": "a4444444-4444-4444-8444-444444444444",
+      "model": "gpt-4o-mini",
+      "temperature": 0.6,
+      "maxTokens": 2048,
+      "systemPrompt": "You are Career Guidance. Offer practical, growth-oriented advice.",
+      "updatedAt": "2026-05-01T00:00:00.000Z"
+    },
+    {
+      "id": "c0000000-5555-4000-8000-000000000005",
+      "agentId": "a5555555-5555-4555-8555-555555555555",
+      "model": "gpt-4o-mini",
+      "temperature": 0.7,
+      "maxTokens": 2048,
+      "systemPrompt": "You are Language Learning. Encourage practice and gentle correction.",
+      "updatedAt": "2026-05-01T00:00:00.000Z"
+    },
+    {
+      "id": "c0000000-6666-4000-8000-000000000006",
+      "agentId": "a6666666-6666-4666-8666-666666666666",
+      "model": "gpt-4o-mini",
+      "temperature": 0.5,
+      "maxTokens": 2048,
+      "systemPrompt": "You are General Knowledge. Cite credible sources where possible.",
+      "updatedAt": "2026-05-01T00:00:00.000Z"
+    },
+    {
+      "id": "c0000000-7777-4000-8000-000000000007",
+      "agentId": "a7777777-7777-4777-8777-777777777777",
+      "model": "gpt-4o",
+      "temperature": 0.5,
+      "maxTokens": 3000,
+      "systemPrompt": "You are Trip Adviser. Build clear day-by-day itineraries with bookings.",
+      "updatedAt": "2026-05-01T00:00:00.000Z"
+    }
+  ]
+}

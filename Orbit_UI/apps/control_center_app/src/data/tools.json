@@ -1,0 +1,213 @@
+{
+  "tools": [
+    {
+      "id": "t0000000-0000-4000-8000-000000000001",
+      "name": "web_search",
+      "description": "Search the public web for up-to-date information.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "Search query" },
+          "max_results": { "type": "integer", "default": 5 }
+        },
+        "required": ["query"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000010",
+      "name": "search_hotels",
+      "description": "Search hotels by city and date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "city": { "type": "string" },
+          "check_in": { "type": "string", "format": "date" },
+          "check_out": { "type": "string", "format": "date" },
+          "guests": { "type": "integer", "default": 2 }
+        },
+        "required": ["city", "check_in", "check_out"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000011",
+      "name": "search_flights",
+      "description": "Find flights between two airports.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "origin": { "type": "string", "description": "IATA code, e.g. BLR" },
+          "destination": { "type": "string", "description": "IATA code, e.g. DXB" },
+          "depart_date": { "type": "string", "format": "date" },
+          "return_date": { "type": "string", "format": "date" },
+          "cabin": { "type": "string", "enum": ["economy", "premium", "business", "first"] }
+        },
+        "required": ["origin", "destination", "depart_date"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000012",
+      "name": "search_trains",
+      "description": "Search trains between stations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "from_station": { "type": "string" },
+          "to_station": { "type": "string" },
+          "date": { "type": "string", "format": "date" }
+        },
+        "required": ["from_station", "to_station", "date"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000013",
+      "name": "search_places",
+      "description": "Find points of interest near a location.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "near": { "type": "string", "description": "City or lat,lng" },
+          "category": {
+            "type": "string",
+            "enum": ["restaurant", "attraction", "museum", "park", "shopping"]
+          },
+          "radius_km": { "type": "number", "default": 5 }
+        },
+        "required": ["near"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000014",
+      "name": "create_itinerary",
+      "description": "Compose a day-by-day itinerary from selected items.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "destination": { "type": "string" },
+          "days": { "type": "integer", "minimum": 1, "maximum": 30 },
+          "interests": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["destination", "days"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000020",
+      "name": "search_notes",
+      "description": "Semantic search over the user's uploaded study notes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "top_k": { "type": "integer", "default": 5 }
+        },
+        "required": ["query"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000021",
+      "name": "generate_flashcards",
+      "description": "Generate flashcards from a topic or document.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": { "type": "string" },
+          "count": { "type": "integer", "default": 10 }
+        },
+        "required": ["topic"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000022",
+      "name": "summarize_document",
+      "description": "Produce a concise summary of an uploaded document.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "document_id": { "type": "string" },
+          "length": { "type": "string", "enum": ["short", "medium", "long"] }
+        },
+        "required": ["document_id"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000030",
+      "name": "run_code",
+      "description": "Execute a code snippet in a sandbox and return stdout/stderr.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "language": { "type": "string", "enum": ["python", "javascript", "typescript", "bash"] },
+          "source": { "type": "string" },
+          "stdin": { "type": "string" }
+        },
+        "required": ["language", "source"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000031",
+      "name": "lint_code",
+      "description": "Lint a code snippet and return diagnostics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "language": { "type": "string" },
+          "source": { "type": "string" }
+        },
+        "required": ["language", "source"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000032",
+      "name": "search_docs",
+      "description": "Search official language/library documentation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "language": { "type": "string" },
+          "query": { "type": "string" }
+        },
+        "required": ["language", "query"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000040",
+      "name": "review_resume",
+      "description": "Score and critique an uploaded resume.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "resume_id": { "type": "string" },
+          "target_role": { "type": "string" }
+        },
+        "required": ["resume_id"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "t0000000-0000-4000-8000-000000000041",
+      "name": "match_jobs",
+      "description": "Find jobs matching the user's profile.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "location": { "type": "string" },
+          "remote": { "type": "boolean" }
+        },
+        "required": ["query"]
+      },
+      "enabled": true
+    }
+  ]
+}

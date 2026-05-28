@@ -1,0 +1,10 @@
+[
+  { "id": "evt_9001", "type": "signup", "actor": "Daniel Petrov", "message": "Registered for a Starter trial.", "timestamp": "2026-05-28T08:14:00Z" },
+  { "id": "evt_9002", "type": "payment", "actor": "Liam Schneider", "message": "Paid $499.00 for Enterprise — May 2026.", "timestamp": "2026-05-28T07:50:00Z" },
+  { "id": "evt_9003", "type": "subscription", "actor": "Aaliyah Brooks", "message": "Subscription moved to past_due.", "timestamp": "2026-05-28T07:02:00Z" },
+  { "id": "evt_9004", "type": "login", "actor": "Kenji Watanabe", "message": "Signed in from Tokyo, Japan.", "timestamp": "2026-05-28T06:32:00Z" },
+  { "id": "evt_9005", "type": "support", "actor": "Hannah O'Connor", "message": "Opened ticket #4821 — Billing export.", "timestamp": "2026-05-28T05:48:00Z" },
+  { "id": "evt_9006", "type": "security", "actor": "Sofia Albright", "message": "Account suspended for policy violation.", "timestamp": "2026-05-27T21:11:00Z" },
+  { "id": "evt_9007", "type": "payment", "actor": "Felix Andersen", "message": "Paid $1,240.00 via bank transfer.", "timestamp": "2026-05-27T18:22:00Z" },
+  { "id": "evt_9008", "type": "signup", "actor": "Mateo Rivera", "message": "Invited to the workspace.", "timestamp": "2026-05-27T13:00:00Z" }
+]

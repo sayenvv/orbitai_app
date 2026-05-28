@@ -1,0 +1,158 @@
+{
+  "cards": [
+    {
+      "id": "ac000000-0000-4000-8000-000000000001",
+      "name": "Welcome Card",
+      "description": "Greeting card shown on first interaction.",
+      "payload": {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.5",
+        "body": [
+          {
+            "type": "TextBlock",
+            "size": "Large",
+            "weight": "Bolder",
+            "text": "Welcome!"
+          },
+          {
+            "type": "TextBlock",
+            "wrap": true,
+            "text": "How can I help you today?"
+          }
+        ],
+        "actions": [
+          {
+            "type": "Action.Submit",
+            "title": "Get Started",
+            "data": { "action": "start" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ac000000-0000-4000-8000-000000000002",
+      "name": "Hotel Result Card",
+      "description": "Single hotel result with image, price, and book action.",
+      "payload": {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.5",
+        "body": [
+          {
+            "type": "ColumnSet",
+            "columns": [
+              {
+                "type": "Column",
+                "width": "auto",
+                "items": [
+                  {
+                    "type": "Image",
+                    "url": "${imageUrl}",
+                    "size": "Medium",
+                    "style": "Person"
+                  }
+                ]
+              },
+              {
+                "type": "Column",
+                "width": "stretch",
+                "items": [
+                  { "type": "TextBlock", "weight": "Bolder", "text": "${hotelName}", "wrap": true },
+                  { "type": "TextBlock", "spacing": "None", "text": "${rating} ★", "isSubtle": true },
+                  { "type": "TextBlock", "text": "${pricePerNight} / night", "weight": "Bolder", "color": "Accent" }
+                ]
+              }
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "type": "Action.OpenUrl",
+            "title": "Book Now",
+            "url": "${bookingUrl}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ac000000-0000-4000-8000-000000000003",
+      "name": "Flight Result Card",
+      "description": "Flight summary with timings, duration, and fare.",
+      "payload": {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.5",
+        "body": [
+          {
+            "type": "TextBlock",
+            "text": "${airline}",
+            "weight": "Bolder",
+            "size": "Medium"
+          },
+          {
+            "type": "ColumnSet",
+            "columns": [
+              {
+                "type": "Column",
+                "width": "stretch",
+                "items": [
+                  { "type": "TextBlock", "text": "${depTime}", "size": "Large", "weight": "Bolder" },
+                  { "type": "TextBlock", "text": "${origin}", "spacing": "None", "isSubtle": true }
+                ]
+              },
+              {
+                "type": "Column",
+                "width": "auto",
+                "items": [
+                  { "type": "TextBlock", "text": "${duration}", "horizontalAlignment": "Center" },
+                  { "type": "TextBlock", "text": "${stops}", "spacing": "None", "horizontalAlignment": "Center", "isSubtle": true }
+                ]
+              },
+              {
+                "type": "Column",
+                "width": "stretch",
+                "items": [
+                  { "type": "TextBlock", "text": "${arrTime}", "size": "Large", "weight": "Bolder", "horizontalAlignment": "Right" },
+                  { "type": "TextBlock", "text": "${destination}", "spacing": "None", "isSubtle": true, "horizontalAlignment": "Right" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "TextBlock",
+            "text": "${fare}",
+            "weight": "Bolder",
+            "color": "Accent",
+            "horizontalAlignment": "Right"
+          }
+        ],
+        "actions": [
+          { "type": "Action.Submit", "title": "Select", "data": { "action": "select_flight" } }
+        ]
+      }
+    },
+    {
+      "id": "ac000000-0000-4000-8000-000000000004",
+      "name": "Confirmation Card",
+      "description": "Yes / no confirmation prompt.",
+      "payload": {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.5",
+        "body": [
+          {
+            "type": "TextBlock",
+            "text": "${message}",
+            "wrap": true,
+            "weight": "Bolder"
+          }
+        ],
+        "actions": [
+          { "type": "Action.Submit", "title": "Yes", "data": { "answer": "yes" }, "style": "positive" },
+          { "type": "Action.Submit", "title": "No", "data": { "answer": "no" }, "style": "destructive" }
+        ]
+      }
+    }
+  ]
+}

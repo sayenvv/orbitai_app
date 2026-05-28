@@ -1,0 +1,74 @@
+{
+  "agents": [
+    {
+      "id": "a1111111-1111-4111-8111-111111111111",
+      "slug": "study-helper",
+      "name": "Study Helper",
+      "shortName": "Study",
+      "description": "Help with study materials and notes",
+      "status": "active",
+      "iconKey": "BookOpen",
+      "colorKey": "indigo"
+    },
+    {
+      "id": "a2222222-2222-4222-8222-222222222222",
+      "slug": "job-search",
+      "name": "Job Search Assistant",
+      "shortName": "Jobs",
+      "description": "Resume & interview prep",
+      "status": "active",
+      "iconKey": "Briefcase",
+      "colorKey": "emerald"
+    },
+    {
+      "id": "a3333333-3333-4333-8333-333333333333",
+      "slug": "coding-tutor",
+      "name": "Coding Tutor",
+      "shortName": "Code",
+      "description": "Programming concepts & debugging",
+      "status": "active",
+      "iconKey": "Code",
+      "colorKey": "violet"
+    },
+    {
+      "id": "a4444444-4444-4444-8444-444444444444",
+      "slug": "career-guidance",
+      "name": "Career Guidance",
+      "shortName": "Career",
+      "description": "Career paths & growth plans",
+      "status": "draft",
+      "iconKey": "GraduationCap",
+      "colorKey": "amber"
+    },
+    {
+      "id": "a5555555-5555-4555-8555-555555555555",
+      "slug": "language-learning",
+      "name": "Language Learning",
+      "shortName": "Lang",
+      "description": "Grammar & conversation practice",
+      "status": "active",
+      "iconKey": "Languages",
+      "colorKey": "rose"
+    },
+    {
+      "id": "a6666666-6666-4666-8666-666666666666",
+      "slug": "general-knowledge",
+      "name": "General Knowledge",
+      "shortName": "General",
+      "description": "Science, history, math, more",
+      "status": "active",
+      "iconKey": "Brain",
+      "colorKey": "sky"
+    },
+    {
+      "id": "a7777777-7777-4777-8777-777777777777",
+      "slug": "trip-adviser",
+      "name": "Trip Adviser",
+      "shortName": "Trip",
+      "description": "Hotels, flights, itineraries",
+      "status": "active",
+      "iconKey": "Plane",
+      "colorKey": "indigo"
+    }
+  ]
+}

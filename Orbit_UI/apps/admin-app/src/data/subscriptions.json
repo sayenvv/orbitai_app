@@ -1,0 +1,13 @@
+[
+  { "id": "sub_001", "userId": "usr_02", "userName": "Liam Schneider", "userEmail": "liam@kraftworks.de", "plan": "enterprise", "status": "active", "mrr": 499, "startedAt": "2025-08-19T09:00:00Z", "renewsAt": "2026-06-19T09:00:00Z", "seats": 25 },
+  { "id": "sub_002", "userId": "usr_06", "userName": "Kenji Watanabe", "userEmail": "kenji@hibiki.jp", "plan": "enterprise", "status": "active", "mrr": 980, "startedAt": "2025-09-30T02:14:00Z", "renewsAt": "2026-06-30T02:14:00Z", "seats": 60 },
+  { "id": "sub_003", "userId": "usr_12", "userName": "Felix Andersen", "userEmail": "felix@nordlight.no", "plan": "enterprise", "status": "active", "mrr": 1240, "startedAt": "2025-07-04T12:00:00Z", "renewsAt": "2026-06-04T12:00:00Z", "seats": 80 },
+  { "id": "sub_004", "userId": "usr_01", "userName": "Ava Mitchell", "userEmail": "ava.mitchell@northwave.io", "plan": "pro", "status": "active", "mrr": 49, "startedAt": "2025-11-04T10:24:00Z", "renewsAt": "2026-06-04T10:24:00Z", "seats": 1 },
+  { "id": "sub_005", "userId": "usr_04", "userName": "Noah Kingsley", "userEmail": "noah@brightline.app", "plan": "pro", "status": "active", "mrr": 49, "startedAt": "2025-12-22T14:42:00Z", "renewsAt": "2026-06-22T14:42:00Z", "seats": 1 },
+  { "id": "sub_006", "userId": "usr_09", "userName": "Hannah O'Connor", "userEmail": "hannah@brewlane.ie", "plan": "pro", "status": "active", "mrr": 49, "startedAt": "2025-10-11T07:48:00Z", "renewsAt": "2026-06-11T07:48:00Z", "seats": 1 },
+  { "id": "sub_007", "userId": "usr_11", "userName": "Aaliyah Brooks", "userEmail": "aaliyah@verdant.co", "plan": "pro", "status": "past_due", "mrr": 49, "startedAt": "2025-11-30T09:09:00Z", "renewsAt": "2026-05-30T09:09:00Z", "seats": 1 },
+  { "id": "sub_008", "userId": "usr_07", "userName": "Camille Laurent", "userEmail": "camille@maison.fr", "plan": "starter", "status": "active", "mrr": 19, "startedAt": "2026-02-17T08:33:00Z", "renewsAt": "2026-06-17T08:33:00Z", "seats": 1 },
+  { "id": "sub_009", "userId": "usr_03", "userName": "Priya Raghavan", "userEmail": "priya.r@studio42.in", "plan": "starter", "status": "trialing", "mrr": 0, "startedAt": "2026-05-12T06:32:00Z", "renewsAt": "2026-06-12T06:32:00Z", "seats": 1 },
+  { "id": "sub_010", "userId": "usr_10", "userName": "Daniel Petrov", "userEmail": "daniel@northstar.bg", "plan": "starter", "status": "trialing", "mrr": 0, "startedAt": "2026-05-20T18:15:00Z", "renewsAt": "2026-06-20T18:15:00Z", "seats": 1 },
+  { "id": "sub_011", "userId": "usr_05", "userName": "Sofia Albright", "userEmail": "sofia.a@mosaicgroup.com", "plan": "pro", "status": "canceled", "mrr": 0, "startedAt": "2025-06-09T11:05:00Z", "renewsAt": "2026-03-14T16:00:00Z", "seats": 1 }
+]
