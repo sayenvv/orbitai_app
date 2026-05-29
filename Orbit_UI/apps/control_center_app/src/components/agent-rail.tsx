@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AGENTS } from "@/lib/agents";
+import { Loader2 } from "lucide-react";
+import { useControlAgents } from "@/hooks/use-control-agents";
 import { cn } from "@/lib/utils";
 
 type AgentRailProps = {
-  /** URL section prefix, e.g. "configuration", "widgets". The link becomes `/{section}/{agentId}`. */
   section: string;
 };
 
 export function AgentRail({ section }: AgentRailProps) {
   const params = useParams<{ agentId?: string }>();
   const activeId = params?.agentId;
+  const { data: agents = [], isLoading } = useControlAgents();
 
   return (
     <aside className="hidden lg:flex w-52 shrink-0 flex-col border-r bg-card/30">
@@ -22,9 +23,14 @@ export function AgentRail({ section }: AgentRailProps) {
         </p>
       </div>
       <nav className="flex-1 overflow-y-auto p-2">
-        {AGENTS.map((agent) => {
+        {isLoading && (
+          <div className="flex items-center justify-center py-6 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
+        )}
+        {agents.map((agent) => {
           const Icon = agent.icon;
-          const isActive = activeId === agent.id;
+          const isActive = activeId === agent.id || activeId === agent.slug;
           return (
             <Link
               key={agent.id}
@@ -33,13 +39,13 @@ export function AgentRail({ section }: AgentRailProps) {
                 "flex items-center gap-2 rounded-lg px-2.5 py-2 transition-colors group",
                 isActive
                   ? "bg-accent text-accent-foreground shadow-sm"
-                  : "hover:bg-accent/40 text-muted-foreground hover:text-foreground"
+                  : "hover:bg-accent/40 text-muted-foreground hover:text-foreground",
               )}
             >
               <div
                 className={cn(
                   "h-6 w-6 rounded-md flex items-center justify-center bg-gradient-to-br shrink-0",
-                  agent.color
+                  agent.color,
                 )}
               >
                 <Icon className="h-3 w-3 text-white" />

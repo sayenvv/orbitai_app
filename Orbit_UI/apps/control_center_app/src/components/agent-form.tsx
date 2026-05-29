@@ -1,10 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, ArrowLeft, Check, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Bot, ArrowLeft, Check, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { ICON_OPTIONS, COLOR_OPTIONS } from "@/lib/agent-options";
+import {
+  controlApi,
+  toAgentCreateBody,
+  toAgentUpdateBody,
+  ApiError,
+} from "@/lib/orbit-api";
+import {
+  validateAgentForm,
+  hasFieldErrors,
+  apiErrorToFieldErrors,
+  type AgentFieldErrors,
+} from "@/lib/agent-validation";
+import { FormAlert } from "@/components/form-alert";
+import { cn } from "@/lib/utils";
 
 function iconKeyFor(initial: AgentInitial | undefined): string {
   if (!initial) return "Bot";
@@ -38,9 +53,13 @@ export type AgentInitial = {
 type AgentFormProps = {
   mode: "create" | "edit";
   agent?: AgentInitial;
+  /** One-time banner after redirect from create flow. */
+  flashSuccess?: string;
 };
 
-export function AgentForm({ mode, agent }: AgentFormProps) {
+type TouchedFields = Partial<Record<keyof AgentFieldErrors, boolean>>;
+
+export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
   const router = useRouter();
   const [name, setName] = useState(agent?.name ?? "");
   const [slug, setSlug] = useState(agent?.slug ?? "");
@@ -53,7 +72,36 @@ export function AgentForm({ mode, agent }: AgentFormProps) {
     agent?.colorKey && COLOR_OPTIONS.some((c) => c.key === agent.colorKey) ? agent.colorKey : "indigo",
   );
   const [systemPrompt, setSystemPrompt] = useState("");
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [configLoading, setConfigLoading] = useState(mode === "edit");
+  const [configLoadError, setConfigLoadError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(flashSuccess ?? null);
+  const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<AgentFieldErrors>({});
+  const [touched, setTouched] = useState<TouchedFields>({});
+  const [submitted, setSubmitted] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!flashSuccess) return;
+    router.replace(window.location.pathname, { scroll: false });
+  }, [flashSuccess, router]);
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (mode !== "edit" || !agent?.id) return;
+    setConfigLoading(true);
+    setConfigLoadError(null);
+    controlApi
+      .getConfiguration(agent.id)
+      .then((cfg) => setSystemPrompt(cfg.system_prompt))
+      .catch(() => setConfigLoadError("Could not load system prompt. You can still save other changes."))
+      .finally(() => setConfigLoading(false));
+  }, [mode, agent?.id]);
 
   const SelectedIcon = useMemo(
     () => ICON_OPTIONS.find((o) => o.key === iconKey)?.icon ?? Bot,
@@ -64,48 +112,97 @@ export function AgentForm({ mode, agent }: AgentFormProps) {
     [colorKey],
   );
 
-  const slugValid = /^[a-z0-9-]{2,}$/.test(slug);
-  const canSave = name.trim().length > 1 && slugValid;
+  const formValues = {
+    name,
+    slug,
+    shortName,
+    description,
+    systemPrompt,
+  };
+
+  function showFieldError(key: keyof AgentFieldErrors): string | undefined {
+    if (!submitted && !touched[key]) return undefined;
+    return fieldErrors[key];
+  }
+
+  function touchField(key: keyof AgentFieldErrors) {
+    setTouched((prev) => ({ ...prev, [key]: true }));
+    const errors = validateAgentForm(formValues, { mode });
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      if (errors[key]) next[key] = errors[key];
+      return next;
+    });
+  }
 
   function handleNameChange(v: string) {
     setName(v);
     if (!slugTouched) setSlug(slugify(v));
+    if (submitted || touched.name) {
+      const errors = validateAgentForm({ ...formValues, name: v }, { mode });
+      setFieldErrors((prev) => ({ ...prev, name: errors.name }));
+    }
   }
 
-  function handleSave() {
-    if (!canSave) return;
-    // No backend persistence yet — stores into a local "draft" snapshot.
-    const now = new Date();
-    setSavedAt(now.toLocaleTimeString());
-    if (typeof window !== "undefined") {
-      const payload = {
-        id: agent?.id,
-        slug,
-        name,
-        shortName: shortName || name.split(" ")[0],
-        description,
+  async function handleSave() {
+    if (saving) return;
+    setSubmitted(true);
+    setSuccessMessage(null);
+
+    const errors = validateAgentForm(formValues, { mode });
+    setFieldErrors(errors);
+    if (hasFieldErrors(errors)) return;
+
+    setSaving(true);
+    try {
+      const body = {
+        name: name.trim(),
+        shortName: (shortName.trim() || name.trim().split(" ")[0]) ?? "",
+        description: description.trim(),
         status,
         iconKey,
         colorKey,
-        gradient: selectedColor.gradient,
-        systemPrompt,
-        updatedAt: now.toISOString(),
       };
-      const key = mode === "create" ? "admin:agents:drafts" : `admin:agents:edit:${agent?.id}`;
-      try {
-        if (mode === "create") {
-          const raw = window.localStorage.getItem(key);
-          const list = raw ? JSON.parse(raw) : [];
-          list.push(payload);
-          window.localStorage.setItem(key, JSON.stringify(list));
-        } else {
-          window.localStorage.setItem(key, JSON.stringify(payload));
+
+      if (mode === "create") {
+        const created = await controlApi.createAgent(
+          toAgentCreateBody({ slug, ...body }),
+        );
+        if (systemPrompt.trim()) {
+          await controlApi.updateConfiguration(created.id, {
+            system_prompt: systemPrompt.trim(),
+          });
         }
-      } catch {
-        // ignore quota errors
+        await queryClient.invalidateQueries({ queryKey: ["control", "agents"] });
+        router.push(`/agents/${created.id}/edit?created=1`);
+        return;
       }
+
+      if (!agent?.id) return;
+      await controlApi.updateAgent(agent.id, toAgentUpdateBody(body));
+      if (systemPrompt.trim()) {
+        await controlApi.updateConfiguration(agent.id, {
+          system_prompt: systemPrompt.trim(),
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: ["control", "agents"] });
+      await queryClient.invalidateQueries({ queryKey: ["control", "agents", agent.id] });
+      setFieldErrors({});
+      setSuccessMessage("Changes saved successfully.");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors(apiErrorToFieldErrors(err.message, err.status));
+      } else {
+        setFieldErrors({ form: "Save failed. Try again." });
+      }
+    } finally {
+      setSaving(false);
     }
   }
+
+  const validationSummary =
+    submitted && hasFieldErrors(fieldErrors) ? "Fix the highlighted fields before saving." : null;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -117,13 +214,31 @@ export function AgentForm({ mode, agent }: AgentFormProps) {
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to agents
         </Link>
-        {savedAt && (
-          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
-            <Check className="h-3 w-3" />
-            Saved at {savedAt}
-          </span>
-        )}
       </div>
+
+      {successMessage && (
+        <FormAlert variant="success" title="Success">
+          {successMessage}
+        </FormAlert>
+      )}
+
+      {fieldErrors.form && (
+        <FormAlert variant="error" title="Could not save">
+          {fieldErrors.form}
+        </FormAlert>
+      )}
+
+      {validationSummary && !fieldErrors.form && (
+        <FormAlert variant="error" title="Validation failed">
+          {validationSummary}
+        </FormAlert>
+      )}
+
+      {configLoadError && (
+        <FormAlert variant="info" title="Configuration">
+          {configLoadError}
+        </FormAlert>
+      )}
 
       {/* Preview card */}
       <div className="rounded-xl border bg-gradient-to-br from-card to-card/40 p-5">
@@ -166,19 +281,21 @@ export function AgentForm({ mode, agent }: AgentFormProps) {
           <p className="text-xs text-muted-foreground mt-0.5">Basic information about this agent.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Name" required>
+          <Field label="Name" required error={showFieldError("name")}>
             <input
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
+              onBlur={() => touchField("name")}
               placeholder="e.g. Trip Adviser"
-              className="form-input"
+              className={inputClass(showFieldError("name"))}
+              aria-invalid={Boolean(showFieldError("name"))}
             />
           </Field>
           <Field
             label="Slug"
             required
-            hint={slug && !slugValid ? "Lowercase letters, numbers, and dashes only." : "Used in URLs."}
-            error={!!slug && !slugValid}
+            hint={mode === "edit" ? "Slug cannot be changed after creation." : "Used in URLs."}
+            error={showFieldError("slug")}
           >
             <input
               value={slug}
@@ -186,17 +303,21 @@ export function AgentForm({ mode, agent }: AgentFormProps) {
                 setSlug(e.target.value);
                 setSlugTouched(true);
               }}
+              onBlur={() => touchField("slug")}
               placeholder="trip-adviser"
-              className="form-input font-mono"
+              className={cn(inputClass(showFieldError("slug")), "font-mono")}
               disabled={mode === "edit"}
+              aria-invalid={Boolean(showFieldError("slug"))}
             />
           </Field>
-          <Field label="Short name" hint="Compact label used in tight UI.">
+          <Field label="Short name" hint="Compact label used in tight UI." error={showFieldError("shortName")}>
             <input
               value={shortName}
               onChange={(e) => setShortName(e.target.value)}
+              onBlur={() => touchField("shortName")}
               placeholder="Trip"
-              className="form-input"
+              className={inputClass(showFieldError("shortName"))}
+              aria-invalid={Boolean(showFieldError("shortName"))}
             />
           </Field>
           <Field label="Status">
@@ -219,13 +340,15 @@ export function AgentForm({ mode, agent }: AgentFormProps) {
             </div>
           </Field>
           <div className="md:col-span-2">
-            <Field label="Description">
+            <Field label="Description" error={showFieldError("description")}>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                onBlur={() => touchField("description")}
                 placeholder="One-line summary of what this agent does."
                 rows={2}
-                className="form-input resize-none"
+                className={cn(inputClass(showFieldError("description")), "resize-none")}
+                aria-invalid={Boolean(showFieldError("description"))}
               />
             </Field>
           </div>
@@ -293,14 +416,23 @@ export function AgentForm({ mode, agent }: AgentFormProps) {
             Starter system prompt — full model and tool settings live in Configuration & Tools tabs.
           </p>
         </div>
-        <Field label="System prompt">
-          <textarea
-            value={systemPrompt}
-            onChange={(e) => setSystemPrompt(e.target.value)}
-            placeholder="You are a helpful assistant that..."
-            rows={5}
-            className="form-input font-mono text-[12px] resize-y"
-          />
+        <Field label="System prompt" error={showFieldError("systemPrompt")}>
+          {configLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading system prompt…
+            </div>
+          ) : (
+            <textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              onBlur={() => touchField("systemPrompt")}
+              placeholder="You are a helpful assistant that..."
+              rows={5}
+              className={cn(inputClass(showFieldError("systemPrompt")), "font-mono text-[12px] resize-y")}
+              aria-invalid={Boolean(showFieldError("systemPrompt"))}
+            />
+          )}
         </Field>
       </section>
 
@@ -327,16 +459,31 @@ export function AgentForm({ mode, agent }: AgentFormProps) {
           </Link>
           <button
             type="button"
-            onClick={handleSave}
-            disabled={!canSave}
+            onClick={() => void handleSave()}
+            disabled={saving}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Check className="h-3.5 w-3.5" />
-            {mode === "create" ? "Create agent" : "Save changes"}
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+            {saving
+              ? "Saving…"
+              : mode === "create"
+                ? "Create agent"
+                : "Save changes"}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function inputClass(error?: string) {
+  return cn(
+    "form-input",
+    error && "border-destructive focus-visible:ring-destructive/30",
   );
 }
 
@@ -350,7 +497,7 @@ function Field({
   label: string;
   required?: boolean;
   hint?: string;
-  error?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -360,15 +507,11 @@ function Field({
         {required && <span className="text-destructive ml-0.5">*</span>}
       </span>
       {children}
-      {hint && (
-        <span
-          className={
-            "block text-[10px] " + (error ? "text-destructive" : "text-muted-foreground/70")
-          }
-        >
-          {hint}
-        </span>
-      )}
+      {error ? (
+        <span className="block text-[10px] text-destructive">{error}</span>
+      ) : hint ? (
+        <span className="block text-[10px] text-muted-foreground/70">{hint}</span>
+      ) : null}
     </label>
   );
 }
