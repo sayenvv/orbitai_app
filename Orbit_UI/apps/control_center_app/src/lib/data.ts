@@ -1,45 +1,18 @@
 /**
  * Data access layer for the control center app.
  *
- * Today: reads from local JSON files under `src/data/`.
- * Later: swap the body of each function to call a real API.
+ * Agents are loaded from the Orbit API (`controlApi` / `serverControlApi`).
+ * Other entities still read from local JSON under `src/data/` until wired to API.
  *
  * Conventions:
  *  - Every entity has a UUID `id`.
  *  - Agents also carry a human-readable `slug` for URL routing.
- *  - Cross-entity references (configurations, tools, widgets, personalization)
- *    use the UUID `agentId`.
+ *  - Cross-entity references use the UUID `agentId`.
  */
 
-import {
-  BookOpen,
-  Briefcase,
-  Code,
-  GraduationCap,
-  Languages,
-  Brain,
-  Plane,
-  Bot,
-  Sparkles,
-  Compass,
-  Heart,
-  Music,
-  ShoppingBag,
-  Camera,
-  Rocket,
-  MessageSquare,
-  Hotel,
-  Train,
-  Bus,
-  MapPin,
-  FileText,
-  BarChart3,
-  Image as ImageIcon,
-  Code2,
-  type LucideIcon,
-} from "lucide-react";
+import { type LucideIcon } from "lucide-react";
+import { resolveAgentIcon, resolveAgentGradient } from "@orbit/ui";
 
-import agentsData from "@/data/agents.json";
 import toolsData from "@/data/tools.json";
 import agentToolsData from "@/data/agent-tools.json";
 import configurationsData from "@/data/configurations.json";
@@ -129,50 +102,12 @@ export type AdaptiveCardDefinition = {
 
 // ---------- Icon & color resolution ----------
 
-const ICON_MAP: Record<string, LucideIcon> = {
-  BookOpen,
-  Briefcase,
-  Code,
-  GraduationCap,
-  Languages,
-  Brain,
-  Plane,
-  Bot,
-  Sparkles,
-  Compass,
-  Heart,
-  Music,
-  ShoppingBag,
-  Camera,
-  Rocket,
-  MessageSquare,
-  Hotel,
-  Train,
-  Bus,
-  MapPin,
-  FileText,
-  BarChart3,
-  Image: ImageIcon,
-  Code2,
-};
-
-const COLOR_MAP: Record<string, string> = {
-  indigo: "from-blue-500 to-indigo-600",
-  emerald: "from-emerald-500 to-teal-600",
-  violet: "from-purple-500 to-violet-600",
-  amber: "from-orange-500 to-amber-600",
-  rose: "from-pink-500 to-rose-600",
-  sky: "from-cyan-500 to-sky-600",
-  fuchsia: "from-fuchsia-500 to-pink-600",
-  slate: "from-slate-500 to-zinc-700",
-};
-
 export function resolveIcon(iconKey: string): LucideIcon {
-  return ICON_MAP[iconKey] ?? Bot;
+  return resolveAgentIcon(iconKey);
 }
 
 export function resolveGradient(colorKey: string): string {
-  return COLOR_MAP[colorKey] ?? COLOR_MAP.indigo;
+  return resolveAgentGradient(colorKey);
 }
 
 function hydrateAgent(record: AgentRecord): Agent {
@@ -191,36 +126,6 @@ export function hydrateAgentRecord(record: AgentRecord): Agent {
 function hydrateWidget(def: WidgetDefinition): Widget {
   return { ...def, icon: resolveIcon(def.iconKey) };
 }
-
-// ---------- Agents ----------
-
-const AGENT_RECORDS: AgentRecord[] = (agentsData as { agents: AgentRecord[] }).agents;
-const AGENT_LIST: Agent[] = AGENT_RECORDS.map(hydrateAgent);
-
-export function listAgents(): Agent[] {
-  return AGENT_LIST;
-}
-
-export function getAgentById(id: string): Agent | undefined {
-  return AGENT_LIST.find((a) => a.id === id);
-}
-
-export function getAgentBySlug(slug: string): Agent | undefined {
-  return AGENT_LIST.find((a) => a.slug === slug);
-}
-
-/**
- * Resolve a route param to an Agent.
- * The `[agentId]` dynamic segment may carry either a UUID or a slug —
- * this helper accepts either, so URLs stay friendly while internal
- * references remain UUID-based.
- */
-export function getAgentByIdOrSlug(idOrSlug: string): Agent | undefined {
-  return getAgentById(idOrSlug) ?? getAgentBySlug(idOrSlug);
-}
-
-export const DEFAULT_AGENT_ID: string = AGENT_LIST[0]?.id ?? "";
-export const DEFAULT_AGENT_SLUG: string = AGENT_LIST[0]?.slug ?? "";
 
 // ---------- Tools ----------
 

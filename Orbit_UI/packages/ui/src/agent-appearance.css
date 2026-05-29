@@ -1,0 +1,7 @@
+.agent-card-tint {
+  background-color: var(--agent-card-bg);
+}
+
+.dark .agent-card-tint {
+  background-color: var(--agent-card-bg-dark);
+}

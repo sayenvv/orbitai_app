@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { DEFAULT_AGENT_ID } from "@/lib/data";
+import { redirectToDefaultAgent } from "@/lib/agent-redirect";
 
-export default function AdaptiveCardsIndex() {
-  redirect(`/adaptive-cards/${DEFAULT_AGENT_ID}`);
+export default async function AdaptiveCardsIndex() {
+  await redirectToDefaultAgent("adaptive-cards");
 }

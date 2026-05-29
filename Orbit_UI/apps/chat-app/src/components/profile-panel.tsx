@@ -13,8 +13,10 @@ import {
   CheckCircle2,
   AlertCircle,
   KeyRound,
+  LogOut,
 } from "lucide-react";
 import { authApi, mapApiUser } from "@/lib/orbit-api";
+import { useServerLogout } from "@/hooks/use-auth";
 
 interface ProfilePanelProps {
   open: boolean;
@@ -23,6 +25,7 @@ interface ProfilePanelProps {
 
 export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   const { user, setUser } = useAuthStore();
+  const handleSignOut = useServerLogout();
   const [name, setName] = useState(user?.name || "");
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -305,6 +308,19 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="shrink-0 border-t px-6 py-4">
+          <button
+            type="button"
+            onClick={() => {
+              void handleSignOut().then(onClose);
+            }}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-destructive/30 px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
         </div>
       </div>
     </div>

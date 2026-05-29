@@ -15,7 +15,17 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfilePanel } from "@/components/profile-panel";
 import { LoginModal } from "@/components/login-modal";
 
-export function ChatInterface({ initialSource, agentId }: { initialSource?: StudySource | null; agentId?: string }) {
+export function ChatInterface({
+  initialSource,
+  agentId,
+  initialConversationId,
+  initialPrompt,
+}: {
+  initialSource?: StudySource | null;
+  agentId?: string;
+  initialConversationId?: string;
+  initialPrompt?: string;
+}) {
   const {
     conversations,
     activeConversationId,
@@ -46,33 +56,66 @@ export function ChatInterface({ initialSource, agentId }: { initialSource?: Stud
   const [selectedSource, setSelectedSource] = useState<StudySource | null>(initialSource ?? null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const initialLoadRef = useRef(false);
+  const promptSentRef = useRef(false);
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
 
   // Load conversations from API
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setConversationsLoaded(true);
+      return;
+    }
     const loadConversations = async () => {
       try {
         const data = await chatApi.listConversations();
         setConversations(data.data.map(mapConversationSummary));
       } catch {
         // silently fail
+      } finally {
+        setConversationsLoaded(true);
       }
     };
-    loadConversations();
+    void loadConversations();
   }, [isAuthenticated, setConversations]);
 
   // Load conversation messages when selecting one
   const loadConversationMessages = useCallback(async (id: string) => {
     setActiveConversation(id);
     const conv = conversations.find((c) => c.id === id);
-    if (conv && conv.messages.length > 0) return; // already loaded
+    if (conv && conv.messages.length > 0) return;
     try {
       const data = await chatApi.getConversation(id);
-      data.messages.map(mapMessage).forEach((msg) => addMessage(id, msg));
+      const messages = data.messages.map(mapMessage);
+      if (!conv) {
+        addConversation({
+          id,
+          title: "Chat",
+          messages,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      } else {
+        messages.forEach((msg) => addMessage(id, msg));
+      }
     } catch {
       // silently fail
     }
-  }, [conversations, setActiveConversation, addMessage]);
+  }, [conversations, setActiveConversation, addConversation, addMessage]);
+
+  // Open conversation from URL query param
+  useEffect(() => {
+    if (!initialConversationId || !isAuthenticated || !conversationsLoaded || initialLoadRef.current) {
+      return;
+    }
+    initialLoadRef.current = true;
+    void loadConversationMessages(initialConversationId);
+  }, [
+    initialConversationId,
+    isAuthenticated,
+    conversationsLoaded,
+    loadConversationMessages,
+  ]);
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -170,10 +213,6 @@ export function ChatInterface({ initialSource, agentId }: { initialSource?: Stud
     }
   };
 
-  const handleNewChat = () => {
-    setActiveConversation(null);
-  };
-
   const handleDeleteConversation = async (id: string) => {
     try {
       await chatApi.deleteConversation(id);
@@ -183,6 +222,14 @@ export function ChatInterface({ initialSource, agentId }: { initialSource?: Stud
     deleteConversation(id);
   };
 
+  // Send hero prompt from URL once
+  useEffect(() => {
+    if (!initialPrompt?.trim() || promptSentRef.current) return;
+    promptSentRef.current = true;
+    void handleSendMessage(initialPrompt.trim());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt]);
+
   return (
     <div className="flex h-full bg-background">
       {isAuthenticated && sidebarOpen && (
@@ -190,7 +237,6 @@ export function ChatInterface({ initialSource, agentId }: { initialSource?: Stud
           conversations={conversations}
           activeId={activeConversationId}
           onSelect={loadConversationMessages}
-          onNewChat={handleNewChat}
           onDelete={handleDeleteConversation}
         />
       )}

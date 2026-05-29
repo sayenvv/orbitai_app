@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { DEFAULT_AGENT_ID } from "@/lib/data";
+import { redirectToDefaultAgent } from "@/lib/agent-redirect";
 
-export default function PersonalizationIndex() {
-  redirect(`/personalization/${DEFAULT_AGENT_ID}`);
+export default async function PersonalizationIndex() {
+  await redirectToDefaultAgent("personalization");
 }

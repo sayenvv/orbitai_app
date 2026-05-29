@@ -41,6 +41,7 @@ class Agent(Base):
         back_populates="agent", uselist=False
     )
     agent_tools: Mapped[list["AgentTool"]] = relationship(back_populates="agent")
+    conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent")
 
 
 class AgentConfiguration(Base):
@@ -104,6 +105,7 @@ class Conversation(Base):
     )
 
     user: Mapped["User | None"] = relationship(back_populates="conversations")
+    agent: Mapped["Agent | None"] = relationship(back_populates="conversations")
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation", order_by="Message.created_at"
     )

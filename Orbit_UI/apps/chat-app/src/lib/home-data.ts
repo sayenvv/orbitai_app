@@ -1,23 +1,6 @@
-import {
-  BookOpen,
-  Briefcase,
-  Brain,
-  Code,
-  GraduationCap,
-  Languages,
-  Plane,
-  type LucideIcon,
-} from "lucide-react";
+import { buildHomeAgent, type HomeAgent } from "@/lib/agent-display";
 
-export type HomeAgent = {
-  id: string;
-  name: string;
-  shortName: string;
-  description: string;
-  icon: LucideIcon;
-  color: string;
-  bgColor: string;
-};
+export type { HomeAgent };
 
 export type LibraryItem = {
   id: string;
@@ -36,71 +19,67 @@ export const libraryItems: LibraryItem[] = [
   { id: "l6", title: "Algorithms cheat sheet (PDF)", type: "Upload", source: "My uploads", date: "Last week" },
 ];
 
-export const agents: HomeAgent[] = [
+/** Offline fallback when the public agents API is unavailable. */
+const FALLBACK_AGENT_SEEDS = [
   {
     id: "study-helper",
     name: "Study Helper",
     shortName: "Study",
     description: "Get help with study materials, notes, and exam preparation",
-    icon: BookOpen,
-    color: "from-blue-500 to-indigo-600",
-    bgColor: "bg-blue-50 dark:bg-blue-950/30",
+    iconKey: "BookOpen",
+    colorKey: "indigo",
   },
   {
     id: "job-search",
     name: "Job Search Assistant",
     shortName: "Jobs",
     description: "Resume tips, interview prep, and job hunting strategies",
-    icon: Briefcase,
-    color: "from-emerald-500 to-teal-600",
-    bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+    iconKey: "Briefcase",
+    colorKey: "emerald",
   },
   {
     id: "coding-tutor",
     name: "Coding Tutor",
     shortName: "Code",
     description: "Learn programming concepts, debug code, and build projects",
-    icon: Code,
-    color: "from-purple-500 to-violet-600",
-    bgColor: "bg-purple-50 dark:bg-purple-950/30",
+    iconKey: "Code",
+    colorKey: "violet",
   },
   {
     id: "career-guidance",
     name: "Career Guidance",
     shortName: "Career",
     description: "Explore career paths, skill development, and growth plans",
-    icon: GraduationCap,
-    color: "from-orange-500 to-amber-600",
-    bgColor: "bg-orange-50 dark:bg-orange-950/30",
+    iconKey: "GraduationCap",
+    colorKey: "amber",
   },
   {
     id: "language-learning",
     name: "Language Learning",
     shortName: "Language",
     description: "Practice languages, grammar help, and conversation practice",
-    icon: Languages,
-    color: "from-pink-500 to-rose-600",
-    bgColor: "bg-pink-50 dark:bg-pink-950/30",
+    iconKey: "Languages",
+    colorKey: "rose",
   },
   {
     id: "general-knowledge",
     name: "General Knowledge",
     shortName: "Ask",
     description: "Ask anything — science, history, math, and more",
-    icon: Brain,
-    color: "from-cyan-500 to-sky-600",
-    bgColor: "bg-cyan-50 dark:bg-cyan-950/30",
+    iconKey: "Brain",
+    colorKey: "sky",
   },
   {
     id: "trip-adviser",
     name: "Trip Adviser",
     shortName: "Travel",
     description: "Plan trips, find destinations, hotels, flights, and itineraries",
-    icon: Plane,
-    color: "from-orange-500 to-rose-600",
-    bgColor: "bg-orange-50 dark:bg-orange-950/30",
+    iconKey: "Plane",
+    colorKey: "sunset",
   },
-];
+] as const;
+
+export const agents: HomeAgent[] = FALLBACK_AGENT_SEEDS.map(buildHomeAgent);
 
 export function getGreeting(): string {
   const hour = new Date().getHours();

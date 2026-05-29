@@ -34,6 +34,23 @@ export type ApiConversationSummary = {
   title: string;
   created_at: string;
   updated_at: string;
+  agent_id?: string | null;
+  agent_slug?: string | null;
+  agent_name?: string | null;
+  agent_short_name?: string | null;
+  icon_key?: string | null;
+  color_key?: string | null;
+};
+
+export type GeneratedMaterial = {
+  id: string;
+  title: string;
+  type: string;
+  agentSlug: string;
+  agentName: string;
+  iconKey: string;
+  colorKey: string;
+  date: string;
 };
 
 export type ApiMessage = {
@@ -234,6 +251,12 @@ export function mapConversationSummary(raw: ApiConversationSummary): Conversatio
     messages: [],
     createdAt: new Date(raw.created_at),
     updatedAt: new Date(raw.updated_at),
+    agentId: raw.agent_id ?? null,
+    agentSlug: raw.agent_slug ?? null,
+    agentName: raw.agent_name ?? null,
+    agentShortName: raw.agent_short_name ?? null,
+    iconKey: raw.icon_key ?? null,
+    colorKey: raw.color_key ?? null,
   };
 }
 
