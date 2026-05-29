@@ -26,13 +26,11 @@ export default async function ChatPage({ searchParams }: { searchParams: SearchP
   }
 
   return (
-    <main className="flex h-screen flex-col">
-      <ChatInterface
-        initialSource={initialSource}
-        agentId={agent}
-        initialConversationId={conversation}
-        initialPrompt={prompt}
-      />
-    </main>
+    <ChatInterface
+      initialSource={initialSource}
+      agentId={agent}
+      initialConversationId={conversation}
+      initialPrompt={prompt}
+    />
   );
 }
