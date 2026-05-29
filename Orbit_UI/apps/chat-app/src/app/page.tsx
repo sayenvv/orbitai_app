@@ -61,7 +61,7 @@ export default function HomePage() {
   );
 
   // Mock subscription data - in real app, this would come from user data
-  const userSubscription = user?.subscription as any || { plan: "free" };
+  const userSubscription = (user?.subscription as { plan?: string } | undefined) ?? { plan: "free" };
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -153,7 +153,7 @@ export default function HomePage() {
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Desktop sidebar rail */}
         <aside
-          className={`hidden lg:flex ${sidebarWidthClass} flex-col border border-border/60 bg-card/90 px-2 py-4 shadow-[0_20px_50px_-18px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-[width,background-color,box-shadow] duration-300 ease-out will-change-[width]`}
+          className={`hidden lg:flex ${sidebarWidthClass} flex-col border border-border/60 bg-card/90 px-2 py-4 shadow-[0_24px_54px_-20px_rgba(15,23,42,0.48),0_10px_22px_-12px_rgba(15,23,42,0.28)] backdrop-blur-xl transition-[width,background-color,box-shadow] duration-300 ease-out will-change-[width]`}
           style={{ width: sidebarOpen ? 256 : 80 }}
         >
           <div className="mb-6 flex items-center justify-center">
@@ -206,16 +206,16 @@ export default function HomePage() {
 
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 z-40 items-center justify-center w-5.5 h-12 bg-card/95 text-muted-foreground hover:text-foreground hover:bg-card backdrop-blur-sm transition-[left,opacity,transform] duration-300 ease-in-out border border-l-0 border-border/60 hover:border-border rounded-r-md opacity-75 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)] ${sidebarOpen ? "left-[16rem]" : "left-[5rem]"}`}
+          className={`hidden lg:flex absolute top-4 z-40 items-center justify-center h-14 w-6 rounded-r-md border border-border/70 bg-card/98 text-foreground shadow-[0_18px_40px_-16px_rgba(15,23,42,0.55),0_8px_18px_-10px_rgba(15,23,42,0.35)] backdrop-blur-xl transition-[left,opacity,transform,background-color] duration-300 ease-out hover:bg-card hover:text-foreground ${sidebarOpen ? "left-[16rem]" : "left-[5rem]"}`}
           title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {sidebarOpen ? (
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.25} viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           ) : (
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.25} viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           )}
