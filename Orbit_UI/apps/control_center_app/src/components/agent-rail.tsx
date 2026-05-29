@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useControlAgents } from "@/hooks/use-control-agents";
+import { AgentListingIcon } from "@orbit/ui";
 import { cn } from "@/lib/utils";
 
 type AgentRailProps = {
@@ -29,7 +30,6 @@ export function AgentRail({ section }: AgentRailProps) {
           </div>
         )}
         {agents.map((agent) => {
-          const Icon = agent.icon;
           const isActive = activeId === agent.id || activeId === agent.slug;
           return (
             <Link
@@ -42,14 +42,12 @@ export function AgentRail({ section }: AgentRailProps) {
                   : "hover:bg-accent/40 text-muted-foreground hover:text-foreground",
               )}
             >
-              <div
-                className={cn(
-                  "h-6 w-6 rounded-md flex items-center justify-center bg-gradient-to-br shrink-0",
-                  agent.color,
-                )}
-              >
-                <Icon className="h-3 w-3 text-white" />
-              </div>
+              <AgentListingIcon
+                iconKey={agent.iconKey}
+                colorKey={agent.colorKey}
+                className="h-6 w-6 rounded-md p-0 shrink-0"
+                iconClassName="h-3 w-3"
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-[12px] font-medium truncate leading-none">{agent.name}</p>
                 <p className="text-[10px] text-muted-foreground mt-1 leading-none truncate">

@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { DEFAULT_AGENT_ID } from "@/lib/data";
+import { redirectToDefaultAgent } from "@/lib/agent-redirect";
 
-export default function WidgetsIndex() {
-  redirect(`/widgets/${DEFAULT_AGENT_ID}`);
+export default async function WidgetsIndex() {
+  await redirectToDefaultAgent("widgets");
 }

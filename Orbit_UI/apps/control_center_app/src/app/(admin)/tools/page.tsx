@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { DEFAULT_AGENT_ID } from "@/lib/data";
+import { redirectToDefaultAgent } from "@/lib/agent-redirect";
 
-export default function ToolsIndex() {
-  redirect(`/tools/${DEFAULT_AGENT_ID}`);
+export default async function ToolsIndex() {
+  await redirectToDefaultAgent("tools");
 }

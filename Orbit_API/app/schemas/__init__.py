@@ -72,6 +72,12 @@ class ConversationSummary(BaseModel):
     title: str
     created_at: datetime
     updated_at: datetime
+    agent_id: UUID | None = None
+    agent_slug: str | None = None
+    agent_name: str | None = None
+    agent_short_name: str | None = None
+    icon_key: str | None = None
+    color_key: str | None = None
 
     model_config = {"from_attributes": True}
 

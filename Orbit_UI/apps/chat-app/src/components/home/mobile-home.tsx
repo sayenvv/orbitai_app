@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowUp,
@@ -8,13 +8,22 @@ import {
   FolderOpen,
   LogIn,
   Menu,
-  MessageSquare,
   Paperclip,
   Sparkles,
   X,
 } from "lucide-react";
 import { LibraryPicker } from "@/components/home/library-picker";
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
+import {
+  MainAgentsPanel,
+  MainLibraryPanel,
+  SidebarRecentsList,
+  SidebarSectionNav,
+  type SidebarSection,
+} from "@/components/home/app-sidebar-panels";
+import { useSidebarChats } from "@/hooks/use-sidebar-chats";
+import { useGeneratedMaterials } from "@/hooks/use-generated-materials";
+import { AgentListingIcon } from "@orbit/ui";
 import { getGreeting, libraryItems, routeForAgent } from "@/lib/home-data";
 import { useAgents } from "@/hooks/use-agents";
 
@@ -25,7 +34,6 @@ type MobileHomeProps = {
   onSignIn: () => void;
   onSignUp: () => void;
   onProfile: () => void;
-  onHistory: () => void;
   onOpenSupport: () => void;
 };
 
@@ -36,15 +44,18 @@ export function MobileHome({
   onSignIn,
   onSignUp,
   onProfile,
-  onHistory,
   onOpenSupport,
 }: MobileHomeProps) {
-  const { agents } = useAgents();
+  const { agents, loading: agentsLoading } = useAgents();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const libraryButtonRef = useRef<HTMLButtonElement>(null);
   const [message, setMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarSection, setSidebarSection] = useState<SidebarSection>("home");
+  const [mainSection, setMainSection] = useState<SidebarSection>("home");
+  const { conversations, loading: chatsLoading, removeConversation } = useSidebarChats();
+  const { materials, loading: materialsLoading } = useGeneratedMaterials();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
@@ -66,6 +77,27 @@ export function MobileHome({
   const openSupport = () => {
     setSidebarOpen(false);
     onOpenSupport();
+  };
+
+  const openSidebar = () => {
+    setSidebarOpen(true);
+  };
+
+  const handleSectionChange = (section: SidebarSection) => {
+    setSidebarSection(section);
+    setMainSection(section);
+    if (section === "library" || section === "agents") setSidebarOpen(false);
+  };
+
+  const handleNewChat = () => {
+    setSidebarSection("home");
+    setMainSection("home");
+    setSidebarOpen(false);
+  };
+
+  const openChat = (id: string) => {
+    setSidebarOpen(false);
+    router.push(`/c?conversation=${encodeURIComponent(id)}`);
   };
 
   return (
@@ -91,11 +123,11 @@ export function MobileHome({
         <div className="flex items-center gap-1">
           {isAuthenticated && (
             <button
-              onClick={onHistory}
+              onClick={openSidebar}
               className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-              aria-label="History"
+              aria-label="Menu"
             >
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
             </button>
           )}
           {isAuthenticated ? (
@@ -142,35 +174,35 @@ export function MobileHome({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-3">
-              <div className="space-y-3">
-                <button
-                  onClick={() => { setSidebarOpen(false); router.push("/"); }}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
-                >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Sparkles className="h-4 w-4" />
-                  </span>
-                  <span>
-                    <span className="block">Home</span>
-                    <span className="text-[11px] text-muted-foreground">Back to assistants</span>
-                  </span>
-                </button>
-                <button
-                  onClick={() => { setSidebarOpen(false); onHistory(); }}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
-                >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <MessageSquare className="h-4 w-4" />
-                  </span>
-                  <span>
-                    <span className="block">Recent conversations</span>
-                    <span className="text-[11px] text-muted-foreground">Jump back to your latest chats</span>
-                  </span>
-                </button>
-                {!isAuthenticated && (
+            <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
+              <SidebarSectionNav
+                expanded
+                section={sidebarSection}
+                onSectionChange={handleSectionChange}
+                onNewChat={handleNewChat}
+              />
+
+              {isAuthenticated && (
+                <div className="mt-3 flex min-h-0 flex-1 flex-col border-t border-border/60 pt-3">
+                  <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Recents
+                  </p>
+                  <SidebarRecentsList
+                    conversations={conversations}
+                    loading={chatsLoading}
+                    onSelect={openChat}
+                    onDelete={(id) => void removeConversation(id)}
+                  />
+                </div>
+              )}
+
+              {!isAuthenticated && (
+                <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
                   <button
-                    onClick={() => { setSidebarOpen(false); onSignIn(); }}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      onSignIn();
+                    }}
                     className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
                   >
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -178,17 +210,51 @@ export function MobileHome({
                     </span>
                     <span>
                       <span className="block">Sign in / Join</span>
-                      <span className="text-[11px] text-muted-foreground">Save history and unlock more</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        Save chats and library items
+                      </span>
                     </span>
                   </button>
-                )}
-              </div>
+                </div>
+              )}
+
+              {isAuthenticated && (
+                <button
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    onProfile();
+                  }}
+                  className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <span className="text-xs font-bold">{initials}</span>
+                  </span>
+                  <span>
+                    <span className="block">Profile</span>
+                    <span className="text-[11px] text-muted-foreground">Account & security</span>
+                  </span>
+                </button>
+              )}
             </div>
           </aside>
         </div>
       )}
 
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain safe-x px-4 pb-4">
+        {mainSection === "library" ? (
+          <MainLibraryPanel
+            materials={materials}
+            loading={materialsLoading}
+            onSelect={(material) => router.push(routeForAgent(material.agentSlug))}
+          />
+        ) : mainSection === "agents" ? (
+          <MainAgentsPanel
+            agents={agents}
+            loading={agentsLoading}
+            onSelect={openAgent}
+          />
+        ) : (
+        <>
         <div className="mb-5 pt-2 text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/70">
             {getGreeting()}
@@ -223,26 +289,23 @@ export function MobileHome({
             Assistants
           </h2>
           <div className="grid grid-cols-4 gap-3">
-            {agents.map((agent) => {
-              const Icon = agent.icon;
-              return (
+            {agents.map((agent) => (
                 <button
                   key={agent.id}
                   type="button"
                   onClick={() => openAgent(agent.id)}
                   className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
                 >
-                  <div
-                    className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br shadow-sm ${agent.color}`}
-                  >
-                    <Icon className="h-6 w-6 text-white" />
-                  </div>
+                  <AgentListingIcon
+                    iconKey={agent.iconKey}
+                    colorKey={agent.colorKey}
+                    size="lg"
+                  />
                   <span className="max-w-[4.5rem] truncate text-[10px] font-medium text-foreground/80">
                     {agent.shortName}
                   </span>
                 </button>
-              );
-            })}
+              ))}
           </div>
         </section>
 
@@ -259,6 +322,8 @@ export function MobileHome({
               Create account
             </button>
           </section>
+        )}
+        </>
         )}
       </div>
 

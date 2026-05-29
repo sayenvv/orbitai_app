@@ -5,6 +5,7 @@ import { PageHeader, PageBody } from "@/components/page-shell";
 import { Plus, Pencil, Loader2 } from "lucide-react";
 import { AGENT_SECTIONS, agentSectionHref } from "@/lib/agent-sections";
 import { useControlAgents } from "@/hooks/use-control-agents";
+import { AgentListingIcon } from "@orbit/ui";
 import { FormAlert } from "@/components/form-alert";
 import { getApiErrorMessage } from "@/lib/orbit-api";
 
@@ -42,9 +43,7 @@ export function AgentsListPage() {
         )}
         {!isLoading && !error && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {agents.map((agent) => {
-              const Icon = agent.icon;
-              return (
+            {agents.map((agent) => (
                 <div
                   key={agent.id}
                   className="relative rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow group"
@@ -58,11 +57,13 @@ export function AgentsListPage() {
                   </Link>
 
                   <div className="flex items-start justify-between mb-3 pr-9">
-                    <div
-                      className={`h-9 w-9 rounded-lg bg-gradient-to-br ${agent.color} flex items-center justify-center shadow-sm`}
-                    >
-                      <Icon className="h-4 w-4 text-white" />
-                    </div>
+                    <AgentListingIcon
+                      iconKey={agent.iconKey}
+                      colorKey={agent.colorKey}
+                      size="md"
+                      iconClassName="h-4 w-4"
+                      className="h-9 w-9 rounded-lg p-0"
+                    />
                     <span
                       className={
                         "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " +
@@ -98,8 +99,7 @@ export function AgentsListPage() {
                     })}
                   </div>
                 </div>
-              );
-            })}
+              ))}
 
             <Link
               href="/agents/new"

@@ -4,11 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.v1.public.auth import get_current_user, require_user
 from app.db.session import get_db
-from app.models import Conversation, Message, User
+from app.models import Agent, Conversation, Message, User
 from app.orchestration.runner import (
     get_or_create_conversation,
     load_conversation_history,
@@ -27,6 +27,22 @@ from app.services.agent_registry import AgentRegistry
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+def _conversation_summary(conv: Conversation) -> ConversationSummary:
+    agent: Agent | None = conv.agent
+    return ConversationSummary(
+        id=conv.id,
+        title=conv.title,
+        created_at=conv.created_at,
+        updated_at=conv.updated_at,
+        agent_id=conv.agent_id,
+        agent_slug=agent.slug if agent else None,
+        agent_name=agent.name if agent else None,
+        agent_short_name=agent.short_name if agent else None,
+        icon_key=agent.icon_key if agent else None,
+        color_key=agent.color_key if agent else None,
+    )
+
+
 @router.get("/conversations", response_model=ConversationListResponse)
 def list_conversations(
     user: User = Depends(require_user),
@@ -34,11 +50,12 @@ def list_conversations(
 ):
     rows = (
         db.query(Conversation)
+        .options(joinedload(Conversation.agent))
         .filter(Conversation.user_id == user.id)
         .order_by(Conversation.updated_at.desc())
         .all()
     )
-    return ConversationListResponse(data=[ConversationSummary.model_validate(r) for r in rows])
+    return ConversationListResponse(data=[_conversation_summary(r) for r in rows])
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetailResponse)

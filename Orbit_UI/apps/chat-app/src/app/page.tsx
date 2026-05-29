@@ -1,22 +1,30 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { BookOpen, LogOut, X, Paperclip, Sparkles, MessageSquare, Search, FolderOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { BookOpen, X, Paperclip, Search, FolderOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { useLogout } from "@/hooks/use-auth";
 import { LoginModal } from "@/components/login-modal";
+import { ProfilePanel } from "@/components/profile-panel";
+import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
 import { libraryItems, routeForAgent } from "@/lib/home-data";
 import { useAgents } from "@/hooks/use-agents";
 import { MobileHome } from "@/components/home/mobile-home";
 import { LibraryPicker } from "@/components/home/library-picker";
-import { SupportModal, SettingsHelpFooterTab, type SupportTab } from "@/components/home/support-modal";
-import { useState, useRef } from "react";
+import { SupportModal, type SupportTab } from "@/components/home/support-modal";
+import { AppSidebar, type SidebarSection } from "@/components/home/app-sidebar";
+import { MainAgentsPanel, MainLibraryPanel } from "@/components/home/app-sidebar-panels";
+import { useGeneratedMaterials } from "@/hooks/use-generated-materials";
+import { useState, useRef, useEffect } from "react";
 
 export default function HomePage() {
-  const { agents } = useAgents();
+  const { agents, loading: agentsLoading } = useAgents();
+  const { materials, loading: materialsLoading } = useGeneratedMaterials();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const handleLogout = useLogout();
+  const [profileOpen, setProfileOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportTab, setSupportTab] = useState<SupportTab>("settings");
@@ -26,6 +34,19 @@ export default function HomePage() {
   };
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarSection, setSidebarSection] = useState<SidebarSection>("home");
+
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (section === "library" || section === "agents") {
+      setSidebarSection(section);
+    }
+  }, [searchParams]);
+
+  const handleSidebarSectionChange = (section: SidebarSection) => {
+    setSidebarSection(section);
+    if (section === "home") setSidebarOpen(true);
+  };
   const [chatInput, setChatInput] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -61,8 +82,7 @@ export default function HomePage() {
     router.push(routeForAgent(agentId));
   };
 
-  const sidebarWidthClass = sidebarOpen ? "w-64" : "w-20";
-  const sidebarLabelClass = sidebarOpen ? "pointer-events-auto opacity-100 max-w-[10rem]" : "pointer-events-none opacity-0 max-w-0";
+  const sidebarWidthClass = sidebarOpen ? "left-[16rem]" : "left-[5rem]";
   const selectedLibraryItem = selectedLibraryId
     ? libraryItems.find((item) => item.id === selectedLibraryId)
     : null;
@@ -77,8 +97,7 @@ export default function HomePage() {
           initials={initials}
           onSignIn={() => { setAuthMode("login"); setLoginModalOpen(true); }}
           onSignUp={() => { setAuthMode("register"); setLoginModalOpen(true); }}
-          onProfile={() => openSupport("settings")}
-          onHistory={() => router.push("/history")}
+          onProfile={() => setProfileOpen(true)}
           onOpenSupport={() => openSupport("settings")}
         />
       </div>
@@ -88,61 +107,26 @@ export default function HomePage() {
       {/* Main Content with Sidebar */}
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Desktop sidebar rail */}
-        <aside
-          className={`hidden lg:flex ${sidebarWidthClass} flex-col border-r border-sidebar-border bg-sidebar px-2 py-4 transition-[width,background-color] duration-300 ease-out will-change-[width]`}
-        >
-          <div className="mb-6 flex items-center justify-center">
-            <button
-              type="button"
-              onClick={() => router.push("/")}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm shadow-primary/20 transition-transform hover:-translate-y-0.5"
-              aria-label="Go home"
-            >
-              <Sparkles className="h-4 w-4" />
-            </button>
-          </div>
-
-          <nav className="flex flex-1 flex-col gap-1.5">
-            {[
-              { label: "Home", icon: MessageSquare, action: () => router.push("/") },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={item.action}
-                  className={`flex h-11 items-center rounded-2xl text-sidebar-foreground/70 transition-all duration-300 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${sidebarOpen ? "gap-3 px-3 justify-start" : "justify-center"}`}
-                  title={item.label}
-                  aria-label={item.label}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className={`truncate text-sm font-medium transition-all duration-300 ${sidebarLabelClass}`}>
-                    {item.label}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <SettingsHelpFooterTab
-            collapsed={!sidebarOpen}
-            onOpen={() => openSupport("settings")}
+        <div className="relative hidden lg:flex shrink-0">
+          <AppSidebar
+            expanded={sidebarOpen}
+            section={sidebarSection}
+            onSectionChange={handleSidebarSectionChange}
+            onOpenSettings={() => openSupport("settings")}
           />
-        </aside>
-
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`hidden lg:flex absolute top-4 z-40 items-center justify-center h-14 w-6 rounded-r-md border border-l-0 border-sidebar-border bg-sidebar text-sidebar-foreground transition-[left,color,background-color] duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${sidebarOpen ? "left-[16rem]" : "left-[5rem]"}`}
-          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {sidebarOpen ? (
-            <PanelLeftClose className="h-5 w-5" strokeWidth={2.25} />
-          ) : (
-            <PanelLeftOpen className="h-5 w-5" strokeWidth={2.25} />
-          )}
-        </button>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={`absolute top-4 z-40 flex h-14 w-6 items-center justify-center rounded-r-md border border-l-0 border-sidebar-border bg-sidebar text-sidebar-foreground transition-[left,color,background-color] duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${sidebarWidthClass}`}
+            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose className="h-5 w-5" strokeWidth={2.25} />
+            ) : (
+              <PanelLeftOpen className="h-5 w-5" strokeWidth={2.25} />
+            )}
+          </button>
+        </div>
 
         {/* Main Content */}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -150,12 +134,15 @@ export default function HomePage() {
               <header className="absolute right-6 top-4 z-20 flex items-center gap-1">
                 {isAuthenticated ? (
                   <button
-                    onClick={handleLogout}
-                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent/80 transition-colors"
-                    title="Sign out"
+                    type="button"
+                    onClick={() => setProfileOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent/80 transition-colors"
+                    title="Profile"
                   >
-                    <LogOut className="h-4 w-4" />
-                    <span className="hidden sm:inline">Sign out</span>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
+                      <span className="text-[10px] font-bold text-primary">{initials}</span>
+                    </div>
+                    <span className="hidden sm:inline max-w-[8rem] truncate">{displayName}</span>
                   </button>
                 ) : (
                   <div className="ml-2 flex items-center gap-3">
@@ -177,6 +164,19 @@ export default function HomePage() {
             {/* Scrollable Content */}
             <div aria-hidden className="aurora" />
             <div className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-6 py-8 bg-background">
+              {sidebarSection === "library" ? (
+                <MainLibraryPanel
+                  materials={materials}
+                  loading={materialsLoading}
+                  onSelect={(material) => router.push(routeForAgent(material.agentSlug))}
+                />
+              ) : sidebarSection === "agents" ? (
+                <MainAgentsPanel
+                  agents={agents}
+                  loading={agentsLoading}
+                  onSelect={handleSelectAgent}
+                />
+              ) : (
               <div className="relative mx-auto w-full max-w-7xl space-y-6 px-2 sm:px-4 lg:px-6">
                 {/* Hero */}
                 <div className="space-y-3 pt-14 text-center">
@@ -293,29 +293,44 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                {/* AI Assistants */}
+                {/* Quick access — browse all in Agents tab */}
                 <div className="space-y-2 sm:space-y-3">
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">AI Assistants</h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Popular agents
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setSidebarSection("agents")}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      View all
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-                    {agents.map((agent) => {
-                      const Icon = agent.icon;
-                      return (
+                    {agents.slice(0, 3).map((agent) => (
                         <button
                           key={agent.id}
                           type="button"
                           onClick={() => handleSelectAgent(agent.id)}
-                          className={`group relative flex w-full items-start gap-3 rounded-xl border border-border/40 p-3 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99] sm:gap-4 sm:p-4 ${agent.bgColor}`}
+                          className="w-full text-left"
                         >
-                          <div className={`shrink-0 inline-flex items-center justify-center rounded-lg p-2.5 bg-gradient-to-br ${agent.color} text-white shadow-sm group-hover:scale-105 transition-transform`}>
-                            <Icon className="h-5 w-5" />
-                          </div>
-                          <div className="min-w-0 space-y-1">
-                            <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">{agent.name}</h3>
-                            <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">{agent.description}</p>
-                          </div>
+                          <AgentCardTint
+                            colorKey={agent.colorKey}
+                            className="group relative flex w-full items-start gap-3 p-3 transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99] sm:gap-4 sm:p-4"
+                          >
+                            <AgentListingIcon
+                              iconKey={agent.iconKey}
+                              colorKey={agent.colorKey}
+                              className="shrink-0 group-hover:scale-105 transition-transform"
+                            />
+                            <div className="min-w-0 space-y-1">
+                              <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">{agent.name}</h3>
+                              <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">{agent.description}</p>
+                            </div>
+                          </AgentCardTint>
                         </button>
-                      );
-                    })}
+                      ))}
                   </div>
                 </div>
 
@@ -342,6 +357,7 @@ export default function HomePage() {
                 )}
 
               </div>
+              )}
             </div>
         </div>
       </div>
@@ -376,6 +392,10 @@ export default function HomePage() {
         isAuthenticated={isAuthenticated}
         onSignOut={handleLogout}
       />
+
+      {isAuthenticated && (
+        <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
+      )}
     </>
   );
 }

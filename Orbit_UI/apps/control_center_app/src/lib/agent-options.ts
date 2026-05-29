@@ -1,47 +1,12 @@
-import {
-  BookOpen,
-  Briefcase,
-  Code,
-  GraduationCap,
-  Languages,
-  Brain,
-  Plane,
-  Bot,
-  Sparkles,
-  Compass,
-  Heart,
-  Music,
-  ShoppingBag,
-  Camera,
-  Rocket,
-  type LucideIcon,
-} from "lucide-react";
-
-export const ICON_OPTIONS: { key: string; icon: LucideIcon }[] = [
-  { key: "BookOpen", icon: BookOpen },
-  { key: "Briefcase", icon: Briefcase },
-  { key: "Code", icon: Code },
-  { key: "GraduationCap", icon: GraduationCap },
-  { key: "Languages", icon: Languages },
-  { key: "Brain", icon: Brain },
-  { key: "Plane", icon: Plane },
-  { key: "Bot", icon: Bot },
-  { key: "Sparkles", icon: Sparkles },
-  { key: "Compass", icon: Compass },
-  { key: "Heart", icon: Heart },
-  { key: "Music", icon: Music },
-  { key: "ShoppingBag", icon: ShoppingBag },
-  { key: "Camera", icon: Camera },
-  { key: "Rocket", icon: Rocket },
-];
-
-export const COLOR_OPTIONS: { key: string; gradient: string; label: string }[] = [
-  { key: "indigo", gradient: "from-blue-500 to-indigo-600", label: "Indigo" },
-  { key: "emerald", gradient: "from-emerald-500 to-teal-600", label: "Emerald" },
-  { key: "violet", gradient: "from-purple-500 to-violet-600", label: "Violet" },
-  { key: "amber", gradient: "from-orange-500 to-amber-600", label: "Amber" },
-  { key: "rose", gradient: "from-pink-500 to-rose-600", label: "Rose" },
-  { key: "sky", gradient: "from-cyan-500 to-sky-600", label: "Sky" },
-  { key: "fuchsia", gradient: "from-fuchsia-500 to-pink-600", label: "Fuchsia" },
-  { key: "slate", gradient: "from-slate-500 to-zinc-700", label: "Slate" },
-];
+/**
+ * Re-exports shared agent appearance catalog used by the chat app and control center.
+ */
+export {
+  AGENT_ICON_OPTIONS as ICON_OPTIONS,
+  AGENT_COLOR_OPTIONS as COLOR_OPTIONS,
+  resolveAgentIcon,
+  resolveAgentGradient,
+  resolveAgentAppearance,
+  isKnownAgentIconKey,
+  isKnownAgentColorKey,
+} from "@orbit/ui";

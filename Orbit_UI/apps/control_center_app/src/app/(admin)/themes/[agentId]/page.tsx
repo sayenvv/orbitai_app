@@ -1,18 +1,15 @@
 import { PageHeader, PageBody } from "@/components/page-shell";
 import { AgentHeader } from "@/components/agent-header";
 import { loadAgent } from "@/lib/agent-page";
-import { resolveGradient } from "@/lib/data";
+import { COLOR_OPTIONS } from "@/lib/agent-options";
 import { cn } from "@/lib/utils";
 
 type Params = Promise<{ agentId: string }>;
 
-// Theme presets derive from the same COLOR_MAP used by the data layer,
-// so adding a new color in lib/data.ts automatically surfaces it here.
-const PRESET_KEYS = ["indigo", "emerald", "rose", "amber", "sky", "slate"] as const;
-const PRESETS = PRESET_KEYS.map((k) => ({
-  id: k,
-  name: k[0].toUpperCase() + k.slice(1),
-  color: resolveGradient(k),
+const PRESETS = COLOR_OPTIONS.map((c) => ({
+  id: c.key,
+  name: c.label,
+  color: c.gradient,
 }));
 
 const TOKEN_ROWS = [

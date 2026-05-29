@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bot, ArrowLeft, Check, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { ICON_OPTIONS, COLOR_OPTIONS } from "@/lib/agent-options";
+import { ICON_OPTIONS, COLOR_OPTIONS, isKnownAgentIconKey, isKnownAgentColorKey } from "@/lib/agent-options";
+import { AgentListingIcon } from "@orbit/ui";
 import {
   controlApi,
   toAgentCreateBody,
@@ -23,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 function iconKeyFor(initial: AgentInitial | undefined): string {
   if (!initial) return "Bot";
-  if (initial.iconKey && ICON_OPTIONS.some((o) => o.key === initial.iconKey)) {
+  if (initial.iconKey && isKnownAgentIconKey(initial.iconKey)) {
     return initial.iconKey;
   }
   return "Bot";
@@ -69,7 +70,7 @@ export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
   const [status, setStatus] = useState<AgentInitial["status"]>(agent?.status ?? "draft");
   const [iconKey, setIconKey] = useState<string>(iconKeyFor(agent));
   const [colorKey, setColorKey] = useState<string>(
-    agent?.colorKey && COLOR_OPTIONS.some((c) => c.key === agent.colorKey) ? agent.colorKey : "indigo",
+    agent?.colorKey && isKnownAgentColorKey(agent.colorKey) ? agent.colorKey : "indigo",
   );
   const [systemPrompt, setSystemPrompt] = useState("");
   const [configLoading, setConfigLoading] = useState(mode === "edit");
@@ -243,11 +244,12 @@ export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
       {/* Preview card */}
       <div className="rounded-xl border bg-gradient-to-br from-card to-card/40 p-5">
         <div className="flex items-center gap-4">
-          <div
-            className={`h-14 w-14 rounded-xl bg-gradient-to-br ${selectedColor.gradient} flex items-center justify-center shadow-md`}
-          >
-            <SelectedIcon className="h-6 w-6 text-white" />
-          </div>
+          <AgentListingIcon
+            iconKey={iconKey}
+            colorKey={colorKey}
+            size="lg"
+            className="h-14 w-14 rounded-xl shadow-md"
+          />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold tracking-tight truncate">
               {name || "Untitled agent"}
@@ -363,15 +365,15 @@ export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
         </div>
 
         <Field label="Icon">
-          <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-15 gap-2">
-            {ICON_OPTIONS.map(({ key, icon: Icon }) => {
+          <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+            {ICON_OPTIONS.map(({ key, icon: Icon, label }) => {
               const active = key === iconKey;
               return (
                 <button
                   key={key}
                   type="button"
                   onClick={() => setIconKey(key)}
-                  title={key}
+                  title={label}
                   className={
                     "h-10 w-10 rounded-lg border flex items-center justify-center transition-all " +
                     (active
@@ -387,7 +389,7 @@ export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
         </Field>
 
         <Field label="Accent color">
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2">
             {COLOR_OPTIONS.map((c) => {
               const active = c.key === colorKey;
               return (
@@ -396,9 +398,9 @@ export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
                   type="button"
                   onClick={() => setColorKey(c.key)}
                   title={c.label}
+                  style={{ background: c.gradientCss }}
                   className={
-                    "h-10 rounded-lg bg-gradient-to-br shadow-sm transition-all " +
-                    c.gradient +
+                    "h-10 rounded-lg shadow-sm transition-all " +
                     (active ? " ring-2 ring-offset-2 ring-offset-card ring-primary" : " opacity-80 hover:opacity-100")
                   }
                 />

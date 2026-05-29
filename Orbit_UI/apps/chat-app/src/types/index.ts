@@ -12,6 +12,12 @@ export type Conversation = {
   contextSource?: StudySource | null;
   createdAt: Date;
   updatedAt: Date;
+  agentId?: string | null;
+  agentSlug?: string | null;
+  agentName?: string | null;
+  agentShortName?: string | null;
+  iconKey?: string | null;
+  colorKey?: string | null;
 };
 
 export type ChatRequest = {
