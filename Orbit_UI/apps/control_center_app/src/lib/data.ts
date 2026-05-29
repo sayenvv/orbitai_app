@@ -183,6 +183,11 @@ function hydrateAgent(record: AgentRecord): Agent {
   };
 }
 
+/** Hydrate a plain agent record (e.g. from API mapper). */
+export function hydrateAgentRecord(record: AgentRecord): Agent {
+  return hydrateAgent(record);
+}
+
 function hydrateWidget(def: WidgetDefinition): Widget {
   return { ...def, icon: resolveIcon(def.iconKey) };
 }

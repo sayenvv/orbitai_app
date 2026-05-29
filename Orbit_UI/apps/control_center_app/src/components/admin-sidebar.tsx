@@ -17,6 +17,9 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuthStore } from "@/store/auth-store";
+import { useLogout } from "@/hooks/use-auth";
+import { LogOut } from "lucide-react";
 
 type NavItem = {
   label: string;
@@ -55,6 +58,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const [query, setQuery] = useState("");
+  const { user } = useAuthStore();
+  const handleLogout = useLogout();
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "OP";
 
   const filterMatch = (item: NavItem) =>
     !query ||
@@ -134,17 +143,24 @@ export function AdminSidebar() {
 
       {/* Footer */}
       <div className="border-t p-3 shrink-0">
-        <div className="flex items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-accent/50 transition-colors cursor-pointer">
+        <div className="flex items-center gap-3 rounded-lg px-2.5 py-2">
           <div className="relative shrink-0">
             <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center ring-2 ring-border/60">
-              <span className="text-xs font-bold text-primary">AD</span>
+              <span className="text-xs font-bold text-primary">{initials}</span>
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-card" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium leading-none truncate">Admin User</p>
-            <p className="text-[10px] text-muted-foreground mt-1 truncate">Super Admin</p>
+            <p className="text-xs font-medium leading-none truncate">{user?.name ?? "Operator"}</p>
+            <p className="text-[10px] text-muted-foreground mt-1 truncate capitalize">{user?.role ?? "operator"}</p>
           </div>
+          <button
+            onClick={() => void handleLogout()}
+            title="Sign out"
+            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </aside>
