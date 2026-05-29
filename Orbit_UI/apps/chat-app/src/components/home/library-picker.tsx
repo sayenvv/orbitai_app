@@ -3,14 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Search } from "lucide-react";
-
-export type LibraryItem = {
-  id: string;
-  title: string;
-  type: string;
-  source: string;
-  date: string;
-};
+import type { LibraryItem } from "@/lib/home-data";
 
 type LibraryPickerProps = {
   open: boolean;

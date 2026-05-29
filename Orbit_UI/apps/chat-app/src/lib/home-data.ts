@@ -19,33 +19,21 @@ export type HomeAgent = {
   bgColor: string;
 };
 
-export type QuickPrompt = {
-  label: string;
-  prompt: string;
-  icon: string;
-};
-
-export type RecentChat = {
+export type LibraryItem = {
   id: string;
   title: string;
-  agent: string;
-  time: string;
-  preview: string;
+  type: string;
+  source: string;
+  date: string;
 };
 
-export const quickPrompts: QuickPrompt[] = [
-  { label: "Explain", prompt: "Explain this concept in simple terms:", icon: "💡" },
-  { label: "Study plan", prompt: "Help me create a study plan for:", icon: "📚" },
-  { label: "Write code", prompt: "Write code that:", icon: "💻" },
-  { label: "Summarize", prompt: "Summarize the following:", icon: "📝" },
-  { label: "Interview", prompt: "Help me practice for a job interview in:", icon: "🎯" },
-  { label: "Translate", prompt: "Translate the following to:", icon: "🌐" },
-];
-
-export const recentChats: RecentChat[] = [
-  { id: "1", title: "React hooks explanation", agent: "Coding Tutor", time: "2h ago", preview: "Can you explain useEffect..." },
-  { id: "2", title: "Resume review feedback", agent: "Job Search", time: "Yesterday", preview: "I need help improving my..." },
-  { id: "3", title: "Spanish basics lesson", agent: "Language", time: "2d ago", preview: "How do I conjugate..." },
+export const libraryItems: LibraryItem[] = [
+  { id: "l1", title: "Biology Ch.4 — Cell Division (Notes)", type: "Notes", source: "Study Helper", date: "Today" },
+  { id: "l2", title: "Resume — Senior PM (v3)", type: "Document", source: "Job Search", date: "Yesterday" },
+  { id: "l3", title: "React useEffect deep-dive", type: "Generated", source: "Coding Tutor", date: "2 days ago" },
+  { id: "l4", title: "Spanish A2 flashcards", type: "Flashcards", source: "Language Learning", date: "3 days ago" },
+  { id: "l5", title: "Tokyo 7-day itinerary", type: "Plan", source: "Trip Adviser", date: "Last week" },
+  { id: "l6", title: "Algorithms cheat sheet (PDF)", type: "Upload", source: "My uploads", date: "Last week" },
 ];
 
 export const agents: HomeAgent[] = [

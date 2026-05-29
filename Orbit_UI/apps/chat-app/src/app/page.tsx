@@ -1,24 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BookOpen, Briefcase, Code, GraduationCap, Languages, Brain, History, LogOut, Star, Zap, X, Paperclip, Mic, Sparkles, MessageSquare, ArrowUp, Plane, Users, Globe2, ShieldCheck, Search, FolderOpen, ChevronDown, Wand2, Palette, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { BookOpen, LogOut, X, Paperclip, Sparkles, MessageSquare, Search, FolderOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { useLogout } from "@/hooks/use-auth";
 import { LoginModal } from "@/components/login-modal";
-import { agents, quickPrompts, recentChats, routeForAgent } from "@/lib/home-data";
+import { agents, libraryItems, routeForAgent } from "@/lib/home-data";
 import { MobileHome } from "@/components/home/mobile-home";
 import { LibraryPicker } from "@/components/home/library-picker";
 import { SupportModal, SettingsHelpFooterTab, type SupportTab } from "@/components/home/support-modal";
 import { useState, useRef } from "react";
-
-const libraryItems = [
-  { id: "l1", title: "Biology Ch.4 — Cell Division (Notes)", type: "Notes",      source: "Study Helper",     date: "Today" },
-  { id: "l2", title: "Resume — Senior PM (v3)",            type: "Document",   source: "Job Search",       date: "Yesterday" },
-  { id: "l3", title: "React useEffect deep-dive",          type: "Generated",  source: "Coding Tutor",     date: "2 days ago" },
-  { id: "l4", title: "Spanish A2 flashcards",              type: "Flashcards", source: "Language Learning",date: "3 days ago" },
-  { id: "l5", title: "Tokyo 7-day itinerary",              type: "Plan",       source: "Trip Adviser",     date: "Last week" },
-  { id: "l6", title: "Algorithms cheat sheet (PDF)",       type: "Upload",     source: "My uploads",       date: "Last week" },
-];
 
 export default function HomePage() {
   const router = useRouter();
@@ -34,9 +25,7 @@ export default function HomePage() {
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
   const [librarySearch, setLibrarySearch] = useState("");
@@ -50,8 +39,7 @@ export default function HomePage() {
   };
   const removeFile = (idx: number) =>
     setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
-  const selectLibraryItem = (id: string) =>
-    setSelectedLibraryId((prev) => (prev === id ? null : id));
+  const selectLibraryItem = (id: string) => setSelectedLibraryId(id);
   const handleHeroSend = () => {
     if (
       !chatInput.trim() &&
@@ -62,14 +50,10 @@ export default function HomePage() {
     router.push(`/c?prompt=${encodeURIComponent(chatInput)}`);
   };
 
-  // Mock subscription data - in real app, this would come from user data
-  const userSubscription = (user?.subscription as { plan?: string } | undefined) ?? { plan: "free" };
-
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
   const displayName = user?.name || "User";
-  const displayEmail = user?.email || "";
 
   const handleSelectAgent = (agentId: string) => {
     router.push(routeForAgent(agentId));
@@ -77,62 +61,9 @@ export default function HomePage() {
 
   const sidebarWidthClass = sidebarOpen ? "w-64" : "w-20";
   const sidebarLabelClass = sidebarOpen ? "pointer-events-auto opacity-100 max-w-[10rem]" : "pointer-events-none opacity-0 max-w-0";
-
-  const plans = [
-    {
-      id: "free",
-      name: "Free",
-      price: "$0",
-      priceHint: "forever",
-      features: [
-        "20 messages / day",
-        "Access to 3 core agents",
-        "Standard response speed",
-        "Community support",
-      ],
-      cta: "Get started free",
-    },
-    {
-      id: "starter",
-      name: "Starter",
-      price: "$9",
-      priceHint: "/ month",
-      features: [
-        "100 messages / day",
-        "All basic agents",
-        "File uploads up to 10 MB",
-        "Email support",
-      ],
-      cta: "Upgrade Now",
-    },
-    {
-      id: "pro",
-      name: "Pro",
-      price: "$29",
-      priceHint: "/ month",
-      features: [
-        "Unlimited messages",
-        "All premium agents",
-        "Custom agents & tools",
-        "Priority support",
-      ],
-      cta: "Upgrade Now",
-      popular: true,
-    },
-    {
-      id: "enterprise",
-      name: "Enterprise",
-      price: "Custom",
-      priceHint: "contact sales",
-      features: [
-        "Everything in Pro",
-        "API & SSO access",
-        "Dedicated success manager",
-        "99.99% uptime SLA",
-      ],
-      cta: "Contact Sales",
-    },
-  ];
+  const selectedLibraryItem = selectedLibraryId
+    ? libraryItems.find((item) => item.id === selectedLibraryId)
+    : null;
 
   return (
     <>
@@ -157,7 +88,6 @@ export default function HomePage() {
         {/* Desktop sidebar rail */}
         <aside
           className={`hidden lg:flex ${sidebarWidthClass} flex-col border-r border-sidebar-border bg-sidebar px-2 py-4 transition-[width,background-color] duration-300 ease-out will-change-[width]`}
-          style={{ width: sidebarOpen ? 256 : 80 }}
         >
           <div className="mb-6 flex items-center justify-center">
             <button
@@ -277,25 +207,19 @@ export default function HomePage() {
                           </button>
                         </span>
                       ))}
-                      {selectedLibraryId && (() => {
-                        const item = libraryItems.find((l) => l.id === selectedLibraryId);
-                        if (!item) return null;
-                        return (
-                          <span
-                            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs shadow-mac"
+                      {selectedLibraryItem && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs shadow-mac">
+                          <BookOpen className="h-3 w-3 text-primary" />
+                          <span className="max-w-[200px] truncate">{selectedLibraryItem.title}</span>
+                          <button
+                            onClick={() => setSelectedLibraryId(null)}
+                            className="text-muted-foreground hover:text-destructive"
+                            title="Remove"
                           >
-                            <BookOpen className="h-3 w-3 text-primary" />
-                            <span className="max-w-[200px] truncate">{item.title}</span>
-                            <button
-                              onClick={() => setSelectedLibraryId(null)}
-                              className="text-muted-foreground hover:text-destructive"
-                              title="Remove"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </span>
-                        );
-                      })()}
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      )}
                     </div>
                   )}
 
