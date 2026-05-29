@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BookOpen, Briefcase, Code, GraduationCap, Languages, Brain, History, LogOut, Settings, Star, Zap, X, Paperclip, Mic, Sparkles, MessageSquare, ArrowUp, Plane, Users, Globe2, ShieldCheck, Check, Search, FolderOpen, ChevronDown, Wand2, Palette } from "lucide-react";
+import { BookOpen, Briefcase, Code, GraduationCap, Languages, Brain, History, LogOut, Star, Zap, X, Paperclip, Mic, Sparkles, MessageSquare, ArrowUp, Plane, Users, Globe2, ShieldCheck, Search, FolderOpen, ChevronDown, Wand2, Palette, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { useLogout } from "@/hooks/use-auth";
 import { LoginModal } from "@/components/login-modal";
 import { agents, quickPrompts, recentChats, routeForAgent } from "@/lib/home-data";
 import { MobileHome } from "@/components/home/mobile-home";
+import { LibraryPicker } from "@/components/home/library-picker";
+import { SupportModal, SettingsHelpFooterTab, type SupportTab } from "@/components/home/support-modal";
 import { useState, useRef } from "react";
 
 const libraryItems = [
@@ -23,7 +25,12 @@ export default function HomePage() {
   const { user, isAuthenticated } = useAuthStore();
   const handleLogout = useLogout();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportTab, setSupportTab] = useState<SupportTab>("settings");
+  const openSupport = (tab: SupportTab = "settings") => {
+    setSupportTab(tab);
+    setSupportOpen(true);
+  };
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
@@ -31,9 +38,10 @@ export default function HomePage() {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
   const [librarySearch, setLibrarySearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const libraryButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -42,23 +50,17 @@ export default function HomePage() {
   };
   const removeFile = (idx: number) =>
     setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
-  const toggleLibraryItem = (id: string) =>
-    setSelectedLibraryIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+  const selectLibraryItem = (id: string) =>
+    setSelectedLibraryId((prev) => (prev === id ? null : id));
   const handleHeroSend = () => {
     if (
       !chatInput.trim() &&
       attachedFiles.length === 0 &&
-      selectedLibraryIds.length === 0
+      !selectedLibraryId
     )
       return;
     router.push(`/c?prompt=${encodeURIComponent(chatInput)}`);
   };
-  const filteredLibrary = libraryItems.filter((i) =>
-    i.title.toLowerCase().includes(librarySearch.toLowerCase()) ||
-    i.source.toLowerCase().includes(librarySearch.toLowerCase())
-  );
 
   // Mock subscription data - in real app, this would come from user data
   const userSubscription = (user?.subscription as { plan?: string } | undefined) ?? { plan: "free" };
@@ -142,8 +144,9 @@ export default function HomePage() {
           initials={initials}
           onSignIn={() => { setAuthMode("login"); setLoginModalOpen(true); }}
           onSignUp={() => { setAuthMode("register"); setLoginModalOpen(true); }}
-          onProfile={() => setSettingsOpen(true)}
-          onHistory={() => setSettingsOpen(true)}
+          onProfile={() => openSupport("settings")}
+          onHistory={() => router.push("/history")}
+          onOpenSupport={() => openSupport("settings")}
         />
       </div>
 
@@ -153,7 +156,7 @@ export default function HomePage() {
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Desktop sidebar rail */}
         <aside
-          className={`hidden lg:flex ${sidebarWidthClass} flex-col border border-border/60 bg-card/90 px-2 py-4 shadow-[0_24px_54px_-20px_rgba(15,23,42,0.48),0_10px_22px_-12px_rgba(15,23,42,0.28)] backdrop-blur-xl transition-[width,background-color,box-shadow] duration-300 ease-out will-change-[width]`}
+          className={`hidden lg:flex ${sidebarWidthClass} flex-col border-r border-sidebar-border bg-sidebar px-2 py-4 transition-[width,background-color] duration-300 ease-out will-change-[width]`}
           style={{ width: sidebarOpen ? 256 : 80 }}
         >
           <div className="mb-6 flex items-center justify-center">
@@ -177,7 +180,7 @@ export default function HomePage() {
                   key={item.label}
                   type="button"
                   onClick={item.action}
-                  className={`flex h-11 items-center rounded-2xl text-muted-foreground transition-all duration-300 hover:bg-accent hover:text-foreground ${sidebarOpen ? "gap-3 px-3 justify-start" : "justify-center"}`}
+                  className={`flex h-11 items-center rounded-2xl text-sidebar-foreground/70 transition-all duration-300 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${sidebarOpen ? "gap-3 px-3 justify-start" : "justify-center"}`}
                   title={item.label}
                   aria-label={item.label}
                 >
@@ -190,34 +193,22 @@ export default function HomePage() {
             })}
           </nav>
 
-          <div className="mt-auto flex flex-col gap-1.5 border-t border-border/60 pt-3">
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className={`flex h-11 items-center rounded-2xl text-muted-foreground transition-all duration-300 hover:bg-accent hover:text-foreground ${sidebarOpen ? "gap-3 px-3 justify-start" : "justify-center"}`}
-              title="Settings"
-              aria-label="Settings"
-            >
-              <Settings className="h-4 w-4 shrink-0" />
-              <span className={`truncate text-sm font-medium transition-all duration-300 ${sidebarLabelClass}`}>Settings</span>
-            </button>
-          </div>
+          <SettingsHelpFooterTab
+            collapsed={!sidebarOpen}
+            onOpen={() => openSupport("settings")}
+          />
         </aside>
 
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`hidden lg:flex absolute top-4 z-40 items-center justify-center h-14 w-6 rounded-r-md border border-border/70 bg-card/98 text-foreground shadow-[0_18px_40px_-16px_rgba(15,23,42,0.55),0_8px_18px_-10px_rgba(15,23,42,0.35)] backdrop-blur-xl transition-[left,opacity,transform,background-color] duration-300 ease-out hover:bg-card hover:text-foreground ${sidebarOpen ? "left-[16rem]" : "left-[5rem]"}`}
+          className={`hidden lg:flex absolute top-4 z-40 items-center justify-center h-14 w-6 rounded-r-md border border-l-0 border-sidebar-border bg-sidebar text-sidebar-foreground transition-[left,color,background-color] duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${sidebarOpen ? "left-[16rem]" : "left-[5rem]"}`}
           title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {sidebarOpen ? (
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
+            <PanelLeftClose className="h-5 w-5" strokeWidth={2.25} />
           ) : (
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
+            <PanelLeftOpen className="h-5 w-5" strokeWidth={2.25} />
           )}
         </button>
 
@@ -225,16 +216,6 @@ export default function HomePage() {
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               {/* Desktop top bar */}
               <header className="absolute right-6 top-4 z-20 flex items-center gap-1">
-                {isAuthenticated && (
-                  <button
-                    onClick={() => setSettingsOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-accent/80 transition-colors text-muted-foreground"
-                    title="Settings"
-                  >
-                    <Settings className="h-4 w-4" />
-                    <span className="hidden sm:inline">Settings</span>
-                  </button>
-                )}
                 {isAuthenticated ? (
                   <button
                     onClick={handleLogout}
@@ -276,9 +257,9 @@ export default function HomePage() {
                 </div>
 
                 {/* Hero search / prompt bar with upload + library */}
-                <div className="relative max-w-3xl mx-auto">
+                <div className="relative mx-auto max-w-3xl">
                   {/* Selected chips */}
-                  {(attachedFiles.length > 0 || selectedLibraryIds.length > 0) && (
+                  {(attachedFiles.length > 0 || selectedLibraryId) && (
                     <div className="mb-3 flex flex-wrap gap-2 justify-center">
                       {attachedFiles.map((file, idx) => (
                         <span
@@ -296,18 +277,17 @@ export default function HomePage() {
                           </button>
                         </span>
                       ))}
-                      {selectedLibraryIds.map((id) => {
-                        const item = libraryItems.find((l) => l.id === id);
+                      {selectedLibraryId && (() => {
+                        const item = libraryItems.find((l) => l.id === selectedLibraryId);
                         if (!item) return null;
                         return (
                           <span
-                            key={id}
                             className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs shadow-mac"
                           >
                             <BookOpen className="h-3 w-3 text-primary" />
                             <span className="max-w-[200px] truncate">{item.title}</span>
                             <button
-                              onClick={() => toggleLibraryItem(id)}
+                              onClick={() => setSelectedLibraryId(null)}
                               className="text-muted-foreground hover:text-destructive"
                               title="Remove"
                             >
@@ -315,7 +295,7 @@ export default function HomePage() {
                             </button>
                           </span>
                         );
-                      })}
+                      })()}
                     </div>
                   )}
 
@@ -366,9 +346,10 @@ export default function HomePage() {
 
                       <div className="relative min-w-0">
                         <button
+                          ref={libraryButtonRef}
                           onClick={() => setLibraryOpen((o) => !o)}
                           className={`press inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition-colors sm:gap-1.5 sm:px-3 sm:text-[13px] ${
-                            selectedLibraryIds.length > 0 || libraryOpen
+                            selectedLibraryId || libraryOpen
                               ? "bg-primary/15 text-primary"
                               : "bg-muted/60 dark:bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground"
                           }`}
@@ -376,90 +357,7 @@ export default function HomePage() {
                         >
                           <FolderOpen className="h-3.5 w-3.5" />
                           Library
-                          {selectedLibraryIds.length > 0 && (
-                            <span className="ml-0.5 rounded-full bg-primary text-primary-foreground px-1.5 py-0.5 text-[10px] font-bold leading-none">
-                              {selectedLibraryIds.length}
-                            </span>
-                          )}
                         </button>
-
-                        {libraryOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]"
-                              onClick={() => setLibraryOpen(false)}
-                            />
-                            <div className="absolute left-0 top-full z-50 mt-2 w-[26rem] overflow-hidden rounded-2xl border glass-strong shadow-mac-lg">
-                              <div className="px-3 py-2.5 border-b border-border/40 flex items-center gap-2">
-                                <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                <input
-                                  value={librarySearch}
-                                  onChange={(e) => setLibrarySearch(e.target.value)}
-                                  placeholder="Search uploads & generated content…"
-                                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
-                                />
-                              </div>
-                              <div className="max-h-72 overflow-auto p-1">
-                                {filteredLibrary.length === 0 ? (
-                                  <p className="px-3 py-6 text-center text-xs text-muted-foreground">
-                                    Nothing matches “{librarySearch}”
-                                  </p>
-                                ) : (
-                                  filteredLibrary.map((item) => {
-                                    const checked = selectedLibraryIds.includes(item.id);
-                                    return (
-                                      <button
-                                        key={item.id}
-                                        onClick={() => toggleLibraryItem(item.id)}
-                                        className={`w-full flex items-start gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-accent transition-colors ${
-                                          checked ? "bg-primary/5" : ""
-                                        }`}
-                                      >
-                                        <div
-                                          className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
-                                            checked
-                                              ? "bg-primary border-primary"
-                                              : "border-border"
-                                          }`}
-                                        >
-                                          {checked && (
-                                            <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />
-                                          )}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-sm font-medium line-clamp-1">{item.title}</p>
-                                          <p className="text-[11px] text-muted-foreground">{item.type} · {item.source} · {item.date}</p>
-                                        </div>
-                                      </button>
-                                    );
-                                  })
-                                )}
-                              </div>
-                              <div className="border-t border-border/40 px-3 py-2 text-[11px] text-muted-foreground flex items-center justify-between">
-                                <span>{selectedLibraryIds.length} selected</span>
-                                <div className="flex items-center gap-3">
-                                  {selectedLibraryIds.length > 0 && (
-                                    <button
-                                      onClick={() => setSelectedLibraryIds([])}
-                                      className="text-primary hover:underline"
-                                    >
-                                      Clear
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      fileInputRef.current?.click();
-                                      setLibraryOpen(false);
-                                    }}
-                                    className="inline-flex items-center gap-1 text-primary hover:underline"
-                                  >
-                                    <Paperclip className="h-3 w-3" /> Upload new
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -527,6 +425,31 @@ export default function HomePage() {
       {!isAuthenticated && (
         <LoginModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} defaultMode={authMode} />
       )}
+
+      <LibraryPicker
+        open={libraryOpen}
+        anchorRef={libraryButtonRef}
+        items={libraryItems}
+        search={librarySearch}
+        onSearchChange={setLibrarySearch}
+        selectedId={selectedLibraryId}
+        onSelectItem={selectLibraryItem}
+        onClearSelection={() => setSelectedLibraryId(null)}
+        onClose={() => setLibraryOpen(false)}
+        onUploadNew={() => {
+          fileInputRef.current?.click();
+          setLibraryOpen(false);
+        }}
+      />
+
+      <SupportModal
+        open={supportOpen}
+        tab={supportTab}
+        onClose={() => setSupportOpen(false)}
+        onTabChange={setSupportTab}
+        isAuthenticated={isAuthenticated}
+        onSignOut={handleLogout}
+      />
     </>
   );
 }

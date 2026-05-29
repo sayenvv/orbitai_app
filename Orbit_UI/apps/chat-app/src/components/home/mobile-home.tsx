@@ -5,16 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   ArrowUp,
   FolderOpen,
-  Info,
   LogIn,
   Menu,
   MessageSquare,
   Paperclip,
-  Settings,
   Sparkles,
   X,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SettingsHelpFooterTab } from "@/components/home/support-modal";
 import { agents, getGreeting, routeForAgent } from "@/lib/home-data";
 
 type MobileHomeProps = {
@@ -25,6 +23,7 @@ type MobileHomeProps = {
   onSignUp: () => void;
   onProfile: () => void;
   onHistory: () => void;
+  onOpenSupport: () => void;
 };
 
 export function MobileHome({
@@ -35,12 +34,12 @@ export function MobileHome({
   onSignUp,
   onProfile,
   onHistory,
+  onOpenSupport,
 }: MobileHomeProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"home" | "settings">("home");
   const [libraryOpen, setLibraryOpen] = useState(false);
 
   const handleSend = () => {
@@ -51,6 +50,11 @@ export function MobileHome({
 
   const openAgent = (agentId: string) => {
     router.push(routeForAgent(agentId));
+  };
+
+  const openSupport = () => {
+    setSidebarOpen(false);
+    onOpenSupport();
   };
 
   return (
@@ -113,11 +117,11 @@ export function MobileHome({
             className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
-          <aside className="relative z-10 flex h-full w-80 max-w-[88vw] flex-col border-r border-border/60 bg-background/95 shadow-2xl backdrop-blur-2xl">
+          <aside className="relative z-10 flex h-full w-80 max-w-[88vw] flex-col border-r border-sidebar-border bg-sidebar shadow-2xl">
             <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
               <div>
                 <p className="text-sm font-semibold">Orbit AI</p>
-                <p className="text-[11px] text-muted-foreground">Menu & settings</p>
+                <p className="text-[11px] text-muted-foreground">Navigation</p>
               </div>
               <button
                 type="button"
@@ -129,81 +133,46 @@ export function MobileHome({
               </button>
             </div>
 
-            <div className="flex items-center gap-2 border-b border-border/60 bg-card/40 p-2">
-              {(["home", "settings"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold capitalize transition-all ${
-                    activeTab === tab ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {tab === "settings" ? <Settings className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  {tab}
-                </button>
-              ))}
-            </div>
-
             <div className="flex-1 overflow-y-auto px-3 py-3">
-              {activeTab === "home" ? (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => { setSidebarOpen(false); router.push("/history"); }}
-                    className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
-                  >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><MessageSquare className="h-4 w-4" /></span>
-                    <span>
-                      <span className="block">Recent conversations</span>
-                      <span className="text-[11px] text-muted-foreground">Jump back to your latest chats</span>
-                    </span>
-                  </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => { setSidebarOpen(false); router.push("/"); }}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Sparkles className="h-4 w-4" />
+                  </span>
+                  <span>
+                    <span className="block">Home</span>
+                    <span className="text-[11px] text-muted-foreground">Back to assistants</span>
+                  </span>
+                </button>
+                <button
+                  onClick={() => { setSidebarOpen(false); onHistory(); }}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <MessageSquare className="h-4 w-4" />
+                  </span>
+                  <span>
+                    <span className="block">Recent conversations</span>
+                    <span className="text-[11px] text-muted-foreground">Jump back to your latest chats</span>
+                  </span>
+                </button>
+                {!isAuthenticated && (
                   <button
                     onClick={() => { setSidebarOpen(false); onSignIn(); }}
                     className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
                   >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><LogIn className="h-4 w-4" /></span>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <LogIn className="h-4 w-4" />
+                    </span>
                     <span>
                       <span className="block">Sign in / Join</span>
                       <span className="text-[11px] text-muted-foreground">Save history and unlock more</span>
                     </span>
                   </button>
-                </div>
-              ) : (
-                <div className="space-y-3 rounded-2xl border border-border/60 bg-card/90 p-3 shadow-sm">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Appearance</p>
-                    <p className="mt-1 text-sm text-muted-foreground">Use the theme toggle here.</p>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/80 p-3">
-                    <div>
-                      <p className="text-sm font-medium">Theme</p>
-                      <p className="text-xs text-muted-foreground">Switch light / dark mode</p>
-                    </div>
-                    <ThemeToggle />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-border/60 bg-card/40 p-3">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("settings")}
-                  className="flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-background/80 px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-                >
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(false)}
-                  className="flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-background/80 px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-                >
-                  <Info className="h-4 w-4" />
-                  About
-                </button>
+                )}
               </div>
             </div>
           </aside>
@@ -225,7 +194,7 @@ export function MobileHome({
           </p>
         </div>
 
-        {/* Agent grid — icon-first mobile layout */}
+        {/* Agent grid */}
         <section className="mb-6">
           <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Assistants
@@ -254,7 +223,6 @@ export function MobileHome({
           </div>
         </section>
 
-        {/* Guest CTA — reduced to one clean callout */}
         {!isAuthenticated && (
           <section className="mb-4 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm">
             <p className="text-sm font-semibold text-foreground">Keep your work in one place</p>
@@ -271,8 +239,13 @@ export function MobileHome({
         )}
       </div>
 
-      {/* Bottom composer — fixed messaging-style dock */}
-      <div className="safe-bottom safe-x shrink-0 border-t border-border/50 bg-background/95 px-3 pb-3 pt-2 backdrop-blur-md">
+      {/* Bottom tabs + composer */}
+      <div className="safe-bottom safe-x shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-md">
+        <div className="border-b border-border/40 px-2 py-1">
+          <SettingsHelpFooterTab showTopBorder={false} onOpen={openSupport} />
+        </div>
+
+        <div className="px-3 pb-3 pt-2">
         <div className="rounded-3xl border border-border/60 bg-card/90 p-3 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.35)] backdrop-blur-xl">
           <input ref={fileInputRef} type="file" multiple className="hidden" />
 
@@ -333,7 +306,7 @@ export function MobileHome({
             </button>
             <button
               type="button"
-              onClick={() => setLibraryOpen((open) => !open)}
+              onClick={() => setLibraryOpen(true)}
               className={`inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium transition-colors ${
                 libraryOpen ? "bg-primary/15 text-primary" : "bg-muted/60 text-foreground/80 hover:bg-muted hover:text-foreground dark:bg-muted/40"
               }`}
@@ -348,6 +321,7 @@ export function MobileHome({
               Your saved uploads and generated content will appear here in the mobile view too.
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
