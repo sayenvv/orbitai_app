@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { StudySource } from "@/types";
+import { publicApi } from "@/lib/orbit-api";
 import { cn } from "@/lib/utils";
 import {
   X,
@@ -117,10 +118,7 @@ export function ContextSelector({ selectedSource, onSelect }: ContextSelectorPro
   // Fetch study materials when modal opens
   useEffect(() => {
     if (openTab === "materials" && studyMaterials.length === 0) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/study-materials`, {
-        credentials: "include",
-      })
-        .then((r) => r.ok ? r.json() : { data: [] })
+      publicApi.studyMaterials()
         .then((data) => {
           const items: StudySource[] = (data.data || []).map((m: Record<string, unknown>) => ({
             id: m.id as string,
@@ -134,10 +132,7 @@ export function ContextSelector({ selectedSource, onSelect }: ContextSelectorPro
         .catch(() => {});
     }
     if (openTab === "files" && uploadedFiles.length === 0) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/files`, {
-        credentials: "include",
-      })
-        .then((r) => r.ok ? r.json() : { data: [] })
+      publicApi.files()
         .then((data) => {
           const items: StudySource[] = (data.data || []).map((f: Record<string, unknown>) => ({
             id: f.id as string,

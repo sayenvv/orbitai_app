@@ -5,13 +5,15 @@ import { BookOpen, LogOut, X, Paperclip, Sparkles, MessageSquare, Search, Folder
 import { useAuthStore } from "@/store/auth-store";
 import { useLogout } from "@/hooks/use-auth";
 import { LoginModal } from "@/components/login-modal";
-import { agents, libraryItems, routeForAgent } from "@/lib/home-data";
+import { libraryItems, routeForAgent } from "@/lib/home-data";
+import { useAgents } from "@/hooks/use-agents";
 import { MobileHome } from "@/components/home/mobile-home";
 import { LibraryPicker } from "@/components/home/library-picker";
 import { SupportModal, SettingsHelpFooterTab, type SupportTab } from "@/components/home/support-modal";
 import { useState, useRef } from "react";
 
 export default function HomePage() {
+  const { agents } = useAgents();
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
   const handleLogout = useLogout();

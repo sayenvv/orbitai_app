@@ -13,7 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+import { publicApi } from "@/lib/orbit-api";
 
 type ChatSidebarProps = {
   conversations: Conversation[];
@@ -30,8 +30,7 @@ export function ChatSidebar({ conversations, activeId, onSelect, onNewChat, onDe
 
   useEffect(() => {
     if (!user) return;
-    fetch(`${API_BASE}/subscription`, { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : null))
+    publicApi.subscription()
       .then((data) => { if (data?.plan) setPlan(data.plan); })
       .catch(() => {});
   }, [user]);

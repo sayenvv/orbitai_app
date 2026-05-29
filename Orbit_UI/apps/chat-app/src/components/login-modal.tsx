@@ -2,9 +2,8 @@
 
 import { useState, FormEvent, useEffect, useRef } from "react";
 import { X, Loader2, Eye, EyeOff, Bot, ArrowLeft } from "lucide-react";
+import { authApi, mapApiUser } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 interface LoginModalProps {
   open: boolean;
@@ -49,8 +48,8 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
 
     try {
       if (mode === "register") {
-        if (password.length < 8) {
-          setError("Password must be at least 8 characters");
+        if (password.length < 6) {
+          setError("Password must be at least 6 characters");
           setIsSubmitting(false);
           return;
         }
@@ -59,54 +58,20 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
           setIsSubmitting(false);
           return;
         }
-        const res = await fetch(`${API_BASE_URL}/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ name, email, password, confirm_password: confirmPassword }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({ detail: "Registration failed" }));
-          throw new Error(data.detail || "Registration failed");
-        }
-        const data = await res.json();
-        setUser({
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role,
-          emailVerified: data.user.email_verified,
-          image: data.user.image ?? undefined,
-          createdAt: data.user.created_at,
-          updatedAt: data.user.updated_at,
-        });
+        const data = await authApi.register(name.trim(), email.trim(), password);
+        setUser(mapApiUser(data.user));
       } else {
-        const res = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email, password }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({ detail: "Invalid credentials" }));
-          throw new Error(data.detail || "Invalid email or password");
-        }
-        const data = await res.json();
-        setUser({
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role,
-          emailVerified: data.user.email_verified,
-          image: data.user.image ?? undefined,
-          createdAt: data.user.created_at,
-          updatedAt: data.user.updated_at,
-        });
+        const data = await authApi.login(email.trim(), password);
+        setUser(mapApiUser(data.user));
       }
       resetForm();
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -121,21 +86,18 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Modal */}
       <div
         className="relative w-full max-w-[340px] rounded-xl bg-background border border-border/50 shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="login-modal-title"
       >
-        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-3 right-3 h-7 w-7 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground z-10"
@@ -144,7 +106,6 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
           <X className="h-3.5 w-3.5" />
         </button>
 
-        {/* Header */}
         <div className="pt-6 pb-1 px-6 text-center">
           <div className="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-primary/10 mb-3">
             <Bot className="h-5 w-5 text-primary" />
@@ -159,7 +120,6 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
           </p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="px-6 pt-3 pb-6 space-y-3">
           {error && (
             <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
@@ -214,7 +174,7 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                minLength={8}
+                minLength={6}
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
                 className="flex h-9 w-full rounded-lg border border-border bg-muted/30 px-3 pr-9 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
               />
@@ -242,7 +202,7 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                minLength={8}
+                minLength={6}
                 autoComplete="new-password"
                 className="flex h-9 w-full rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
               />

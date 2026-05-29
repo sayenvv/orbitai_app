@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { LibraryPicker } from "@/components/home/library-picker";
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
-import { agents, getGreeting, libraryItems, routeForAgent } from "@/lib/home-data";
+import { getGreeting, libraryItems, routeForAgent } from "@/lib/home-data";
+import { useAgents } from "@/hooks/use-agents";
 
 type MobileHomeProps = {
   isAuthenticated: boolean;
@@ -38,6 +39,7 @@ export function MobileHome({
   onHistory,
   onOpenSupport,
 }: MobileHomeProps) {
+  const { agents } = useAgents();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const libraryButtonRef = useRef<HTMLButtonElement>(null);
