@@ -12,7 +12,7 @@ import {
   Shield,
   X,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeSelect } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 export type SupportTab = "settings" | "help";
@@ -108,12 +108,12 @@ export function SupportModal({
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   Appearance
                 </p>
-                <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/80 p-3">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/80 p-3">
                   <div>
                     <p className="text-sm font-medium">Theme</p>
                     <p className="text-xs text-muted-foreground">Light, dark, or system</p>
                   </div>
-                  <ThemeToggle />
+                  <ThemeSelect />
                 </div>
               </div>
 

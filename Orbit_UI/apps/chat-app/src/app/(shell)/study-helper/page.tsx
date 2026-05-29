@@ -694,7 +694,7 @@ export default function StudyHelperLibraryPage() {
   }, [searchQuery, activeFilter]);
 
   return (
-    <main className="flex h-screen flex-col bg-background">
+    <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
       {/* Header */}
       <header className="flex items-center justify-between h-14 px-4 border-b bg-background/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3">
