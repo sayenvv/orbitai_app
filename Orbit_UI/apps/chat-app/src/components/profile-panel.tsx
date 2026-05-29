@@ -14,6 +14,7 @@ import {
   AlertCircle,
   KeyRound,
 } from "lucide-react";
+import { authApi, mapApiUser } from "@/lib/orbit-api";
 
 interface ProfilePanelProps {
   open: boolean;
@@ -27,8 +28,6 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
   useEffect(() => {
     if (user?.name) setName(user.name);
@@ -62,27 +61,8 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
     setErrorMsg("");
     setSuccessMsg("");
     try {
-      const res = await fetch(`${apiUrl}/auth/me`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Update failed" }));
-        throw new Error(err.detail || "Update failed");
-      }
-      const data = await res.json();
-      setUser({
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        emailVerified: data.email_verified,
-        image: data.image ?? undefined,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      });
+      const data = await authApi.updateProfile(name.trim());
+      setUser(mapApiUser(data));
       setSuccessMsg("Profile updated successfully!");
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
@@ -90,7 +70,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
     } finally {
       setSaving(false);
     }
-  }, [name, user?.name, apiUrl, setUser]);
+  }, [name, user?.name, setUser]);
 
   // Close on Escape
   useEffect(() => {

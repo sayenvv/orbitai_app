@@ -7,6 +7,7 @@ import { ChatSidebar } from "./chat-sidebar";
 import { ChatMessages } from "./chat-messages";
 import { ChatInput } from "./chat-input";
 import { Message, Conversation, StudySource } from "@/types";
+import { chatApi, mapConversationSummary, mapMessage } from "@/lib/orbit-api";
 import { Bot, PanelLeftClose, PanelLeftOpen, Share2, MoreHorizontal, LogIn, LogOut, Settings, User, ArrowLeft } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -51,20 +52,8 @@ export function ChatInterface({ initialSource, agentId }: { initialSource?: Stud
     if (!isAuthenticated) return;
     const loadConversations = async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_CHAT_API_URL || "http://localhost:8000/api/chat"}/conversations`,
-          { credentials: "include" }
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        const convs: Conversation[] = (data.data || []).map((c: Record<string, unknown>) => ({
-          id: c.id as string,
-          title: c.title as string,
-          messages: [],
-          createdAt: new Date(c.created_at as string),
-          updatedAt: new Date(c.updated_at as string),
-        }));
-        setConversations(convs);
+        const data = await chatApi.listConversations();
+        setConversations(data.data.map(mapConversationSummary));
       } catch {
         // silently fail
       }
@@ -78,20 +67,8 @@ export function ChatInterface({ initialSource, agentId }: { initialSource?: Stud
     const conv = conversations.find((c) => c.id === id);
     if (conv && conv.messages.length > 0) return; // already loaded
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_CHAT_API_URL || "http://localhost:8000/api/chat"}/conversations/${id}`,
-        { credentials: "include" }
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      const messages: Message[] = (data.messages || []).map((m: Record<string, unknown>) => ({
-        id: m.id as string,
-        role: m.role as "user" | "assistant",
-        content: m.content as string,
-        timestamp: new Date(m.timestamp as string),
-      }));
-      // Replace messages in that conversation
-      messages.forEach((msg) => addMessage(id, msg));
+      const data = await chatApi.getConversation(id);
+      data.messages.map(mapMessage).forEach((msg) => addMessage(id, msg));
     } catch {
       // silently fail
     }
@@ -160,57 +137,20 @@ export function ChatInterface({ initialSource, agentId }: { initialSource?: Stud
     rafRef.current = requestAnimationFrame(flushBuffer);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_CHAT_API_URL || "http://localhost:8000/api/chat"}/message/stream`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            message: content,
-            conversation_id: activeConversationId || null,
-            source_id: selectedSource?.id || null,
-            source_type: selectedSource?.type || null,
-            agent_id: agentId || null,
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to get response");
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No reader available");
-
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (!jsonStr) continue;
-
-          try {
-            const event = JSON.parse(jsonStr);
-
-            if (event.type === "start" && event.conversation_id) {
-              if (event.conversation_id !== conversationId && event.conversation_id !== "anonymous") {
-                updateConversationId(conversationId!, event.conversation_id);
-                conversationId = event.conversation_id;
-              }
-            } else if (event.type === "token") {
-              streamBufferRef.current += event.content;
-            } else if (event.type === "done") {
-              // Final sync
-            }
-          } catch {
-            // Skip malformed JSON lines
+      for await (const event of chatApi.streamMessage({
+        message: content,
+        conversation_id: activeConversationId || null,
+        source_id: selectedSource?.id || null,
+        source_type: selectedSource?.type || null,
+        agent_id: agentId || null,
+      })) {
+        if (event.type === "start" && event.conversation_id) {
+          if (event.conversation_id !== conversationId && event.conversation_id !== "anonymous") {
+            updateConversationId(conversationId!, event.conversation_id);
+            conversationId = event.conversation_id;
           }
+        } else if (event.type === "token") {
+          streamBufferRef.current += event.content;
         }
       }
 
@@ -236,10 +176,7 @@ export function ChatInterface({ initialSource, agentId }: { initialSource?: Stud
 
   const handleDeleteConversation = async (id: string) => {
     try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_CHAT_API_URL || "http://localhost:8000/api/chat"}/conversations/${id}`,
-        { method: "DELETE", credentials: "include" }
-      );
+      await chatApi.deleteConversation(id);
     } catch {
       // ignore
     }
