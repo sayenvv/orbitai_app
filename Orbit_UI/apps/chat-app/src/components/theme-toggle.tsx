@@ -1,30 +1,34 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  const cycleTheme = () => {
+    if (theme === "dark") {
+      setTheme("light");
+      return;
+    }
 
-  if (!mounted) {
-    return (
-      <button className="inline-flex items-center justify-center rounded-md h-8 w-8 hover:bg-accent transition-colors">
-        <Sun className="h-4 w-4" />
-      </button>
-    );
-  }
+    if (theme === "light") {
+      setTheme("system");
+      return;
+    }
+
+    setTheme("dark");
+  };
+
+  const label = theme === "dark" ? "Dark" : theme === "light" ? "Light" : "System";
 
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="inline-flex items-center justify-center rounded-md h-8 w-8 hover:bg-accent transition-colors"
-      aria-label="Toggle theme"
+      type="button"
+      onClick={cycleTheme}
+      className="inline-flex items-center rounded-full border border-border/70 bg-background/90 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-accent"
+      aria-label="Cycle theme mode"
     >
-      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {label}
     </button>
   );
 }

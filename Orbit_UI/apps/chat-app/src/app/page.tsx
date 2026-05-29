@@ -1,28 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BookOpen, Briefcase, Code, GraduationCap, Languages, Brain, History, LogOut, User, Settings, Star, Zap, Clock, X, Paperclip, Mic, Sparkles, MessageSquare, ArrowUp, Plane, Users, Globe2, ShieldCheck, Check, Search, FolderOpen, ChevronDown, Wand2 } from "lucide-react";
+import { BookOpen, Briefcase, Code, GraduationCap, Languages, Brain, History, LogOut, Settings, Star, Zap, X, Paperclip, Mic, Sparkles, MessageSquare, ArrowUp, Plane, Users, Globe2, ShieldCheck, Check, Search, FolderOpen, ChevronDown, Wand2, Palette } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { useLogout } from "@/hooks/use-auth";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { ProfilePanel } from "@/components/profile-panel";
 import { LoginModal } from "@/components/login-modal";
+import { agents, quickPrompts, recentChats, routeForAgent } from "@/lib/home-data";
+import { MobileHome } from "@/components/home/mobile-home";
 import { useState, useRef } from "react";
-
-const quickPrompts = [
-  { label: "Explain a concept", prompt: "Explain this concept in simple terms:", icon: "💡" },
-  { label: "Help me study", prompt: "Help me create a study plan for:", icon: "📚" },
-  { label: "Write code", prompt: "Write code that:", icon: "💻" },
-  { label: "Summarize text", prompt: "Summarize the following:", icon: "📝" },
-  { label: "Practice interview", prompt: "Help me practice for a job interview in:", icon: "🎯" },
-  { label: "Translate text", prompt: "Translate the following to:", icon: "🌐" },
-];
-
-const recentChats = [
-  { id: "1", title: "React hooks explanation", agent: "Coding Tutor", time: "2 hours ago", preview: "Can you explain useEffect..." },
-  { id: "2", title: "Resume review feedback", agent: "Job Search Assistant", time: "Yesterday", preview: "I need help improving my..." },
-  { id: "3", title: "Spanish basics lesson", agent: "Language Learning", time: "2 days ago", preview: "How do I conjugate..." },
-];
 
 const libraryItems = [
   { id: "l1", title: "Biology Ch.4 — Cell Division (Notes)", type: "Notes",      source: "Study Helper",     date: "Today" },
@@ -33,78 +18,18 @@ const libraryItems = [
   { id: "l6", title: "Algorithms cheat sheet (PDF)",       type: "Upload",     source: "My uploads",       date: "Last week" },
 ];
 
-const agents = [
-  {
-    id: "study-helper",
-    name: "Study Helper",
-    description: "Get help with study materials, notes, and exam preparation",
-    icon: BookOpen,
-    color: "from-blue-500 to-indigo-600",
-    bgColor: "bg-blue-50 dark:bg-blue-950/30",
-  },
-  {
-    id: "job-search",
-    name: "Job Search Assistant",
-    description: "Resume tips, interview prep, and job hunting strategies",
-    icon: Briefcase,
-    color: "from-emerald-500 to-teal-600",
-    bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
-  },
-  {
-    id: "coding-tutor",
-    name: "Coding Tutor",
-    description: "Learn programming concepts, debug code, and build projects",
-    icon: Code,
-    color: "from-purple-500 to-violet-600",
-    bgColor: "bg-purple-50 dark:bg-purple-950/30",
-  },
-  {
-    id: "career-guidance",
-    name: "Career Guidance",
-    description: "Explore career paths, skill development, and growth plans",
-    icon: GraduationCap,
-    color: "from-orange-500 to-amber-600",
-    bgColor: "bg-orange-50 dark:bg-orange-950/30",
-  },
-  {
-    id: "language-learning",
-    name: "Language Learning",
-    description: "Practice languages, grammar help, and conversation practice",
-    icon: Languages,
-    color: "from-pink-500 to-rose-600",
-    bgColor: "bg-pink-50 dark:bg-pink-950/30",
-  },
-  {
-    id: "general-knowledge",
-    name: "General Knowledge",
-    description: "Ask anything — science, history, math, and more",
-    icon: Brain,
-    color: "from-cyan-500 to-sky-600",
-    bgColor: "bg-cyan-50 dark:bg-cyan-950/30",
-  },
-  {
-    id: "trip-adviser",
-    name: "Trip Adviser",
-    description: "Plan trips, find destinations, hotels, flights, and itineraries",
-    icon: Plane,
-    color: "from-orange-500 to-rose-600",
-    bgColor: "bg-orange-50 dark:bg-orange-950/30",
-  },
-];
-
 export default function HomePage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
   const handleLogout = useLogout();
-  const [profileOpen, setProfileOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [chatHistoryOpen, setChatHistoryOpen] = useState(true);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [selectedLibraryIds, setSelectedLibraryIds] = useState<string[]>([]);
   const [librarySearch, setLibrarySearch] = useState("");
@@ -145,20 +70,11 @@ export default function HomePage() {
   const displayEmail = user?.email || "";
 
   const handleSelectAgent = (agentId: string) => {
-    if (agentId === "job-search") {
-      router.push("/job-search/chat");
-      return;
-    }
-    if (agentId === "study-helper") {
-      router.push("/study-helper/chat");
-      return;
-    }
-    if (agentId === "trip-adviser") {
-      router.push("/trip-adviser/chat");
-      return;
-    }
-    router.push(`/c?agent=${agentId}`);
+    router.push(routeForAgent(agentId));
   };
+
+  const sidebarWidthClass = sidebarOpen ? "w-64" : "w-20";
+  const sidebarLabelClass = sidebarOpen ? "pointer-events-auto opacity-100 max-w-[10rem]" : "pointer-events-none opacity-0 max-w-0";
 
   const plans = [
     {
@@ -217,249 +133,146 @@ export default function HomePage() {
   ];
 
   return (
-    <main className="flex h-screen flex-col bg-background">
-      {/* Top Navigation Bar */}
-      <header className="flex items-center justify-between h-14 px-4 border-b bg-background/80 backdrop-blur-sm shrink-0">
-        <div className="flex items-center gap-2">
-          <h1 className="text-sm font-semibold">AI Chat</h1>
-        </div>
-        <div className="flex items-center gap-1">
-          {isAuthenticated && (
-            <button
-              onClick={() => router.push("/history")}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors text-muted-foreground"
-              title="Chat History"
-            >
-              <History className="h-4 w-4" />
-              <span className="hidden sm:inline">History</span>
-            </button>
-          )}
-          <ThemeToggle />
-          {isAuthenticated ? (
-            <div className="relative ml-1 group">
-              <button
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent transition-colors"
-                title="Profile"
-              >
-                <div className="relative">
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center ring-1 ring-border/60">
-                    <span className="text-[10px] font-bold text-primary">{initials}</span>
-                  </div>
-                  <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
-                </div>
-                <span className="text-xs font-medium hidden lg:block">{displayName}</span>
-              </button>
-              {/* Dropdown */}
-              <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border bg-card shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                <div className="p-3 border-b">
-                  <p className="text-sm font-medium">{displayName}</p>
-                  <p className="text-xs text-muted-foreground">{displayEmail}</p>
-                </div>
-                <div className="p-1">
-                  <button
-                    onClick={() => setProfileOpen(true)}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors"
-                  >
-                    <User className="h-4 w-4" /> Profile
-                  </button>
-                  <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors">
-                    <Settings className="h-4 w-4" /> Settings
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" /> Sign Out
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 ml-2">
-              <button
-                onClick={() => { setAuthMode("login"); setLoginModalOpen(true); }}
-                className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2 text-sm font-medium hover:bg-accent transition-all duration-200"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => { setAuthMode("register"); setLoginModalOpen(true); }}
-                className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-md transition-all duration-200"
-              >
-                Sign Up
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+    <>
+      {/* Mobile — dedicated app-style UI */}
+      <div className="md:hidden">
+        <MobileHome
+          isAuthenticated={isAuthenticated}
+          displayName={displayName}
+          initials={initials}
+          onSignIn={() => { setAuthMode("login"); setLoginModalOpen(true); }}
+          onSignUp={() => { setAuthMode("register"); setLoginModalOpen(true); }}
+          onProfile={() => setSettingsOpen(true)}
+          onHistory={() => setSettingsOpen(true)}
+        />
+      </div>
 
+      {/* Desktop — marketing + sidebar layout */}
+      <main className="app-shell relative hidden w-full max-w-full flex-col overflow-hidden bg-background md:flex">
       {/* Main Content with Sidebar */}
-      <div className="flex-1 flex gap-0 overflow-hidden relative">
-        {/* Sidebar — only for authenticated users */}
-        {isAuthenticated && (
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        {/* Desktop sidebar rail */}
         <aside
-          className={`hidden lg:flex flex-col bg-background border-r transition-all duration-300 ease-in-out overflow-hidden relative ${
-            sidebarOpen ? "w-60 px-3 py-4" : "w-0 px-0 py-0"
-          }`}
+          className={`hidden lg:flex ${sidebarWidthClass} flex-col border border-border/60 bg-card/90 px-2 py-4 shadow-[0_20px_50px_-18px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-[width,background-color,box-shadow] duration-300 ease-out will-change-[width]`}
+          style={{ width: sidebarOpen ? 256 : 80 }}
         >
-          {/* Sidebar Content */}
-          <div className="flex-1 overflow-y-auto space-y-4 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [scrollbar-width:none] flex flex-col">
-            {isAuthenticated ? (
-              <>
-                {/* Premium Upgrade Card for logged-in users - Hidden when history is expanded */}
-                {!chatHistoryOpen && (
-                  <div className="rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10 p-3 space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Star className="h-4 w-4 text-amber-500" />
-                        <h3 className="font-semibold text-xs">Upgrade to Premium</h3>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {userSubscription?.plan === "free"
-                          ? "Unlock unlimited messages and all AI agents"
-                          : "You have an active premium subscription"}
-                      </p>
-                    </div>
-
-                    {userSubscription?.plan === "free" && (
-                      <>
-                        <ul className="space-y-1.5 text-xs">
-                          <li className="flex items-center gap-2 text-muted-foreground">
-                            <Zap className="h-3 w-3 text-primary" />
-                            <span>Unlimited messages</span>
-                          </li>
-                          <li className="flex items-center gap-2 text-muted-foreground">
-                            <Star className="h-3 w-3 text-primary" />
-                            <span>All premium agents</span>
-                          </li>
-                          <li className="flex items-center gap-2 text-muted-foreground">
-                            <Clock className="h-3 w-3 text-primary" />
-                            <span>Priority support</span>
-                          </li>
-                        </ul>
-                        <button className="w-full bg-primary text-primary-foreground px-2 py-1.5 rounded-md text-xs font-medium hover:bg-primary/90 transition-colors">
-                          Upgrade Now
-                        </button>
-                      </>
-                    )}
-
-                    {userSubscription?.plan !== "free" && (
-                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-md p-2">
-                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                          ✓ Premium Active
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Chat History Section - Collapsible - VS Code Style */}
-                <div className={`space-y-2 border-t border-border/20 pt-3 transition-all duration-300 flex flex-col ${chatHistoryOpen ? "flex-1" : ""} ${!chatHistoryOpen ? "mt-auto" : ""}`}>
-                  <button
-                    onClick={() => setChatHistoryOpen(!chatHistoryOpen)}
-                    className="w-full flex items-center gap-1.5 px-2 py-1 hover:bg-accent/50 rounded transition-colors group"
-                  >
-                    <svg
-                      className={`h-4 w-4 text-muted-foreground group-hover:text-foreground flex-shrink-0 transition-transform duration-200 ${
-                        chatHistoryOpen ? "" : "-rotate-90"
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      strokeWidth={2.5}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                    <MessageSquare className="h-4 w-4 text-primary flex-shrink-0" />
-                    <h2 className="font-semibold text-xs uppercase tracking-wider text-foreground">Chat History</h2>
-                  </button>
-                  
-                  {/* Collapsible Content */}
-                  <div
-                    className={`overflow-hidden transition-all duration-300 ease-in-out flex flex-col ${
-                      chatHistoryOpen ? "flex-1 opacity-100" : "max-h-0 opacity-0"
-                    }`}
-                  >
-                    <div className="space-y-1.5 flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [scrollbar-width:none]">
-                      {recentChats.map((chat, idx) => (
-                        <button
-                          key={chat.id}
-                          onClick={() => router.push(`/c/${chat.id}`)}
-                          className="group w-full text-left relative flex flex-col gap-1 rounded-lg border border-border/30 bg-card/40 backdrop-blur-sm p-2.5 hover:border-primary/50 hover:bg-card/60 transition-all duration-200"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg" />
-                          <div className="relative">
-                            <h3 className="font-medium text-xs line-clamp-1 group-hover:text-primary transition-colors">{chat.title}</h3>
-                            <p className="text-xs text-primary/60 font-medium">{chat.agent}</p>
-                          </div>
-                          <p className="relative text-xs text-muted-foreground line-clamp-1 group-hover:text-foreground/70 transition-colors">{chat.preview}</p>
-                          <p className="relative text-xs text-muted-foreground/50">{chat.time}</p>
-                        </button>
-                      ))}
-                    </div>
-                    <button className="w-full mt-2 text-xs font-medium text-primary hover:text-primary/80 py-1.5 rounded-lg border border-primary/30 hover:border-primary/50 hover:bg-primary/10 transition-all duration-200">
-                      View All History
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : null}
+          <div className="mb-6 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm shadow-primary/20 transition-transform hover:-translate-y-0.5"
+              aria-label="Go home"
+            >
+              <Sparkles className="h-4 w-4" />
+            </button>
           </div>
 
-          {/* Bottom User Info */}
-          <div className="mt-4 pt-3 border-t">
-            <div className="rounded-lg bg-muted/50 p-2.5 space-y-1">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center ring-1 ring-border/60">
-                  <span className="text-[10px] font-bold text-primary">{initials}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{displayName}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {userSubscription?.plan === "free" ? "Free" : "Premium"}
-                  </p>
-                </div>
-              </div>
-            </div>
+          <nav className="flex flex-1 flex-col gap-1.5">
+            {[
+              { label: "Home", icon: MessageSquare, action: () => router.push("/") },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={item.action}
+                  className={`flex h-11 items-center rounded-2xl text-muted-foreground transition-all duration-300 hover:bg-accent hover:text-foreground ${sidebarOpen ? "gap-3 px-3 justify-start" : "justify-center"}`}
+                  title={item.label}
+                  aria-label={item.label}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className={`truncate text-sm font-medium transition-all duration-300 ${sidebarLabelClass}`}>
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto flex flex-col gap-1.5 border-t border-border/60 pt-3">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className={`flex h-11 items-center rounded-2xl text-muted-foreground transition-all duration-300 hover:bg-accent hover:text-foreground ${sidebarOpen ? "gap-3 px-3 justify-start" : "justify-center"}`}
+              title="Settings"
+              aria-label="Settings"
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              <span className={`truncate text-sm font-medium transition-all duration-300 ${sidebarLabelClass}`}>Settings</span>
+            </button>
           </div>
         </aside>
-        )}
 
-        {/* Sidebar Toggle Button — only when sidebar is rendered */}
-        {isAuthenticated && (
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 z-50 items-center justify-center w-4 h-10 bg-muted/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-300 ease-in-out border border-l-0 border-border/50 hover:border-border rounded-r-sm opacity-0 hover:opacity-100 focus:opacity-100 group ${sidebarOpen ? "left-[15rem] opacity-60" : "left-0 opacity-60"}`}
+          className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 z-40 items-center justify-center w-5.5 h-12 bg-card/95 text-muted-foreground hover:text-foreground hover:bg-card backdrop-blur-sm transition-[left,opacity,transform] duration-300 ease-in-out border border-l-0 border-border/60 hover:border-border rounded-r-md opacity-75 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)] ${sidebarOpen ? "left-[16rem]" : "left-[5rem]"}`}
           title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {sidebarOpen ? (
-            <svg className="h-3 w-3 transition-transform duration-200 group-hover:-translate-x-px" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.25} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           ) : (
-            <svg className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-px" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.25} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           )}
         </button>
-        )}
 
         {/* Main Content */}
-        <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
-            {/* Scrollable Content */}
-            <div className="aurora flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-8 bg-gradient-to-br from-background via-background to-primary/5">
-              <div className="absolute inset-0 grid-dots pointer-events-none -z-10" />
-              <div className="relative w-full max-w-4xl mx-auto space-y-8">
-                {/* Premium Header */}
-                <div className="text-center space-y-3">
-                  <div className="float-slow inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 backdrop-blur-sm">
-                    <span className="dot-live" />
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs font-semibold text-primary">AI Assistants · Live</span>
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              {/* Desktop top bar */}
+              <header className="absolute right-6 top-4 z-20 flex items-center gap-1">
+                {isAuthenticated && (
+                  <button
+                    onClick={() => setSettingsOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-accent/80 transition-colors text-muted-foreground"
+                    title="Settings"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span className="hidden sm:inline">Settings</span>
+                  </button>
+                )}
+                {isAuthenticated ? (
+                  <button
+                    onClick={handleLogout}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent/80 transition-colors"
+                    title="Sign out"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span className="hidden sm:inline">Sign out</span>
+                  </button>
+                ) : (
+                  <div className="ml-2 flex items-center gap-3">
+                    <button
+                      onClick={() => { setAuthMode("login"); setLoginModalOpen(true); }}
+                      className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2 text-sm font-medium hover:bg-accent transition-all duration-200"
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      onClick={() => { setAuthMode("register"); setLoginModalOpen(true); }}
+                      className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-md transition-all duration-200"
+                    >
+                      Sign Up
+                    </button>
                   </div>
-                  <h1 className="text-4xl sm:text-5xl font-bold text-gradient tracking-tight leading-[1.1]">What can I help you with?</h1>
-                  <p className="text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">Choose a specialized AI assistant or ask anything directly.</p>
+                )}
+              </header>
+            {/* Scrollable Content */}
+            <div aria-hidden className="aurora" />
+            <div className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-6 py-8 bg-background">
+              <div className="relative mx-auto w-full max-w-7xl space-y-6 px-2 sm:px-4 lg:px-6">
+                {/* Hero */}
+                <div className="space-y-3 pt-14 text-center">
+                  <h1 className="text-5xl font-bold leading-[1.1] tracking-tight text-gradient">
+                    What can I help you with?
+                  </h1>
+                  <p className="mx-auto max-w-lg text-base leading-relaxed text-muted-foreground">
+                    Choose a specialized AI assistant or ask anything directly.
+                  </p>
                 </div>
 
                 {/* Hero search / prompt bar with upload + library */}
@@ -506,17 +319,17 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  <div className="space-y-2.5">
-                    {/* iOS-style inset search pill */}
-                    <div className="group relative flex items-center gap-2 h-12 px-4 rounded-full bg-muted/70 dark:bg-muted/50 border border-border/40 backdrop-blur-xl transition-all focus-within:bg-card focus-within:border-primary/40 focus-within:shadow-mac focus-within:ring-4 focus-within:ring-primary/15">
-                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
+                  <div className="rounded-3xl border border-border/60 bg-card/90 p-3 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.35)] backdrop-blur-xl sm:p-4">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+
+                    <div className="group relative flex h-12 w-full items-center gap-2 rounded-2xl border border-border/60 bg-background/80 px-3 transition-all duration-300 hover:border-primary/30 hover:bg-card/95 focus-within:border-primary/60 focus-within:bg-card focus-within:shadow-[0_18px_40px_-18px_rgba(59,130,246,0.45)] focus-within:ring-4 focus-within:ring-primary/12 sm:h-14 sm:rounded-[28px] sm:px-4">
+                      <Search className="h-4 w-4 text-muted-foreground/90 shrink-0 transition-colors group-focus-within:text-primary sm:h-4.5 sm:w-4.5" />
                       <input
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
@@ -526,273 +339,161 @@ export default function HomePage() {
                             handleHeroSend();
                           }
                         }}
-                        placeholder="Search, ask anything, or paste a topic…"
-                        className="flex-1 min-w-0 bg-transparent outline-none text-[15px] placeholder:text-muted-foreground/70"
+                        placeholder="Ask anything…"
+                        className="flex-1 min-w-0 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-muted-foreground/70 sm:text-base"
                       />
                       {chatInput && (
                         <button
                           onClick={() => setChatInput("")}
-                          className="press inline-flex items-center justify-center h-5 w-5 rounded-full bg-foreground/25 hover:bg-foreground/40 text-background transition-colors shrink-0"
+                          className="press inline-flex items-center justify-center h-6 w-6 rounded-full bg-foreground/10 text-foreground/80 transition-colors hover:bg-foreground/15 hover:text-foreground shrink-0"
                           title="Clear"
                           aria-label="Clear"
                         >
                           <X className="h-3 w-3" strokeWidth={3} />
                         </button>
                       )}
-                      <div className="h-5 w-px bg-border/60 mx-0.5" />
-                      <button
-                        onClick={() => setIsRecording((r) => !r)}
-                        className={`press inline-flex items-center justify-center h-7 w-7 rounded-full transition-colors shrink-0 ${
-                          isRecording
-                            ? "bg-destructive/15 text-destructive"
-                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                        }`}
-                        title="Voice input"
-                        aria-label="Voice input"
-                      >
-                        <Mic className="h-4 w-4" />
-                      </button>
                     </div>
 
-                    {/* iOS segmented action row */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="press inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-muted/60 px-2.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground dark:bg-muted/40 sm:gap-1.5 sm:px-3 sm:text-[13px]"
+                        title="Upload files"
+                      >
+                        <Paperclip className="h-3.5 w-3.5 text-primary" />
+                        <span>Upload</span>
+                      </button>
+
+                      <div className="relative min-w-0">
                         <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="press inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-muted/60 dark:bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground text-[13px] font-medium transition-colors"
-                          title="Upload files"
+                          onClick={() => setLibraryOpen((o) => !o)}
+                          className={`press inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition-colors sm:gap-1.5 sm:px-3 sm:text-[13px] ${
+                            selectedLibraryIds.length > 0 || libraryOpen
+                              ? "bg-primary/15 text-primary"
+                              : "bg-muted/60 dark:bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground"
+                          }`}
+                          title="Use from your library"
                         >
-                          <Paperclip className="h-3.5 w-3.5 text-primary" />
-                          Upload
+                          <FolderOpen className="h-3.5 w-3.5" />
+                          Library
+                          {selectedLibraryIds.length > 0 && (
+                            <span className="ml-0.5 rounded-full bg-primary text-primary-foreground px-1.5 py-0.5 text-[10px] font-bold leading-none">
+                              {selectedLibraryIds.length}
+                            </span>
+                          )}
                         </button>
 
-                        <div className="relative">
-                          <button
-                            onClick={() => setLibraryOpen((o) => !o)}
-                            className={`press inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[13px] font-medium transition-colors ${
-                              selectedLibraryIds.length > 0 || libraryOpen
-                                ? "bg-primary/15 text-primary"
-                                : "bg-muted/60 dark:bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground"
-                            }`}
-                            title="Use from your library"
-                          >
-                            <FolderOpen className="h-3.5 w-3.5" />
-                            Library
-                            {selectedLibraryIds.length > 0 && (
-                              <span className="ml-0.5 rounded-full bg-primary text-primary-foreground px-1.5 py-0.5 text-[10px] font-bold leading-none">
-                                {selectedLibraryIds.length}
-                              </span>
-                            )}
-                          </button>
-
-                          {libraryOpen && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => setLibraryOpen(false)}
-                              />
-                              <div className="absolute left-0 top-full mt-2 w-[22rem] sm:w-[26rem] glass-strong shadow-mac-lg rounded-2xl border z-50 overflow-hidden">
-                                <div className="px-3 py-2.5 border-b border-border/40 flex items-center gap-2">
-                                  <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                  <input
-                                    value={librarySearch}
-                                    onChange={(e) => setLibrarySearch(e.target.value)}
-                                    placeholder="Search uploads & generated content…"
-                                    className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
-                                  />
-                                </div>
-                                <div className="max-h-72 overflow-auto p-1">
-                                  {filteredLibrary.length === 0 ? (
-                                    <p className="px-3 py-6 text-center text-xs text-muted-foreground">
-                                      Nothing matches “{librarySearch}”
-                                    </p>
-                                  ) : (
-                                    filteredLibrary.map((item) => {
-                                      const checked = selectedLibraryIds.includes(item.id);
-                                      return (
-                                        <button
-                                          key={item.id}
-                                          onClick={() => toggleLibraryItem(item.id)}
-                                          className={`w-full flex items-start gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-accent transition-colors ${
-                                            checked ? "bg-primary/5" : ""
+                        {libraryOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]"
+                              onClick={() => setLibraryOpen(false)}
+                            />
+                            <div className="absolute left-0 top-full z-50 mt-2 w-[26rem] overflow-hidden rounded-2xl border glass-strong shadow-mac-lg">
+                              <div className="px-3 py-2.5 border-b border-border/40 flex items-center gap-2">
+                                <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <input
+                                  value={librarySearch}
+                                  onChange={(e) => setLibrarySearch(e.target.value)}
+                                  placeholder="Search uploads & generated content…"
+                                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
+                                />
+                              </div>
+                              <div className="max-h-72 overflow-auto p-1">
+                                {filteredLibrary.length === 0 ? (
+                                  <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+                                    Nothing matches “{librarySearch}”
+                                  </p>
+                                ) : (
+                                  filteredLibrary.map((item) => {
+                                    const checked = selectedLibraryIds.includes(item.id);
+                                    return (
+                                      <button
+                                        key={item.id}
+                                        onClick={() => toggleLibraryItem(item.id)}
+                                        className={`w-full flex items-start gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-accent transition-colors ${
+                                          checked ? "bg-primary/5" : ""
+                                        }`}
+                                      >
+                                        <div
+                                          className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
+                                            checked
+                                              ? "bg-primary border-primary"
+                                              : "border-border"
                                           }`}
                                         >
-                                          <div
-                                            className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
-                                              checked
-                                                ? "bg-primary border-primary"
-                                                : "border-border"
-                                            }`}
-                                          >
-                                            {checked && (
-                                              <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />
-                                            )}
-                                          </div>
-                                          <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-medium line-clamp-1">
-                                              {item.title}
-                                            </p>
-                                            <p className="text-[11px] text-muted-foreground">
-                                              {item.type} · {item.source} · {item.date}
-                                            </p>
-                                          </div>
-                                        </button>
-                                      );
-                                    })
-                                  )}
-                                </div>
-                                <div className="border-t border-border/40 px-3 py-2 text-[11px] text-muted-foreground flex items-center justify-between">
-                                  <span>{selectedLibraryIds.length} selected</span>
-                                  <div className="flex items-center gap-3">
-                                    {selectedLibraryIds.length > 0 && (
-                                      <button
-                                        onClick={() => setSelectedLibraryIds([])}
-                                        className="text-primary hover:underline"
-                                      >
-                                        Clear
+                                          {checked && (
+                                            <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />
+                                          )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-sm font-medium line-clamp-1">{item.title}</p>
+                                          <p className="text-[11px] text-muted-foreground">{item.type} · {item.source} · {item.date}</p>
+                                        </div>
                                       </button>
-                                    )}
+                                    );
+                                  })
+                                )}
+                              </div>
+                              <div className="border-t border-border/40 px-3 py-2 text-[11px] text-muted-foreground flex items-center justify-between">
+                                <span>{selectedLibraryIds.length} selected</span>
+                                <div className="flex items-center gap-3">
+                                  {selectedLibraryIds.length > 0 && (
                                     <button
-                                      onClick={() => {
-                                        fileInputRef.current?.click();
-                                        setLibraryOpen(false);
-                                      }}
-                                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                                      onClick={() => setSelectedLibraryIds([])}
+                                      className="text-primary hover:underline"
                                     >
-                                      <Paperclip className="h-3 w-3" /> Upload new
+                                      Clear
                                     </button>
-                                  </div>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      fileInputRef.current?.click();
+                                      setLibraryOpen(false);
+                                    }}
+                                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                                  >
+                                    <Paperclip className="h-3 w-3" /> Upload new
+                                  </button>
                                 </div>
                               </div>
-                            </>
-                          )}
-                        </div>
+                            </div>
+                          </>
+                        )}
                       </div>
-
-                      {/* iOS circular send button */}
-                      <button
-                        onClick={handleHeroSend}
-                        disabled={
-                          !chatInput.trim() &&
-                          attachedFiles.length === 0 &&
-                          selectedLibraryIds.length === 0
-                        }
-                        className="press inline-flex items-center justify-center h-9 w-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-all shadow-mac"
-                        title="Send"
-                        aria-label="Send"
-                      >
-                        <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-                      </button>
                     </div>
                   </div>
 
-                  <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                    Drop files, paste links, or reuse anything you&apos;ve generated before · <kbd className="px-1.5 py-0.5 rounded-md border bg-card/60 text-[10px] font-mono">return</kbd> to send
+                  <p className="mt-2 hidden text-center text-[11px] text-muted-foreground sm:mt-3 sm:block">
+                    Drop files, paste links, or reuse anything you&apos;ve generated before · <kbd className="rounded-md border bg-card/60 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd> to send
                   </p>
                 </div>
 
-                {/* Trust strip — only for guests */}
-                {!isAuthenticated && (
-                  <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> SOC 2 Type II</span>
-                    <span className="inline-flex items-center gap-1.5"><Globe2 className="h-3.5 w-3.5 text-primary" /> GDPR compliant</span>
-                    <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-primary" /> 120K+ users</span>
-                    <span className="inline-flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-amber-500" /> 4.9 rating</span>
-                    <span className="inline-flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-primary" /> &lt; 300ms response</span>
-                  </div>
-                )}
-
-                {/* Recent Chats */}
-                {isAuthenticated && recentChats.length > 0 && (
-                  <div className="space-y-3">
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recent Conversations</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {recentChats.map((chat) => (
-                        <button
-                          key={chat.id}
-                          onClick={() => router.push(`/c/${chat.id}`)}
-                          className="group flex flex-col items-start gap-2 rounded-xl border border-border/40 bg-card/50 p-4 hover:border-primary/40 hover:bg-card/80 transition-all text-left"
-                        >
-                          <div className="flex-1 min-w-0 w-full">
-                            <h3 className="font-medium text-sm line-clamp-1 group-hover:text-primary transition-colors">{chat.title}</h3>
-                            <p className="text-[11px] text-primary/60 font-medium">{chat.agent}</p>
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1">{chat.preview}</p>
-                          <p className="text-[11px] text-muted-foreground/50">{chat.time}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Quick Actions */}
-                <div className="space-y-3">
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick Start</h2>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {quickPrompts.map((quickPrompt, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setChatInput(quickPrompt.prompt)}
-                        className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/60 px-4 py-2 text-sm hover:border-primary/40 hover:bg-card/80 transition-all"
-                        title={quickPrompt.label}
-                      >
-                        <span>{quickPrompt.icon}</span>
-                        <span className="text-xs font-medium">{quickPrompt.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* AI Assistants */}
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">AI Assistants</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
                     {agents.map((agent) => {
                       const Icon = agent.icon;
                       return (
-                        <div
+                        <button
                           key={agent.id}
-                          className={`group relative flex items-start gap-4 rounded-xl border border-border/40 p-4 text-left hover:border-primary/40 hover:shadow-md transition-all cursor-default ${agent.bgColor}`}
+                          type="button"
+                          onClick={() => handleSelectAgent(agent.id)}
+                          className={`group relative flex w-full items-start gap-3 rounded-xl border border-border/40 p-3 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99] sm:gap-4 sm:p-4 ${agent.bgColor}`}
                         >
                           <div className={`shrink-0 inline-flex items-center justify-center rounded-lg p-2.5 bg-gradient-to-br ${agent.color} text-white shadow-sm group-hover:scale-105 transition-transform`}>
                             <Icon className="h-5 w-5" />
                           </div>
                           <div className="min-w-0 space-y-1">
                             <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">{agent.name}</h3>
-                            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{agent.description}</p>
+                            <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">{agent.description}</p>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
                 </div>
-
-                {/* How It Works — only for guests */}
-                {!isAuthenticated && (
-                  <div className="space-y-4">
-                    <h2 className="text-center text-lg font-bold tracking-tight">How it works</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {[
-                        { step: "1", title: "Choose an Assistant", description: "Pick a specialized AI agent for your task.", icon: Wand2, color: "from-violet-500 to-purple-600" },
-                        { step: "2", title: "Ask Your Question", description: "Type naturally or upload files for context.", icon: MessageSquare, color: "from-blue-500 to-indigo-600" },
-                        { step: "3", title: "Get Expert Answers", description: "Receive detailed, actionable responses instantly.", icon: Sparkles, color: "from-emerald-500 to-teal-600" },
-                      ].map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <div key={item.step} className="flex items-start gap-3 rounded-xl border border-border/40 bg-card/50 p-4">
-                            <div className={`shrink-0 inline-flex items-center justify-center rounded-lg p-2 bg-gradient-to-br ${item.color} text-white text-xs font-bold`}>
-                              <Icon className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="font-semibold text-sm">{item.title}</h3>
-                              <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 {/* What's New — only for authenticated users */}
                 {isAuthenticated && (
@@ -816,129 +517,16 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {/* Testimonials — only for guests */}
-                {!isAuthenticated && (
-                  <div className="space-y-4">
-                    <h2 className="text-center text-lg font-bold tracking-tight">What users say</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {[
-                        { quote: "The Study Helper completely changed how I prepare for exams. Went from C's to A's in one semester.", name: "Sarah M.", role: "CS Student" },
-                        { quote: "I landed my dream job using the Job Search Assistant. The interview prep was incredibly realistic.", name: "James K.", role: "Software Engineer" },
-                        { quote: "The Language Learning agent helped me pass my IELTS with a band 8. Highly recommend!", name: "Priya D.", role: "Graduate Student" },
-                      ].map((testimonial, idx) => (
-                        <div key={idx} className="rounded-xl border border-border/40 bg-card/50 p-4 space-y-3">
-                          <div className="flex items-center gap-0.5">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />
-                            ))}
-                          </div>
-                          <p className="text-xs text-foreground/90 leading-relaxed italic">&ldquo;{testimonial.quote}&rdquo;</p>
-                          <div className="flex items-center gap-2 pt-2 border-t border-border/30">
-                            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                              <span className="text-[9px] font-bold text-primary">{testimonial.name.split(" ").map(n => n[0]).join("")}</span>
-                            </div>
-                            <div>
-                              <p className="text-[11px] font-medium">{testimonial.name}</p>
-                              <p className="text-[10px] text-muted-foreground">{testimonial.role}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* FAQ — only for guests */}
-                {!isAuthenticated && (
-                  <div className="space-y-4">
-                    <h2 className="text-center text-lg font-bold tracking-tight">FAQ</h2>
-                    <div className="max-w-2xl mx-auto space-y-2">
-                      {[
-                        { q: "Is there a free plan?", a: "Yes! 20 messages/day with 3 core agents. No credit card needed." },
-                        { q: "Can I upload documents?", a: "Yes — PDFs, images, code files, and more. The AI analyzes them in context." },
-                        { q: "Is my data secure?", a: "SOC 2 Type II certified, GDPR compliant, encrypted at rest and in transit." },
-                        { q: "Can I cancel anytime?", a: "Yes, cancel anytime. 14-day money-back guarantee on all paid plans." },
-                      ].map((faq, idx) => (
-                        <details key={idx} className="group rounded-lg border border-border/40 bg-card/50 overflow-hidden">
-                          <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer list-none hover:bg-accent/30 transition-colors">
-                            <span className="text-sm font-medium">{faq.q}</span>
-                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 group-open:rotate-180" />
-                          </summary>
-                          <div className="px-4 pb-3 text-xs text-muted-foreground leading-relaxed">
-                            {faq.a}
-                          </div>
-                        </details>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Pricing — only for guests */}
-                {!isAuthenticated && (
-                  <div className="space-y-4">
-                    <div className="text-center space-y-2">
-                      <h2 className="text-lg font-bold tracking-tight">Simple pricing</h2>
-                      <p className="text-xs text-muted-foreground">Start free. Upgrade anytime. No hidden fees.</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {plans.map((plan) => (
-                        <div
-                          key={plan.id}
-                          className={`relative rounded-xl border p-5 flex flex-col gap-4 ${
-                            plan.popular
-                              ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
-                              : "border-border/40 bg-card/50"
-                          }`}
-                        >
-                          {plan.popular && (
-                            <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-[10px] font-semibold">
-                              Popular
-                            </span>
-                          )}
-                          <div>
-                            <h3 className="text-sm font-semibold">{plan.name}</h3>
-                            <div className="flex items-baseline gap-1 mt-1">
-                              <span className="text-2xl font-bold">{plan.price}</span>
-                              {plan.priceHint && <span className="text-[11px] text-muted-foreground">{plan.priceHint}</span>}
-                            </div>
-                          </div>
-                          <ul className="space-y-1.5 text-xs flex-1">
-                            {plan.features.map((feature, i) => (
-                              <li key={i} className="flex items-center gap-1.5 text-muted-foreground">
-                                <Check className="h-3 w-3 text-primary shrink-0" />
-                                <span>{feature}</span>
-                              </li>
-                            ))}
-                          </ul>
-                          <button
-                            onClick={() => { setAuthMode("register"); setLoginModalOpen(true); }}
-                            className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
-                              plan.popular
-                                ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                : "border border-border hover:bg-accent"
-                            }`}
-                          >
-                            {plan.cta}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
         </div>
       </div>
-
-      {/* Profile Panel */}
-      {isAuthenticated && (
-        <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
-      )}
+      </main>
 
       {/* Login Modal */}
       {!isAuthenticated && (
         <LoginModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} defaultMode={authMode} />
       )}
-    </main>
+    </>
   );
 }

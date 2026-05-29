@@ -52,7 +52,7 @@
   /* macOS / iOS light — warm off-white, hairline grays, system blue */
   --background: oklch(0.985 0.002 270);
   --foreground: oklch(0.18 0.012 264);
-  --card: oklch(1 0 0);
+  --card: oklch(0.995 0.001 270);
   --card-foreground: oklch(0.18 0.012 264);
   --popover: oklch(0.995 0.002 270);
   --popover-foreground: oklch(0.18 0.012 264);
@@ -120,18 +120,27 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  *,
+  ::before,
+  ::after {
+    @apply border-border;
+  }
+  :focus-visible {
+    @apply outline-ring/50;
+  }
+  html {
+    @apply font-sans h-full overflow-x-hidden;
+    height: 100%;
+    height: 100dvh;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased h-full overflow-x-hidden;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv11", "ss01", "ss03";
     letter-spacing: -0.011em;
-  }
-  html {
-    @apply font-sans scroll-smooth;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply tracking-tight;
@@ -144,6 +153,34 @@
                 transform 180ms cubic-bezier(0.32, 0.72, 0, 1),
                 box-shadow 180ms cubic-bezier(0.32, 0.72, 0, 1);
   }
+  /* Prevent iOS zoom on input focus */
+  @media (max-width: 767px) {
+    input, textarea, select {
+      font-size: 16px;
+    }
+  }
+}
+
+/* ─── Mobile full-screen shell ───────────────────────────────────── */
+
+.app-shell {
+  height: 100dvh;
+  height: -webkit-fill-available;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
+.safe-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.safe-x {
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
 }
 
 /* ─── macOS / iOS premium utilities ─────────────────────────────── */
@@ -231,42 +268,45 @@
 
 /* ─── Stylish background & motion utilities ─────────────────────── */
 
-/* Aurora / mesh background — soft animated blobs */
+/* Aurora / mesh background — clipped, no layout overflow */
 .aurora {
-  position: relative;
+  position: absolute;
+  inset: 0;
   isolation: isolate;
+  overflow: hidden;
+  pointer-events: none;
 }
 .aurora::before,
 .aurora::after {
   content: "";
   position: absolute;
-  inset: -20%;
-  z-index: -1;
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
   filter: blur(80px) saturate(140%);
-  opacity: 0.55;
+  opacity: 0.35;
   background:
-    radial-gradient(40% 35% at 18% 22%, oklch(0.78 0.18 256 / 0.55), transparent 60%),
-    radial-gradient(35% 30% at 82% 18%, oklch(0.78 0.18 330 / 0.45), transparent 60%),
-    radial-gradient(45% 40% at 50% 95%, oklch(0.80 0.16 200 / 0.45), transparent 60%),
-    radial-gradient(30% 25% at 88% 78%, oklch(0.82 0.15 152 / 0.40), transparent 60%);
+    radial-gradient(40% 35% at 18% 40%, oklch(0.78 0.18 256 / 0.4), transparent 60%),
+    radial-gradient(35% 30% at 82% 35%, oklch(0.78 0.18 330 / 0.3), transparent 60%),
+    radial-gradient(45% 40% at 50% 95%, oklch(0.80 0.16 200 / 0.3), transparent 60%),
+    radial-gradient(30% 25% at 88% 78%, oklch(0.82 0.15 152 / 0.25), transparent 60%);
   animation: aurora-drift 24s ease-in-out infinite alternate;
 }
 .aurora::after {
   filter: blur(110px) saturate(160%);
-  opacity: 0.35;
+  opacity: 0.2;
   animation-duration: 36s;
   animation-direction: alternate-reverse;
 }
 .dark .aurora::before,
 .dark .aurora::after {
-  opacity: 0.45;
+  opacity: 0.3;
 }
 
 @keyframes aurora-drift {
-  0%   { transform: translate3d(0,0,0) rotate(0deg) scale(1); }
-  50%  { transform: translate3d(2%, -1%, 0) rotate(8deg) scale(1.06); }
-  100% { transform: translate3d(-2%, 2%, 0) rotate(-6deg) scale(1.03); }
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(1%, -0.5%, 0) scale(1.02); }
+  100% { transform: translate3d(-1%, 1%, 0) scale(1.01); }
 }
 
 /* Subtle dotted grid overlay */
@@ -350,17 +390,25 @@
 
 /* Gradient text */
 .text-gradient {
-  background: linear-gradient(120deg,
+  color: var(--foreground);
+  background-image: linear-gradient(120deg,
     var(--foreground) 0%,
     var(--foreground) 35%,
     oklch(0.62 0.19 256) 65%,
     oklch(0.68 0.20 330) 100%);
-  -webkit-background-clip: text;
-          background-clip: text;
-  color: transparent;
   background-size: 200% 100%;
   animation: text-pan 8s ease-in-out infinite alternate;
 }
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .text-gradient {
+    color: transparent;
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
 @keyframes text-pan {
   0%   { background-position: 0% 50%; }
   100% { background-position: 100% 50%; }
