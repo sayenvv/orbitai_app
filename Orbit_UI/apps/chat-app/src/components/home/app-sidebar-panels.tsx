@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect, type ChangeEvent } from "react";
+import { useMemo, useState, useRef, useEffect, type ChangeEvent, type ReactNode } from "react";
 import {
   AlertCircle,
   CreditCard,
@@ -349,6 +349,7 @@ type MainLibraryPanelProps = {
   onRequireAuth?: () => void;
   onSelectUpload: (upload: LibraryUpload) => void;
   onSelectGenerated: (file: LibraryGeneratedFile) => void;
+  onGenerateInsights?: (upload: LibraryUpload) => void | Promise<void>;
   onDownloadUpload?: (upload: LibraryUpload) => void;
   onDeleteUpload?: (upload: LibraryUpload) => void | Promise<void>;
   onDownloadGenerated?: (file: LibraryGeneratedFile) => void;
@@ -359,64 +360,176 @@ type DeleteTarget =
   | { kind: "upload"; item: LibraryUpload }
   | { kind: "generated"; item: LibraryGeneratedFile };
 
-function LibraryCardFooter({
-  onUseInChat,
+function LibraryCardIconActions({
   onDownload,
   onDelete,
-  useInChatDisabled = false,
-  useInChatTitle = "Use in chat",
   downloadLabel = "Download",
   deleteLabel = "Delete",
+  className,
 }: {
-  onUseInChat?: () => void;
   onDownload?: () => void;
   onDelete?: () => void;
-  useInChatDisabled?: boolean;
-  useInChatTitle?: string;
   downloadLabel?: string;
   deleteLabel?: string;
+  className?: string;
 }) {
-  if (!onUseInChat && !onDownload && !onDelete) return null;
+  if (!onDownload && !onDelete) return null;
 
   return (
-    <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-3">
+    <div className={cn("flex shrink-0 items-center gap-0.5", className)}>
+      {onDownload && (
+        <button
+          type="button"
+          onClick={onDownload}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+          aria-label={downloadLabel}
+          title={downloadLabel}
+        >
+          <Download className="h-4 w-4" />
+        </button>
+      )}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          aria-label={deleteLabel}
+          title={deleteLabel}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function LibraryCardActions({
+  onUseInChat,
+  onGenerateInsights,
+  useInChatDisabled = false,
+  insightsLoading = false,
+  useInChatTitle = "Use in chat",
+}: {
+  onUseInChat?: () => void;
+  onGenerateInsights?: () => void;
+  useInChatDisabled?: boolean;
+  insightsLoading?: boolean;
+  useInChatTitle?: string;
+}) {
+  if (!onUseInChat && !onGenerateInsights) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
       {onUseInChat && (
         <button
           type="button"
           onClick={onUseInChat}
           disabled={useInChatDisabled}
           title={useInChatDisabled ? "Available when processing completes" : useInChatTitle}
-          className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-45"
         >
           <MessageSquarePlus className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">Use in chat</span>
+          Chat
         </button>
       )}
-      <div className="flex shrink-0 items-center gap-1">
-        {onDownload && (
-          <button
-            type="button"
-            onClick={onDownload}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label={downloadLabel}
-            title={downloadLabel}
-          >
-            <Download className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {onDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
-            aria-label={deleteLabel}
-            title={deleteLabel}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      {onGenerateInsights && (
+        <button
+          type="button"
+          onClick={onGenerateInsights}
+          disabled={useInChatDisabled || insightsLoading}
+          title={useInChatDisabled ? "Available when processing completes" : "Generate AI insights"}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/50 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {insightsLoading ? (
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+          )}
+          {insightsLoading ? "Generating…" : "AI Insights"}
+        </button>
+      )}
     </div>
+  );
+}
+
+type LibraryItemCardProps = {
+  icon: ReactNode;
+  title: string;
+  badges?: ReactNode;
+  meta?: string;
+  description?: string;
+  error?: ReactNode;
+  onDownload?: () => void;
+  onDelete?: () => void;
+  downloadLabel?: string;
+  deleteLabel?: string;
+  onUseInChat?: () => void;
+  onGenerateInsights?: () => void;
+  useInChatDisabled?: boolean;
+  insightsLoading?: boolean;
+};
+
+function LibraryItemCard({
+  icon,
+  title,
+  badges,
+  meta,
+  description,
+  error,
+  onDownload,
+  onDelete,
+  downloadLabel,
+  deleteLabel,
+  onUseInChat,
+  onGenerateInsights,
+  useInChatDisabled,
+  insightsLoading,
+}: LibraryItemCardProps) {
+  return (
+    <article className="group rounded-xl border border-border/40 bg-card/50 p-4 transition-colors hover:border-border/70 hover:bg-card">
+      <div className="flex gap-3.5">
+        <div className="shrink-0 pt-0.5">{icon}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 space-y-1.5">
+              <h3 className="line-clamp-2 text-sm font-medium leading-snug tracking-tight text-foreground">
+                {title}
+              </h3>
+              {(badges || meta) && (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {badges}
+                  {meta && (
+                    <span className="text-[11px] tabular-nums text-muted-foreground">{meta}</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <LibraryCardIconActions
+              onDownload={onDownload}
+              onDelete={onDelete}
+              downloadLabel={downloadLabel}
+              deleteLabel={deleteLabel}
+              className="-mr-1 -mt-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            />
+          </div>
+
+          {description && (
+            <p className="mt-2.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+              {description}
+            </p>
+          )}
+
+          {error}
+
+          <LibraryCardActions
+            onUseInChat={onUseInChat}
+            onGenerateInsights={onGenerateInsights}
+            useInChatDisabled={useInChatDisabled}
+            insightsLoading={insightsLoading}
+          />
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -429,6 +542,7 @@ export function MainLibraryPanel({
   onRequireAuth,
   onSelectUpload,
   onSelectGenerated,
+  onGenerateInsights,
   onDownloadUpload,
   onDeleteUpload,
   onDownloadGenerated,
@@ -438,6 +552,8 @@ export function MainLibraryPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [insightsGeneratingId, setInsightsGeneratingId] = useState<string | null>(null);
+  const [insightsError, setInsightsError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploading, progress, error: uploadError, uploadPdf, clearError } = useRagUpload();
 
@@ -460,6 +576,21 @@ export function MainLibraryPanel({
       setTab("uploads");
     }
     event.target.value = "";
+  };
+
+  const handleGenerateInsights = async (upload: LibraryUpload) => {
+    if (!onGenerateInsights || upload.status !== "ready") return;
+    setInsightsError("");
+    setInsightsGeneratingId(upload.id);
+    try {
+      await onGenerateInsights(upload);
+      setTab("generated");
+      await onRefresh?.();
+    } catch (err) {
+      setInsightsError(err instanceof Error ? err.message : "Failed to generate insights");
+    } finally {
+      setInsightsGeneratingId(null);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -540,7 +671,7 @@ export function MainLibraryPanel({
             type="button"
             onClick={handleUploadClick}
             disabled={uploading}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -558,6 +689,12 @@ export function MainLibraryPanel({
         </div>
       )}
 
+      {insightsError && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {insightsError}
+        </div>
+      )}
+
       {uploading && progress && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
           {progress}
@@ -572,7 +709,7 @@ export function MainLibraryPanel({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               tab === "uploads"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -590,7 +727,7 @@ export function MainLibraryPanel({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               tab === "generated"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -652,100 +789,92 @@ export function MainLibraryPanel({
           )}
         </div>
       ) : tab === "uploads" ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filteredUploads.map((upload) => (
-            <div
+            <LibraryItemCard
               key={upload.id}
-              className="flex flex-col rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
-            >
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-600 dark:text-red-300">
-                  <FileText className="h-5 w-5" />
+              icon={
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/[0.08] text-red-600 dark:text-red-400">
+                  <FileText className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-sm">{upload.title}</p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                        uploadStatusClass(upload.status),
-                      )}
-                    >
-                      {uploadStatusLabel(upload.status)}
-                    </span>
-                    {upload.status === "ready" && upload.pageCount > 0 && (
-                      <span className="text-[10px] text-muted-foreground">
-                        {upload.pagesProcessed}/{upload.pageCount} pages
-                      </span>
+              }
+              title={upload.title}
+              badges={
+                <>
+                  <span
+                    className={cn(
+                      "inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                      uploadStatusClass(upload.status),
                     )}
-                  </div>
-                  <p className="mt-1 text-[10px] text-muted-foreground/70">
-                    {formatFileSize(upload.fileSizeBytes)} · {formatRelativeDate(upload.createdAt)}
-                  </p>
-                  {upload.status === "failed" && upload.errorMessage && (
-                    <p className="mt-1 flex items-start gap-1 text-[10px] text-destructive">
-                      <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
-                      <span className="line-clamp-2">{upload.errorMessage}</span>
-                    </p>
+                  >
+                    {uploadStatusLabel(upload.status)}
+                  </span>
+                  {upload.status === "ready" && upload.pageCount > 0 && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {upload.pagesProcessed}/{upload.pageCount} pg
+                    </span>
                   )}
-                </div>
-              </div>
-              <LibraryCardFooter
-                onUseInChat={() => onSelectUpload(upload)}
-                useInChatDisabled={upload.status !== "ready"}
-                onDownload={onDownloadUpload ? () => onDownloadUpload(upload) : undefined}
-                onDelete={
-                  onDeleteUpload
-                    ? () => setDeleteTarget({ kind: "upload", item: upload })
-                    : undefined
-                }
-                downloadLabel="Download PDF"
-                deleteLabel="Delete upload"
-              />
-            </div>
+                </>
+              }
+              meta={`${formatFileSize(upload.fileSizeBytes)} · ${formatRelativeDate(upload.createdAt)}`}
+              error={
+                upload.status === "failed" && upload.errorMessage ? (
+                  <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-destructive">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span className="line-clamp-2">{upload.errorMessage}</span>
+                  </p>
+                ) : undefined
+              }
+              onDownload={onDownloadUpload ? () => onDownloadUpload(upload) : undefined}
+              onDelete={
+                onDeleteUpload
+                  ? () => setDeleteTarget({ kind: "upload", item: upload })
+                  : undefined
+              }
+              downloadLabel="Download PDF"
+              deleteLabel="Delete upload"
+              onUseInChat={() => onSelectUpload(upload)}
+              onGenerateInsights={
+                onGenerateInsights && isAuthenticated
+                  ? () => void handleGenerateInsights(upload)
+                  : undefined
+              }
+              insightsLoading={insightsGeneratingId === upload.id}
+              useInChatDisabled={upload.status !== "ready"}
+            />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filteredGenerated.map((file) => (
-            <div
+            <LibraryItemCard
               key={file.id}
-              className="flex flex-col rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
-            >
-              <div className="flex min-w-0 items-start gap-3">
+              icon={
                 <AgentListingIcon
                   iconKey={file.iconKey}
                   colorKey={file.colorKey}
                   className="shrink-0"
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-sm">{file.title}</p>
-                  <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                    <Sparkles className="h-3 w-3 shrink-0" />
-                    {file.type} · {file.agentName}
-                  </p>
-                  {file.preview && (
-                    <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground/80">
-                      {file.preview}
-                    </p>
-                  )}
-                  <p className="mt-1 text-[10px] text-muted-foreground/70">
-                    {formatRelativeDate(file.createdAt)}
-                  </p>
-                </div>
-              </div>
-              <LibraryCardFooter
-                onUseInChat={() => onSelectGenerated(file)}
-                onDownload={onDownloadGenerated ? () => onDownloadGenerated(file) : undefined}
-                onDelete={
-                  onDeleteGenerated
-                    ? () => setDeleteTarget({ kind: "generated", item: file })
-                    : undefined
-                }
-                downloadLabel="Download file"
-                deleteLabel="Delete generated file"
-              />
-            </div>
+              }
+              title={file.title}
+              badges={
+                <span className="inline-flex items-center gap-1 rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  <Sparkles className="h-3 w-3 text-primary/80" />
+                  {file.type}
+                </span>
+              }
+              meta={`${file.agentName} · ${formatRelativeDate(file.createdAt)}`}
+              description={file.preview || undefined}
+              onDownload={onDownloadGenerated ? () => onDownloadGenerated(file) : undefined}
+              onDelete={
+                onDeleteGenerated
+                  ? () => setDeleteTarget({ kind: "generated", item: file })
+                  : undefined
+              }
+              downloadLabel="Download file"
+              deleteLabel="Delete generated file"
+              onUseInChat={() => onSelectGenerated(file)}
+            />
           ))}
         </div>
       )}

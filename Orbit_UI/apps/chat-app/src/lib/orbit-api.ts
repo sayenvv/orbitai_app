@@ -311,6 +311,13 @@ export const publicApi = {
       ),
     ),
 
+  generateUploadInsights: (documentId: string) =>
+    request<ApiLibraryGenerated>(
+      API_BASE_URL,
+      `/library/uploads/${documentId}/insights`,
+      { method: "POST" },
+    ),
+
   uploadFile: (file: File, conversationId?: string | null) => {
     const formData = new FormData();
     formData.append("file", file);

@@ -7,9 +7,29 @@ from sqlalchemy.orm import Session
 from app.api.v1.public.auth import require_chat_user
 from app.db.session import get_db
 from app.models import User
+from app.schemas import LibraryGeneratedFileResponse
+from app.services.library_insights import generate_upload_insights
 from app.services.library_store import delete_user_generated_file, get_user_generated_file
 
 router = APIRouter(prefix="/library", tags=["library"])
+
+
+@router.post("/uploads/{document_id}/insights", response_model=LibraryGeneratedFileResponse)
+async def create_upload_insights(
+    document_id: uuid.UUID,
+    user: User = Depends(require_chat_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        payload = await generate_upload_insights(db, user=user, document_id=document_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return LibraryGeneratedFileResponse(**payload)
 
 
 @router.get("/generated/{file_id}/download")

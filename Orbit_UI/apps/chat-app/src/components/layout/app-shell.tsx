@@ -249,6 +249,13 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                           }
                           router.push(routeForAgent(file.agentSlug));
                         }}
+                        onGenerateInsights={
+                          isAuthenticated
+                            ? async (upload) => {
+                                await publicApi.generateUploadInsights(upload.id);
+                              }
+                            : undefined
+                        }
                         onDownloadUpload={
                           isAuthenticated
                             ? (upload) => void publicApi.downloadUpload(upload.id, upload.title)
