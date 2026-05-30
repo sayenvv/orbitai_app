@@ -1,7 +1,7 @@
 import { cn } from "./lib/cn";
 
-export const BRAND_NAME = "Clova";
-export const BRAND_WORDMARK = "Clova";
+export const BRAND_NAME = "Clovai";
+export const BRAND_WORDMARK = "Clovai";
 export const BRAND_ICON = "/ceorai-icon.png";
 
 export type BrandMarkSize = "sm" | "md" | "lg";
