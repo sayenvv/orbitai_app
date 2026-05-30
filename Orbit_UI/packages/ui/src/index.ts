@@ -3,6 +3,13 @@
 
 export { cn } from "./lib/cn";
 export {
+  BRAND_NAME,
+  BRAND_WORDMARK,
+  BRAND_ICON,
+  BrandMark,
+  type BrandMarkSize,
+} from "./brand-logo";
+export {
   AGENT_ICON_OPTIONS,
   AGENT_COLOR_OPTIONS,
   resolveAgentIcon,

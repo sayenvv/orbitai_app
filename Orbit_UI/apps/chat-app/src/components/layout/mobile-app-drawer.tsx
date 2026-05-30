@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandMark } from "@orbit/ui";
 import { useRouter } from "next/navigation";
 import { LogIn, X } from "lucide-react";
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
@@ -80,8 +81,8 @@ export function MobileAppDrawer() {
       <aside className="relative z-10 flex h-full w-80 max-w-[88vw] flex-col bg-sidebar shadow-2xl">
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
           <div>
-            <p className="text-sm font-semibold">Orbit AI</p>
-            <p className="text-[11px] text-muted-foreground">Navigation</p>
+            <BrandMark size="sm" />
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Navigation</p>
           </div>
           <button
             type="button"

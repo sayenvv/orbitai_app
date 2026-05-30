@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { BRAND_ICON, BRAND_NAME } from "@orbit/ui";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,12 +15,16 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Chat - Study Assistant",
-  description: "AI-powered chat assistant for study materials and learning",
+  title: `${BRAND_NAME} — AI Chat & Study Assistant`,
+  description: `${BRAND_NAME} — AI-powered chat, document library, and learning assistants`,
+  icons: {
+    icon: BRAND_ICON,
+    apple: BRAND_ICON,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "AI Chat",
+    title: BRAND_NAME,
   },
   formatDetection: {
     telephone: false,

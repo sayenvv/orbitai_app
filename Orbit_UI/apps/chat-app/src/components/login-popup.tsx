@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
+import { BrandMark, BRAND_NAME } from "@orbit/ui";
 import { LoginModal } from "./login-modal";
 
 const POPUP_INTERVAL = 60 * 1000; // 1 minute
@@ -50,13 +51,11 @@ export function LoginPopup() {
         </button>
 
         <div className="px-6 pt-6 pb-6 flex flex-col items-center text-center gap-4">
-          <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-primary" />
-          </div>
+          <BrandMark size="lg" layout="stacked" />
 
           <div className="space-y-1.5">
             <h2 className="text-base font-semibold text-foreground">
-              Get more from StudyAI
+              Get more from {BRAND_NAME}
             </h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Sign in to save conversations, access study materials, and get personalized learning.

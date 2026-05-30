@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { BRAND_ICON, BRAND_NAME } from "@orbit/ui";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,8 +15,12 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Orbit Admin — Users, Payments & Operations",
-  description: "Premium admin console for managing users, subscriptions, payments and platform activity.",
+  title: `${BRAND_NAME} Admin — Users, Payments & Operations`,
+  description: "Admin console for managing users, subscriptions, payments and platform activity.",
+  icons: {
+    icon: BRAND_ICON,
+    apple: BRAND_ICON,
+  },
 };
 
 export default function RootLayout({

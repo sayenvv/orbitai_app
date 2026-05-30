@@ -11,7 +11,6 @@ import {
   Activity,
   Settings,
   Search,
-  Crown,
   ShieldCheck,
   Bell,
   FileBarChart,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@orbit/ui";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { RoleSwitcher } from "@/components/role-switcher";
 import { useCanPerform } from "@/components/auth-guard";
@@ -116,15 +116,9 @@ export function AdminSidebar() {
     <aside className="hidden md:flex w-64 shrink-0 h-full flex-col border-r bg-sidebar/70 backdrop-blur-xl sticky top-0">
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-16 border-b shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="relative h-9 w-9 rounded-xl bg-gradient-to-br from-primary via-primary to-chart-4 flex items-center justify-center shadow-md ring-1 ring-primary/30">
-            <Crown className="h-4 w-4 text-primary-foreground" />
-            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-warning ring-2 ring-sidebar" />
-          </div>
-          <div>
-            <span className="text-sm font-semibold tracking-tight block leading-none">Orbit Admin</span>
-            <span className="text-[10px] text-muted-foreground leading-none mt-1 block">Operations Suite</span>
-          </div>
+        <div className="min-w-0">
+          <BrandMark size="md" />
+          <span className="text-[10px] text-muted-foreground leading-none mt-1 block">Admin</span>
         </div>
         <ThemeToggle />
       </div>

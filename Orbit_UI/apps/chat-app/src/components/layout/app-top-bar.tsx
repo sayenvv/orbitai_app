@@ -22,14 +22,14 @@ export function AppTopBar() {
     <header className="flex h-14 shrink-0 items-center justify-between bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-3 pl-4 lg:pl-6">
         {header?.leading}
-        <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold leading-none">
-            {header?.title || "Orbit AI"}
-          </h1>
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            {header?.subtitle || "Your AI assistants"}
-          </p>
-        </div>
+        {header?.title && (
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold leading-none">{header.title}</h1>
+            {header.subtitle && (
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{header.subtitle}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-2">

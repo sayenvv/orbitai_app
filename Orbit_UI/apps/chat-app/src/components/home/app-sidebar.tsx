@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { BrandMark, BRAND_NAME } from "@orbit/ui";
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
 import { TokenUsageMeter } from "@/components/token-usage-meter";
 import {
@@ -54,14 +54,17 @@ export function AppSidebar({
         expanded ? "w-64" : "w-20",
       )}
     >
-      <div className="mb-4 flex items-center justify-center">
+      <div className={cn("mb-4 flex items-center", expanded ? "px-2" : "justify-center")}>
         <button
           type="button"
           onClick={goHome}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm shadow-primary/20 transition-transform hover:-translate-y-0.5"
-          aria-label="Assistants home"
+          className={cn(
+            "flex items-center transition-transform hover:-translate-y-0.5",
+            expanded ? "w-full rounded-xl px-1 py-1" : "justify-center p-1",
+          )}
+          aria-label={`${BRAND_NAME} home`}
         >
-          <Sparkles className="h-4 w-4" />
+          <BrandMark size="md" showText={expanded} />
         </button>
       </div>
 

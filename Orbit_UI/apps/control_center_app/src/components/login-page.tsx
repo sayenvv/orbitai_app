@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, FormEvent, useEffect, useRef } from "react";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { BrandMark } from "@orbit/ui";
 import { authApi, isOperatorRole, ApiError } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
 import { FormAlert } from "@/components/form-alert";
@@ -92,9 +93,7 @@ export function LoginPage() {
     <div className="flex flex-1 items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm rounded-xl border bg-card shadow-lg p-6">
         <div className="text-center mb-5">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 mb-3">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-          </div>
+          <BrandMark size="lg" layout="stacked" className="mx-auto mb-3" />
           <h2 className="text-base font-semibold">Control Center</h2>
           <p className="text-xs text-muted-foreground mt-1">
             {isLoading ? "Checking session…" : "Sign in with an operator account"}

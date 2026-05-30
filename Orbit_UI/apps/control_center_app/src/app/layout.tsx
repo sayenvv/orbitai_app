@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { BRAND_ICON, BRAND_NAME } from "@orbit/ui";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,8 +15,12 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Admin - Configure Agents & Widgets",
-  description: "Admin console for configuring agents, widgets, themes, and personalization.",
+  title: `${BRAND_NAME} Control Center — Agents & Configuration`,
+  description: "Control center for configuring agents, widgets, themes, and personalization.",
+  icons: {
+    icon: BRAND_ICON,
+    apple: BRAND_ICON,
+  },
 };
 
 export default function RootLayout({

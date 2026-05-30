@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@orbit/ui";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuthStore } from "@/store/auth-store";
 import { useLogout } from "@/hooks/use-auth";
@@ -76,14 +77,9 @@ export function AdminSidebar() {
     <aside className="hidden md:flex w-60 shrink-0 h-full flex-col border-r bg-card/60 backdrop-blur-xl sticky top-0">
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-14 border-b shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-sm ring-1 ring-primary/20">
-            <ShieldCheck className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <div>
-            <span className="text-sm font-semibold tracking-tight block leading-none">Admin</span>
-            <span className="text-[10px] text-muted-foreground leading-none">Control Center</span>
-          </div>
+        <div className="min-w-0">
+          <BrandMark size="md" />
+          <span className="text-[10px] text-muted-foreground leading-none mt-1 block">Control Center</span>
         </div>
         <ThemeToggle />
       </div>

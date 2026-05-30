@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Menu, PanelLeft, PanelRight, Sparkles } from "lucide-react";
+import { LogIn, Menu, PanelLeft, PanelRight } from "lucide-react";
 import { PdfPageLimitDialogHost } from "@/components/rag/pdf-page-limit-dialog";
 import { NavbarUpgradeLink } from "@/components/plans/upgrade-cta";
 import { AppSidebar } from "@/components/home/app-sidebar";
@@ -139,17 +139,14 @@ function AppShellLayout({ children }: { children: ReactNode }) {
           >
             <Menu className="h-4 w-4" />
           </button>
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-sm shadow-primary/25">
-            <Sparkles className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-none">
-              {header?.title || "Orbit AI"}
-            </p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-              {header?.subtitle || "Your AI assistants"}
-            </p>
-          </div>
+          {header?.title && (
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold leading-none">{header.title}</p>
+              {header.subtitle && (
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{header.subtitle}</p>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {isAuthenticated ? (
