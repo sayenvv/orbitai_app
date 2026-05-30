@@ -120,6 +120,7 @@ def seed() -> None:
 
         from app.core.config import settings as app_settings
         from app.core.plan_limits import PLANS
+        from app.services.plan_ai_stack import PLAN_STACK_DEFAULTS, ai_stack_to_dict
         from app.services.plan_limit_store import PLAN_DEFAULTS
 
         token_defaults = {
@@ -131,6 +132,7 @@ def seed() -> None:
         for plan in PLANS:
             if not db.query(PlanLimit).filter(PlanLimit.plan == plan).first():
                 meta = PLAN_DEFAULTS.get(plan, {})
+                stack = PLAN_STACK_DEFAULTS.get(plan)
                 db.add(
                     PlanLimit(
                         plan=plan,
@@ -139,6 +141,7 @@ def seed() -> None:
                         features=meta.get("features", []),
                         highlight=bool(meta.get("highlight", False)),
                         token_limit=token_defaults[plan],
+                        ai_stack=ai_stack_to_dict(stack) if stack else {},
                     )
                 )
 

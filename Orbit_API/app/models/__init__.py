@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,10 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="user")
+    rag_documents: Mapped[list["RagDocument"]] = relationship(back_populates="user")
+    library_generated_files: Mapped[list["LibraryGeneratedFile"]] = relationship(
+        back_populates="user"
+    )
 
 
 class Agent(Base):
@@ -114,6 +118,7 @@ class Conversation(Base):
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation", order_by="Message.created_at"
     )
+    rag_documents: Mapped[list["RagDocument"]] = relationship(back_populates="conversation")
 
 
 class Message(Base):
@@ -140,6 +145,82 @@ class PlanLimit(Base):
     features: Mapped[list] = mapped_column(JSONB, default=list)
     highlight: Mapped[bool] = mapped_column(default=False)
     token_limit: Mapped[int] = mapped_column(default=200_000)
+    ai_stack: Mapped[dict] = mapped_column(JSONB, default=dict)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class RagDocument(Base):
+    __tablename__ = "rag_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    original_filename: Mapped[str] = mapped_column(String(512))
+    mime_type: Mapped[str] = mapped_column(String(128), default="application/pdf")
+    storage_path: Mapped[str] = mapped_column(String(1024))
+    file_size_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    page_count: Mapped[int] = mapped_column(Integer, default=0)
+    pages_processed: Mapped[int] = mapped_column(Integer, default=0)
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(32), default="pending")
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    doc_metadata: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped["User"] = relationship(back_populates="rag_documents")
+    conversation: Mapped["Conversation | None"] = relationship(back_populates="rag_documents")
+    chunks: Mapped[list["RagChunk"]] = relationship(
+        back_populates="document", cascade="all, delete-orphan", order_by="RagChunk.chunk_index"
+    )
+
+
+class RagChunk(Base):
+    __tablename__ = "rag_chunks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rag_documents.id", ondelete="CASCADE"), index=True
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer)
+    content: Mapped[str] = mapped_column(Text)
+    page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    embedding: Mapped[list[float]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    document: Mapped["RagDocument"] = relationship(back_populates="chunks")
+
+
+class LibraryGeneratedFile(Base):
+    __tablename__ = "library_generated_files"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True
+    )
+    agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
+    )
+    title: Mapped[str] = mapped_column(String(512))
+    item_type: Mapped[str] = mapped_column(String(64), default="Generated")
+    preview: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped["User"] = relationship(back_populates="library_generated_files")
+    conversation: Mapped["Conversation | None"] = relationship()
+    agent: Mapped["Agent | None"] = relationship()

@@ -31,3 +31,4 @@ build/
 *.log
 .python-version
 .ipynb_checkpoints/
+data/rag_uploads/

@@ -4,9 +4,21 @@ from sqlalchemy.orm import Session
 from app.api.v1.public.auth import get_current_user, require_user
 from app.db.session import get_db
 from app.models import User
-from app.schemas import PlanLimitItem, PlanLimitsResponse, PublicAgentListResponse, PublicAgentResponse, SubscriptionResponse
+from app.schemas import (
+    LibraryGeneratedFileResponse,
+    LibraryResponse,
+    PlanLimitItem,
+    PlanLimitsResponse,
+    PublicAgentListResponse,
+    PublicAgentResponse,
+    RagDocumentListResponse,
+    RagDocumentResponse,
+    SubscriptionResponse,
+)
 from app.services.agent_registry import AgentRegistry
+from app.services.library_store import list_user_library
 from app.services.plan_limit_store import list_plan_limits
+from app.services.rag.document_store import list_user_documents
 from app.services.token_usage import ensure_current_period, get_usage_snapshot
 
 router = APIRouter(tags=["public"])
@@ -59,9 +71,14 @@ def get_subscription(
     return _subscription_response(user)
 
 
-@router.get("/files")
-def list_files():
-    return {"data": []}
+@router.get("/files", response_model=RagDocumentListResponse)
+def list_files_legacy(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    return RagDocumentListResponse(
+        data=[RagDocumentResponse(**item) for item in list_user_documents(db, user.id)]
+    )
 
 
 @router.get("/study-materials")
@@ -69,6 +86,13 @@ def list_study_materials():
     return {"data": []}
 
 
-@router.get("/library")
-def list_library():
-    return {"data": []}
+@router.get("/library", response_model=LibraryResponse)
+def list_library(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    payload = list_user_library(db, user.id)
+    return LibraryResponse(
+        uploads=[RagDocumentResponse(**item) for item in payload["uploads"]],
+        generated=[LibraryGeneratedFileResponse(**item) for item in payload["generated"]],
+    )

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Menu, PanelLeft, PanelRight, Sparkles } from "lucide-react";
+import { PdfPageLimitDialogHost } from "@/components/rag/pdf-page-limit-dialog";
 import { NavbarUpgradeLink } from "@/components/plans/upgrade-cta";
 import { AppSidebar } from "@/components/home/app-sidebar";
 import {
@@ -17,9 +18,10 @@ import { AppShellProvider, useAppShell } from "@/components/layout/app-shell-con
 import { AppTopBar } from "@/components/layout/app-top-bar";
 import { MobileAppDrawer } from "@/components/layout/mobile-app-drawer";
 import { useAgents } from "@/hooks/use-agents";
-import { useGeneratedMaterials } from "@/hooks/use-generated-materials";
+import { useLibrary } from "@/hooks/use-library";
 import { useLogout } from "@/hooks/use-auth";
 import { routeForAgent } from "@/lib/home-data";
+import { publicApi } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
 
@@ -44,7 +46,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuthStore();
   const handleLogout = useLogout();
   const { agents, loading: agentsLoading } = useAgents();
-  const { materials, loading: materialsLoading } = useGeneratedMaterials();
+  const { uploads, generated, loading: libraryLoading, refresh: refreshLibrary } = useLibrary();
 
   const {
     sidebarOpen,
@@ -219,9 +221,53 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                   <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6 md:py-8">
                     {section === "library" ? (
                       <MainLibraryPanel
-                        materials={materials}
-                        loading={materialsLoading}
-                        onSelect={(material) => router.push(routeForAgent(material.agentSlug))}
+                        uploads={uploads}
+                        generated={generated}
+                        loading={libraryLoading}
+                        isAuthenticated={isAuthenticated}
+                        onRefresh={refreshLibrary}
+                        onRequireAuth={() => openLogin("login")}
+                        onSelectUpload={(upload) => {
+                          const params = new URLSearchParams({
+                            sourceId: upload.id,
+                            sourceName: upload.title,
+                            sourceType: "uploaded-file",
+                          });
+                          router.push(`/c?${params.toString()}`);
+                        }}
+                        onSelectGenerated={(file) => {
+                          if (file.conversationId) {
+                            router.push(`/c?conversation=${encodeURIComponent(file.conversationId)}`);
+                            return;
+                          }
+                          router.push(routeForAgent(file.agentSlug));
+                        }}
+                        onDownloadUpload={
+                          isAuthenticated
+                            ? (upload) => void publicApi.downloadUpload(upload.id, upload.title)
+                            : undefined
+                        }
+                        onDeleteUpload={
+                          isAuthenticated
+                            ? async (upload) => {
+                                await publicApi.deleteFile(upload.id);
+                                await refreshLibrary();
+                              }
+                            : undefined
+                        }
+                        onDownloadGenerated={
+                          isAuthenticated
+                            ? (file) => void publicApi.downloadGenerated(file.id, file.title)
+                            : undefined
+                        }
+                        onDeleteGenerated={
+                          isAuthenticated
+                            ? async (file) => {
+                                await publicApi.deleteGenerated(file.id);
+                                await refreshLibrary();
+                              }
+                            : undefined
+                        }
                       />
                     ) : (
                       <MainAgentsPanel
@@ -260,6 +306,8 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       {isAuthenticated && (
         <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
       )}
+
+      <PdfPageLimitDialogHost />
     </>
   );
 }

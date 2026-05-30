@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.plan_limits import PLANS, coerce_token_limit, invalidate_plan_limits_cache
 from app.models import PlanLimit
+from app.services.plan_ai_stack import (
+    PLAN_STACK_DEFAULTS,
+    ai_stack_to_dict,
+    merge_ai_stack_patch,
+    parse_ai_stack,
+)
 
 PLAN_DEFAULTS: dict[str, dict[str, Any]] = {
     "free": {
@@ -68,8 +74,8 @@ def _normalize_features(features: Any) -> list[str]:
     return [str(item).strip() for item in features if str(item).strip()]
 
 
-def _serialize_plan(row: PlanLimit) -> dict:
-    return {
+def _serialize_plan(row: PlanLimit, *, include_ai_stack: bool = False) -> dict:
+    payload = {
         "plan": row.plan,
         "label": row.label,
         "tagline": row.tagline,
@@ -79,6 +85,10 @@ def _serialize_plan(row: PlanLimit) -> dict:
         "token_limit_raw": row.token_limit,
         "updated_at": row.updated_at,
     }
+    if include_ai_stack:
+        stack = parse_ai_stack(row.ai_stack, plan=row.plan)
+        payload["ai_stack"] = ai_stack_to_dict(stack)
+    return payload
 
 
 def ensure_plan_limits(db: Session) -> list[PlanLimit]:
@@ -89,6 +99,7 @@ def ensure_plan_limits(db: Session) -> list[PlanLimit]:
     token_defaults = env_defaults()
     for plan in PLANS:
         meta = PLAN_DEFAULTS.get(plan, {})
+        stack = PLAN_STACK_DEFAULTS.get(plan)
         db.add(
             PlanLimit(
                 plan=plan,
@@ -97,6 +108,7 @@ def ensure_plan_limits(db: Session) -> list[PlanLimit]:
                 features=_normalize_features(meta.get("features", [])),
                 highlight=bool(meta.get("highlight", False)),
                 token_limit=token_defaults[plan],
+                ai_stack=ai_stack_to_dict(stack) if stack else {},
             )
         )
     db.commit()
@@ -104,9 +116,9 @@ def ensure_plan_limits(db: Session) -> list[PlanLimit]:
     return db.query(PlanLimit).order_by(PlanLimit.plan).all()
 
 
-def list_plan_limits(db: Session) -> list[dict]:
+def list_plan_limits(db: Session, *, include_ai_stack: bool = False) -> list[dict]:
     rows = ensure_plan_limits(db)
-    return [_serialize_plan(row) for row in rows]
+    return [_serialize_plan(row, include_ai_stack=include_ai_stack) for row in rows]
 
 
 def update_plan_limits(db: Session, updates: dict[str, dict[str, Any]]) -> list[dict]:
@@ -121,6 +133,7 @@ def update_plan_limits(db: Session, updates: dict[str, dict[str, Any]]) -> list[
         row = db.query(PlanLimit).filter(PlanLimit.plan == normalized).first()
         if not row:
             meta = PLAN_DEFAULTS.get(normalized, {})
+            stack = PLAN_STACK_DEFAULTS.get(normalized)
             row = PlanLimit(
                 plan=normalized,
                 label=meta.get("label", normalized.title()),
@@ -128,6 +141,7 @@ def update_plan_limits(db: Session, updates: dict[str, dict[str, Any]]) -> list[
                 features=_normalize_features(meta.get("features", [])),
                 highlight=bool(meta.get("highlight", False)),
                 token_limit=env_defaults()[normalized],
+                ai_stack=ai_stack_to_dict(stack) if stack else {},
             )
             db.add(row)
 
@@ -152,8 +166,12 @@ def update_plan_limits(db: Session, updates: dict[str, dict[str, Any]]) -> list[
         if "highlight" in payload and payload["highlight"] is not None:
             row.highlight = bool(payload["highlight"])
 
+        if "ai_stack" in payload and payload["ai_stack"] is not None:
+            current = parse_ai_stack(row.ai_stack, plan=normalized)
+            row.ai_stack = ai_stack_to_dict(merge_ai_stack_patch(current, payload["ai_stack"]))
+
         row.updated_at = now
 
     db.commit()
     invalidate_plan_limits_cache()
-    return list_plan_limits(db)
+    return list_plan_limits(db, include_ai_stack=True)

@@ -5,6 +5,8 @@ import { Loader2, Plus, Save, Trash2 } from "lucide-react";
 import {
   controlApi,
   getApiErrorMessage,
+  type ApiChatStack,
+  type ApiEmbeddingStack,
   type ApiPlanLimit,
   type ApiPlanLimitPatch,
 } from "@/lib/orbit-api";
@@ -25,9 +27,17 @@ type DraftPlan = {
   highlight: boolean;
   unlimited: boolean;
   tokenValue: string;
+  chatProvider: ApiChatStack["provider"];
+  chatModel: string;
+  chatDeployment: string;
+  embeddingProvider: ApiEmbeddingStack["provider"];
+  embeddingModel: string;
+  embeddingDeployment: string;
+  embeddingDimensions: string;
 };
 
 function toDraft(plan: ApiPlanLimit): DraftPlan {
+  const stack = plan.ai_stack;
   return {
     label: plan.label,
     tagline: plan.tagline,
@@ -35,6 +45,13 @@ function toDraft(plan: ApiPlanLimit): DraftPlan {
     highlight: plan.highlight,
     unlimited: plan.token_limit == null,
     tokenValue: plan.token_limit == null ? "" : String(plan.token_limit_raw),
+    chatProvider: stack?.chat.provider ?? "ollama",
+    chatModel: stack?.chat.model ?? "llama3.2",
+    chatDeployment: stack?.chat.deployment ?? "",
+    embeddingProvider: stack?.embeddings.provider ?? "fastembed",
+    embeddingModel: stack?.embeddings.model ?? "BAAI/bge-small-en-v1.5",
+    embeddingDeployment: stack?.embeddings.deployment ?? "",
+    embeddingDimensions: String(stack?.embeddings.dimensions ?? 384),
   };
 }
 
@@ -45,6 +62,19 @@ function draftToPatch(draft: DraftPlan): ApiPlanLimitPatch {
     tagline: draft.tagline.trim(),
     features,
     highlight: draft.highlight,
+    ai_stack: {
+      chat: {
+        provider: draft.chatProvider,
+        model: draft.chatModel.trim(),
+        deployment: draft.chatDeployment.trim() || null,
+      },
+      embeddings: {
+        provider: draft.embeddingProvider,
+        model: draft.embeddingModel.trim(),
+        deployment: draft.embeddingDeployment.trim() || null,
+        dimensions: Number.parseInt(draft.embeddingDimensions, 10) || 384,
+      },
+    },
   };
 
   if (draft.unlimited) {
@@ -63,6 +93,13 @@ function draftsEqual(a: DraftPlan, b: DraftPlan): boolean {
     a.highlight === b.highlight &&
     a.unlimited === b.unlimited &&
     a.tokenValue === b.tokenValue &&
+    a.chatProvider === b.chatProvider &&
+    a.chatModel === b.chatModel &&
+    a.chatDeployment === b.chatDeployment &&
+    a.embeddingProvider === b.embeddingProvider &&
+    a.embeddingModel === b.embeddingModel &&
+    a.embeddingDeployment === b.embeddingDeployment &&
+    a.embeddingDimensions === b.embeddingDimensions &&
     a.features.map((item) => item.trim()).filter(Boolean).join("\n") ===
       b.features.map((item) => item.trim()).filter(Boolean).join("\n")
   );
@@ -167,6 +204,22 @@ export function PlanLimitsEditor() {
         }
       }
 
+      if (draft.chatProvider === "azure_openai" && !draft.chatDeployment.trim() && !draft.chatModel.trim()) {
+        setError(`Azure chat requires a deployment name for ${draft.label}.`);
+        setSaving(false);
+        return;
+      }
+
+      if (
+        draft.embeddingProvider === "azure_openai" &&
+        !draft.embeddingDeployment.trim() &&
+        !draft.embeddingModel.trim()
+      ) {
+        setError(`Azure embeddings require a deployment name for ${draft.label}.`);
+        setSaving(false);
+        return;
+      }
+
       updates[plan.plan] = draftToPatch(draft);
     }
 
@@ -198,7 +251,7 @@ export function PlanLimitsEditor() {
 
       <Card
         title="How plan configuration works"
-        description="Each plan controls its display name, marketing copy, included features, monthly token limit, and whether it appears as the highlighted recommendation on the pricing page."
+        description="Each plan controls pricing copy, token limits, and which AI stack powers chat and PDF search. Free/Starter typically use local Ollama + fastembed; Pro/Enterprise can route to Azure OpenAI. Server credentials (API keys, endpoints) stay in Orbit API .env — this UI only picks providers, models, and deployment names."
       />
 
       <div className="space-y-4">
@@ -274,6 +327,123 @@ export function PlanLimitsEditor() {
                   />
                   Highlight as recommended plan on pricing page
                 </label>
+
+                <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    AI stack
+                  </p>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Chat provider</span>
+                      <select
+                        value={draft.chatProvider}
+                        onChange={(e) =>
+                          updateDraft(plan.plan, {
+                            chatProvider: e.target.value as ApiChatStack["provider"],
+                          })
+                        }
+                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="ollama">Local — Ollama</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="azure_openai">Azure OpenAI</option>
+                      </select>
+                    </label>
+
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Chat model</span>
+                      <input
+                        type="text"
+                        value={draft.chatModel}
+                        onChange={(e) => updateDraft(plan.plan, { chatModel: e.target.value })}
+                        placeholder="llama3.2 or gpt-4o"
+                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                      />
+                    </label>
+
+                    {draft.chatProvider === "azure_openai" && (
+                      <label className="space-y-1.5 md:col-span-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Azure chat deployment
+                        </span>
+                        <input
+                          type="text"
+                          value={draft.chatDeployment}
+                          onChange={(e) => updateDraft(plan.plan, { chatDeployment: e.target.value })}
+                          placeholder="gpt-4o"
+                          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Embedding provider
+                      </span>
+                      <select
+                        value={draft.embeddingProvider}
+                        onChange={(e) =>
+                          updateDraft(plan.plan, {
+                            embeddingProvider: e.target.value as ApiEmbeddingStack["provider"],
+                          })
+                        }
+                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="fastembed">Local — fastembed (Hugging Face)</option>
+                        <option value="ollama">Local — Ollama</option>
+                        <option value="azure_openai">Azure OpenAI</option>
+                      </select>
+                    </label>
+
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Embedding model
+                      </span>
+                      <input
+                        type="text"
+                        value={draft.embeddingModel}
+                        onChange={(e) => updateDraft(plan.plan, { embeddingModel: e.target.value })}
+                        placeholder="BAAI/bge-small-en-v1.5"
+                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                      />
+                    </label>
+
+                    {draft.embeddingProvider === "azure_openai" && (
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Azure embedding deployment
+                        </span>
+                        <input
+                          type="text"
+                          value={draft.embeddingDeployment}
+                          onChange={(e) =>
+                            updateDraft(plan.plan, { embeddingDeployment: e.target.value })
+                          }
+                          placeholder="text-embedding-3-small"
+                          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                        />
+                      </label>
+                    )}
+
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Embedding dimensions
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={draft.embeddingDimensions}
+                        onChange={(e) =>
+                          updateDraft(plan.plan, { embeddingDimensions: e.target.value })
+                        }
+                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                      />
+                    </label>
+                  </div>
+                </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">

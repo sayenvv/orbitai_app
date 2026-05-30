@@ -15,6 +15,8 @@ export default async function ChatPage({ searchParams }: { searchParams: SearchP
   const sourceType = typeof params.sourceType === "string" ? params.sourceType : undefined;
   const sourceSubject = typeof params.sourceSubject === "string" ? params.sourceSubject : undefined;
 
+  const sourceStatus = typeof params.sourceStatus === "string" ? params.sourceStatus : undefined;
+
   let initialSource: StudySource | null = null;
   if (sourceId && sourceName && sourceType) {
     initialSource = {
@@ -22,6 +24,7 @@ export default async function ChatPage({ searchParams }: { searchParams: SearchP
       name: sourceName,
       type: sourceType as "study-material" | "uploaded-file",
       subject: sourceSubject,
+      status: sourceStatus as StudySource["status"],
       createdAt: new Date(),
     };
   }

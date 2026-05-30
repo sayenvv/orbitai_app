@@ -53,6 +53,35 @@ export type GeneratedMaterial = {
   date: string;
 };
 
+export type ApiLibraryGenerated = {
+  id: string;
+  title: string;
+  type: string;
+  preview: string;
+  conversation_id?: string | null;
+  agent_id?: string | null;
+  agent_slug?: string | null;
+  agent_name?: string;
+  agent_short_name?: string | null;
+  icon_key?: string;
+  color_key?: string;
+  created_at: string;
+  updated_at?: string | null;
+};
+
+export type ApiLibraryResponse = {
+  uploads: ApiRagDocument[];
+  generated: ApiLibraryGenerated[];
+};
+
+export type ApiPdfInspect = {
+  total_pages: number;
+  page_limit: number | null;
+  pages_indexed: number;
+  will_truncate: boolean;
+  plan: string;
+};
+
 export type ApiMessage = {
   id: string;
   role: string;
@@ -69,6 +98,25 @@ export type ApiTokenUsage = {
   period_end?: string | null;
   usage_percent: number;
   limit_reached: boolean;
+};
+
+export type ApiRagDocument = {
+  id: string;
+  user_id: string;
+  conversation_id?: string | null;
+  original_filename: string;
+  name: string;
+  original_name: string;
+  mime_type: string;
+  file_size_bytes: number;
+  page_count: number;
+  pages_processed: number;
+  chunk_count: number;
+  status: "pending" | "processing" | "ready" | "failed";
+  error_message?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at?: string | null;
 };
 
 export type ApiPlanLimit = {
@@ -114,6 +162,12 @@ export function parseApiError(data: unknown, fallback: string): string {
     const first = detail[0] as { msg?: string };
     if (typeof first?.msg === "string") return first.msg;
   }
+  return fallback;
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) return error.message;
+  if (error instanceof Error && error.message) return error.message;
   return fallback;
 }
 
@@ -165,6 +219,29 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
+async function uploadRequest<T>(
+  baseUrl: string,
+  path: string,
+  formData: FormData,
+): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      const { useAuthStore } = await import("@/store/auth-store");
+      useAuthStore.getState().logout();
+    }
+    const error = await response.json().catch(() => null);
+    throw new ApiError(parseApiError(error, `HTTP ${response.status}`), response.status);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 // ─── Auth (`/api/auth/*`) ───────────────────────────────────────────────────
 
 export const authApi = {
@@ -204,12 +281,73 @@ export const publicApi = {
   plans: () =>
     request<{ data: ApiPlanLimit[] }>(API_BASE_URL, "/plans"),
 
-  files: () => request<{ data: unknown[] }>(API_BASE_URL, "/files"),
+  files: () => request<{ data: ApiRagDocument[] }>(API_BASE_URL, "/files"),
+
+  getFile: (id: string) => request<ApiRagDocument>(API_BASE_URL, `/files/${id}`),
+
+  deleteFile: (id: string) =>
+    request<{ ok: boolean }>(API_BASE_URL, `/files/${id}`, { method: "DELETE" }),
+
+  inspectPdf: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return uploadRequest<ApiPdfInspect>(API_BASE_URL, "/files/inspect", formData);
+  },
+
+  downloadUpload: (id: string, filename: string) =>
+    import("@/lib/file-download").then(({ downloadFromApi }) =>
+      downloadFromApi(`${API_BASE_URL}/files/${id}/download`, filename, "application/pdf"),
+    ),
+
+  deleteGenerated: (id: string) =>
+    request<{ ok: boolean }>(API_BASE_URL, `/library/generated/${id}`, { method: "DELETE" }),
+
+  downloadGenerated: (id: string, filename: string) =>
+    import("@/lib/file-download").then(({ downloadFromApi }) =>
+      downloadFromApi(
+        `${API_BASE_URL}/library/generated/${id}/download`,
+        filename.endsWith(".txt") ? filename : `${filename}.txt`,
+        "text/plain",
+      ),
+    ),
+
+  uploadFile: (file: File, conversationId?: string | null) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (conversationId) {
+      formData.append("conversation_id", conversationId);
+    }
+    return uploadRequest<ApiRagDocument>(API_BASE_URL, "/files/upload", formData);
+  },
+
+  waitForFileReady: async (
+    id: string,
+    options?: { intervalMs?: number; timeoutMs?: number; onProgress?: (doc: ApiRagDocument) => void },
+  ): Promise<ApiRagDocument> => {
+    const intervalMs = options?.intervalMs ?? 2000;
+    const timeoutMs = options?.timeoutMs ?? 5 * 60 * 1000;
+    const started = Date.now();
+
+    while (true) {
+      const doc = await request<ApiRagDocument>(API_BASE_URL, `/files/${id}`);
+      options?.onProgress?.(doc);
+
+      if (doc.status === "ready") return doc;
+      if (doc.status === "failed") {
+        throw new ApiError(doc.error_message || "Document processing failed", 422);
+      }
+      if (Date.now() - started > timeoutMs) {
+        throw new ApiError("Document processing timed out. Try again later.", 504);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  },
 
   studyMaterials: () =>
     request<{ data: unknown[] }>(API_BASE_URL, "/study-materials"),
 
-  library: () => request<{ data: unknown[] }>(API_BASE_URL, "/library"),
+  library: () => request<ApiLibraryResponse>(API_BASE_URL, "/library"),
 };
 
 // ─── Chat (`/api/chat/*`) ───────────────────────────────────────────────────

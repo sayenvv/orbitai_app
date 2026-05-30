@@ -203,6 +203,9 @@ async def stream_message(
             user_message=body.message,
             agent_slug=body.agent_id,
             history=history,
+            source_id=body.source_id if user and body.source_id else None,
+            user_id=user.id if user else None,
+            user_plan=user.plan if user else None,
         ):
             full += token
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"

@@ -22,7 +22,8 @@ import {
   type SidebarSection,
 } from "@/components/home/app-sidebar-panels";
 import { useSidebarChats } from "@/hooks/use-sidebar-chats";
-import { useGeneratedMaterials } from "@/hooks/use-generated-materials";
+import { useLibrary } from "@/hooks/use-library";
+import { publicApi } from "@/lib/orbit-api";
 import { AgentListingIcon } from "@orbit/ui";
 import { getGreeting, libraryItems, routeForAgent } from "@/lib/home-data";
 import { useAgents } from "@/hooks/use-agents";
@@ -55,7 +56,7 @@ export function MobileHome({
   const [sidebarSection, setSidebarSection] = useState<SidebarSection>("home");
   const [mainSection, setMainSection] = useState<SidebarSection>("home");
   const { conversations, loading: chatsLoading, removeConversation } = useSidebarChats();
-  const { materials, loading: materialsLoading } = useGeneratedMaterials();
+  const { uploads, generated, loading: libraryLoading, refresh: refreshLibrary } = useLibrary();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
@@ -243,9 +244,53 @@ export function MobileHome({
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain safe-x px-4 pb-4">
         {mainSection === "library" ? (
           <MainLibraryPanel
-            materials={materials}
-            loading={materialsLoading}
-            onSelect={(material) => router.push(routeForAgent(material.agentSlug))}
+            uploads={uploads}
+            generated={generated}
+            loading={libraryLoading}
+            isAuthenticated={isAuthenticated}
+            onRefresh={refreshLibrary}
+            onRequireAuth={onSignIn}
+            onSelectUpload={(upload) => {
+              const params = new URLSearchParams({
+                sourceId: upload.id,
+                sourceName: upload.title,
+                sourceType: "uploaded-file",
+              });
+              router.push(`/c?${params.toString()}`);
+            }}
+            onSelectGenerated={(file) => {
+              if (file.conversationId) {
+                router.push(`/c?conversation=${encodeURIComponent(file.conversationId)}`);
+                return;
+              }
+              router.push(routeForAgent(file.agentSlug));
+            }}
+            onDownloadUpload={
+              isAuthenticated
+                ? (upload) => void publicApi.downloadUpload(upload.id, upload.title)
+                : undefined
+            }
+            onDeleteUpload={
+              isAuthenticated
+                ? async (upload) => {
+                    await publicApi.deleteFile(upload.id);
+                    await refreshLibrary();
+                  }
+                : undefined
+            }
+            onDownloadGenerated={
+              isAuthenticated
+                ? (file) => void publicApi.downloadGenerated(file.id, file.title)
+                : undefined
+            }
+            onDeleteGenerated={
+              isAuthenticated
+                ? async (file) => {
+                    await publicApi.deleteGenerated(file.id);
+                    await refreshLibrary();
+                  }
+                : undefined
+            }
           />
         ) : mainSection === "agents" ? (
           <MainAgentsPanel

@@ -138,6 +138,33 @@ class PlanLimitPatch(BaseModel):
     tagline: str | None = None
     features: list[str] | None = None
     highlight: bool | None = None
+    ai_stack: dict | None = None
+
+
+class ChatStackItem(BaseModel):
+    provider: str = "ollama"
+    model: str = "llama3.2"
+    deployment: str | None = None
+
+
+class EmbeddingStackItem(BaseModel):
+    provider: str = "fastembed"
+    model: str = "BAAI/bge-small-en-v1.5"
+    deployment: str | None = None
+    dimensions: int = 384
+
+
+class PlanAiStackItem(BaseModel):
+    chat: ChatStackItem
+    embeddings: EmbeddingStackItem
+
+
+class PlanLimitControlItem(PlanLimitItem):
+    ai_stack: PlanAiStackItem
+
+
+class PlanLimitsControlResponse(BaseModel):
+    data: list[PlanLimitControlItem]
 
 
 class PlanLimitsUpdate(BaseModel):
@@ -150,6 +177,61 @@ class TokenUsageResponse(BaseModel):
     tokens_remaining: int | None
     usage_percent: float
     limit_reached: bool
+
+
+# --- RAG documents ---
+
+
+class RagDocumentResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    conversation_id: UUID | None = None
+    original_filename: str
+    name: str
+    original_name: str
+    mime_type: str
+    file_size_bytes: int
+    page_count: int
+    pages_processed: int
+    chunk_count: int
+    status: str
+    error_message: str | None = None
+    metadata: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+class RagDocumentListResponse(BaseModel):
+    data: list[RagDocumentResponse]
+
+
+class PdfInspectResponse(BaseModel):
+    total_pages: int
+    page_limit: int | None
+    pages_indexed: int
+    will_truncate: bool
+    plan: str
+
+
+class LibraryGeneratedFileResponse(BaseModel):
+    id: UUID
+    title: str
+    type: str
+    preview: str = ""
+    conversation_id: UUID | None = None
+    agent_id: UUID | None = None
+    agent_slug: str | None = None
+    agent_name: str = "Orbit AI"
+    agent_short_name: str | None = None
+    icon_key: str = "Sparkles"
+    color_key: str = "indigo"
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+class LibraryResponse(BaseModel):
+    uploads: list[RagDocumentResponse]
+    generated: list[LibraryGeneratedFileResponse]
 
 
 # --- Ollama ---

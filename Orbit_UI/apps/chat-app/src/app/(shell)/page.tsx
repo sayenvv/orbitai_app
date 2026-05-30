@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, FolderOpen, Paperclip, Search, X } from "lucide-react";
+import { BookOpen, FolderOpen, Loader2, Paperclip, Search, X } from "lucide-react";
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
 import { libraryItems, routeForAgent } from "@/lib/home-data";
 import { useAgents } from "@/hooks/use-agents";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppShell } from "@/components/layout/app-shell-context";
+import { appendSourceToSearchParams, uploadPdfAndWait, validatePdfFile, PdfUploadCancelledError } from "@/lib/rag-upload";
 import { HomeMobileContent } from "@/components/home/home-mobile-content";
 import { LibraryPicker } from "@/components/home/library-picker";
 
@@ -15,10 +16,12 @@ export default function HomePage() {
   const { agents } = useAgents();
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const { setSection, setHeader } = useAppShell();
+  const { setSection, setHeader, openLogin } = useAppShell();
 
   const [chatInput, setChatInput] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [heroUploading, setHeroUploading] = useState(false);
+  const [heroUploadError, setHeroUploadError] = useState("");
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
   const [librarySearch, setLibrarySearch] = useState("");
@@ -31,17 +34,47 @@ export default function HomePage() {
   }, [setHeader]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length) setAttachedFiles((prev) => [...prev, ...files]);
+    const files = Array.from(e.target.files || []).filter(validatePdfFile);
+    if (files.length) {
+      setAttachedFiles((prev) => [...prev, ...files]);
+      setHeroUploadError("");
+    } else if (e.target.files?.length) {
+      setHeroUploadError("Only PDF files are supported.");
+    }
     if (e.target) e.target.value = "";
   };
 
   const removeFile = (idx: number) =>
     setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
 
-  const handleHeroSend = () => {
+  const handleHeroSend = async () => {
     const trimmed = chatInput.trim();
-    if (!trimmed) return;
+    if (!trimmed && attachedFiles.length === 0) return;
+
+    if (attachedFiles.length > 0) {
+      if (!isAuthenticated) {
+        openLogin("login");
+        return;
+      }
+
+      setHeroUploading(true);
+      setHeroUploadError("");
+      try {
+        const source = await uploadPdfAndWait(attachedFiles[0]);
+        const params = new URLSearchParams();
+        params.set("prompt", trimmed || "Summarize this document");
+        params.set("send", crypto.randomUUID());
+        appendSourceToSearchParams(params, source);
+        router.push(`/c?${params.toString()}`);
+      } catch (err) {
+        if (err instanceof PdfUploadCancelledError) return;
+        setHeroUploadError(err instanceof Error ? err.message : "Upload failed");
+      } finally {
+        setHeroUploading(false);
+      }
+      return;
+    }
+
     router.push(
       `/c?prompt=${encodeURIComponent(trimmed)}&send=${crypto.randomUUID()}`,
     );
@@ -69,8 +102,14 @@ export default function HomePage() {
           </div>
 
           <div className="relative mx-auto max-w-3xl">
-            {(attachedFiles.length > 0 || selectedLibraryId) && (
+            {(attachedFiles.length > 0 || selectedLibraryId || heroUploading) && (
               <div className="mb-3 flex flex-wrap justify-center gap-2">
+                {heroUploading && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs">
+                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                    Indexing PDF…
+                  </span>
+                )}
                 {attachedFiles.map((file, idx) => (
                   <span
                     key={idx}
@@ -107,7 +146,7 @@ export default function HomePage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                multiple
+                accept="application/pdf,.pdf"
                 className="hidden"
                 onChange={handleFileChange}
               />
@@ -118,12 +157,13 @@ export default function HomePage() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === "Enter" && !e.shiftKey && !heroUploading) {
                       e.preventDefault();
-                      handleHeroSend();
+                      void handleHeroSend();
                     }
                   }}
-                  placeholder="Ask anything…"
+                  placeholder={attachedFiles.length ? "Ask about your PDF…" : "Ask anything…"}
+                  disabled={heroUploading}
                   className="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-muted-foreground/70 sm:text-base"
                 />
                 {chatInput && (
@@ -140,11 +180,13 @@ export default function HomePage() {
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="press inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-muted/60 px-2.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground dark:bg-muted/40 sm:gap-1.5 sm:px-3 sm:text-[13px]"
+                  disabled={heroUploading}
+                  className="press inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-muted/60 px-2.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 dark:bg-muted/40 sm:gap-1.5 sm:px-3 sm:text-[13px]"
                 >
                   <Paperclip className="h-3.5 w-3.5 text-primary" />
-                  <span>Upload</span>
+                  <span>Upload PDF</span>
                 </button>
                 <button
                   ref={libraryButtonRef}
@@ -162,12 +204,21 @@ export default function HomePage() {
             </div>
 
             <p className="mt-2 hidden text-center text-[11px] text-muted-foreground sm:mt-3 sm:block">
-              Drop files, paste links, or reuse anything you&apos;ve generated before ·{" "}
-              <kbd className="rounded-md border bg-card/60 px-1.5 py-0.5 font-mono text-[10px]">
-                Enter
-              </kbd>{" "}
-              to send
+              {heroUploading
+                ? "Uploading and indexing your PDF…"
+                : (
+                  <>
+                    Attach a PDF for document Q&amp;A ·{" "}
+                    <kbd className="rounded-md border bg-card/60 px-1.5 py-0.5 font-mono text-[10px]">
+                      Enter
+                    </kbd>{" "}
+                    to send
+                  </>
+                )}
             </p>
+            {heroUploadError && (
+              <p className="mt-2 text-center text-[11px] text-destructive">{heroUploadError}</p>
+            )}
           </div>
 
           <div className="space-y-2 sm:space-y-3">

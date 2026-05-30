@@ -38,5 +38,6 @@ export type StudySource = {
   name: string;
   type: "study-material" | "uploaded-file";
   subject?: string;
+  status?: "pending" | "processing" | "ready" | "failed";
   createdAt: Date;
 };

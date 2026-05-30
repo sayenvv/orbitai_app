@@ -9,6 +9,11 @@ import { ChatInput, type ChatInputHandle } from "./chat-input";
 import { Message, StudySource } from "@/types";
 import { ApiError, chatApi, mapMessage, publicApi } from "@/lib/orbit-api";
 import { chatContentClass } from "@/lib/chat-layout";
+import {
+  isSourceProcessing,
+  isSourceReady,
+  mapRagDocumentToSource,
+} from "@/lib/rag-upload";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useUsageStore } from "@/store/usage-store";
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
@@ -72,6 +77,30 @@ export function ChatInterface({
     setHeader(null);
     return () => setHeader(null);
   }, [setHeader]);
+
+  useEffect(() => {
+    if (!selectedSource || selectedSource.type !== "uploaded-file") return;
+    if (!isSourceProcessing(selectedSource)) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const doc = await publicApi.getFile(selectedSource.id);
+        if (!cancelled) {
+          setSelectedSource(mapRagDocumentToSource(doc));
+        }
+      } catch {
+        // ignore polling errors
+      }
+    };
+
+    void poll();
+    const intervalId = window.setInterval(() => void poll(), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [selectedSource?.id, selectedSource?.status, selectedSource?.type]);
 
   useEffect(() => {
     if (initialConversationId) {
@@ -173,6 +202,41 @@ export function ChatInterface({
 
   const handleSendMessage = useCallback(
     async (content: string) => {
+      let activeSource = selectedSource;
+      if (activeSource && !isSourceReady(activeSource)) {
+        setLoading(true);
+        try {
+          const doc = await publicApi.waitForFileReady(activeSource.id);
+          activeSource = mapRagDocumentToSource(doc);
+          setSelectedSource(activeSource);
+        } catch (err) {
+          setLoading(false);
+          const errorText =
+            err instanceof ApiError ? err.message : "Document is still processing. Try again shortly.";
+          const existingId = activeConversationId;
+          const tempId = existingId ?? crypto.randomUUID();
+          const assistantMsgId = crypto.randomUUID();
+          if (!existingId) {
+            addConversation({
+              id: tempId,
+              title: content.slice(0, 50),
+              messages: [
+                { id: crypto.randomUUID(), role: "user", content, timestamp: new Date() },
+                { id: assistantMsgId, role: "assistant", content: errorText, timestamp: new Date() },
+              ],
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          } else {
+            addMessage(existingId, { id: crypto.randomUUID(), role: "user", content, timestamp: new Date() });
+            addMessage(existingId, { id: assistantMsgId, role: "assistant", content: errorText, timestamp: new Date() });
+          }
+          return;
+        } finally {
+          setLoading(false);
+        }
+      }
+
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: "user",
@@ -226,8 +290,8 @@ export function ChatInterface({
         for await (const event of chatApi.streamMessage({
           message: content,
           conversation_id: isNewConversation ? null : existingId,
-          source_id: selectedSource?.id || null,
-          source_type: selectedSource?.type || null,
+          source_id: activeSource?.id || null,
+          source_type: activeSource?.type || null,
           agent_id: agentId || null,
         })) {
           if (event.type === "start" && event.conversation_id) {
@@ -291,6 +355,7 @@ export function ChatInterface({
       updateMessage,
       isAuthenticated,
       openUpgrade,
+      setSelectedSource,
     ],
   );
 
@@ -370,6 +435,7 @@ export function ChatInterface({
         selectedSource={isAuthenticated ? selectedSource : null}
         onSelectSource={isAuthenticated ? setSelectedSource : () => {}}
         showContextSelector={isAuthenticated}
+        conversationId={activeConversationId}
       />
     </div>
   );

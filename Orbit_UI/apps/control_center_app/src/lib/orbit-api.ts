@@ -91,6 +91,24 @@ export type ApiControlConfiguration = {
   system_prompt: string;
 };
 
+export type ApiChatStack = {
+  provider: "ollama" | "openai" | "azure_openai";
+  model: string;
+  deployment?: string | null;
+};
+
+export type ApiEmbeddingStack = {
+  provider: "fastembed" | "ollama" | "azure_openai";
+  model: string;
+  deployment?: string | null;
+  dimensions: number;
+};
+
+export type ApiPlanAiStack = {
+  chat: ApiChatStack;
+  embeddings: ApiEmbeddingStack;
+};
+
 export type ApiPlanLimit = {
   plan: string;
   label: string;
@@ -100,6 +118,7 @@ export type ApiPlanLimit = {
   token_limit: number | null;
   token_limit_raw: number;
   updated_at?: string | null;
+  ai_stack?: ApiPlanAiStack;
 };
 
 export type ApiPlanLimitPatch = {
@@ -108,6 +127,10 @@ export type ApiPlanLimitPatch = {
   tagline?: string;
   features?: string[];
   highlight?: boolean;
+  ai_stack?: Partial<{
+    chat: Partial<ApiChatStack>;
+    embeddings: Partial<ApiEmbeddingStack>;
+  }>;
 };
 
 export type ApiPlanLimitsResponse = {
