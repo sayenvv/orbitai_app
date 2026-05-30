@@ -24,7 +24,14 @@ export function MobileAppDrawer() {
     openLogin,
     openSupport,
   } = useAppShell();
-  const { conversations, loading: chatsLoading, removeConversation } = useSidebarChats();
+  const {
+    conversations,
+    loading: chatsLoading,
+    loadingMore,
+    hasMore,
+    loadMore,
+    removeConversation,
+  } = useSidebarChats();
 
   if (!mobileDrawerOpen) return null;
 
@@ -102,6 +109,9 @@ export function MobileAppDrawer() {
               <SidebarRecentsList
                 conversations={conversations}
                 loading={chatsLoading}
+                loadingMore={loadingMore}
+                hasMore={hasMore}
+                onLoadMore={() => void loadMore()}
                 onSelect={openChat}
                 onDelete={(id) => void removeConversation(id)}
               />

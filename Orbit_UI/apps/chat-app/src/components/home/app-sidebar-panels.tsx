@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import {
   FileText,
   FolderOpen,
@@ -119,6 +119,9 @@ function groupRecents(conversations: Conversation[]): RecentGroup[] {
 type SidebarRecentsListProps = {
   conversations: Conversation[];
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
   activeId?: string | null;
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -128,12 +131,17 @@ type SidebarRecentsListProps = {
 export function SidebarRecentsList({
   conversations,
   loading,
+  loadingMore = false,
+  hasMore = false,
+  onLoadMore,
   activeId,
   onSelect,
   onDelete,
   compact = false,
 }: SidebarRecentsListProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const scrollRootRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(
     () =>
@@ -144,6 +152,25 @@ export function SidebarRecentsList({
   );
 
   const groups = useMemo(() => groupRecents(filtered), [filtered]);
+  const isSearching = searchQuery.trim().length > 0;
+
+  useEffect(() => {
+    if (!onLoadMore || !hasMore || loading || loadingMore || isSearching) return;
+
+    const root = scrollRootRef.current;
+    const target = loadMoreRef.current;
+    if (!root || !target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) onLoadMore();
+      },
+      { root, rootMargin: "80px", threshold: 0 },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [onLoadMore, hasMore, loading, loadingMore, isSearching, groups.length]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -160,30 +187,39 @@ export function SidebarRecentsList({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-2">
-        {loading ? (
+      <div ref={scrollRootRef} className="min-h-0 flex-1 overflow-y-auto pb-2">
+        {loading && conversations.length === 0 ? (
           <SidebarRecentsShimmer />
         ) : groups.length === 0 ? (
           <p className="px-1 py-6 text-center text-[11px] text-muted-foreground">
             {searchQuery ? "No matching chats" : "No recent chats"}
           </p>
         ) : (
-          groups.map((group) => (
-            <div key={group.label} className="mb-3">
-              <p className="mb-1 px-2 text-[10px] font-medium text-muted-foreground">
-                {group.label}
-              </p>
-              {group.items.map((conv) => (
-                <RecentChatItem
-                  key={conv.id}
-                  conversation={conv}
-                  isActive={activeId === conv.id}
-                  onSelect={onSelect}
-                  onDelete={onDelete}
-                />
-              ))}
-            </div>
-          ))
+          <>
+            {groups.map((group) => (
+              <div key={group.label} className="mb-3">
+                <p className="mb-1 px-2 text-[10px] font-medium text-muted-foreground">
+                  {group.label}
+                </p>
+                {group.items.map((conv) => (
+                  <RecentChatItem
+                    key={conv.id}
+                    conversation={conv}
+                    isActive={activeId === conv.id}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            ))}
+            {!isSearching && hasMore && (
+              <div ref={loadMoreRef} className="flex justify-center py-3">
+                {loadingMore && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Loading more chats" />
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

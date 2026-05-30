@@ -9,7 +9,10 @@ export function useSidebarChats() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const conversations = useChatStore((s) => s.conversations);
   const loading = useChatStore((s) => s.conversationsLoading);
+  const loadingMore = useChatStore((s) => s.conversationsLoadingMore);
+  const hasMore = useChatStore((s) => s.conversationsHasMore);
   const refreshConversationsList = useChatStore((s) => s.refreshConversationsList);
+  const loadMoreConversationsList = useChatStore((s) => s.loadMoreConversationsList);
   const deleteConversation = useChatStore((s) => s.deleteConversation);
 
   const sortedConversations = useMemo(
@@ -25,6 +28,11 @@ export function useSidebarChats() {
     await refreshConversationsList();
   }, [isAuthenticated, refreshConversationsList]);
 
+  const loadMore = useCallback(async () => {
+    if (!isAuthenticated) return;
+    await loadMoreConversationsList();
+  }, [isAuthenticated, loadMoreConversationsList]);
+
   const removeConversation = useCallback(
     async (id: string) => {
       await chatApi.deleteConversation(id);
@@ -36,7 +44,10 @@ export function useSidebarChats() {
   return {
     conversations: sortedConversations,
     loading,
+    loadingMore,
+    hasMore,
     refresh,
+    loadMore,
     removeConversation,
   };
 }

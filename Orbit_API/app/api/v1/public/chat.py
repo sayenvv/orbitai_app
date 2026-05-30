@@ -2,7 +2,7 @@ import json
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
@@ -75,6 +75,8 @@ def create_conversation(
 
 @router.get("/conversations", response_model=ConversationListResponse)
 def list_conversations(
+    limit: int = Query(default=20, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -83,9 +85,18 @@ def list_conversations(
         .options(joinedload(Conversation.agent))
         .filter(Conversation.user_id == user.id)
         .order_by(Conversation.updated_at.desc())
+        .offset(offset)
+        .limit(limit + 1)
         .all()
     )
-    return ConversationListResponse(data=[_conversation_summary(r) for r in rows])
+    has_more = len(rows) > limit
+    page = rows[:limit]
+    next_offset = offset + len(page) if has_more else None
+    return ConversationListResponse(
+        data=[_conversation_summary(r) for r in page],
+        has_more=has_more,
+        next_offset=next_offset,
+    )
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetailResponse)

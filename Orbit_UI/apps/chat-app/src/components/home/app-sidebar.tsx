@@ -29,7 +29,8 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { conversations, loading: chatsLoading, removeConversation } = useSidebarChats();
+  const { conversations, loading: chatsLoading, loadingMore, hasMore, loadMore, removeConversation } =
+    useSidebarChats();
 
   const labelClass = expanded
     ? "pointer-events-auto opacity-100 max-w-[10rem]"
@@ -77,6 +78,9 @@ export function AppSidebar({
           <SidebarRecentsList
             conversations={conversations}
             loading={chatsLoading}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            onLoadMore={() => void loadMore()}
             activeId={activeConversationId}
             onSelect={openChat}
             onDelete={(id) => void removeConversation(id)}

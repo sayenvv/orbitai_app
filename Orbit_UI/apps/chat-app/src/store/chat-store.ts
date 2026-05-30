@@ -42,11 +42,16 @@ function dedupeConversations(conversations: Conversation[]): Conversation[] {
   return Array.from(byId.values());
 }
 
+const CONVERSATIONS_PAGE_SIZE = 20;
+
 type ChatState = {
   conversations: Conversation[];
   activeConversationId: string | null;
   isLoading: boolean;
   conversationsLoading: boolean;
+  conversationsLoadingMore: boolean;
+  conversationsHasMore: boolean;
+  conversationsNextOffset: number;
   conversationsHydrated: boolean;
   setActiveConversation: (id: string | null) => void;
   addConversation: (conversation: Conversation) => void;
@@ -54,7 +59,10 @@ type ChatState = {
   updateMessage: (conversationId: string, messageId: string, content: string) => void;
   updateConversationId: (oldId: string, newId: string) => void;
   setConversations: (conversations: Conversation[]) => void;
+  appendConversationsPage: (conversations: Conversation[]) => void;
+  fetchConversationsPage: (options?: { reset?: boolean }) => Promise<void>;
   refreshConversationsList: () => Promise<void>;
+  loadMoreConversationsList: () => Promise<void>;
   deleteConversation: (id: string) => void;
   setLoading: (loading: boolean) => void;
   clearConversations: () => void;
@@ -65,6 +73,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeConversationId: null,
   isLoading: false,
   conversationsLoading: false,
+  conversationsLoadingMore: false,
+  conversationsHasMore: true,
+  conversationsNextOffset: 0,
   conversationsHydrated: false,
 
   setActiveConversation: (id) => set({ activeConversationId: id }),
@@ -132,16 +143,62 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return { conversations: dedupeConversations([...localOnly, ...merged]) };
     }),
 
-  refreshConversationsList: async () => {
-    set({ conversationsLoading: true });
+  appendConversationsPage: (incoming) =>
+    set((state) => {
+      const existingIds = new Set(state.conversations.map((c) => c.id));
+      const toAdd = incoming.filter((c) => !existingIds.has(c.id));
+      return { conversations: dedupeConversations([...state.conversations, ...toAdd]) };
+    }),
+
+  fetchConversationsPage: async (options) => {
+    const reset = options?.reset ?? false;
+    const state = get();
+
+    if (!reset) {
+      if (!state.conversationsHasMore || state.conversationsLoadingMore || state.conversationsLoading) {
+        return;
+      }
+      set({ conversationsLoadingMore: true });
+    } else {
+      set({ conversationsLoading: true, conversationsNextOffset: 0, conversationsHasMore: true });
+    }
+
+    const offset = reset ? 0 : state.conversationsNextOffset;
+
     try {
-      const data = await chatApi.listConversations();
-      get().setConversations(data.data.map(mapConversationSummary));
+      const data = await chatApi.listConversations({
+        limit: CONVERSATIONS_PAGE_SIZE,
+        offset,
+      });
+      const mapped = data.data.map(mapConversationSummary);
+
+      if (reset) {
+        get().setConversations(mapped);
+      } else {
+        get().appendConversationsPage(mapped);
+      }
+
+      set({
+        conversationsHasMore: data.has_more,
+        conversationsNextOffset: data.next_offset ?? offset + mapped.length,
+      });
     } catch {
       // keep local state on failure
     } finally {
-      set({ conversationsLoading: false, conversationsHydrated: true });
+      set({
+        conversationsLoading: false,
+        conversationsLoadingMore: false,
+        conversationsHydrated: true,
+      });
     }
+  },
+
+  refreshConversationsList: async () => {
+    await get().fetchConversationsPage({ reset: true });
+  },
+
+  loadMoreConversationsList: async () => {
+    await get().fetchConversationsPage({ reset: false });
   },
 
   deleteConversation: (id) =>
@@ -153,5 +210,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
 
   clearConversations: () =>
-    set({ conversations: [], activeConversationId: null, conversationsHydrated: false }),
+    set({
+      conversations: [],
+      activeConversationId: null,
+      conversationsHydrated: false,
+      conversationsHasMore: true,
+      conversationsNextOffset: 0,
+      conversationsLoading: false,
+      conversationsLoadingMore: false,
+    }),
 }));
