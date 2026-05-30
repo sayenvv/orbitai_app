@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, FormEvent, KeyboardEvent, useEffect } from "react";
-import { Send, Paperclip, StopCircle } from "lucide-react";
+import { ArrowUp, Paperclip, Sparkles, StopCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StudySource } from "@/types";
 import { ContextSelector } from "./context-selector";
@@ -14,14 +14,20 @@ type ChatInputProps = {
   showContextSelector?: boolean;
 };
 
-export function ChatInput({ onSend, isLoading, selectedSource, onSelectSource, showContextSelector = true }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  isLoading,
+  selectedSource,
+  onSelectSource,
+  showContextSelector = true,
+}: ChatInputProps) {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [input]);
 
@@ -40,69 +46,80 @@ export function ChatInput({ onSend, isLoading, selectedSource, onSelectSource, s
     }
   };
 
+  const canSend = input.trim().length > 0 && !isLoading;
+
   return (
-    <div className="border-t bg-background/80 backdrop-blur-sm">
-      <div className="max-w-3xl mx-auto px-4 py-3">
-        {/* Context Source Selector */}
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center px-4 pb-4 pt-10 safe-bottom sm:px-6 sm:pb-6">
+      <div
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background via-background/95 to-transparent"
+      />
+
+      <div className="pointer-events-auto relative w-full max-w-3xl">
         {showContextSelector && (
-        <div className="mb-2">
-          <ContextSelector selectedSource={selectedSource} onSelect={onSelectSource} />
-        </div>
+          <div className="mb-2 flex justify-center">
+            <ContextSelector selectedSource={selectedSource} onSelect={onSelectSource} />
+          </div>
         )}
 
-        {/* Input Area */}
         <form onSubmit={handleSubmit}>
-          <div className="relative flex items-end gap-2 rounded-2xl border bg-card shadow-sm focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary/30 transition-all">
-            <button
-              type="button"
-              className="hidden sm:inline-flex items-center justify-center rounded-xl h-9 w-9 ml-2 mb-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="Attach file"
-            >
-              <Paperclip className="h-4 w-4" />
-            </button>
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                selectedSource
-                  ? `Ask about "${selectedSource.name}"...`
-                  : "Message Study AI..."
-              }
-              className="flex-1 resize-none bg-transparent px-3 py-3 text-sm placeholder:text-muted-foreground focus:outline-none min-h-[44px] max-h-[160px] leading-relaxed"
-              rows={1}
-              disabled={isLoading}
-            />
-            <div className="flex items-center gap-1 mr-2 mb-1.5">
-              {isLoading ? (
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center rounded-xl h-9 w-9 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                  title="Stop generating"
-                >
-                  <StopCircle className="h-4 w-4" />
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!input.trim()}
-                  className={cn(
-                    "inline-flex items-center justify-center rounded-xl h-9 w-9 transition-all",
-                    input.trim()
-                      ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 scale-100"
-                      : "bg-muted text-muted-foreground scale-95 opacity-60"
-                  )}
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              )}
+          <div className="rounded-[28px] border border-border/60 bg-card/95 p-2 shadow-[0_16px_48px_-16px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.45)]">
+            <div className="flex items-end gap-1.5">
+              <button
+                type="button"
+                className="press mb-1 ml-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:inline-flex"
+                title="Attach file"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  selectedSource
+                    ? `Ask about "${selectedSource.name}"…`
+                    : "Ask anything…"
+                }
+                className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-2 py-3 text-[15px] leading-relaxed placeholder:text-muted-foreground/70 focus:outline-none sm:px-3"
+                rows={1}
+                disabled={isLoading}
+              />
+
+              <div className="mb-1 mr-1 shrink-0">
+                {isLoading ? (
+                  <button
+                    type="button"
+                    className="press inline-flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
+                    title="Stop generating"
+                  >
+                    <StopCircle className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!canSend}
+                    className={cn(
+                      "press inline-flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200",
+                      canSend
+                        ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:bg-primary/90"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-          <p className="text-[10px] text-center text-muted-foreground mt-2">
+
+          <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/80">
+            <Sparkles className="h-3 w-3 shrink-0 text-primary/60" />
             {selectedSource
-              ? `Answering based on: ${selectedSource.name}`
-              : "Study AI can make mistakes. Verify important information with your course materials."}
+              ? `Using context: ${selectedSource.name}`
+              : "Orbit AI can make mistakes — verify important information."}
           </p>
         </form>
       </div>

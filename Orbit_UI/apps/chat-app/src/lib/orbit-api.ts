@@ -180,9 +180,23 @@ export const publicApi = {
 
 // ─── Chat (`/api/chat/*`) ───────────────────────────────────────────────────
 
+export type ConversationListResult = {
+  data: ApiConversationSummary[];
+  has_more: boolean;
+  next_offset: number | null;
+};
+
 export const chatApi = {
-  listConversations: () =>
-    request<{ data: ApiConversationSummary[] }>(CHAT_API_BASE_URL, "/conversations"),
+  listConversations: (params?: { limit?: number; offset?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.limit != null) search.set("limit", String(params.limit));
+    if (params?.offset != null) search.set("offset", String(params.offset));
+    const query = search.toString();
+    return request<ConversationListResult>(
+      CHAT_API_BASE_URL,
+      query ? `/conversations?${query}` : "/conversations",
+    );
+  },
 
   createConversation: (body: { agent_id?: string | null; title?: string }) =>
     request<ApiConversationSummary>(CHAT_API_BASE_URL, "/conversations", {

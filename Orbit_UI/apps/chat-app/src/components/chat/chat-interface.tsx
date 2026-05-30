@@ -287,7 +287,7 @@ export function ChatInterface({
   }, [initialPrompt, searchParams, clearPromptFromUrl]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       {loadingMessages ? (
         <div className="flex-1 overflow-y-auto">
           <ChatThreadShimmer />
@@ -297,6 +297,7 @@ export function ChatInterface({
           messages={displayMessages}
           isLoading={isLoading}
           streamingMsgId={streamingMsgId}
+          onSuggestionClick={(text) => void handleSendMessage(text)}
         />
       )}
       <ChatInput

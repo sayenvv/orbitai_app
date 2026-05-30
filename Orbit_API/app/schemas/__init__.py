@@ -89,6 +89,8 @@ class ConversationSummary(BaseModel):
 
 class ConversationListResponse(BaseModel):
     data: list[ConversationSummary]
+    has_more: bool = False
+    next_offset: int | None = None
 
 
 class MessageResponse(BaseModel):

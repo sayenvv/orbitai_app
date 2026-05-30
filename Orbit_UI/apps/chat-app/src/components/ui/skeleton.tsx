@@ -24,9 +24,9 @@ export function AssistantTextShimmer() {
 
 export function AssistantReplyShimmer() {
   return (
-    <div className="flex gap-4 py-1" aria-label="Assistant is responding">
-      <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
-      <div className="flex-1 pt-0.5">
+    <div className="flex gap-3 py-1 sm:gap-4" aria-label="Assistant is responding">
+      <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
+      <div className="flex-1 rounded-2xl rounded-tl-md bg-muted/70 px-4 py-3 dark:bg-muted/45">
         <AssistantTextShimmer />
       </div>
     </div>
@@ -35,9 +35,13 @@ export function AssistantReplyShimmer() {
 
 export function ChatThreadShimmer() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-44 sm:px-6">
       <div className="flex justify-end">
-        <Skeleton className="h-10 w-[45%] rounded-2xl rounded-br-sm" />
+        <Skeleton className="h-12 w-[50%] rounded-[22px] rounded-br-md bg-primary/12 dark:bg-primary/20" />
+      </div>
+      <AssistantReplyShimmer />
+      <div className="flex justify-end pt-2">
+        <Skeleton className="h-10 w-[38%] rounded-[22px] rounded-br-md bg-primary/12 dark:bg-primary/20" />
       </div>
       <AssistantReplyShimmer />
     </div>
