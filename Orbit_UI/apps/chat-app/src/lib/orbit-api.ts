@@ -245,28 +245,28 @@ async function uploadRequest<T>(
 // ─── Auth (`/api/auth/*`) ───────────────────────────────────────────────────
 
 export const authApi = {
-  me: () => request<ApiUser>(API_BASE_URL, "/auth/me"),
+  me: () => request<ApiUser>(API_BASE_URL, "/auth/chat/me"),
 
   login: (email: string, password: string) =>
-    request<{ user: ApiUser }>(API_BASE_URL, "/auth/login", {
+    request<{ user: ApiUser }>(API_BASE_URL, "/auth/chat/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   register: (name: string, email: string, password: string) =>
-    request<{ user: ApiUser }>(API_BASE_URL, "/auth/register", {
+    request<{ user: ApiUser }>(API_BASE_URL, "/auth/chat/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
     }),
 
   updateProfile: (name: string) =>
-    request<ApiUser>(API_BASE_URL, "/auth/me", {
+    request<ApiUser>(API_BASE_URL, "/auth/chat/me", {
       method: "PATCH",
       body: JSON.stringify({ name }),
     }),
 
   logout: () =>
-    request<{ ok: boolean }>(API_BASE_URL, "/auth/logout", { method: "POST" }),
+    request<{ ok: boolean }>(API_BASE_URL, "/auth/chat/logout", { method: "POST" }),
 };
 
 // ─── Public misc (`/api/*`) ───────────────────────────────────────────────────
@@ -389,6 +389,7 @@ export const chatApi = {
       agent_id?: string | null;
       source_id?: string | null;
       source_type?: string | null;
+      history?: { role: string; content: string }[];
     },
   ): AsyncGenerator<StreamEvent> {
     const response = await fetch(`${CHAT_API_BASE_URL}/message/stream`, {

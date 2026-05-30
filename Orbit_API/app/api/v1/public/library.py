@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
-from app.api.v1.public.auth import require_user
+from app.api.v1.public.auth import require_chat_user
 from app.db.session import get_db
 from app.models import User
 from app.services.library_store import delete_user_generated_file, get_user_generated_file
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/library", tags=["library"])
 @router.get("/generated/{file_id}/download")
 def download_generated_file(
     file_id: uuid.UUID,
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     row = get_user_generated_file(db, user.id, file_id)
@@ -35,7 +35,7 @@ def download_generated_file(
 @router.delete("/generated/{file_id}")
 def delete_generated_file(
     file_id: uuid.UUID,
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     row = get_user_generated_file(db, user.id, file_id)

@@ -118,6 +118,16 @@ def seed() -> None:
                 )
             )
 
+        if not db.query(User).filter(User.email == "admin@orbit.ai").first():
+            db.add(
+                User(
+                    email="admin@orbit.ai",
+                    name="Platform Admin",
+                    password_hash=hash_password("admin1234"),
+                    role="admin",
+                )
+            )
+
         from app.core.config import settings as app_settings
         from app.core.plan_limits import PLANS
         from app.services.plan_ai_stack import PLAN_STACK_DEFAULTS, ai_stack_to_dict

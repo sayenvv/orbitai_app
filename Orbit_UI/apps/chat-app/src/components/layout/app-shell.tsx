@@ -12,6 +12,7 @@ import {
   type SidebarSection,
 } from "@/components/home/app-sidebar-panels";
 import { LoginModal } from "@/components/login-modal";
+import { AuthPromptModal } from "@/components/auth-prompt-modal";
 import { ProfilePanel } from "@/components/profile-panel";
 import { SupportModal } from "@/components/home/support-modal";
 import { AppShellProvider, useAppShell } from "@/components/layout/app-shell-context";
@@ -65,6 +66,9 @@ function AppShellLayout({ children }: { children: ReactNode }) {
     closeSupport,
     setSupportTab,
     openLogin,
+    openAuthPrompt,
+    closeAuthPrompt,
+    authPromptOpen,
     header,
   } = useAppShell();
 
@@ -97,11 +101,17 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       if (pathname !== "/" || searchParams.get("section") !== "agents") {
         router.push("/?section=agents");
       }
+    } else if (next === "plans") {
+      if (pathname !== "/plans") {
+        router.push("/plans");
+      }
     }
   };
 
   useEffect(() => {
-    if (pathname !== "/") {
+    if (pathname === "/plans") {
+      setSection("plans");
+    } else if (pathname !== "/") {
       setSection("home");
     }
   }, [pathname, setSection]);
@@ -284,11 +294,18 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       </main>
 
       {!isAuthenticated && (
-        <LoginModal
-          open={loginModalOpen}
-          onClose={() => setLoginModalOpen(false)}
-          defaultMode={authMode}
-        />
+        <>
+          <AuthPromptModal
+            open={authPromptOpen}
+            onClose={closeAuthPrompt}
+            onSignIn={() => openLogin("login")}
+          />
+          <LoginModal
+            open={loginModalOpen}
+            onClose={() => setLoginModalOpen(false)}
+            defaultMode={authMode}
+          />
+        </>
       )}
 
       <SupportModal

@@ -16,7 +16,7 @@ export default function HomePage() {
   const { agents } = useAgents();
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const { setSection, setHeader, openLogin } = useAppShell();
+  const { setSection, setHeader, openAuthPrompt } = useAppShell();
 
   const [chatInput, setChatInput] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -51,12 +51,12 @@ export default function HomePage() {
     const trimmed = chatInput.trim();
     if (!trimmed && attachedFiles.length === 0) return;
 
-    if (attachedFiles.length > 0) {
-      if (!isAuthenticated) {
-        openLogin("login");
-        return;
-      }
+    if (!isAuthenticated) {
+      openAuthPrompt();
+      return;
+    }
 
+    if (attachedFiles.length > 0) {
       setHeroUploading(true);
       setHeroUploadError("");
       try {

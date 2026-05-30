@@ -39,6 +39,9 @@ type AppShellContextValue = {
   setSupportTab: (tab: SupportTab) => void;
   openUpgrade: () => void;
   openLogin: (mode?: "login" | "register") => void;
+  authPromptOpen: boolean;
+  openAuthPrompt: () => void;
+  closeAuthPrompt: () => void;
   header: AppHeaderState | null;
   setHeader: (header: AppHeaderState | null) => void;
 };
@@ -52,6 +55,7 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   const [section, setSection] = useState<SidebarSection>("home");
   const [profileOpen, setProfileOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportTab, setSupportTab] = useState<SupportTab>("settings");
@@ -70,7 +74,16 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
 
   const openLogin = useCallback((mode: "login" | "register" = "login") => {
     setAuthMode(mode);
+    setAuthPromptOpen(false);
     setLoginModalOpen(true);
+  }, []);
+
+  const openAuthPrompt = useCallback(() => {
+    setAuthPromptOpen(true);
+  }, []);
+
+  const closeAuthPrompt = useCallback(() => {
+    setAuthPromptOpen(false);
   }, []);
 
   const setHeader = useCallback((next: AppHeaderState | null) => {
@@ -98,6 +111,9 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
       setSupportTab,
       openUpgrade,
       openLogin,
+      authPromptOpen,
+      openAuthPrompt,
+      closeAuthPrompt,
       header,
       setHeader,
     }),
@@ -107,6 +123,7 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
       section,
       profileOpen,
       loginModalOpen,
+      authPromptOpen,
       authMode,
       supportOpen,
       supportTab,
@@ -114,6 +131,8 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
       closeSupport,
       openUpgrade,
       openLogin,
+      openAuthPrompt,
+      closeAuthPrompt,
       header,
       setHeader,
     ],

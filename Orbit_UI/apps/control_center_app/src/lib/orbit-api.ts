@@ -70,7 +70,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export function isOperatorRole(role: string): boolean {
-  return role === "operator" || role === "superadmin";
+  return role === "operator" || role === "admin" || role === "superadmin";
 }
 
 export type ApiControlAgent = {
@@ -189,15 +189,15 @@ export function toAgentUpdateBody(data: {
 }
 
 export const authApi = {
-  me: () => request<ApiUser>("/auth/me"),
+  me: () => request<ApiUser>("/auth/control/me"),
 
   login: (email: string, password: string) =>
-    request<{ user: ApiUser }>("/auth/login", {
+    request<{ user: ApiUser }>("/auth/control/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
-  logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  logout: () => request<{ ok: boolean }>("/auth/control/logout", { method: "POST" }),
 };
 
 export const controlApi = {

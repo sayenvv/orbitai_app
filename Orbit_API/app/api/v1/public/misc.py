@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.v1.public.auth import get_current_user, require_user
+from app.api.v1.public.auth import require_chat_user
 from app.db.session import get_db
 from app.models import User
 from app.schemas import (
@@ -64,7 +64,7 @@ def list_subscription_plans(db: Session = Depends(get_db)):
 
 @router.get("/subscription", response_model=SubscriptionResponse)
 def get_subscription(
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     ensure_current_period(db, user)
@@ -73,7 +73,7 @@ def get_subscription(
 
 @router.get("/files", response_model=RagDocumentListResponse)
 def list_files_legacy(
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     return RagDocumentListResponse(
@@ -88,7 +88,7 @@ def list_study_materials():
 
 @router.get("/library", response_model=LibraryResponse)
 def list_library(
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     payload = list_user_library(db, user.id)

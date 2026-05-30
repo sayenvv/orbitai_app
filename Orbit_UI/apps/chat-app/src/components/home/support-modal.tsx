@@ -215,30 +215,35 @@ export function SupportModal({
 type SettingsHelpFooterTabProps = {
   collapsed?: boolean;
   showTopBorder?: boolean;
+  labelClassName?: string;
   onOpen: () => void;
 };
 
 export function SettingsHelpFooterTab({
   collapsed = false,
   showTopBorder = true,
+  labelClassName = "",
   onOpen,
 }: SettingsHelpFooterTabProps) {
   return (
-    <div className={cn("mt-auto", showTopBorder && "border-t border-border/60 pt-3")}>
+    <div className={cn("mt-auto", showTopBorder && "border-t border-sidebar-border/60 pt-3")}>
       <button
         type="button"
         onClick={onOpen}
         title="Settings & Help"
+        aria-label="Settings & Help"
         className={cn(
-          "flex w-full items-center rounded-xl text-foreground/70 transition-colors hover:bg-accent hover:text-foreground",
-          collapsed ? "h-12 justify-center" : "h-12 justify-center gap-3 px-3"
+          "flex h-11 w-full items-center rounded-2xl transition-all duration-300",
+          collapsed ? "justify-center" : "gap-3 px-3 justify-start",
+          "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         )}
       >
-        <span className="relative flex h-8 w-8 shrink-0 items-center justify-center">
-          <Settings className="h-6 w-6" strokeWidth={2.25} />
-          <HelpCircle className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-card text-primary" strokeWidth={2.5} />
-        </span>
-        {!collapsed && <span className="text-sm font-semibold">Settings & Help</span>}
+        <Settings className="h-4 w-4 shrink-0" strokeWidth={2} />
+        {!collapsed && (
+          <span className={cn("truncate text-sm font-medium", labelClassName)}>
+            Settings & Help
+          </span>
+        )}
       </button>
     </div>
   );

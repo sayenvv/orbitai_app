@@ -15,7 +15,7 @@ export function HomeMobileContent() {
   const { agents } = useAgents();
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { openLogin } = useAppShell();
+  const { openAuthPrompt, openLogin } = useAppShell();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const libraryButtonRef = useRef<HTMLButtonElement>(null);
   const [message, setMessage] = useState("");
@@ -46,12 +46,12 @@ export function HomeMobileContent() {
     const trimmed = message.trim();
     if (!trimmed && !attachedFile) return;
 
-    if (attachedFile) {
-      if (!isAuthenticated) {
-        openLogin("login");
-        return;
-      }
+    if (!isAuthenticated) {
+      openAuthPrompt();
+      return;
+    }
 
+    if (attachedFile) {
       setUploading(true);
       setUploadError("");
       try {

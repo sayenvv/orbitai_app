@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { Sparkles } from "lucide-react";
 import { PlansContent } from "@/components/plans/plans-content";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useTokenUsage } from "@/hooks/use-token-usage";
@@ -15,36 +14,12 @@ export default function PlansPage() {
   useEffect(() => {
     setHeader({
       title: "Plans",
-      subtitle: "Scale your AI workflow with the right allowance",
+      subtitle: isAuthenticated
+        ? "Scale your AI workflow with the right allowance"
+        : "Compare plans and pricing",
     });
     return () => setHeader(null);
-  }, [setHeader]);
-
-  if (!isAuthenticated) {
-    return (
-      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-4 py-12">
-        <div className="aurora" aria-hidden />
-        <div className="relative w-full max-w-md space-y-6 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary shadow-mac ring-1 ring-primary/15">
-            <Sparkles className="h-6 w-6" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold tracking-tight">Sign in to view plans</h2>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Compare allowances and choose the plan that fits how you work with Orbit.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => openLogin("login")}
-            className="inline-flex rounded-xl bg-gradient-to-r from-primary to-[oklch(0.58_0.20_330)] px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/30 press"
-          >
-            Sign in
-          </button>
-        </div>
-      </div>
-    );
-  }
+  }, [setHeader, isAuthenticated]);
 
   return (
     <div className="relative min-h-0 flex-1 overflow-y-auto">
@@ -58,18 +33,21 @@ export default function PlansPage() {
               Subscription
             </p>
             <h1 className="text-3xl font-bold tracking-tight text-gradient md:text-4xl">
-              Choose your plan
+              {isAuthenticated ? "Choose your plan" : "Plans & pricing"}
             </h1>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-              Every plan includes access to all assistants. Upgrade anytime as your usage grows —
-              allowances reset monthly.
+              {isAuthenticated
+                ? "Every plan includes access to all assistants. Upgrade anytime as your usage grows — allowances reset monthly."
+                : "Every plan includes access to all assistants. Sign up free to save chats and unlock your monthly allowance."}
             </p>
           </header>
 
           <PlansContent
             currentPlan={usage?.plan ?? "free"}
-            usage={usage}
-            usageLoading={usageLoading}
+            usage={isAuthenticated ? usage : null}
+            usageLoading={isAuthenticated && usageLoading}
+            guestMode={!isAuthenticated}
+            onSignUp={() => openLogin("register")}
           />
         </div>
       </div>

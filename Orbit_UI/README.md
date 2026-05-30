@@ -82,6 +82,16 @@ pnpm dev:control
 
 Open http://localhost:3003 — sign in with `operator@orbit.ai` / `operator1234`.
 
+**Admin app** (platform ops):
+
+```bash
+pnpm dev:admin
+```
+
+Open http://localhost:3004 — sign in with `admin@orbit.ai` / `admin1234`.
+
+Each app has **separate authentication** — logging into Control Center does not sign you into Chat or Admin.
+
 **All apps at once** (Turbo):
 
 ```bash

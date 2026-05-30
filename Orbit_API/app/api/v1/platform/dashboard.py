@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends
 
-from app.api.v1.public.auth import require_user
+from app.api.v1.public.auth import require_admin_user
 from app.models import User
 
 router = APIRouter(prefix="/platform", tags=["platform"])
 
 
-def require_admin(user: User = Depends(require_user)) -> User:
+def require_admin(user: User = Depends(require_admin_user)) -> User:
     if user.role not in ("admin", "superadmin"):
         from fastapi import HTTPException
 

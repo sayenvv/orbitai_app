@@ -2,10 +2,9 @@
 
 import { useCurrentUser } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth-store";
-import { LoginPopup } from "@/components/login-popup";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { isLoading, isAuthenticated } = useAuthStore();
+  const { isLoading } = useAuthStore();
   useCurrentUser();
 
   if (isLoading) {
@@ -16,10 +15,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return (
-    <>
-      {children}
-      {!isAuthenticated && <LoginPopup />}
-    </>
-  );
+  return <>{children}</>;
 }

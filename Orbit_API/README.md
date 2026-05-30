@@ -81,10 +81,13 @@ python -m scripts.seed
 
 Seed creates demo users and loads agents/tools from Control Center JSON.
 
-| Account | Email | Password | Use |
-|---------|-------|----------|-----|
-| Chat user | `demo@orbit.ai` | `demo1234` | chat-app |
-| Operator | `operator@orbit.ai` | `operator1234` | control center |
+| Account | Email | Password | App only |
+|---------|-------|----------|----------|
+| Chat user | `demo@orbit.ai` | `demo1234` | chat-app (`/auth/chat/*`) |
+| Operator | `operator@orbit.ai` | `operator1234` | control center (`/auth/control/*`) |
+| Admin | `admin@orbit.ai` | `admin1234` | admin app (`/auth/admin/*`) |
+
+Each app uses its **own session cookie** (`orbit_chat_session`, `orbit_control_session`, `orbit_admin_session`). Signing into one app does not sign you into the others.
 
 ### 4. Configure `.env` for local LLM
 

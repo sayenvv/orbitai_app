@@ -1,12 +1,11 @@
 import json
-from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.v1.public.auth import get_current_user, require_user
+from app.api.v1.public.auth import require_chat_user
 from app.db.session import get_db
 from app.models import Agent, Conversation, Message, User
 from app.orchestration.runner import (
@@ -56,7 +55,7 @@ def _conversation_summary(conv: Conversation) -> ConversationSummary:
 @router.post("/conversations", response_model=ConversationSummary)
 def create_conversation(
     body: CreateConversationRequest,
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     registry = AgentRegistry(db)
@@ -86,7 +85,7 @@ def create_conversation(
 def list_conversations(
     limit: int = Query(default=20, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     rows = (
@@ -111,7 +110,7 @@ def list_conversations(
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetailResponse)
 def get_conversation(
     conversation_id: UUID,
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     conv = (
@@ -136,7 +135,7 @@ def get_conversation(
 @router.delete("/conversations/{conversation_id}")
 def delete_conversation(
     conversation_id: UUID,
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     conv = (
@@ -155,7 +154,7 @@ def delete_conversation(
 async def stream_message(
     body: StreamMessageRequest,
     db: Session = Depends(get_db),
-    user: Annotated[User | None, Depends(get_current_user)] = None,
+    user: User = Depends(require_chat_user),
 ):
     registry = AgentRegistry(db)
     agent_config = registry.get_by_slug(body.agent_id) if body.agent_id else registry.get_default()
@@ -167,7 +166,7 @@ async def stream_message(
     if body.conversation_id:
         conv = db.query(Conversation).filter(Conversation.id == body.conversation_id).first()
         if conv:
-            if user and conv.user_id and conv.user_id != user.id:
+            if conv.user_id and conv.user_id != user.id:
                 raise HTTPException(status_code=403, detail="Forbidden")
             history = load_conversation_history(db, conv.id)
 
@@ -175,21 +174,20 @@ async def stream_message(
         conv = get_or_create_conversation(
             db,
             conversation_id=None,
-            user_id=user.id if user else None,
+            user_id=user.id,
             agent_id=agent_uuid,
             title=(body.message[:50] if body.message else "New conversation"),
         )
 
     assert conv is not None
 
-    if user:
-        ensure_current_period(db, user)
-        estimated = estimate_tokens(body.message)
-        if not can_consume(user, estimated):
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Monthly token limit reached. Upgrade your plan to continue chatting.",
-            )
+    ensure_current_period(db, user)
+    estimated = estimate_tokens(body.message)
+    if not can_consume(user, estimated):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Monthly token limit reached. Upgrade your plan to continue chatting.",
+        )
 
     save_message(db, conv.id, "user", body.message)
 
@@ -203,26 +201,27 @@ async def stream_message(
             user_message=body.message,
             agent_slug=body.agent_id,
             history=history,
-            source_id=body.source_id if user and body.source_id else None,
-            user_id=user.id if user else None,
-            user_plan=user.plan if user else None,
+            source_id=body.source_id if body.source_id else None,
+            user_id=user.id,
+            user_plan=user.plan,
         ):
             full += token
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
         save_message(db, conv.id, "assistant", full)
 
-        done_payload: dict = {"type": "done"}
-        if user:
-            turn_tokens = estimate_turn_tokens(user_message=body.message, assistant_message=full)
-            snapshot = record_usage(db, user, turn_tokens)
-            done_payload["usage"] = TokenUsageResponse(
+        turn_tokens = estimate_turn_tokens(user_message=body.message, assistant_message=full)
+        snapshot = record_usage(db, user, turn_tokens)
+        done_payload: dict = {
+            "type": "done",
+            "usage": TokenUsageResponse(
                 tokens_used=snapshot.tokens_used,
                 tokens_limit=snapshot.tokens_limit,
                 tokens_remaining=snapshot.tokens_remaining,
                 usage_percent=snapshot.usage_percent,
                 limit_reached=snapshot.limit_reached,
-            ).model_dump()
+            ).model_dump(),
+        }
         yield f"data: {json.dumps(done_payload)}\n\n"
 
     return StreamingResponse(

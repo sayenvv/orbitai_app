@@ -35,7 +35,7 @@ export function ChatInterface({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setHeader, openUpgrade } = useAppShell();
+  const { setHeader, openUpgrade, openAuthPrompt } = useAppShell();
   const {
     conversations,
     activeConversationId,
@@ -202,6 +202,11 @@ export function ChatInterface({
 
   const handleSendMessage = useCallback(
     async (content: string) => {
+      if (!isAuthenticated) {
+        openAuthPrompt();
+        return;
+      }
+
       let activeSource = selectedSource;
       if (activeSource && !isSourceReady(activeSource)) {
         setLoading(true);
@@ -319,9 +324,7 @@ export function ChatInterface({
 
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         updateMessage(conversationId, assistantMsgId, streamBufferRef.current);
-        if (isAuthenticated) {
-          void refreshConversationsList();
-        }
+        void refreshConversationsList();
       } catch (err) {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         if (err instanceof ApiError && err.status === 429) {
@@ -354,6 +357,7 @@ export function ChatInterface({
       updateConversationId,
       updateMessage,
       isAuthenticated,
+      openAuthPrompt,
       openUpgrade,
       setSelectedSource,
     ],
@@ -368,11 +372,18 @@ export function ChatInterface({
     const sendId = searchParams.get("send");
     const dedupeKey = sendId ?? trimmed;
     if (processedInitialSends.has(dedupeKey)) return;
+
+    if (!isAuthenticated) {
+      openAuthPrompt();
+      clearPromptFromUrl();
+      return;
+    }
+
     processedInitialSends.add(dedupeKey);
 
     void handleSendMessageRef.current(trimmed);
     clearPromptFromUrl();
-  }, [initialPrompt, searchParams, clearPromptFromUrl]);
+  }, [initialPrompt, searchParams, clearPromptFromUrl, isAuthenticated, openAuthPrompt]);
 
   const handleDeleteConversation = useCallback(async () => {
     if (!activeConversationId || !isAuthenticated) return;

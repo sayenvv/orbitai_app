@@ -3,6 +3,7 @@
 import { useMemo, useState, useRef, useEffect, type ChangeEvent } from "react";
 import {
   AlertCircle,
+  CreditCard,
   Download,
   FileText,
   FolderOpen,
@@ -25,13 +26,14 @@ import type { LibraryGeneratedFile, LibraryUpload } from "@/hooks/use-library";
 import type { Conversation } from "@/types";
 import type { HomeAgent } from "@/lib/home-data";
 
-export type SidebarSection = "home" | "library" | "agents";
+export type SidebarSection = "home" | "library" | "agents" | "plans";
 
 type SidebarSectionNavProps = {
   expanded: boolean;
   section: SidebarSection;
   onSectionChange: (section: SidebarSection) => void;
   onNewChat: () => void;
+  isAuthenticated?: boolean;
   labelClassName?: string;
 };
 
@@ -40,12 +42,20 @@ export function SidebarSectionNav({
   section,
   onSectionChange,
   onNewChat,
+  isAuthenticated = true,
   labelClassName = "",
 }: SidebarSectionNavProps) {
-  const tabs: { id: SidebarSection; label: string; icon: typeof FolderOpen }[] = [
+  const authenticatedTabs: { id: SidebarSection; label: string; icon: typeof FolderOpen }[] = [
     { id: "library", label: "Library", icon: FolderOpen },
     { id: "agents", label: "Agents", icon: LayoutGrid },
   ];
+
+  const guestTabs: { id: SidebarSection; label: string; icon: typeof FolderOpen }[] = [
+    { id: "plans", label: "Plans", icon: CreditCard },
+    { id: "agents", label: "Agents", icon: LayoutGrid },
+  ];
+
+  const tabs = isAuthenticated ? authenticatedTabs : guestTabs;
 
   return (
     <div className="flex flex-col gap-1.5">

@@ -40,6 +40,8 @@ type PlansContentProps = {
   currentPlan?: string;
   usage?: ApiTokenUsage | null;
   usageLoading?: boolean;
+  guestMode?: boolean;
+  onSignUp?: () => void;
   className?: string;
 };
 
@@ -64,6 +66,8 @@ export function PlansContent({
   currentPlan = "free",
   usage = null,
   usageLoading = false,
+  guestMode = false,
+  onSignUp,
   className,
 }: PlansContentProps) {
   const [plans, setPlans] = useState<ApiPlanLimit[]>([]);
@@ -126,8 +130,8 @@ export function PlansContent({
       <div className="grid gap-4 overflow-visible sm:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
           const planIndex = PLAN_ORDER.indexOf(plan.plan as (typeof PLAN_ORDER)[number]);
-          const isCurrent = plan.plan === normalizedCurrent;
-          const isUpgrade = currentIndex >= 0 && planIndex > currentIndex;
+          const isCurrent = !guestMode && plan.plan === normalizedCurrent;
+          const isUpgrade = !guestMode && currentIndex >= 0 && planIndex > currentIndex;
           const features =
             plan.features.length > 0
               ? plan.features
@@ -205,21 +209,32 @@ export function PlansContent({
               </ul>
 
               <div className="mt-6">
-                {isUpgrade && (
+                {guestMode ? (
+                  <button
+                    type="button"
+                    onClick={() => onSignUp?.()}
+                    className={cn(
+                      "w-full rounded-xl py-2.5 text-sm font-semibold transition-all press",
+                      isHighlighted
+                        ? "bg-gradient-to-r from-primary to-[oklch(0.58_0.20_330)] text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30"
+                        : "border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15",
+                    )}
+                  >
+                    {plan.plan === "free" ? "Get started free" : "Sign up to upgrade"}
+                  </button>
+                ) : isUpgrade ? (
                   <UpgradeCtaAnchor
                     href={upgradeMailto(plan.plan, plan.label)}
                     label="Upgrade"
                     fullWidth
                     className="w-full py-2.5 text-sm"
                   />
-                )}
-                {isCurrent && (
+                ) : isCurrent ? (
                   <div className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-muted/30 py-2.5 text-xs font-medium text-muted-foreground">
                     <Zap className="h-3.5 w-3.5 text-primary" />
                     Active plan
                   </div>
-                )}
-                {!isCurrent && !isUpgrade && (
+                ) : (
                   <div className="py-2.5 text-center text-[11px] text-muted-foreground/80">
                     Included in your plan
                   </div>

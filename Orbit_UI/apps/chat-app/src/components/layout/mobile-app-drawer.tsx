@@ -49,7 +49,14 @@ export function MobileAppDrawer() {
 
   const handleSectionChange = (next: typeof section) => {
     setSection(next);
-    if (next === "library" || next === "agents") close();
+    if (next === "library" || next === "agents" || next === "plans") close();
+    if (next === "plans") {
+      router.push("/plans");
+    } else if (next === "library") {
+      router.push("/?section=library");
+    } else if (next === "agents") {
+      router.push("/?section=agents");
+    }
   };
 
   const handleNewChat = () => {
@@ -100,6 +107,7 @@ export function MobileAppDrawer() {
             section={section}
             onSectionChange={handleSectionChange}
             onNewChat={handleNewChat}
+            isAuthenticated={isAuthenticated}
           />
 
           {isAuthenticated && (

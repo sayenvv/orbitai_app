@@ -73,6 +73,7 @@ export function AppSidebar({
         section={section}
         onSectionChange={onSectionChange}
         onNewChat={goHome}
+        isAuthenticated={isAuthenticated}
         labelClassName={labelClass}
       />
 
@@ -106,7 +107,11 @@ export function AppSidebar({
         </div>
       )}
 
-      <SettingsHelpFooterTab collapsed={!expanded} onOpen={onOpenSettings} />
+      <SettingsHelpFooterTab
+        collapsed={!expanded}
+        labelClassName={labelClass}
+        onOpen={onOpenSettings}
+      />
     </aside>
   );
 }

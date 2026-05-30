@@ -59,12 +59,18 @@ class PublicAgentListResponse(BaseModel):
 # --- Chat ---
 
 
+class StreamHistoryItem(BaseModel):
+    role: str
+    content: str
+
+
 class StreamMessageRequest(BaseModel):
     message: str
     conversation_id: UUID | None = None
     agent_id: str | None = None
     source_id: UUID | None = None
     source_type: str | None = None
+    history: list[StreamHistoryItem] = Field(default_factory=list)
 
 
 class CreateConversationRequest(BaseModel):

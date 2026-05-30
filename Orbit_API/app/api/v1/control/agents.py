@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.v1.public.auth import require_user
+from app.api.v1.public.auth import require_control_user
 from app.db.session import get_db
 from app.models import Agent, AgentConfiguration, User
 from app.schemas import (
@@ -17,7 +17,7 @@ from app.schemas import (
 router = APIRouter(prefix="/control", tags=["control"])
 
 
-def require_operator(user: User = Depends(require_user)) -> User:
+def require_operator(user: User = Depends(require_control_user)) -> User:
     if user.role not in ("operator", "admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Operator access required")
     return user

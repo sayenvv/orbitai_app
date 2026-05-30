@@ -11,7 +11,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3001,http://localhost:3003,http://localhost:3004"
     openai_api_key: str = ""
     llm_provider: str = "openai"  # "openai" | "ollama"
-    auth_cookie_name: str = "orbit_session"
+    auth_cookie_name: str = "orbit_session"  # legacy; cleared on realm login
+    auth_cookie_chat: str = "orbit_chat_session"
+    auth_cookie_control: str = "orbit_control_session"
+    auth_cookie_admin: str = "orbit_admin_session"
     auth_cookie_max_age: int = 604800
     control_center_data_dir: str = "../Orbit_UI/apps/control_center_app/src/data"
     ollama_base_url: str = "http://localhost:11434"

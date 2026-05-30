@@ -11,10 +11,6 @@ export function useCurrentUser() {
   const checkAuth = useCallback(async () => {
     try {
       const data = await authApi.me();
-      if (data.role === "admin") {
-        setUser(null);
-        return;
-      }
       setUser(mapApiUser(data));
     } catch {
       setUser(null);
@@ -41,25 +37,21 @@ export function useCurrentUser() {
   }, [setLoading, checkAuth]);
 }
 
-/** Clears local auth state only — keeps the session cookie for other Orbit apps. */
+/** Clears local auth state only — chat session cookie is cleared via authApi.logout(). */
 export function useLogout() {
-  const { logout } = useAuthStore();
-  return () => {
-    logout();
-    useUsageStore.getState().clearUsage();
-  };
-}
-
-/** Full server + local logout (use when signing out completely). */
-export function useServerLogout() {
   const { logout } = useAuthStore();
   return async () => {
     try {
       await authApi.logout();
     } catch {
-      // still clear local state if server call fails
+      // still clear local state
     }
     logout();
     useUsageStore.getState().clearUsage();
   };
+}
+
+/** Alias for full server + local logout. */
+export function useServerLogout() {
+  return useLogout();
 }

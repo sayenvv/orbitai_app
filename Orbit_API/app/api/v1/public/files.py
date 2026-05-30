@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.api.v1.public.auth import require_user
+from app.api.v1.public.auth import require_chat_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.models import Conversation, RagDocument, User
@@ -61,7 +61,7 @@ def _inspect_pdf_bytes(data: bytes, plan: str) -> PdfInspectResponse:
 @router.post("/inspect", response_model=PdfInspectResponse)
 async def inspect_pdf(
     file: UploadFile = File(...),
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
 ):
     _validate_pdf(file)
     data = await file.read()
@@ -77,7 +77,7 @@ async def inspect_pdf(
 
 @router.get("", response_model=RagDocumentListResponse)
 def list_files(
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     return RagDocumentListResponse(
@@ -88,7 +88,7 @@ def list_files(
 @router.get("/{document_id}/download")
 def download_file(
     document_id: uuid.UUID,
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     document = get_user_document(db, user.id, document_id)
@@ -109,7 +109,7 @@ def download_file(
 @router.get("/{document_id}", response_model=RagDocumentResponse)
 def get_file(
     document_id: uuid.UUID,
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     document = get_user_document(db, user.id, document_id)
@@ -123,7 +123,7 @@ async def upload_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     conversation_id: uuid.UUID | None = Form(default=None),
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     _validate_pdf(file)
@@ -206,7 +206,7 @@ async def upload_file(
 @router.delete("/{document_id}")
 def delete_file(
     document_id: uuid.UUID,
-    user: User = Depends(require_user),
+    user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     document = get_user_document(db, user.id, document_id)
