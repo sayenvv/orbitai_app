@@ -2,11 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
-COPY app ./app
-COPY alembic.ini ./
-COPY alembic ./alembic
-COPY scripts ./scripts
+# Build from repo root: docker build -f personal/orbitai_app/Orbit_API/Dockerfile .
+COPY packages/orbit-ollama /tmp/orbit-ollama
+RUN pip install --no-cache-dir /tmp/orbit-ollama
+
+COPY personal/orbitai_app/Orbit_API/pyproject.toml personal/orbitai_app/Orbit_API/README.md ./
+COPY personal/orbitai_app/Orbit_API/app ./app
+COPY personal/orbitai_app/Orbit_API/alembic.ini ./
+COPY personal/orbitai_app/Orbit_API/alembic ./alembic
+COPY personal/orbitai_app/Orbit_API/scripts ./scripts
 
 RUN pip install --no-cache-dir .
 

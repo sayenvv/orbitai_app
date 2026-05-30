@@ -18,10 +18,10 @@ cd Orbit_API
 cp .env.example .env
 docker compose up db -d
 
-# 2. Create venv & install dependencies
-python3 -m venv .venv
+# 2. Create venv & install dependencies (Orbit API + orbit-ollama from ../../../models)
+python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -r requirements-local.txt
 
 # 3. Migrate & seed
 alembic upgrade head
@@ -41,7 +41,14 @@ docker compose up --build
 
 ## Environment
 
-See `.env.example`. Set `OPENAI_API_KEY` for live LLM responses; without it the chat stream returns a dev stub message.
+See `.env.example`.
+
+| Provider | Env | Requirements |
+|----------|-----|----------------|
+| OpenAI (default) | `LLM_PROVIDER=openai`, `OPENAI_API_KEY` | OpenAI API key |
+| Ollama (local) | `LLM_PROVIDER=ollama`, `OLLAMA_DEFAULT_MODEL` | `ollama serve` + `ollama pull llama3.2` |
+
+Without a configured provider, the chat stream returns a dev stub message.
 
 ## Project layout
 

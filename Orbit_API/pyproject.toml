@@ -19,7 +19,11 @@ dependencies = [
   "langchain-core>=0.3.0",
   "langgraph>=0.2.0",
   "httpx>=0.28.0",
+  "orbit-ollama @ file:packages/orbit-ollama",
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project.optional-dependencies]
 dev = [
