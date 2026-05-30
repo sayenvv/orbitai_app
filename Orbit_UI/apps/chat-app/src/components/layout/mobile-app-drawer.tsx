@@ -77,7 +77,7 @@ export function MobileAppDrawer() {
         className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
         onClick={close}
       />
-      <aside className="relative z-10 flex h-full w-80 max-w-[88vw] flex-col border-r border-sidebar-border bg-sidebar shadow-2xl">
+      <aside className="relative z-10 flex h-full w-80 max-w-[88vw] flex-col bg-sidebar shadow-2xl">
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
           <div>
             <p className="text-sm font-semibold">Orbit AI</p>

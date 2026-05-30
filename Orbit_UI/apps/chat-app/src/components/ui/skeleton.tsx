@@ -35,7 +35,7 @@ export function AssistantReplyShimmer() {
 
 export function ChatThreadShimmer() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-44 sm:px-6">
+    <div className="w-full space-y-6 py-8">
       <div className="flex justify-end">
         <Skeleton className="h-12 w-[50%] rounded-[22px] rounded-br-md bg-primary/12 dark:bg-primary/20" />
       </div>

@@ -24,6 +24,8 @@ type ChatMessagesProps = {
   isLoading: boolean;
   streamingMsgId?: string | null;
   onSuggestionClick?: (text: string) => void;
+  contentClassName?: string;
+  className?: string;
 };
 
 const SUGGESTIONS = [
@@ -49,6 +51,8 @@ export function ChatMessages({
   isLoading,
   streamingMsgId,
   onSuggestionClick,
+  contentClassName,
+  className,
 }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -63,9 +67,18 @@ export function ChatMessages({
 
   if (messages.length === 0 && !isLoading) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-36">
-        <div className="w-full max-w-2xl space-y-8 text-center">
-          <div className="space-y-4">
+      <div
+        ref={scrollRef}
+        className={cn("min-h-0 flex-1 overflow-y-auto scroll-smooth w-full", className)}
+      >
+        <div
+          className={cn(
+            contentClassName,
+            "flex min-h-full flex-col items-center justify-center pb-8",
+          )}
+        >
+          <div className="w-full max-w-2xl space-y-8 text-center">
+            <div className="space-y-4">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
               <Sparkles className="h-7 w-7 text-primary-foreground" />
             </div>
@@ -98,14 +111,18 @@ export function ChatMessages({
               </button>
             ))}
           </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth">
-      <div className="mx-auto max-w-3xl space-y-1 px-4 py-6 pb-44 sm:px-6 sm:py-8">
+    <div
+      ref={scrollRef}
+      className={cn("min-h-0 flex-1 overflow-y-auto scroll-smooth w-full", className)}
+    >
+      <div className={cn(contentClassName, "space-y-1 py-6 sm:py-8")}>
         {messages.map((message, index) => {
           const prev = messages[index - 1];
           const isNewTurn = !prev || prev.role !== message.role;
