@@ -3,12 +3,16 @@
 import { useChatStore } from "@/store/chat-store";
 import { useAuthStore } from "@/store/auth-store";
 import { ChatMessages } from "./chat-messages";
+import { ChatThreadShimmer } from "@/components/ui/skeleton";
 import { ChatInput } from "./chat-input";
-import { Message, Conversation, StudySource } from "@/types";
-import { chatApi, mapConversationSummary, mapMessage } from "@/lib/orbit-api";
-import { Share2 } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Message, StudySource } from "@/types";
+import { chatApi, mapMessage } from "@/lib/orbit-api";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAppShell } from "@/components/layout/app-shell-context";
+
+/** Survives React Strict Mode remounts — one auto-send per home navigation. */
+const processedInitialSends = new Set<string>();
 
 export function ChatInterface({
   initialSource,
@@ -21,89 +25,76 @@ export function ChatInterface({
   initialConversationId?: string;
   initialPrompt?: string;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { setHeader } = useAppShell();
   const {
     conversations,
     activeConversationId,
     isLoading,
+    conversationsHydrated,
     setActiveConversation,
     addConversation,
     addMessage,
     updateMessage,
     updateConversationId,
-    setConversations,
+    refreshConversationsList,
     setLoading,
   } = useChatStore();
   const { isAuthenticated } = useAuthStore();
-  const { setHeader } = useAppShell();
 
-  const agentNames: Record<string, string> = {
-    "study-helper": "Study Helper",
-    "job-search": "Job Search Assistant",
-    "coding-tutor": "Coding Tutor",
-    "career-guidance": "Career Guidance",
-    "language-learning": "Language Learning",
-    "general-knowledge": "General Knowledge",
-  };
-  const agentDisplayName = agentId ? agentNames[agentId] || agentId : null;
   const [selectedSource, setSelectedSource] = useState<StudySource | null>(initialSource ?? null);
-  const initialLoadRef = useRef(false);
-  const promptSentRef = useRef(false);
-  const [conversationsLoaded, setConversationsLoaded] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const handleSendMessageRef = useRef<(content: string) => Promise<void>>(async () => {});
+  const streamingConversationRef = useRef(false);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
-
-  useEffect(() => {
-    const title = activeConversation
-      ? activeConversation.title
-      : agentDisplayName || "New Conversation";
-    const subtitle = activeConversation
-      ? `${activeConversation.messages.length} messages`
-      : undefined;
-
-    setHeader({
-      title,
-      subtitle,
-      actions: (
-        <button
-          type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent"
-          title="Share conversation"
-        >
-          <Share2 className="h-4 w-4" />
-        </button>
-      ),
+  const displayMessages = useMemo(() => {
+    const msgs = activeConversation?.messages ?? [];
+    const seenIds = new Set<string>();
+    const seenContent = new Set<string>();
+    return msgs.filter((msg) => {
+      if (seenIds.has(msg.id)) return false;
+      const contentKey = `${msg.role}:${msg.content.trim()}`;
+      if (msg.content.trim() && seenContent.has(contentKey)) return false;
+      seenIds.add(msg.id);
+      if (msg.content.trim()) seenContent.add(contentKey);
+      return true;
     });
-
-    return () => setHeader(null);
-  }, [activeConversation, agentDisplayName, setHeader]);
+  }, [activeConversation?.messages]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setConversationsLoaded(true);
-      return;
+    setHeader(null);
+    return () => setHeader(null);
+  }, [setHeader]);
+
+  useEffect(() => {
+    if (initialConversationId) {
+      setActiveConversation(initialConversationId);
+    } else if (initialPrompt) {
+      setActiveConversation(null);
     }
-    const loadConversations = async () => {
-      try {
-        const data = await chatApi.listConversations();
-        setConversations(data.data.map(mapConversationSummary));
-      } catch {
-        // silently fail
-      } finally {
-        setConversationsLoaded(true);
-      }
-    };
-    void loadConversations();
-  }, [isAuthenticated, setConversations]);
+  }, [initialConversationId, initialPrompt, setActiveConversation]);
 
   const loadConversationMessages = useCallback(
     async (id: string) => {
+      if (streamingConversationRef.current) return;
+
+      const conv = useChatStore.getState().conversations.find((c) => c.id === id);
+      if (conv && conv.messages.length > 0) {
+        setActiveConversation(id);
+        return;
+      }
+
       setActiveConversation(id);
-      const conv = conversations.find((c) => c.id === id);
-      if (conv && conv.messages.length > 0) return;
+      setLoadingMessages(true);
       try {
         const data = await chatApi.getConversation(id);
         const messages = data.messages.map(mapMessage);
-        if (!conv) {
+        const latest = useChatStore.getState().conversations.find((c) => c.id === id);
+        if (latest && latest.messages.length > 0) return;
+
+        if (!latest) {
           addConversation({
             id,
             title: "Chat",
@@ -112,120 +103,202 @@ export function ChatInterface({
             updatedAt: new Date(),
           });
         } else {
-          messages.forEach((msg) => addMessage(id, msg));
+          const existingIds = new Set(latest.messages.map((m) => m.id));
+          for (const msg of messages) {
+            if (!existingIds.has(msg.id)) addMessage(id, msg);
+          }
         }
       } catch {
         // silently fail
+      } finally {
+        setLoadingMessages(false);
       }
     },
-    [conversations, setActiveConversation, addConversation, addMessage],
+    [setActiveConversation, addConversation, addMessage],
   );
 
   useEffect(() => {
-    if (!initialConversationId || !isAuthenticated || !conversationsLoaded || initialLoadRef.current) {
+    if (!initialConversationId || !isAuthenticated || !conversationsHydrated) {
       return;
     }
-    initialLoadRef.current = true;
+    if (streamingConversationRef.current || isLoading) return;
+
+    const conv = useChatStore
+      .getState()
+      .conversations.find((c) => c.id === initialConversationId);
+    if (conv && conv.messages.length > 0) {
+      setActiveConversation(initialConversationId);
+      return;
+    }
+
     void loadConversationMessages(initialConversationId);
-  }, [initialConversationId, isAuthenticated, conversationsLoaded, loadConversationMessages]);
+  }, [
+    initialConversationId,
+    isAuthenticated,
+    conversationsHydrated,
+    isLoading,
+    loadConversationMessages,
+    setActiveConversation,
+  ]);
 
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const streamBufferRef = useRef("");
   const rafRef = useRef<number | null>(null);
 
-  const handleSendMessage = async (content: string) => {
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content,
-      timestamp: new Date(),
-    };
+  const syncConversationToUrl = useCallback(
+    (conversationId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("prompt");
+      params.delete("send");
+      params.set("conversation", conversationId);
+      router.replace(`/c?${params.toString()}`);
+    },
+    [router, searchParams],
+  );
 
-    let conversationId = activeConversationId;
+  const clearPromptFromUrl = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!params.has("prompt") && !params.has("send")) return;
+    params.delete("prompt");
+    params.delete("send");
+    const query = params.toString();
+    router.replace(query ? `/c?${query}` : "/c");
+  }, [router, searchParams]);
 
-    if (!conversationId) {
-      const newConversation: Conversation = {
+  const handleSendMessage = useCallback(
+    async (content: string) => {
+      const userMessage: Message = {
         id: crypto.randomUUID(),
-        title: content.slice(0, 50),
-        messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        role: "user",
+        content,
+        timestamp: new Date(),
       };
-      addConversation(newConversation);
-      conversationId = newConversation.id;
-    }
 
-    addMessage(conversationId!, userMessage);
-    setLoading(true);
+      const existingId = activeConversationId;
+      const isNewConversation = !existingId;
+      const tempId = isNewConversation ? crypto.randomUUID() : existingId;
+      const assistantMsgId = crypto.randomUUID();
+      const assistantMessage: Message = {
+        id: assistantMsgId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+      };
 
-    const assistantMsgId = crypto.randomUUID();
-    const assistantMessage: Message = {
-      id: assistantMsgId,
-      role: "assistant",
-      content: "",
-      timestamp: new Date(),
-    };
-    addMessage(conversationId!, assistantMessage);
-    setStreamingMsgId(assistantMsgId);
-    streamBufferRef.current = "";
+      let conversationId = tempId;
 
-    let lastFlushed = "";
-    const flushBuffer = () => {
-      if (streamBufferRef.current !== lastFlushed) {
-        lastFlushed = streamBufferRef.current;
-        updateMessage(conversationId!, assistantMsgId, lastFlushed);
+      if (isNewConversation) {
+        addConversation({
+          id: tempId,
+          title: content.slice(0, 50),
+          messages: [userMessage, assistantMessage],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      } else {
+        addMessage(existingId, userMessage);
+        addMessage(existingId, assistantMessage);
       }
-      rafRef.current = requestAnimationFrame(flushBuffer);
-    };
-    rafRef.current = requestAnimationFrame(flushBuffer);
 
-    try {
-      for await (const event of chatApi.streamMessage({
-        message: content,
-        conversation_id: activeConversationId || null,
-        source_id: selectedSource?.id || null,
-        source_type: selectedSource?.type || null,
-        agent_id: agentId || null,
-      })) {
-        if (event.type === "start" && event.conversation_id) {
-          if (event.conversation_id !== conversationId && event.conversation_id !== "anonymous") {
-            updateConversationId(conversationId!, event.conversation_id);
-            conversationId = event.conversation_id;
-          }
-        } else if (event.type === "token") {
-          streamBufferRef.current += event.content;
+      setLoading(true);
+      setStreamingMsgId(assistantMsgId);
+      streamingConversationRef.current = true;
+      streamBufferRef.current = "";
+
+      let lastFlushed = "";
+      const flushBuffer = () => {
+        if (streamBufferRef.current !== lastFlushed) {
+          lastFlushed = streamBufferRef.current;
+          updateMessage(conversationId, assistantMsgId, lastFlushed);
         }
+        rafRef.current = requestAnimationFrame(flushBuffer);
+      };
+      rafRef.current = requestAnimationFrame(flushBuffer);
+
+      try {
+        for await (const event of chatApi.streamMessage({
+          message: content,
+          conversation_id: isNewConversation ? null : existingId,
+          source_id: selectedSource?.id || null,
+          source_type: selectedSource?.type || null,
+          agent_id: agentId || null,
+        })) {
+          if (event.type === "start" && event.conversation_id) {
+            if (isNewConversation) {
+              updateConversationId(tempId, event.conversation_id);
+              conversationId = event.conversation_id;
+              syncConversationToUrl(event.conversation_id);
+              void refreshConversationsList();
+            } else if (event.conversation_id !== conversationId) {
+              updateConversationId(conversationId, event.conversation_id);
+              conversationId = event.conversation_id;
+            }
+          } else if (event.type === "token") {
+            streamBufferRef.current += event.content;
+          }
+        }
+
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        updateMessage(conversationId, assistantMsgId, streamBufferRef.current);
+        if (isAuthenticated) {
+          void refreshConversationsList();
+        }
+      } catch {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        updateMessage(
+          conversationId,
+          assistantMsgId,
+          streamBufferRef.current || "Sorry, I encountered an error. Please try again.",
+        );
+      } finally {
+        streamingConversationRef.current = false;
+        setStreamingMsgId(null);
+        setLoading(false);
       }
+    },
+    [
+      activeConversationId,
+      addConversation,
+      addMessage,
+      agentId,
+      refreshConversationsList,
+      selectedSource,
+      setLoading,
+      syncConversationToUrl,
+      updateConversationId,
+      updateMessage,
+      isAuthenticated,
+    ],
+  );
 
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      updateMessage(conversationId!, assistantMsgId, streamBufferRef.current);
-    } catch {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      updateMessage(
-        conversationId!,
-        assistantMsgId,
-        streamBufferRef.current || "Sorry, I encountered an error. Please try again.",
-      );
-    } finally {
-      setStreamingMsgId(null);
-      setLoading(false);
-    }
-  };
+  handleSendMessageRef.current = handleSendMessage;
 
-  useEffect(() => {
-    if (!initialPrompt?.trim() || promptSentRef.current) return;
-    promptSentRef.current = true;
-    void handleSendMessage(initialPrompt.trim());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPrompt]);
+  useLayoutEffect(() => {
+    const trimmed = initialPrompt?.trim();
+    if (!trimmed) return;
+
+    const sendId = searchParams.get("send");
+    const dedupeKey = sendId ?? trimmed;
+    if (processedInitialSends.has(dedupeKey)) return;
+    processedInitialSends.add(dedupeKey);
+
+    void handleSendMessageRef.current(trimmed);
+    clearPromptFromUrl();
+  }, [initialPrompt, searchParams, clearPromptFromUrl]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <ChatMessages
-        messages={activeConversation?.messages || []}
-        isLoading={isLoading}
-        streamingMsgId={streamingMsgId}
-      />
+      {loadingMessages ? (
+        <div className="flex-1 overflow-y-auto">
+          <ChatThreadShimmer />
+        </div>
+      ) : (
+        <ChatMessages
+          messages={displayMessages}
+          isLoading={isLoading}
+          streamingMsgId={streamingMsgId}
+        />
+      )}
       <ChatInput
         onSend={handleSendMessage}
         isLoading={isLoading}
@@ -236,3 +309,4 @@ export function ChatInterface({
     </div>
   );
 }
+

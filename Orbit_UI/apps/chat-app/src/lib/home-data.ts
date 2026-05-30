@@ -89,8 +89,5 @@ export function getGreeting(): string {
 }
 
 export function routeForAgent(agentId: string): string {
-  if (agentId === "job-search") return "/job-search/chat";
-  if (agentId === "study-helper") return "/study-helper/chat";
-  if (agentId === "trip-adviser") return "/trip-adviser/chat";
-  return `/c?agent=${agentId}`;
+  return `/c?agent=${encodeURIComponent(agentId)}`;
 }

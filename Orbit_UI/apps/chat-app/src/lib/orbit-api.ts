@@ -184,6 +184,12 @@ export const chatApi = {
   listConversations: () =>
     request<{ data: ApiConversationSummary[] }>(CHAT_API_BASE_URL, "/conversations"),
 
+  createConversation: (body: { agent_id?: string | null; title?: string }) =>
+    request<ApiConversationSummary>(CHAT_API_BASE_URL, "/conversations", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
   getConversation: (id: string) =>
     request<{ messages: ApiMessage[] }>(CHAT_API_BASE_URL, `/conversations/${id}`),
 

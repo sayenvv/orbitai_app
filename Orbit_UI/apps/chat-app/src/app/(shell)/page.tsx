@@ -40,8 +40,11 @@ export default function HomePage() {
     setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
 
   const handleHeroSend = () => {
-    if (!chatInput.trim() && attachedFiles.length === 0 && !selectedLibraryId) return;
-    router.push(`/c?prompt=${encodeURIComponent(chatInput)}`);
+    const trimmed = chatInput.trim();
+    if (!trimmed) return;
+    router.push(
+      `/c?prompt=${encodeURIComponent(trimmed)}&send=${crypto.randomUUID()}`,
+    );
   };
 
   const selectedLibraryItem = selectedLibraryId

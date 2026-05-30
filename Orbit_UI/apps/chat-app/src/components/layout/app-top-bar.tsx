@@ -22,12 +22,12 @@ export function AppTopBar() {
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {header?.leading}
         <div className="min-w-0">
-          {header?.title && (
-            <h1 className="truncate text-sm font-medium">{header.title}</h1>
-          )}
-          {header?.subtitle && (
-            <p className="truncate text-[11px] text-muted-foreground">{header.subtitle}</p>
-          )}
+          <h1 className="truncate text-sm font-semibold leading-none">
+            {header?.title || "Orbit AI"}
+          </h1>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            {header?.subtitle || "Your AI assistants"}
+          </p>
         </div>
       </div>
 

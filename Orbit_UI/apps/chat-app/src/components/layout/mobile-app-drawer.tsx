@@ -10,6 +10,7 @@ import {
 import { useSidebarChats } from "@/hooks/use-sidebar-chats";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
+import { useChatStore } from "@/store/chat-store";
 
 export function MobileAppDrawer() {
   const router = useRouter();
@@ -41,6 +42,13 @@ export function MobileAppDrawer() {
   const handleSectionChange = (next: typeof section) => {
     setSection(next);
     if (next === "library" || next === "agents") close();
+  };
+
+  const handleNewChat = () => {
+    setSection("home");
+    useChatStore.getState().setActiveConversation(null);
+    close();
+    router.push("/");
   };
 
   const goHome = () => {
@@ -83,7 +91,7 @@ export function MobileAppDrawer() {
             expanded
             section={section}
             onSectionChange={handleSectionChange}
-            onNewChat={goHome}
+            onNewChat={handleNewChat}
           />
 
           {isAuthenticated && (

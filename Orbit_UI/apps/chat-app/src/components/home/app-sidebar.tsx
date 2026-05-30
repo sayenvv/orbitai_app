@@ -41,7 +41,6 @@ export function AppSidebar({
 
   const goHome = () => {
     onSectionChange("home");
-    router.push("/");
   };
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { Message } from "@/types";
+import { AssistantReplyShimmer, AssistantTextShimmer } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Bot, User, Copy, Check, BookOpen, Lightbulb, FileText, Terminal } from "lucide-react";
 import { useEffect, useRef, useState, memo } from "react";
@@ -74,20 +75,7 @@ export function ChatMessages({ messages, isLoading, streamingMsgId }: ChatMessag
             isStreaming={message.id === streamingMsgId}
           />
         ))}
-        {isLoading && !streamingMsgId && (
-          <div className="flex gap-4 py-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/80 bg-background">
-              <Bot className="h-4 w-4 text-foreground/70" />
-            </div>
-            <div className="flex items-center gap-2 pt-1">
-              <div className="flex gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:0ms]" />
-                <span className="h-1.5 w-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:300ms]" />
-              </div>
-            </div>
-          </div>
-        )}
+        {isLoading && !streamingMsgId && <AssistantReplyShimmer />}
         <div ref={bottomRef} />
       </div>
     </div>
@@ -123,7 +111,7 @@ function MessageBubble({ message, isStreaming }: { message: Message; isStreaming
         {message.content ? (
           <MarkdownContent content={message.content} isStreaming={isStreaming} />
         ) : isStreaming ? (
-          <span className="inline-block h-4 w-0.5 bg-foreground/70 animate-cursor" />
+          <AssistantTextShimmer />
         ) : null}
         {!isStreaming && (
           <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">

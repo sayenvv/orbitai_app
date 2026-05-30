@@ -1,39 +1,42 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { chatApi, mapConversationSummary } from "@/lib/orbit-api";
-import type { Conversation } from "@/types";
+import { useCallback, useMemo } from "react";
+import { chatApi } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
+import { useChatStore } from "@/store/chat-store";
 
 export function useSidebarChats() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(false);
+  const conversations = useChatStore((s) => s.conversations);
+  const loading = useChatStore((s) => s.conversationsLoading);
+  const refreshConversationsList = useChatStore((s) => s.refreshConversationsList);
+  const deleteConversation = useChatStore((s) => s.deleteConversation);
+
+  const sortedConversations = useMemo(
+    () =>
+      [...conversations].sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
+    [conversations],
+  );
 
   const refresh = useCallback(async () => {
-    if (!isAuthenticated) {
-      setConversations([]);
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await chatApi.listConversations();
-      setConversations(data.data.map(mapConversationSummary));
-    } catch {
-      setConversations([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
+    if (!isAuthenticated) return;
+    await refreshConversationsList();
+  }, [isAuthenticated, refreshConversationsList]);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  const removeConversation = useCallback(
+    async (id: string) => {
+      await chatApi.deleteConversation(id);
+      deleteConversation(id);
+    },
+    [deleteConversation],
+  );
 
-  const removeConversation = useCallback(async (id: string) => {
-    await chatApi.deleteConversation(id);
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-  }, []);
-
-  return { conversations, loading, refresh, removeConversation };
+  return {
+    conversations: sortedConversations,
+    loading,
+    refresh,
+    removeConversation,
+  };
 }
