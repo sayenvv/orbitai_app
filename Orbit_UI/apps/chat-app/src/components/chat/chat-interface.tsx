@@ -7,11 +7,12 @@ import { ChatActionsMenu } from "./chat-actions-menu";
 import { ChatThreadShimmer } from "@/components/ui/skeleton";
 import { ChatInput, type ChatInputHandle } from "./chat-input";
 import { Message, StudySource } from "@/types";
-import { chatApi, mapMessage } from "@/lib/orbit-api";
+import { ApiError, chatApi, mapMessage, publicApi } from "@/lib/orbit-api";
 import { chatContentClass } from "@/lib/chat-layout";
+import { useAppShell } from "@/components/layout/app-shell-context";
+import { useUsageStore } from "@/store/usage-store";
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAppShell } from "@/components/layout/app-shell-context";
 
 /** Survives React Strict Mode remounts — one auto-send per home navigation. */
 const processedInitialSends = new Set<string>();
@@ -29,7 +30,7 @@ export function ChatInterface({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setHeader } = useAppShell();
+  const { setHeader, openUpgrade } = useAppShell();
   const {
     conversations,
     activeConversationId,
@@ -146,6 +147,7 @@ export function ChatInterface({
   ]);
 
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+  const [upgradeMessageId, setUpgradeMessageId] = useState<string | null>(null);
   const streamBufferRef = useRef("");
   const rafRef = useRef<number | null>(null);
 
@@ -206,6 +208,7 @@ export function ChatInterface({
 
       setLoading(true);
       setStreamingMsgId(assistantMsgId);
+      setUpgradeMessageId(null);
       streamingConversationRef.current = true;
       streamBufferRef.current = "";
 
@@ -239,6 +242,14 @@ export function ChatInterface({
             }
           } else if (event.type === "token") {
             streamBufferRef.current += event.content;
+          } else if (event.type === "done" && event.usage) {
+            const current = useUsageStore.getState().usage;
+            useUsageStore.getState().setUsage({
+              plan: current?.plan ?? "free",
+              period_start: current?.period_start,
+              period_end: current?.period_end,
+              ...event.usage,
+            });
           }
         }
 
@@ -247,13 +258,20 @@ export function ChatInterface({
         if (isAuthenticated) {
           void refreshConversationsList();
         }
-      } catch {
+      } catch (err) {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        updateMessage(
-          conversationId,
-          assistantMsgId,
-          streamBufferRef.current || "Sorry, I encountered an error. Please try again.",
-        );
+        if (err instanceof ApiError && err.status === 429) {
+          publicApi
+            .subscription()
+            .then((data) => useUsageStore.getState().setUsage(data))
+            .catch(() => {});
+          setUpgradeMessageId(assistantMsgId);
+        }
+        const errorText =
+          err instanceof ApiError && err.status === 429
+            ? err.message
+            : streamBufferRef.current || "Sorry, I encountered an error. Please try again.";
+        updateMessage(conversationId, assistantMsgId, errorText);
       } finally {
         streamingConversationRef.current = false;
         setStreamingMsgId(null);
@@ -272,6 +290,7 @@ export function ChatInterface({
       updateConversationId,
       updateMessage,
       isAuthenticated,
+      openUpgrade,
     ],
   );
 
@@ -335,6 +354,8 @@ export function ChatInterface({
           messages={displayMessages}
           isLoading={isLoading}
           streamingMsgId={streamingMsgId}
+          upgradeMessageId={upgradeMessageId}
+          onUpgrade={openUpgrade}
           onSuggestionClick={(text) => {
             void handleSendMessage(text);
             chatInputRef.current?.focus();

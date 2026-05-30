@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bot } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { TokenUsageMeter } from "@/components/token-usage-meter";
 import {
   SidebarRecentsList,
   SidebarSectionNav,
   type SidebarSection,
 } from "@/components/home/app-sidebar-panels";
-import { publicApi } from "@/lib/orbit-api";
+import { useTokenUsage } from "@/hooks/use-token-usage";
 import { useAuthStore } from "@/store/auth-store";
 import type { Conversation } from "@/types";
 
@@ -28,18 +29,9 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { usage, loading: usageLoading } = useTokenUsage();
   const [section, setSection] = useState<SidebarSection>("home");
-  const [plan, setPlan] = useState<string>("free");
-
-  useEffect(() => {
-    if (!user) return;
-    publicApi
-      .subscription()
-      .then((data) => {
-        if (data?.plan) setPlan(data.plan);
-      })
-      .catch(() => {});
-  }, [user]);
+  const plan = usage?.plan ?? "free";
 
   const handleSectionChange = (next: SidebarSection) => {
     setSection(next);
@@ -85,7 +77,10 @@ export function ChatSidebar({
         />
       </div>
 
-      <div className="border-t p-3">
+      <div className="border-t p-3 space-y-3">
+        {user && (
+          <TokenUsageMeter usage={usage} loading={usageLoading} compact />
+        )}
         <div className="group flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2.5 transition-colors hover:bg-accent/50">
           <div className="relative">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 ring-2 ring-border/60">

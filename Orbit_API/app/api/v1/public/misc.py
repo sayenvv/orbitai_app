@@ -1,11 +1,29 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.v1.public.auth import get_current_user, require_user
 from app.db.session import get_db
-from app.schemas import PublicAgentListResponse, PublicAgentResponse, SubscriptionResponse
+from app.models import User
+from app.schemas import PlanLimitItem, PlanLimitsResponse, PublicAgentListResponse, PublicAgentResponse, SubscriptionResponse
 from app.services.agent_registry import AgentRegistry
+from app.services.plan_limit_store import list_plan_limits
+from app.services.token_usage import ensure_current_period, get_usage_snapshot
 
 router = APIRouter(tags=["public"])
+
+
+def _subscription_response(user: User) -> SubscriptionResponse:
+    snapshot = get_usage_snapshot(user)
+    return SubscriptionResponse(
+        plan=snapshot.plan,
+        tokens_used=snapshot.tokens_used,
+        tokens_limit=snapshot.tokens_limit,
+        tokens_remaining=snapshot.tokens_remaining,
+        period_start=snapshot.period_start,
+        period_end=snapshot.period_end,
+        usage_percent=snapshot.usage_percent,
+        limit_reached=snapshot.limit_reached,
+    )
 
 
 @router.get("/agents", response_model=PublicAgentListResponse)
@@ -27,9 +45,18 @@ def list_agents(db: Session = Depends(get_db)):
     )
 
 
+@router.get("/plans", response_model=PlanLimitsResponse)
+def list_subscription_plans(db: Session = Depends(get_db)):
+    return PlanLimitsResponse(data=[PlanLimitItem(**item) for item in list_plan_limits(db)])
+
+
 @router.get("/subscription", response_model=SubscriptionResponse)
-def get_subscription():
-    return SubscriptionResponse(plan="free")
+def get_subscription(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    ensure_current_period(db, user)
+    return _subscription_response(user)
 
 
 @router.get("/files")

@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from "react";
 import { authApi, mapApiUser } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
+import { useUsageStore } from "@/store/usage-store";
 
 export function useCurrentUser() {
   const { setUser, setLoading } = useAuthStore();
@@ -43,7 +44,10 @@ export function useCurrentUser() {
 /** Clears local auth state only — keeps the session cookie for other Orbit apps. */
 export function useLogout() {
   const { logout } = useAuthStore();
-  return () => logout();
+  return () => {
+    logout();
+    useUsageStore.getState().clearUsage();
+  };
 }
 
 /** Full server + local logout (use when signing out completely). */
@@ -56,5 +60,6 @@ export function useServerLogout() {
       // still clear local state if server call fails
     }
     logout();
+    useUsageStore.getState().clearUsage();
   };
 }

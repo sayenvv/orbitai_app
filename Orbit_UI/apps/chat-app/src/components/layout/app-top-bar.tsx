@@ -1,5 +1,6 @@
 "use client";
 
+import { NavbarUpgradeLink } from "@/components/plans/upgrade-cta";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppShell } from "@/components/layout/app-shell-context";
 
@@ -31,10 +32,12 @@ export function AppTopBar() {
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-2">
         {header?.actions}
         {isAuthenticated ? (
-          <button
+          <>
+            <NavbarUpgradeLink />
+            <button
             type="button"
             onClick={() => setProfileOpen(true)}
             className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/80"
@@ -45,6 +48,7 @@ export function AppTopBar() {
             </div>
             <span className="hidden max-w-[8rem] truncate sm:inline">{displayName}</span>
           </button>
+          </>
         ) : (
           <div className="flex items-center gap-2">
             <button

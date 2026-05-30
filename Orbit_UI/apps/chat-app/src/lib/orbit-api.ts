@@ -60,10 +60,41 @@ export type ApiMessage = {
   timestamp: string;
 };
 
+export type ApiTokenUsage = {
+  plan: string;
+  tokens_used: number;
+  tokens_limit: number | null;
+  tokens_remaining: number | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  usage_percent: number;
+  limit_reached: boolean;
+};
+
+export type ApiPlanLimit = {
+  plan: string;
+  label: string;
+  tagline: string;
+  features: string[];
+  highlight: boolean;
+  token_limit: number | null;
+  token_limit_raw: number;
+  updated_at?: string | null;
+};
+
 export type StreamEvent =
   | { type: "start"; conversation_id: string }
   | { type: "token"; content: string }
-  | { type: "done" };
+  | {
+      type: "done";
+      usage?: {
+        tokens_used: number;
+        tokens_limit: number | null;
+        tokens_remaining: number | null;
+        usage_percent: number;
+        limit_reached: boolean;
+      };
+    };
 
 export class ApiError extends Error {
   status: number;
@@ -168,7 +199,10 @@ export const publicApi = {
     request<{ data: ApiAgent[] }>(API_BASE_URL, "/agents"),
 
   subscription: () =>
-    request<{ plan: string }>(API_BASE_URL, "/subscription"),
+    request<ApiTokenUsage>(API_BASE_URL, "/subscription"),
+
+  plans: () =>
+    request<{ data: ApiPlanLimit[] }>(API_BASE_URL, "/plans"),
 
   files: () => request<{ data: unknown[] }>(API_BASE_URL, "/files"),
 

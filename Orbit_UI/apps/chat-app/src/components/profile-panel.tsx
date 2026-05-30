@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { authApi, mapApiUser } from "@/lib/orbit-api";
 import { useServerLogout } from "@/hooks/use-auth";
+import { useTokenUsage } from "@/hooks/use-token-usage";
+import { TokenUsageMeter } from "@/components/token-usage-meter";
 
 interface ProfilePanelProps {
   open: boolean;
@@ -26,6 +28,7 @@ interface ProfilePanelProps {
 export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   const { user, setUser } = useAuthStore();
   const handleSignOut = useServerLogout();
+  const { usage, loading: usageLoading } = useTokenUsage();
   const [name, setName] = useState(user?.name || "");
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -196,6 +199,17 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                   </div>
                   <p className="text-[11px] text-muted-foreground">Contact support to change your email</p>
                 </div>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <div className="mb-3">
+                  <p className="text-sm font-medium">Monthly usage</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {(usage?.plan ?? "free").charAt(0).toUpperCase()}
+                    {(usage?.plan ?? "free").slice(1)} plan
+                  </p>
+                </div>
+                <TokenUsageMeter usage={usage} loading={usageLoading} compact />
               </div>
 
               {/* Account info */}

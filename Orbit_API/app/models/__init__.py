@@ -16,6 +16,11 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255))
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(32), default="user")
+    plan: Mapped[str] = mapped_column(String(32), default="free")
+    tokens_used: Mapped[int] = mapped_column(default=0)
+    tokens_period_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="user")
@@ -124,3 +129,17 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+
+
+class PlanLimit(Base):
+    __tablename__ = "plan_limits"
+
+    plan: Mapped[str] = mapped_column(String(32), primary_key=True)
+    label: Mapped[str] = mapped_column(String(64), default="Free")
+    tagline: Mapped[str] = mapped_column(Text, default="")
+    features: Mapped[list] = mapped_column(JSONB, default=list)
+    highlight: Mapped[bool] = mapped_column(default=False)
+    token_limit: Mapped[int] = mapped_column(default=200_000)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

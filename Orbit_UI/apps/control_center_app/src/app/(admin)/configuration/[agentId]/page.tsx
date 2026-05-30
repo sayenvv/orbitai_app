@@ -102,12 +102,13 @@ export default async function AgentConfigurationPage({ params }: { params: Param
           </Section>
 
           <Section title="Rate limits">
-            <Row label="Requests / minute (free)">
-              <input type="number" defaultValue={20} className="rounded-lg border bg-background px-3 py-1.5 text-sm w-24" />
-            </Row>
-            <Row label="Requests / minute (pro)">
-              <input type="number" defaultValue={200} className="rounded-lg border bg-background px-3 py-1.5 text-sm w-24" />
-            </Row>
+            <div className="px-4 pb-4 text-xs text-muted-foreground">
+              Monthly token limits, pricing copy, and included features are managed globally in{" "}
+              <a href="/plan-limits" className="font-medium text-primary hover:underline">
+                Subscription plans
+              </a>
+              .
+            </div>
           </Section>
 
           <Section title="Feature flags">

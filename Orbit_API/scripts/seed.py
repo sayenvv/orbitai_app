@@ -9,7 +9,7 @@ from pathlib import Path
 from app.core.config import settings
 from app.core.security import hash_password
 from app.db.session import SessionLocal, engine
-from app.models import Agent, AgentConfiguration, AgentTool, Tool, User
+from app.models import Agent, AgentConfiguration, AgentTool, PlanLimit, Tool, User
 from app.db.base import Base
 
 
@@ -117,6 +117,30 @@ def seed() -> None:
                     role="operator",
                 )
             )
+
+        from app.core.config import settings as app_settings
+        from app.core.plan_limits import PLANS
+        from app.services.plan_limit_store import PLAN_DEFAULTS
+
+        token_defaults = {
+            "free": app_settings.free_plan_token_limit,
+            "starter": app_settings.starter_plan_token_limit,
+            "pro": app_settings.pro_plan_token_limit,
+            "enterprise": app_settings.enterprise_plan_token_limit,
+        }
+        for plan in PLANS:
+            if not db.query(PlanLimit).filter(PlanLimit.plan == plan).first():
+                meta = PLAN_DEFAULTS.get(plan, {})
+                db.add(
+                    PlanLimit(
+                        plan=plan,
+                        label=meta.get("label", plan.title()),
+                        tagline=meta.get("tagline", ""),
+                        features=meta.get("features", []),
+                        highlight=bool(meta.get("highlight", False)),
+                        token_limit=token_defaults[plan],
+                    )
+                )
 
         db.commit()
         active = db.query(Agent).filter(Agent.status == "active").count()

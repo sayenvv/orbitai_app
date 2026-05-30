@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -36,6 +37,7 @@ type AppShellContextValue = {
   openSupport: (tab?: SupportTab) => void;
   closeSupport: () => void;
   setSupportTab: (tab: SupportTab) => void;
+  openUpgrade: () => void;
   openLogin: (mode?: "login" | "register") => void;
   header: AppHeaderState | null;
   setHeader: (header: AppHeaderState | null) => void;
@@ -44,6 +46,7 @@ type AppShellContextValue = {
 const AppShellContext = createContext<AppShellContextValue | null>(null);
 
 export function AppShellProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [section, setSection] = useState<SidebarSection>("home");
@@ -60,6 +63,10 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const closeSupport = useCallback(() => setSupportOpen(false), []);
+
+  const openUpgrade = useCallback(() => {
+    router.push("/plans");
+  }, [router]);
 
   const openLogin = useCallback((mode: "login" | "register" = "login") => {
     setAuthMode(mode);
@@ -89,6 +96,7 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
       openSupport,
       closeSupport,
       setSupportTab,
+      openUpgrade,
       openLogin,
       header,
       setHeader,
@@ -104,6 +112,7 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
       supportTab,
       openSupport,
       closeSupport,
+      openUpgrade,
       openLogin,
       header,
       setHeader,
@@ -119,4 +128,8 @@ export function useAppShell() {
     throw new Error("useAppShell must be used within AppShellProvider");
   }
   return ctx;
+}
+
+export function useOptionalAppShell() {
+  return useContext(AppShellContext);
 }

@@ -2,6 +2,7 @@
 
 import { Message } from "@/types";
 import { AssistantReplyShimmer, AssistantTextShimmer } from "@/components/ui/skeleton";
+import { UpgradeCtaButton } from "@/components/plans/upgrade-cta";
 import { cn } from "@/lib/utils";
 import {
   Bot,
@@ -23,6 +24,8 @@ type ChatMessagesProps = {
   messages: Message[];
   isLoading: boolean;
   streamingMsgId?: string | null;
+  upgradeMessageId?: string | null;
+  onUpgrade?: () => void;
   onSuggestionClick?: (text: string) => void;
   contentClassName?: string;
   className?: string;
@@ -50,6 +53,8 @@ export function ChatMessages({
   messages,
   isLoading,
   streamingMsgId,
+  upgradeMessageId,
+  onUpgrade,
   onSuggestionClick,
   contentClassName,
   className,
@@ -135,6 +140,8 @@ export function ChatMessages({
               <MessageBubble
                 message={message}
                 isStreaming={message.id === streamingMsgId}
+                showUpgrade={message.id === upgradeMessageId && Boolean(onUpgrade)}
+                onUpgrade={onUpgrade}
               />
             </div>
           );
@@ -149,9 +156,13 @@ export function ChatMessages({
 function MessageBubble({
   message,
   isStreaming,
+  showUpgrade,
+  onUpgrade,
 }: {
   message: Message;
   isStreaming?: boolean;
+  showUpgrade?: boolean;
+  onUpgrade?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -185,7 +196,12 @@ function MessageBubble({
         ) : isStreaming ? (
           <AssistantTextShimmer />
         ) : null}
-        {!isStreaming && message.content && (
+        {showUpgrade && onUpgrade && (
+          <div className="mt-3">
+            <UpgradeCtaButton onClick={onUpgrade} className="text-sm" />
+          </div>
+        )}
+        {!isStreaming && message.content && !showUpgrade && (
           <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               type="button"

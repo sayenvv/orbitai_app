@@ -91,6 +91,29 @@ export type ApiControlConfiguration = {
   system_prompt: string;
 };
 
+export type ApiPlanLimit = {
+  plan: string;
+  label: string;
+  tagline: string;
+  features: string[];
+  highlight: boolean;
+  token_limit: number | null;
+  token_limit_raw: number;
+  updated_at?: string | null;
+};
+
+export type ApiPlanLimitPatch = {
+  token_limit?: number;
+  label?: string;
+  tagline?: string;
+  features?: string[];
+  highlight?: boolean;
+};
+
+export type ApiPlanLimitsResponse = {
+  data: ApiPlanLimit[];
+};
+
 export function mapControlAgent(raw: ApiControlAgent): Agent {
   return hydrateAgentRecord({
     id: raw.id,
@@ -187,5 +210,13 @@ export const controlApi = {
     request<ApiControlConfiguration>(`/control/agents/${agentId}/configuration`, {
       method: "PATCH",
       body: JSON.stringify(body),
+    }),
+
+  getPlanLimits: () => request<ApiPlanLimitsResponse>("/control/plan-limits"),
+
+  updatePlanLimits: (plans: Record<string, ApiPlanLimitPatch>) =>
+    request<ApiPlanLimitsResponse>("/control/plan-limits", {
+      method: "PATCH",
+      body: JSON.stringify({ plans }),
     }),
 };

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Menu, PanelLeft, PanelRight, Sparkles } from "lucide-react";
+import { NavbarUpgradeLink } from "@/components/plans/upgrade-cta";
 import { AppSidebar } from "@/components/home/app-sidebar";
 import {
   MainAgentsPanel,
@@ -150,7 +151,9 @@ function AppShellLayout({ children }: { children: ReactNode }) {
         </div>
         <div className="flex items-center gap-1">
           {isAuthenticated ? (
-            <button
+            <>
+              <NavbarUpgradeLink className="hidden sm:inline-flex" />
+              <button
               type="button"
               onClick={() => setProfileOpen(true)}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20"
@@ -158,6 +161,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
             >
               <span className="text-[10px] font-bold text-primary">{initials}</span>
             </button>
+            </>
           ) : (
             <button
               type="button"

@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
+import { TokenUsageMeter } from "@/components/token-usage-meter";
 import {
   SidebarRecentsList,
   SidebarSectionNav,
   type SidebarSection,
 } from "@/components/home/app-sidebar-panels";
 import { useSidebarChats } from "@/hooks/use-sidebar-chats";
+import { useTokenUsage } from "@/hooks/use-token-usage";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,7 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { usage, loading: usageLoading } = useTokenUsage();
   const { conversations, loading: chatsLoading, loadingMore, hasMore, loadMore, removeConversation } =
     useSidebarChats();
 
@@ -92,6 +95,12 @@ export function AppSidebar({
         <p className="mt-4 px-2 text-[11px] leading-relaxed text-muted-foreground">
           Sign in to see your recent chats.
         </p>
+      )}
+
+      {expanded && isAuthenticated && (
+        <div className="mt-3 border-t border-sidebar-border/60 px-1.5 pt-3">
+          <TokenUsageMeter usage={usage} loading={usageLoading} compact />
+        </div>
       )}
 
       <SettingsHelpFooterTab collapsed={!expanded} onOpen={onOpenSettings} />

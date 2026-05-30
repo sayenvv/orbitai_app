@@ -108,6 +108,48 @@ class ConversationDetailResponse(BaseModel):
 
 class SubscriptionResponse(BaseModel):
     plan: str = "free"
+    tokens_used: int = 0
+    tokens_limit: int | None = None
+    tokens_remaining: int | None = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
+    usage_percent: float = 0.0
+    limit_reached: bool = False
+
+
+class PlanLimitItem(BaseModel):
+    plan: str
+    label: str
+    tagline: str = ""
+    features: list[str] = Field(default_factory=list)
+    highlight: bool = False
+    token_limit: int | None
+    token_limit_raw: int
+    updated_at: datetime | None = None
+
+
+class PlanLimitsResponse(BaseModel):
+    data: list[PlanLimitItem]
+
+
+class PlanLimitPatch(BaseModel):
+    token_limit: int | None = None
+    label: str | None = None
+    tagline: str | None = None
+    features: list[str] | None = None
+    highlight: bool | None = None
+
+
+class PlanLimitsUpdate(BaseModel):
+    plans: dict[str, PlanLimitPatch]
+
+
+class TokenUsageResponse(BaseModel):
+    tokens_used: int
+    tokens_limit: int | None
+    tokens_remaining: int | None
+    usage_percent: float
+    limit_reached: bool
 
 
 # --- Ollama ---

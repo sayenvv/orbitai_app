@@ -2,7 +2,7 @@ import json
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
@@ -22,8 +22,17 @@ from app.schemas import (
     CreateConversationRequest,
     MessageResponse,
     StreamMessageRequest,
+    TokenUsageResponse,
 )
 from app.services.agent_registry import AgentRegistry
+from app.services.token_usage import (
+    can_consume,
+    ensure_current_period,
+    estimate_tokens,
+    estimate_turn_tokens,
+    get_usage_snapshot,
+    record_usage,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -172,6 +181,16 @@ async def stream_message(
         )
 
     assert conv is not None
+
+    if user:
+        ensure_current_period(db, user)
+        estimated = estimate_tokens(body.message)
+        if not can_consume(user, estimated):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Monthly token limit reached. Upgrade your plan to continue chatting.",
+            )
+
     save_message(db, conv.id, "user", body.message)
 
     async def event_generator():
@@ -189,7 +208,19 @@ async def stream_message(
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
         save_message(db, conv.id, "assistant", full)
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        done_payload: dict = {"type": "done"}
+        if user:
+            turn_tokens = estimate_turn_tokens(user_message=body.message, assistant_message=full)
+            snapshot = record_usage(db, user, turn_tokens)
+            done_payload["usage"] = TokenUsageResponse(
+                tokens_used=snapshot.tokens_used,
+                tokens_limit=snapshot.tokens_limit,
+                tokens_remaining=snapshot.tokens_remaining,
+                usage_percent=snapshot.usage_percent,
+                limit_reached=snapshot.limit_reached,
+            ).model_dump()
+        yield f"data: {json.dumps(done_payload)}\n\n"
 
     return StreamingResponse(
         event_generator(),

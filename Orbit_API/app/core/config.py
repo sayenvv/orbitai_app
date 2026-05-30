@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     ollama_default_model: str = "llama3.2"
     ollama_timeout: float = 120.0
 
+    # Monthly token limits per plan (0 = unlimited). See app/core/plan_limits.py
+    free_plan_token_limit: int = 2_000
+    starter_plan_token_limit: int = 500_000
+    pro_plan_token_limit: int = 2_000_000
+    enterprise_plan_token_limit: int = 0
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

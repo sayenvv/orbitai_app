@@ -13,6 +13,7 @@ import {
   Plug,
   Search,
   Wrench,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: "System",
     items: [
       { label: "Configuration", href: "/configuration", icon: Settings, description: "Global settings" },
+      { label: "Subscription plans", href: "/plan-limits", icon: CreditCard, description: "Limits & plan setup" },
       { label: "Integrations", href: "/integrations", icon: Plug, description: "API keys & connectors" },
       { label: "Access", href: "/access", icon: ShieldCheck, description: "Roles & permissions" },
     ],
