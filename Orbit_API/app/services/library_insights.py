@@ -82,6 +82,7 @@ async def generate_upload_insights(
     row = LibraryGeneratedFile(
         user_id=user.id,
         agent_id=agent_config.agent_id,
+        source_document_id=document.id,
         title=title[:512],
         item_type="AI Insights",
         preview=full_text,

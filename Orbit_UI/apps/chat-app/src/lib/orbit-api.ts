@@ -60,6 +60,8 @@ export type ApiLibraryGenerated = {
   preview: string;
   conversation_id?: string | null;
   agent_id?: string | null;
+  source_document_id?: string | null;
+  source_filename?: string | null;
   agent_slug?: string | null;
   agent_name?: string;
   agent_short_name?: string | null;
@@ -355,6 +357,9 @@ export const publicApi = {
     request<{ data: unknown[] }>(API_BASE_URL, "/study-materials"),
 
   library: () => request<ApiLibraryResponse>(API_BASE_URL, "/library"),
+
+  getGeneratedInsight: (id: string) =>
+    request<ApiLibraryGenerated>(API_BASE_URL, `/library/generated/${id}`),
 };
 
 // ─── Chat (`/api/chat/*`) ───────────────────────────────────────────────────

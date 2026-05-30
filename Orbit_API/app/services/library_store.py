@@ -9,6 +9,7 @@ from app.models import Agent, LibraryGeneratedFile
 
 def _serialize_generated(row: LibraryGeneratedFile) -> dict:
     agent: Agent | None = row.agent
+    source_doc = row.source_document
     return {
         "id": row.id,
         "title": row.title,
@@ -16,6 +17,8 @@ def _serialize_generated(row: LibraryGeneratedFile) -> dict:
         "preview": row.preview,
         "conversation_id": row.conversation_id,
         "agent_id": row.agent_id,
+        "source_document_id": row.source_document_id,
+        "source_filename": source_doc.original_filename if source_doc else None,
         "agent_slug": agent.slug if agent else None,
         "agent_name": agent.name if agent else "Clovai",
         "agent_short_name": agent.short_name if agent else None,
@@ -29,7 +32,10 @@ def _serialize_generated(row: LibraryGeneratedFile) -> dict:
 def list_user_generated_files(db: Session, user_id: uuid.UUID) -> list[dict]:
     rows = (
         db.query(LibraryGeneratedFile)
-        .options(joinedload(LibraryGeneratedFile.agent))
+        .options(
+            joinedload(LibraryGeneratedFile.agent),
+            joinedload(LibraryGeneratedFile.source_document),
+        )
         .filter(LibraryGeneratedFile.user_id == user_id)
         .order_by(LibraryGeneratedFile.created_at.desc())
         .all()
@@ -44,7 +50,10 @@ def get_user_generated_file(
 ) -> LibraryGeneratedFile | None:
     return (
         db.query(LibraryGeneratedFile)
-        .options(joinedload(LibraryGeneratedFile.agent))
+        .options(
+            joinedload(LibraryGeneratedFile.agent),
+            joinedload(LibraryGeneratedFile.source_document),
+        )
         .filter(LibraryGeneratedFile.id == file_id, LibraryGeneratedFile.user_id == user_id)
         .first()
     )

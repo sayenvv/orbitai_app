@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect, type ChangeEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   CreditCard,
@@ -9,24 +10,30 @@ import {
   FolderOpen,
   LayoutGrid,
   Loader2,
+  Maximize2,
   MessageSquarePlus,
   Plus,
+  ScanText,
   Search,
   Sparkles,
   Trash2,
   Upload,
+  LayoutDashboard,
 } from "lucide-react";
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
 import { SidebarRecentsShimmer } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatFileSize, formatRelativeDate } from "@/lib/format-library";
 import { LibraryDeleteDialog } from "@/components/library/library-delete-dialog";
+import { InsightSectionTabs } from "@/components/insights/insight-panel";
+import { InsightsMarkdown } from "@/components/insights/insights-markdown";
+import { parseInsightSections } from "@/lib/parse-insight-sections";
 import { useRagUpload } from "@/hooks/use-rag-upload";
 import type { LibraryGeneratedFile, LibraryUpload } from "@/hooks/use-library";
 import type { Conversation } from "@/types";
 import type { HomeAgent } from "@/lib/home-data";
 
-export type SidebarSection = "home" | "library" | "agents" | "plans";
+export type SidebarSection = "home" | "library" | "insights" | "agents" | "plans";
 
 type SidebarSectionNavProps = {
   expanded: boolean;
@@ -47,6 +54,7 @@ export function SidebarSectionNav({
 }: SidebarSectionNavProps) {
   const authenticatedTabs: { id: SidebarSection; label: string; icon: typeof FolderOpen }[] = [
     { id: "library", label: "Library", icon: FolderOpen },
+    { id: "insights", label: "AI Board", icon: LayoutDashboard },
     { id: "agents", label: "Agents", icon: LayoutGrid },
   ];
 
@@ -349,7 +357,7 @@ type MainLibraryPanelProps = {
   onRequireAuth?: () => void;
   onSelectUpload: (upload: LibraryUpload) => void;
   onSelectGenerated: (file: LibraryGeneratedFile) => void;
-  onGenerateInsights?: (upload: LibraryUpload) => void | Promise<void>;
+  onGenerateInsights?: (upload: LibraryUpload) => Promise<{ id: string } | void> | { id: string } | void;
   onDownloadUpload?: (upload: LibraryUpload) => void;
   onDeleteUpload?: (upload: LibraryUpload) => void | Promise<void>;
   onDownloadGenerated?: (file: LibraryGeneratedFile) => void;
@@ -406,20 +414,37 @@ function LibraryCardIconActions({
 function LibraryCardActions({
   onUseInChat,
   onGenerateInsights,
+  onAdvancedInsights,
+  onToggleExpand,
+  expanded = false,
   useInChatDisabled = false,
   insightsLoading = false,
   useInChatTitle = "Use in chat",
 }: {
   onUseInChat?: () => void;
   onGenerateInsights?: () => void;
+  onAdvancedInsights?: () => void;
+  onToggleExpand?: () => void;
+  expanded?: boolean;
   useInChatDisabled?: boolean;
   insightsLoading?: boolean;
   useInChatTitle?: string;
 }) {
-  if (!onUseInChat && !onGenerateInsights) return null;
+  if (!onUseInChat && !onGenerateInsights && !onAdvancedInsights && !onToggleExpand) return null;
 
   return (
     <div className="mt-3 flex flex-wrap gap-2">
+      {onToggleExpand && (
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          title={expanded ? "Collapse preview" : "Expand preview"}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/50 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/50"
+        >
+          <Maximize2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+          {expanded ? "Collapse" : "Expand"}
+        </button>
+      )}
       {onUseInChat && (
         <button
           type="button"
@@ -430,6 +455,17 @@ function LibraryCardActions({
         >
           <MessageSquarePlus className="h-3.5 w-3.5 shrink-0" />
           Chat
+        </button>
+      )}
+      {onAdvancedInsights && (
+        <button
+          type="button"
+          onClick={onAdvancedInsights}
+          title="View full insights in AI Board"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/50 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/50"
+        >
+          <ScanText className="h-3.5 w-3.5 shrink-0 text-primary" />
+          Advanced Insights
         </button>
       )}
       {onGenerateInsights && (
@@ -465,6 +501,10 @@ type LibraryItemCardProps = {
   deleteLabel?: string;
   onUseInChat?: () => void;
   onGenerateInsights?: () => void;
+  onAdvancedInsights?: () => void;
+  expandContent?: string;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
   useInChatDisabled?: boolean;
   insightsLoading?: boolean;
 };
@@ -482,11 +522,28 @@ function LibraryItemCard({
   deleteLabel,
   onUseInChat,
   onGenerateInsights,
+  onAdvancedInsights,
+  expandContent,
+  expanded = false,
+  onToggleExpand,
   useInChatDisabled,
   insightsLoading,
 }: LibraryItemCardProps) {
+  const sections = useMemo(
+    () => (expandContent ? parseInsightSections(expandContent) : []),
+    [expandContent],
+  );
+  const [activeSectionId, setActiveSectionId] = useState(sections[0]?.id ?? "overview");
+  const activeSection =
+    sections.find((section) => section.id === activeSectionId) ?? sections[0];
+
   return (
-    <article className="group rounded-xl border border-border/40 bg-card/50 p-4 transition-colors hover:border-border/70 hover:bg-card">
+    <article
+      className={cn(
+        "group rounded-xl border border-border/40 bg-card/50 p-4 transition-colors hover:border-border/70 hover:bg-card",
+        expanded && "border-border/70 bg-card",
+      )}
+    >
       <div className="flex gap-3.5">
         <div className="shrink-0 pt-0.5">{icon}</div>
         <div className="min-w-0 flex-1">
@@ -513,10 +570,27 @@ function LibraryItemCard({
             />
           </div>
 
-          {description && (
+          {description && !expanded && (
             <p className="mt-2.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
               {description}
             </p>
+          )}
+
+          {expanded && expandContent && (
+            <div className="mt-3 space-y-3 border-t border-border/40 pt-3">
+              <InsightSectionTabs
+                sections={sections}
+                activeId={activeSectionId}
+                onChange={setActiveSectionId}
+                size="sm"
+              />
+              <div className="max-h-[240px] overflow-y-auto rounded-lg bg-muted/20 px-3 py-3">
+                <InsightsMarkdown
+                  content={activeSection?.content ?? expandContent}
+                  className="text-xs"
+                />
+              </div>
+            </div>
           )}
 
           {error}
@@ -524,6 +598,9 @@ function LibraryItemCard({
           <LibraryCardActions
             onUseInChat={onUseInChat}
             onGenerateInsights={onGenerateInsights}
+            onAdvancedInsights={onAdvancedInsights}
+            onToggleExpand={expandContent ? onToggleExpand : undefined}
+            expanded={expanded}
             useInChatDisabled={useInChatDisabled}
             insightsLoading={insightsLoading}
           />
@@ -548,12 +625,14 @@ export function MainLibraryPanel({
   onDownloadGenerated,
   onDeleteGenerated,
 }: MainLibraryPanelProps) {
+  const router = useRouter();
   const [tab, setTab] = useState<LibraryTab>("uploads");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [insightsGeneratingId, setInsightsGeneratingId] = useState<string | null>(null);
   const [insightsError, setInsightsError] = useState("");
+  const [expandedGeneratedId, setExpandedGeneratedId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploading, progress, error: uploadError, uploadPdf, clearError } = useRagUpload();
 
@@ -583,9 +662,12 @@ export function MainLibraryPanel({
     setInsightsError("");
     setInsightsGeneratingId(upload.id);
     try {
-      await onGenerateInsights(upload);
+      const created = await onGenerateInsights(upload);
       setTab("generated");
       await onRefresh?.();
+      if (created?.id) {
+        router.push(`/insights/${created.id}`);
+      }
     } catch (err) {
       setInsightsError(err instanceof Error ? err.message : "Failed to generate insights");
     } finally {
@@ -741,6 +823,17 @@ export function MainLibraryPanel({
           </button>
         </div>
 
+        {tab === "generated" && generated.length > 0 && (
+          <button
+            type="button"
+            onClick={() => router.push("/insights")}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border/60 px-3.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50"
+          >
+            <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
+            AI Board
+          </button>
+        )}
+
         <div className="relative min-w-[220px] flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -874,6 +967,19 @@ export function MainLibraryPanel({
               downloadLabel="Download file"
               deleteLabel="Delete generated file"
               onUseInChat={() => onSelectGenerated(file)}
+              expandContent={file.preview.trim() || undefined}
+              expanded={expandedGeneratedId === file.id}
+              onToggleExpand={
+                file.preview.trim()
+                  ? () =>
+                      setExpandedGeneratedId((current) =>
+                        current === file.id ? null : file.id,
+                      )
+                  : undefined
+              }
+              onAdvancedInsights={
+                file.preview.trim() ? () => router.push(`/insights/${file.id}`) : undefined
+              }
             />
           ))}
         </div>

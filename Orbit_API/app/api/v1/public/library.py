@@ -9,7 +9,12 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas import LibraryGeneratedFileResponse
 from app.services.library_insights import generate_upload_insights
-from app.services.library_store import delete_user_generated_file, get_user_generated_file
+from app.services.library_store import (
+    _serialize_generated,
+    delete_user_generated_file,
+    get_user_generated_file,
+    list_user_generated_files,
+)
 
 router = APIRouter(prefix="/library", tags=["library"])
 
@@ -30,6 +35,26 @@ async def create_upload_insights(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return LibraryGeneratedFileResponse(**payload)
+
+
+@router.get("/generated", response_model=list[LibraryGeneratedFileResponse])
+def list_generated_files(
+    user: User = Depends(require_chat_user),
+    db: Session = Depends(get_db),
+):
+    return [LibraryGeneratedFileResponse(**item) for item in list_user_generated_files(db, user.id)]
+
+
+@router.get("/generated/{file_id}", response_model=LibraryGeneratedFileResponse)
+def get_generated_file(
+    file_id: uuid.UUID,
+    user: User = Depends(require_chat_user),
+    db: Session = Depends(get_db),
+):
+    row = get_user_generated_file(db, user.id, file_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Generated file not found")
+    return LibraryGeneratedFileResponse(**_serialize_generated(row))
 
 
 @router.get("/generated/{file_id}/download")

@@ -27,15 +27,20 @@ import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
 
 function ShellSectionSync() {
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { setSection } = useAppShell();
 
   useEffect(() => {
+    if (pathname.startsWith("/insights")) {
+      setSection("insights");
+      return;
+    }
     const section = searchParams.get("section");
     if (section === "library" || section === "agents") {
       setSection(section);
     }
-  }, [searchParams, setSection]);
+  }, [pathname, searchParams, setSection]);
 
   return null;
 }
@@ -97,6 +102,10 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       if (pathname !== "/" || searchParams.get("section") !== "library") {
         router.push("/?section=library");
       }
+    } else if (next === "insights") {
+      if (!pathname.startsWith("/insights")) {
+        router.push("/insights");
+      }
     } else if (next === "agents") {
       if (pathname !== "/" || searchParams.get("section") !== "agents") {
         router.push("/?section=agents");
@@ -111,6 +120,8 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (pathname === "/plans") {
       setSection("plans");
+    } else if (pathname.startsWith("/insights")) {
+      setSection("insights");
     } else if (pathname !== "/") {
       setSection("home");
     }
@@ -251,9 +262,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                         }}
                         onGenerateInsights={
                           isAuthenticated
-                            ? async (upload) => {
-                                await publicApi.generateUploadInsights(upload.id);
-                              }
+                            ? (upload) => publicApi.generateUploadInsights(upload.id)
                             : undefined
                         }
                         onDownloadUpload={

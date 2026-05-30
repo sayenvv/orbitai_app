@@ -213,6 +213,9 @@ class LibraryGeneratedFile(Base):
     agent_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
     )
+    source_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rag_documents.id", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String(512))
     item_type: Mapped[str] = mapped_column(String(64), default="Generated")
     preview: Mapped[str] = mapped_column(Text, default="")
@@ -224,3 +227,4 @@ class LibraryGeneratedFile(Base):
     user: Mapped["User"] = relationship(back_populates="library_generated_files")
     conversation: Mapped["Conversation | None"] = relationship()
     agent: Mapped["Agent | None"] = relationship()
+    source_document: Mapped["RagDocument | None"] = relationship()

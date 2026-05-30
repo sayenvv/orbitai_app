@@ -226,6 +226,8 @@ class LibraryGeneratedFileResponse(BaseModel):
     preview: str = ""
     conversation_id: UUID | None = None
     agent_id: UUID | None = None
+    source_document_id: UUID | None = None
+    source_filename: str | None = None
     agent_slug: str | None = None
     agent_name: str = "Clovai"
     agent_short_name: str | None = None

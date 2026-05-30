@@ -26,6 +26,8 @@ export type LibraryGeneratedFile = {
   iconKey: string;
   colorKey: string;
   conversationId?: string | null;
+  sourceDocumentId?: string | null;
+  sourceFilename?: string | null;
   createdAt: string;
 };
 
@@ -49,6 +51,8 @@ function mapGenerated(row: {
   type: string;
   preview?: string;
   conversation_id?: string | null;
+  source_document_id?: string | null;
+  source_filename?: string | null;
   agent_slug?: string | null;
   agent_name?: string;
   icon_key?: string;
@@ -65,6 +69,8 @@ function mapGenerated(row: {
     iconKey: row.icon_key ?? "Sparkles",
     colorKey: row.color_key ?? "indigo",
     conversationId: row.conversation_id,
+    sourceDocumentId: row.source_document_id ?? null,
+    sourceFilename: row.source_filename ?? null,
     createdAt: row.created_at,
   };
 }
