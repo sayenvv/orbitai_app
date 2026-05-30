@@ -1,8 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class OllamaSettings(BaseSettings):
-    """Ollama connection settings (reads OLLAMA_* env vars)."""
+class LlmSettings(BaseSettings):
+    """Local LLM runtime settings (OLLAMA_* env vars)."""
 
     model_config = SettingsConfigDict(env_prefix="OLLAMA_", extra="ignore")
 

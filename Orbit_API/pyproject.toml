@@ -19,7 +19,7 @@ dependencies = [
   "langchain-core>=0.3.0",
   "langgraph>=0.2.0",
   "httpx>=0.28.0",
-  "orbit-ollama @ file:packages/orbit-ollama",
+  "clovai @ file:packages/clovai",
   "pypdf>=5.1.0",
   "fastembed>=0.4.2",
   "numpy>=2.1.0",

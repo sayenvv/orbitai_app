@@ -179,7 +179,7 @@ export function SupportModal({
                     {
                       icon: Mail,
                       title: "Contact support",
-                      desc: "support@orbitai.app",
+                      desc: "support@clovai.app",
                     },
                   ].map(({ icon: Icon, title, desc }) => (
                     <button
@@ -200,7 +200,7 @@ export function SupportModal({
               </div>
 
               <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-center">
-                <p className="text-xs font-medium text-foreground">Orbit AI Chat</p>
+                <p className="text-xs font-medium text-foreground">Clovai Chat</p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">Version 0.1.0 · May 2026</p>
               </div>
             </div>

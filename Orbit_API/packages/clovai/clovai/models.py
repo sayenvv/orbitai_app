@@ -3,7 +3,7 @@ from datetime import datetime
 
 
 @dataclass(slots=True)
-class OllamaModel:
+class LlmModel:
     name: str
     size: int | None = None
     modified_at: datetime | None = None

@@ -227,7 +227,7 @@ class LibraryGeneratedFileResponse(BaseModel):
     conversation_id: UUID | None = None
     agent_id: UUID | None = None
     agent_slug: str | None = None
-    agent_name: str = "Orbit AI"
+    agent_name: str = "Clovai"
     agent_short_name: str | None = None
     icon_key: str = "Sparkles"
     color_key: str = "indigo"
@@ -240,10 +240,10 @@ class LibraryResponse(BaseModel):
     generated: list[LibraryGeneratedFileResponse]
 
 
-# --- Ollama ---
+# --- Local LLM ---
 
 
-class OllamaModelResponse(BaseModel):
+class LlmModelResponse(BaseModel):
     name: str
     size: int | None = None
     modified_at: datetime | None = None
@@ -253,11 +253,11 @@ class OllamaModelResponse(BaseModel):
     quantization_level: str | None = None
 
 
-class OllamaModelListResponse(BaseModel):
-    data: list[OllamaModelResponse]
+class LlmModelListResponse(BaseModel):
+    data: list[LlmModelResponse]
 
 
-class OllamaStatusResponse(BaseModel):
+class LlmStatusResponse(BaseModel):
     available: bool
     base_url: str
     default_model: str

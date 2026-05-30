@@ -64,7 +64,7 @@ export default function ProfilePage() {
   const [title, setTitle] = useState("Head of Platform Operations");
   const [department, setDepartment] = useState("Platform");
   const [location, setLocation] = useState("San Francisco, CA");
-  const [bio, setBio] = useState("Running point on access, billing & reliability for Orbit AI. Reach out anytime in #ops or via email.");
+  const [bio, setBio] = useState("Running point on access, billing & reliability for Clovai. Reach out anytime in #ops or via email.");
   const [timezone, setTimezone] = useState("America/Los_Angeles");
   const [language, setLanguage] = useState("English (US)");
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");

@@ -61,7 +61,7 @@ function mapGenerated(row: {
     type: row.type,
     preview: row.preview ?? "",
     agentSlug: row.agent_slug ?? "general-knowledge",
-    agentName: row.agent_name ?? "Orbit AI",
+    agentName: row.agent_name ?? "Clovai",
     iconKey: row.icon_key ?? "Sparkles",
     colorKey: row.color_key ?? "indigo",
     conversationId: row.conversation_id,

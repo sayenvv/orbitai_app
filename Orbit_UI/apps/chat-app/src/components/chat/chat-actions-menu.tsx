@@ -116,8 +116,8 @@ export function ChatActionsMenu({
     if (navigator.share) {
       try {
         await navigator.share({
-          title: conversationTitle || "Orbit AI chat",
-          text: "Check out this conversation on Orbit AI",
+          title: conversationTitle || "Clovai chat",
+          text: "Check out this conversation on Clovai",
           url,
         });
         return;

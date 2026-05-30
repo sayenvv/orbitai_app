@@ -1,9 +1,9 @@
 """
-High-level helpers for Orbit API.
+High-level helpers for the Clovai API.
 
 Usage in FastAPI routes or orchestration::
 
-    from orbit_ollama.utils import agent_chat_input, get_status, list_installed_models, stream_agent_chat
+    from clovai.utils import agent_chat_input, get_status, list_installed_models, stream_agent_chat
 
     status = await get_status()
     models = await list_installed_models()
@@ -25,14 +25,14 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
-from orbit_ollama.client import OllamaClient, OllamaError
-from orbit_ollama.config import OllamaSettings
-from orbit_ollama.llm_provider import AgentChatInput, stream_ollama
-from orbit_ollama.models import OllamaModel
+from clovai.client import LlmClient, LlmError
+from clovai.config import LlmSettings
+from clovai.llm_provider import AgentChatInput, stream_llm
+from clovai.models import LlmModel
 
 
 @dataclass(slots=True)
-class OllamaStatus:
+class LlmProviderStatus:
     available: bool
     base_url: str
     default_model: str
@@ -43,7 +43,7 @@ def get_settings(
     base_url: str | None = None,
     default_model: str | None = None,
     timeout: float | None = None,
-) -> OllamaSettings:
+) -> LlmSettings:
     """Build settings from env (OLLAMA_*) with optional overrides."""
     overrides: dict[str, str | float] = {}
     if base_url is not None:
@@ -52,31 +52,31 @@ def get_settings(
         overrides["default_model"] = default_model
     if timeout is not None:
         overrides["timeout"] = timeout
-    return OllamaSettings(**overrides)
+    return LlmSettings(**overrides)
 
 
-def get_client(settings: OllamaSettings | None = None) -> OllamaClient:
-    return OllamaClient(settings or get_settings())
+def get_client(settings: LlmSettings | None = None) -> LlmClient:
+    return LlmClient(settings or get_settings())
 
 
-async def get_status(settings: OllamaSettings | None = None) -> OllamaStatus:
-    """Check whether Ollama is reachable."""
+async def get_status(settings: LlmSettings | None = None) -> LlmProviderStatus:
+    """Check whether the local LLM server is reachable."""
     settings = settings or get_settings()
     client = get_client(settings)
-    return OllamaStatus(
+    return LlmProviderStatus(
         available=await client.is_available(),
         base_url=settings.base_url,
         default_model=settings.default_model,
     )
 
 
-async def list_installed_models(settings: OllamaSettings | None = None) -> list[OllamaModel]:
-    """Return models from Ollama. Raises OllamaError if the server is down."""
+async def list_installed_models(settings: LlmSettings | None = None) -> list[LlmModel]:
+    """Return models from the local LLM server. Raises LlmError if unavailable."""
     settings = settings or get_settings()
     client = get_client(settings)
     if not await client.is_available():
-        raise OllamaError(
-            f"Ollama not reachable at {settings.base_url_normalized}. "
+        raise LlmError(
+            f"Local LLM not reachable at {settings.base_url_normalized}. "
             f"Start it with: ollama serve"
         )
     return await client.list_models()
@@ -105,19 +105,19 @@ def agent_chat_input(
 async def stream_agent_chat(
     chat: AgentChatInput,
     *,
-    settings: OllamaSettings | None = None,
+    settings: LlmSettings | None = None,
 ) -> AsyncIterator[str]:
     """
     Stream tokens for one agent chat turn.
 
-    Checks Ollama availability first; raises OllamaError if unavailable.
+    Checks LLM availability first; raises LlmError if unavailable.
     """
     settings = settings or get_settings()
     client = get_client(settings)
     if not await client.is_available():
-        raise OllamaError(
-            f"Ollama not reachable at {settings.base_url_normalized}. "
+        raise LlmError(
+            f"Local LLM not reachable at {settings.base_url_normalized}. "
             f"Run: ollama serve && ollama pull {settings.default_model}"
         )
-    async for token in stream_ollama(chat, settings=settings, client=client):
+    async for token in stream_llm(chat, settings=settings, client=client):
         yield token

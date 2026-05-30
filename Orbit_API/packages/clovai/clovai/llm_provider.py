@@ -1,13 +1,13 @@
-"""Low-level provider streaming — prefer orbit_ollama.utils for API calls."""
+"""Low-level provider streaming — prefer clovai.utils for API calls."""
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
-from orbit_ollama.chat import resolve_ollama_model, stream_chat
-from orbit_ollama.client import OllamaClient
-from orbit_ollama.config import OllamaSettings
+from clovai.chat import resolve_model, stream_chat
+from clovai.client import LlmClient
+from clovai.config import LlmSettings
 
 
 @dataclass(slots=True)
@@ -22,15 +22,15 @@ class AgentChatInput:
     user_message: str
 
 
-async def stream_ollama(
+async def stream_llm(
     chat: AgentChatInput,
     *,
-    settings: OllamaSettings | None = None,
-    client: OllamaClient | None = None,
+    settings: LlmSettings | None = None,
+    client: LlmClient | None = None,
 ) -> AsyncIterator[str]:
-    settings = settings or OllamaSettings()
-    client = client or OllamaClient(settings)
-    model = resolve_ollama_model(chat.model, settings.default_model)
+    settings = settings or LlmSettings()
+    client = client or LlmClient(settings)
+    model = resolve_model(chat.model, settings.default_model)
 
     async for token in stream_chat(
         client,

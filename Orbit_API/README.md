@@ -214,7 +214,7 @@ app/
 ├── services/          # RAG, plans, library, token usage
 ├── worker/            # Celery tasks (PDF ingest)
 └── models/            # SQLAlchemy tables
-packages/orbit-ollama/ # Ollama client used by the API
+packages/clovai/         # LLM client used by the Clovai API
 ```
 
 ---

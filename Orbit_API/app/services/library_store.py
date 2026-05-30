@@ -17,7 +17,7 @@ def _serialize_generated(row: LibraryGeneratedFile) -> dict:
         "conversation_id": row.conversation_id,
         "agent_id": row.agent_id,
         "agent_slug": agent.slug if agent else None,
-        "agent_name": agent.name if agent else "Orbit AI",
+        "agent_name": agent.name if agent else "Clovai",
         "agent_short_name": agent.short_name if agent else None,
         "icon_key": agent.icon_key if agent else "Sparkles",
         "color_key": agent.color_key if agent else "indigo",

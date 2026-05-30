@@ -2,7 +2,7 @@ from typing import AsyncIterator
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
-from orbit_ollama import OllamaError, OllamaSettings, agent_chat_input, get_settings, get_status, stream_agent_chat
+from clovai import LlmError, LlmSettings, agent_chat_input, get_settings, get_status, stream_agent_chat
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -90,20 +90,20 @@ async def _stream_azure(
             yield text
 
 
-def _ollama_settings(chat_stack: ChatStackConfig) -> OllamaSettings:
+def _local_llm_settings(chat_stack: ChatStackConfig) -> LlmSettings:
     return get_settings(
-        base_url=settings.ollama_base_url,
-        default_model=chat_stack.model or settings.ollama_default_model,
-        timeout=settings.ollama_timeout,
+        base_url=settings.local_llm_base_url,
+        default_model=chat_stack.model or settings.local_llm_default_model,
+        timeout=settings.local_llm_timeout,
     )
 
 
-async def _ollama_available(chat_stack: ChatStackConfig) -> bool:
-    status = await get_status(_ollama_settings(chat_stack))
+async def _local_llm_available(chat_stack: ChatStackConfig) -> bool:
+    status = await get_status(_local_llm_settings(chat_stack))
     return status.available
 
 
-async def _stream_ollama(
+async def _stream_local_llm(
     config: AgentRuntimeConfig,
     *,
     history: list[tuple[str, str]],
@@ -119,9 +119,9 @@ async def _stream_ollama(
         user_message=user_message,
     )
     try:
-        async for token in stream_agent_chat(chat, settings=_ollama_settings(chat_stack)):
+        async for token in stream_agent_chat(chat, settings=_local_llm_settings(chat_stack)):
             yield token
-    except OllamaError as exc:
+    except LlmError as exc:
         async for chunk in _stub_stream(f"[{config.name}] {exc}. You asked: {user_message}"):
             yield chunk
 
@@ -129,7 +129,7 @@ async def _stream_ollama(
 def _resolve_plan_stack(db: Session, user_plan: str | None) -> PlanAiStack:
     if user_plan:
         return get_plan_ai_stack(db, user_plan)
-    if settings.use_ollama:
+    if settings.use_local_llm:
         from app.services.plan_ai_stack import default_local_stack
 
         return default_local_stack()
@@ -204,16 +204,16 @@ async def stream_agent_response(
             yield token
         return
 
-    if await _ollama_available(chat_stack):
-        async for token in _stream_ollama(
+    if await _local_llm_available(chat_stack):
+        async for token in _stream_local_llm(
             config, history=history, user_message=effective_message, chat_stack=chat_stack
         ):
             yield token
         return
 
     async for chunk in _stub_stream(
-        f"[{config.name}] Ollama is not running. Start it with "
-        f"ollama serve && ollama pull {chat_stack.model or settings.ollama_default_model}. "
+        f"[{config.name}] Local LLM is not running. Start it with "
+        f"ollama serve && ollama pull {chat_stack.model or settings.local_llm_default_model}. "
         f"You asked: {effective_message}"
     ):
         yield chunk

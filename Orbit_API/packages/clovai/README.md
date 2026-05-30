@@ -1,6 +1,6 @@
-# orbit-ollama
+# clovai
 
-Shared Ollama client and high-level helpers for Orbit API.
+Shared LLM client and high-level helpers for the Clovai API.
 
 ## Install (local dev)
 
@@ -13,12 +13,20 @@ pip install -r requirements-local.txt
 ## API helpers
 
 ```python
-from orbit_ollama import (
+from clovai import (
+    AgentChatInput,
+    LlmClient,
+    LlmError,
+    LlmModel,
+    LlmProviderStatus,
+    LlmSettings,
     agent_chat_input,
     get_settings,
     get_status,
     list_installed_models,
+    resolve_model,
     stream_agent_chat,
+    stream_llm,
 )
 
 status = await get_status()
@@ -43,3 +51,5 @@ async for token in stream_agent_chat(chat):
 | `OLLAMA_BASE_URL` | `http://localhost:11434` |
 | `OLLAMA_DEFAULT_MODEL` | `llama3.2` |
 | `OLLAMA_TIMEOUT` | `120` |
+
+These env vars configure the local LLM server (Ollama-compatible API).

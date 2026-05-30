@@ -21,15 +21,17 @@ def _embed_fastembed(texts: list[str], *, model_name: str) -> list[list[float]]:
     return [vector.tolist() for vector in model.embed(texts)]
 
 
-def _embed_ollama(texts: list[str], *, model_name: str) -> list[list[float]]:
+def _embed_local_llm(texts: list[str], *, model_name: str) -> list[list[float]]:
     payload = {"model": model_name, "input": texts}
-    with httpx.Client(base_url=settings.ollama_base_url, timeout=settings.ollama_timeout) as client:
+    with httpx.Client(
+        base_url=settings.local_llm_base_url, timeout=settings.local_llm_timeout
+    ) as client:
         response = client.post("/api/embed", json=payload)
         response.raise_for_status()
         data = response.json()
     embeddings = data.get("embeddings")
     if not isinstance(embeddings, list):
-        raise ValueError("Ollama embedding response missing embeddings")
+        raise ValueError("Local LLM embedding response missing embeddings")
     return embeddings
 
 
@@ -55,7 +57,7 @@ def embed_texts(texts: list[str], stack: PlanAiStack | None = None) -> list[list
     if config.provider == "azure_openai":
         return _embed_azure(texts, config=config)
     if config.provider == "ollama":
-        return _embed_ollama(texts, model_name=config.model)
+        return _embed_local_llm(texts, model_name=config.model)
     return _embed_fastembed(texts, model_name=config.model)
 
 

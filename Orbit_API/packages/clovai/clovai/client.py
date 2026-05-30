@@ -7,24 +7,24 @@ from typing import Any
 
 import httpx
 
-from orbit_ollama.config import OllamaSettings
-from orbit_ollama.models import OllamaModel
+from clovai.config import LlmSettings
+from clovai.models import LlmModel
 
 
-class OllamaError(Exception):
-    """Raised when the Ollama API returns an error."""
+class LlmError(Exception):
+    """Raised when the local LLM API returns an error."""
 
 
-class OllamaClient:
-    """Async HTTP client for the Ollama REST API."""
+class LlmClient:
+    """Async HTTP client for a local LLM server (Ollama-compatible API)."""
 
     def __init__(
         self,
-        settings: OllamaSettings | None = None,
+        settings: LlmSettings | None = None,
         *,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        self.settings = settings or OllamaSettings()
+        self.settings = settings or LlmSettings()
         self._base = self.settings.base_url_normalized
         self._transport = transport
 
@@ -43,13 +43,13 @@ class OllamaClient:
         except httpx.HTTPError:
             return False
 
-    async def list_models(self) -> list[OllamaModel]:
+    async def list_models(self) -> list[LlmModel]:
         async with self._client() as client:
             response = await client.get("/api/tags")
             response.raise_for_status()
             payload = response.json()
 
-        models: list[OllamaModel] = []
+        models: list[LlmModel] = []
         for item in payload.get("models", []):
             details = item.get("details") or {}
             modified_raw = item.get("modified_at")
@@ -61,7 +61,7 @@ class OllamaClient:
                     modified_at = None
 
             models.append(
-                OllamaModel(
+                LlmModel(
                     name=item.get("name", ""),
                     size=item.get("size"),
                     modified_at=modified_at,
@@ -95,7 +95,7 @@ class OllamaClient:
             async with client.stream("POST", "/api/chat", json=body) as response:
                 if response.status_code >= 400:
                     detail = await response.aread()
-                    raise OllamaError(detail.decode() or f"Ollama chat failed ({response.status_code})")
+                    raise LlmError(detail.decode() or f"LLM chat failed ({response.status_code})")
 
                 async for line in response.aiter_lines():
                     if not line:
@@ -106,7 +106,7 @@ class OllamaClient:
                         continue
 
                     if chunk.get("error"):
-                        raise OllamaError(str(chunk["error"]))
+                        raise LlmError(str(chunk["error"]))
 
                     message = chunk.get("message") or {}
                     content = message.get("content")

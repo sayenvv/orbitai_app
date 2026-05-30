@@ -33,7 +33,7 @@ class PlanAiStack(BaseModel):
 
 def default_local_stack() -> PlanAiStack:
     return PlanAiStack(
-        chat=ChatStackConfig(provider="ollama", model=settings.ollama_default_model),
+        chat=ChatStackConfig(provider="ollama", model=settings.local_llm_default_model),
         embeddings=EmbeddingStackConfig(
             provider="fastembed",
             model=settings.rag_embedding_model,
@@ -74,7 +74,7 @@ def _coerce_chat(raw: Any) -> ChatStackConfig:
     provider = raw.get("provider", "ollama")
     if provider not in ("ollama", "openai", "azure_openai"):
         provider = "ollama"
-    model = str(raw.get("model") or settings.ollama_default_model).strip()
+    model = str(raw.get("model") or settings.local_llm_default_model).strip()
     deployment = raw.get("deployment")
     return ChatStackConfig(
         provider=provider,

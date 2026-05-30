@@ -1,3 +1,3 @@
-# Install from Orbit_API directory (orbit-ollama is pulled via pyproject.toml path dep):
+# Install from Orbit_API directory (clovai is pulled via pyproject.toml path dep):
 #   pip install -r requirements-local.txt
 -e .[dev]

@@ -25,7 +25,7 @@ function agentMetaForSource(
   }
   return {
     agentSlug: "general-knowledge",
-    agentName: source || "Orbit AI",
+    agentName: source || "Clovai",
     iconKey: "Sparkles",
     colorKey: "indigo",
   };
@@ -62,7 +62,7 @@ export function useGeneratedMaterials() {
           setMaterials(
             rows.map((row, index) => {
               const r = row as Record<string, string>;
-              const source = r.source ?? r.agent_name ?? "Orbit AI";
+              const source = r.source ?? r.agent_name ?? "Clovai";
               const meta = agentMetaForSource(source, agents);
               return {
                 id: r.id ?? `lib-${index}`,

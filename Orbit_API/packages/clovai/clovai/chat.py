@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from orbit_ollama.client import OllamaClient
+from clovai.client import LlmClient
 
 _OPENAI_MODEL_PREFIXES = ("gpt-", "o1", "o3", "text-", "chatgpt")
 
 
-def resolve_ollama_model(agent_model: str, default_model: str) -> str:
-    """Use agent model when it looks like an Ollama tag; otherwise fall back to default."""
+def resolve_model(agent_model: str, default_model: str) -> str:
+    """Use agent model when it looks like a local tag; otherwise fall back to default."""
     normalized = agent_model.strip()
     if not normalized:
         return default_model
@@ -30,14 +30,14 @@ def build_messages(
     for role, content in history:
         if not content.strip():
             continue
-        ollama_role = "assistant" if role == "assistant" else "user"
-        messages.append({"role": ollama_role, "content": content})
+        message_role = "assistant" if role == "assistant" else "user"
+        messages.append({"role": message_role, "content": content})
     messages.append({"role": "user", "content": user_message})
     return messages
 
 
 async def stream_chat(
-    client: OllamaClient,
+    client: LlmClient,
     *,
     model: str,
     system_prompt: str,

@@ -3,8 +3,8 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Build from repo root: docker build -f personal/orbitai_app/Orbit_API/Dockerfile .
-COPY packages/orbit-ollama /tmp/orbit-ollama
-RUN pip install --no-cache-dir /tmp/orbit-ollama
+COPY packages/clovai /tmp/clovai
+RUN pip install --no-cache-dir /tmp/clovai
 
 COPY personal/orbitai_app/Orbit_API/pyproject.toml personal/orbitai_app/Orbit_API/README.md ./
 COPY personal/orbitai_app/Orbit_API/app ./app

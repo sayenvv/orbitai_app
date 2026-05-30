@@ -178,7 +178,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                   ? selectedSource.status === "processing" || selectedSource.status === "pending"
                     ? `Indexing "${selectedSource.name}"…`
                     : `Using context: ${selectedSource.name}`
-                  : "Attach a PDF via Uploads or the paperclip · Orbit AI can make mistakes."}
+                  : "Attach a PDF via Uploads or the paperclip · Clovai can make mistakes."}
           </p>
         </form>
       </div>

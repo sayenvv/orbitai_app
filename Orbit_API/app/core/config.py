@@ -1,25 +1,31 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        populate_by_name=True,
+    )
 
-    app_name: str = "Orbit API"
+    app_name: str = "Clovai API"
     debug: bool = False
     secret_key: str = "change-me"
     database_url: str = "postgresql+psycopg://orbit:orbit@localhost:5432/orbit"
     cors_origins: str = "http://localhost:3001,http://localhost:3003,http://localhost:3004"
     openai_api_key: str = ""
-    llm_provider: str = "openai"  # "openai" | "ollama"
+    llm_provider: str = "openai"  # "openai" | "ollama" | "azure_openai"
     auth_cookie_name: str = "orbit_session"  # legacy; cleared on realm login
     auth_cookie_chat: str = "orbit_chat_session"
     auth_cookie_control: str = "orbit_control_session"
     auth_cookie_admin: str = "orbit_admin_session"
     auth_cookie_max_age: int = 604800
     control_center_data_dir: str = "../Orbit_UI/apps/control_center_app/src/data"
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_default_model: str = "llama3.2"
-    ollama_timeout: float = 120.0
+    local_llm_base_url: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_BASE_URL")
+    local_llm_default_model: str = Field(default="llama3.2", validation_alias="OLLAMA_DEFAULT_MODEL")
+    local_llm_timeout: float = Field(default=120.0, validation_alias="OLLAMA_TIMEOUT")
 
     # Azure OpenAI (used when plan ai_stack selects azure_openai)
     azure_openai_endpoint: str = ""
@@ -54,7 +60,7 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
-    def use_ollama(self) -> bool:
+    def use_local_llm(self) -> bool:
         return self.llm_provider.strip().lower() == "ollama"
 
 
