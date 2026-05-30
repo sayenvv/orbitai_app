@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Menu, PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
+import { LogIn, Menu, PanelLeft, PanelRight, Sparkles } from "lucide-react";
 import { AppSidebar } from "@/components/home/app-sidebar";
 import {
   MainAgentsPanel,
@@ -126,7 +126,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       </Suspense>
 
       {/* Mobile header */}
-      <header className="safe-top safe-x flex shrink-0 items-center justify-between border-b border-border/50 bg-background px-4 pb-3 pt-2 md:hidden">
+      <header className="safe-top safe-x flex shrink-0 items-center justify-between bg-background px-4 pb-3 pt-2 md:hidden">
         <div className="flex items-center gap-2.5">
           <button
             type="button"
@@ -187,14 +187,14 @@ function AppShellLayout({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`absolute top-4 z-40 flex h-14 w-6 items-center justify-center rounded-r-md border border-l-0 border-sidebar-border bg-sidebar text-sidebar-foreground transition-[left,color,background-color] duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${sidebarWidthClass}`}
+              className={`absolute top-0 z-40 flex h-14 min-w-8 items-center justify-center rounded-r-md bg-sidebar px-2 py-2 text-muted-foreground shadow-mac transition-[left,color,background-color,box-shadow] duration-300 ease-out hover:bg-sidebar-accent/60 hover:text-primary ${sidebarWidthClass}`}
               title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
               aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
               {sidebarOpen ? (
-                <PanelLeftClose className="h-5 w-5" strokeWidth={2.25} />
+                <PanelLeft className="h-5 w-5" strokeWidth={2.25} />
               ) : (
-                <PanelLeftOpen className="h-5 w-5" strokeWidth={2.25} />
+                <PanelRight className="h-5 w-5" strokeWidth={2.25} />
               )}
             </button>
           </div>

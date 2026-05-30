@@ -3,10 +3,12 @@
 import { useChatStore } from "@/store/chat-store";
 import { useAuthStore } from "@/store/auth-store";
 import { ChatMessages } from "./chat-messages";
+import { ChatActionsMenu } from "./chat-actions-menu";
 import { ChatThreadShimmer } from "@/components/ui/skeleton";
-import { ChatInput } from "./chat-input";
+import { ChatInput, type ChatInputHandle } from "./chat-input";
 import { Message, StudySource } from "@/types";
 import { chatApi, mapMessage } from "@/lib/orbit-api";
+import { chatContentClass } from "@/lib/chat-layout";
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppShell } from "@/components/layout/app-shell-context";
@@ -40,6 +42,7 @@ export function ChatInterface({
     updateConversationId,
     refreshConversationsList,
     setLoading,
+    deleteConversation,
   } = useChatStore();
   const { isAuthenticated } = useAuthStore();
 
@@ -47,6 +50,7 @@ export function ChatInterface({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const handleSendMessageRef = useRef<(content: string) => Promise<void>>(async () => {});
   const streamingConversationRef = useRef(false);
+  const chatInputRef = useRef<ChatInputHandle>(null);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
   const displayMessages = useMemo(() => {
@@ -286,21 +290,60 @@ export function ChatInterface({
     clearPromptFromUrl();
   }, [initialPrompt, searchParams, clearPromptFromUrl]);
 
+  const handleDeleteConversation = useCallback(async () => {
+    if (!activeConversationId || !isAuthenticated) return;
+    await chatApi.deleteConversation(activeConversationId);
+    deleteConversation(activeConversationId);
+    router.push("/");
+  }, [activeConversationId, isAuthenticated, deleteConversation, router]);
+
+  const handleNewChat = useCallback(() => {
+    setActiveConversation(null);
+    router.push("/");
+  }, [setActiveConversation, router]);
+
+  const showActionsMenu =
+    displayMessages.length > 0 || Boolean(activeConversationId) || isLoading;
+
+  const contentClass = chatContentClass(showActionsMenu);
+
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+      {showActionsMenu && (
+        <div className="pointer-events-none absolute inset-y-0 right-3 z-20 flex items-center overflow-visible py-28 md:right-5">
+          <div className="pointer-events-auto">
+            <ChatActionsMenu
+              conversationId={activeConversationId}
+              conversationTitle={activeConversation?.title}
+              messages={displayMessages}
+              canDelete={Boolean(activeConversationId && isAuthenticated)}
+              onDelete={handleDeleteConversation}
+              onNewChat={handleNewChat}
+            />
+          </div>
+        </div>
+      )}
       {loadingMessages ? (
-        <div className="flex-1 overflow-y-auto">
-          <ChatThreadShimmer />
+        <div className="min-h-0 flex-1 overflow-y-auto w-full">
+          <div className={contentClass}>
+            <ChatThreadShimmer />
+          </div>
         </div>
       ) : (
         <ChatMessages
+          contentClassName={contentClass}
           messages={displayMessages}
           isLoading={isLoading}
           streamingMsgId={streamingMsgId}
-          onSuggestionClick={(text) => void handleSendMessage(text)}
+          onSuggestionClick={(text) => {
+            void handleSendMessage(text);
+            chatInputRef.current?.focus();
+          }}
         />
       )}
       <ChatInput
+        ref={chatInputRef}
+        columnClassName={contentClass}
         onSend={handleSendMessage}
         isLoading={isLoading}
         selectedSource={isAuthenticated ? selectedSource : null}

@@ -47,7 +47,7 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-sidebar-border bg-sidebar px-2 py-4 transition-[width,background-color] duration-300 ease-out",
+        "relative z-10 flex flex-col bg-sidebar px-2 py-4 shadow-mac transition-[width,background-color,box-shadow] duration-300 ease-out",
         expanded ? "w-64" : "w-20",
       )}
     >

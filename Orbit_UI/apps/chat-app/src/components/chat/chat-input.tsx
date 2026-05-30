@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, FormEvent, KeyboardEvent, useEffect } from "react";
+import { useState, useRef, FormEvent, KeyboardEvent, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { ArrowUp, Paperclip, Sparkles, StopCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StudySource } from "@/types";
@@ -12,17 +12,44 @@ type ChatInputProps = {
   selectedSource: StudySource | null;
   onSelectSource: (source: StudySource | null) => void;
   showContextSelector?: boolean;
+  columnClassName?: string;
 };
 
-export function ChatInput({
-  onSend,
-  isLoading,
-  selectedSource,
-  onSelectSource,
-  showContextSelector = true,
-}: ChatInputProps) {
+export type ChatInputHandle = {
+  focus: () => void;
+};
+
+export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput(
+  {
+    onSend,
+    isLoading,
+    selectedSource,
+    onSelectSource,
+    showContextSelector = true,
+    columnClassName,
+  },
+  ref,
+) {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const focusTextarea = useCallback(() => {
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, []);
+
+  useImperativeHandle(ref, () => ({ focus: focusTextarea }), [focusTextarea]);
+
+  useEffect(() => {
+    focusTextarea();
+  }, [focusTextarea]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      focusTextarea();
+    }
+  }, [isLoading, focusTextarea]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -37,6 +64,7 @@ export function ChatInput({
     if (!trimmed || isLoading) return;
     onSend(trimmed);
     setInput("");
+    focusTextarea();
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -49,21 +77,16 @@ export function ChatInput({
   const canSend = input.trim().length > 0 && !isLoading;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center px-4 pb-4 pt-10 safe-bottom sm:px-6 sm:pb-6">
-      <div
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background via-background/95 to-transparent"
-      />
-
-      <div className="pointer-events-auto relative w-full max-w-3xl">
+    <div className="shrink-0 w-full bg-transparent pb-4 pt-3 safe-bottom sm:pb-5">
+      <div className={cn("relative w-full", columnClassName)}>
         {showContextSelector && (
-          <div className="mb-2 flex justify-center">
+          <div className="mb-2">
             <ContextSelector selectedSource={selectedSource} onSelect={onSelectSource} />
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="rounded-[28px] border border-border/60 bg-card/95 p-2 shadow-[0_16px_48px_-16px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.45)]">
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="w-full rounded-[28px] border border-border/60 bg-card/95 p-2 shadow-[0_16px_48px_-16px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.45)]">
             <div className="flex items-end gap-1.5">
               <button
                 type="button"
@@ -85,7 +108,6 @@ export function ChatInput({
                 }
                 className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent px-2 py-3 text-[15px] leading-relaxed placeholder:text-muted-foreground/70 focus:outline-none sm:px-3"
                 rows={1}
-                disabled={isLoading}
               />
 
               <div className="mb-1 mr-1 shrink-0">
@@ -125,4 +147,4 @@ export function ChatInput({
       </div>
     </div>
   );
-}
+});
