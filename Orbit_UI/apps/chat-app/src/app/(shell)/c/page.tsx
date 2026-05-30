@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { StudySource } from "@/types";
 
@@ -26,11 +27,13 @@ export default async function ChatPage({ searchParams }: { searchParams: SearchP
   }
 
   return (
-    <ChatInterface
-      initialSource={initialSource}
-      agentId={agent}
-      initialConversationId={conversation}
-      initialPrompt={prompt}
-    />
+    <Suspense fallback={null}>
+      <ChatInterface
+        initialSource={initialSource}
+        agentId={agent}
+        initialConversationId={conversation}
+        initialPrompt={prompt}
+      />
+    </Suspense>
   );
 }

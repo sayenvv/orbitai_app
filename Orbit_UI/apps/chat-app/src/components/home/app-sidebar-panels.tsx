@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
+import { SidebarRecentsShimmer } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/types";
 import type { GeneratedMaterial } from "@/lib/orbit-api";
@@ -161,9 +162,7 @@ export function SidebarRecentsList({
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-2">
         {loading ? (
-          <div className="flex justify-center py-8 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-          </div>
+          <SidebarRecentsShimmer />
         ) : groups.length === 0 ? (
           <p className="px-1 py-6 text-center text-[11px] text-muted-foreground">
             {searchQuery ? "No matching chats" : "No recent chats"}

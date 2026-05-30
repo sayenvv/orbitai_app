@@ -67,6 +67,11 @@ class StreamMessageRequest(BaseModel):
     source_type: str | None = None
 
 
+class CreateConversationRequest(BaseModel):
+    agent_id: str | None = None
+    title: str = "New conversation"
+
+
 class ConversationSummary(BaseModel):
     id: UUID
     title: str

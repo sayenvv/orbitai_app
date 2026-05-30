@@ -20,6 +20,7 @@ import { useGeneratedMaterials } from "@/hooks/use-generated-materials";
 import { useLogout } from "@/hooks/use-auth";
 import { routeForAgent } from "@/lib/home-data";
 import { useAuthStore } from "@/store/auth-store";
+import { useChatStore } from "@/store/chat-store";
 
 function ShellSectionSync() {
   const searchParams = useSearchParams();
@@ -64,7 +65,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
     header,
   } = useAppShell();
 
-  const activeConversationId = searchParams.get("conversation");
   const sidebarWidthClass = sidebarOpen ? "left-[16rem]" : "left-[5rem]";
 
   const initials = user?.name
@@ -80,11 +80,20 @@ function AppShellLayout({ children }: { children: ReactNode }) {
     setSection(next);
     if (next === "home") {
       setSidebarOpen(true);
-      router.push("/");
+      useChatStore.getState().setActiveConversation(null);
+      if (pathname !== "/") {
+        router.push("/");
+      } else if (searchParams.get("section")) {
+        router.replace("/");
+      }
     } else if (next === "library") {
-      router.push("/?section=library");
+      if (pathname !== "/" || searchParams.get("section") !== "library") {
+        router.push("/?section=library");
+      }
     } else if (next === "agents") {
-      router.push("/?section=agents");
+      if (pathname !== "/" || searchParams.get("section") !== "agents") {
+        router.push("/?section=agents");
+      }
     }
   };
 
@@ -93,6 +102,19 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       setSection("home");
     }
   }, [pathname, setSection]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void useChatStore.getState().refreshConversationsList();
+      return;
+    }
+    useChatStore.getState().clearConversations();
+    useChatStore.setState({ conversationsHydrated: true });
+  }, [isAuthenticated]);
+
+  const storeActiveConversationId = useChatStore((s) => s.activeConversationId);
+  const sidebarActiveConversationId =
+    searchParams.get("conversation") ?? storeActiveConversationId;
 
   const showSectionPanel =
     pathname === "/" && (section === "library" || section === "agents");
@@ -159,7 +181,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
               expanded={sidebarOpen}
               section={section}
               onSectionChange={handleSectionChange}
-              activeConversationId={activeConversationId}
+              activeConversationId={sidebarActiveConversationId}
               onOpenSettings={() => openSupport("settings")}
             />
             <button

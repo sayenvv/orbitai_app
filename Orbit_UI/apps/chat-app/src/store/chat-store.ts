@@ -1,41 +1,90 @@
 import { create } from "zustand";
+import { chatApi, mapConversationSummary } from "@/lib/orbit-api";
 import { Conversation, Message } from "@/types";
+
+function dedupeMessages(messages: Message[]): Message[] {
+  const seenIds = new Set<string>();
+  const seenContent = new Set<string>();
+  const result: Message[] = [];
+
+  for (const msg of messages) {
+    if (seenIds.has(msg.id)) continue;
+    const contentKey = `${msg.role}:${msg.content.trim()}`;
+    if (msg.content.trim() && seenContent.has(contentKey)) continue;
+    seenIds.add(msg.id);
+    if (msg.content.trim()) seenContent.add(contentKey);
+    result.push(msg);
+  }
+
+  return result;
+}
+
+function dedupeConversations(conversations: Conversation[]): Conversation[] {
+  const byId = new Map<string, Conversation>();
+
+  for (const conv of conversations) {
+    const existing = byId.get(conv.id);
+    if (!existing) {
+      byId.set(conv.id, { ...conv, messages: dedupeMessages(conv.messages) });
+      continue;
+    }
+    byId.set(conv.id, {
+      ...existing,
+      ...conv,
+      messages: dedupeMessages([...existing.messages, ...conv.messages]),
+      updatedAt:
+        new Date(conv.updatedAt) > new Date(existing.updatedAt)
+          ? conv.updatedAt
+          : existing.updatedAt,
+    });
+  }
+
+  return Array.from(byId.values());
+}
 
 type ChatState = {
   conversations: Conversation[];
   activeConversationId: string | null;
   isLoading: boolean;
+  conversationsLoading: boolean;
+  conversationsHydrated: boolean;
   setActiveConversation: (id: string | null) => void;
   addConversation: (conversation: Conversation) => void;
   addMessage: (conversationId: string, message: Message) => void;
   updateMessage: (conversationId: string, messageId: string, content: string) => void;
   updateConversationId: (oldId: string, newId: string) => void;
   setConversations: (conversations: Conversation[]) => void;
+  refreshConversationsList: () => Promise<void>;
   deleteConversation: (id: string) => void;
   setLoading: (loading: boolean) => void;
   clearConversations: () => void;
 };
 
-export const useChatStore = create<ChatState>((set) => ({
+export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   activeConversationId: null,
   isLoading: false,
+  conversationsLoading: false,
+  conversationsHydrated: false,
 
   setActiveConversation: (id) => set({ activeConversationId: id }),
 
   addConversation: (conversation) =>
     set((state) => ({
-      conversations: [conversation, ...state.conversations],
+      conversations: dedupeConversations([
+        { ...conversation, messages: dedupeMessages(conversation.messages) },
+        ...state.conversations.filter((c) => c.id !== conversation.id),
+      ]),
       activeConversationId: conversation.id,
     })),
 
   addMessage: (conversationId, message) =>
     set((state) => ({
-      conversations: state.conversations.map((conv) =>
-        conv.id === conversationId
-          ? { ...conv, messages: [...conv.messages, message], updatedAt: new Date() }
-          : conv
-      ),
+      conversations: state.conversations.map((conv) => {
+        if (conv.id !== conversationId) return conv;
+        const next = dedupeMessages([...conv.messages, message]);
+        return { ...conv, messages: next, updatedAt: new Date() };
+      }),
     })),
 
   updateMessage: (conversationId, messageId, content) =>
@@ -47,6 +96,7 @@ export const useChatStore = create<ChatState>((set) => ({
               messages: conv.messages.map((msg) =>
                 msg.id === messageId ? { ...msg, content } : msg
               ),
+              updatedAt: new Date(),
             }
           : conv
       ),
@@ -54,13 +104,45 @@ export const useChatStore = create<ChatState>((set) => ({
 
   updateConversationId: (oldId, newId) =>
     set((state) => ({
-      conversations: state.conversations.map((conv) =>
-        conv.id === oldId ? { ...conv, id: newId } : conv
+      conversations: dedupeConversations(
+        state.conversations.map((conv) =>
+          conv.id === oldId ? { ...conv, id: newId, updatedAt: new Date() } : conv,
+        ),
       ),
-      activeConversationId: state.activeConversationId === oldId ? newId : state.activeConversationId,
+      activeConversationId:
+        state.activeConversationId === oldId ? newId : state.activeConversationId,
     })),
 
-  setConversations: (conversations) => set({ conversations }),
+  setConversations: (incoming) =>
+    set((state) => {
+      const merged = incoming.map((apiConv) => {
+        const existing = state.conversations.find((c) => c.id === apiConv.id);
+        if (existing && existing.messages.length > 0) {
+          return {
+            ...apiConv,
+            messages: dedupeMessages(existing.messages),
+            updatedAt: existing.updatedAt,
+          };
+        }
+        return apiConv;
+      });
+      const localOnly = state.conversations.filter(
+        (c) => !incoming.some((ic) => ic.id === c.id),
+      );
+      return { conversations: dedupeConversations([...localOnly, ...merged]) };
+    }),
+
+  refreshConversationsList: async () => {
+    set({ conversationsLoading: true });
+    try {
+      const data = await chatApi.listConversations();
+      get().setConversations(data.data.map(mapConversationSummary));
+    } catch {
+      // keep local state on failure
+    } finally {
+      set({ conversationsLoading: false, conversationsHydrated: true });
+    }
+  },
 
   deleteConversation: (id) =>
     set((state) => ({
@@ -70,5 +152,6 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setLoading: (loading) => set({ isLoading: loading }),
 
-  clearConversations: () => set({ conversations: [], activeConversationId: null }),
+  clearConversations: () =>
+    set({ conversations: [], activeConversationId: null, conversationsHydrated: false }),
 }));

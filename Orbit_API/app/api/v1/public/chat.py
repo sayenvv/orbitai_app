@@ -19,6 +19,7 @@ from app.schemas import (
     ConversationDetailResponse,
     ConversationListResponse,
     ConversationSummary,
+    CreateConversationRequest,
     MessageResponse,
     StreamMessageRequest,
 )
@@ -41,6 +42,35 @@ def _conversation_summary(conv: Conversation) -> ConversationSummary:
         icon_key=agent.icon_key if agent else None,
         color_key=agent.color_key if agent else None,
     )
+
+
+@router.post("/conversations", response_model=ConversationSummary)
+def create_conversation(
+    body: CreateConversationRequest,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    registry = AgentRegistry(db)
+    agent_config = registry.get_by_slug(body.agent_id) if body.agent_id else registry.get_default()
+    agent_uuid = agent_config.agent_id if agent_config else None
+
+    conv = Conversation(
+        user_id=user.id,
+        agent_id=agent_uuid,
+        title=body.title[:512],
+    )
+    db.add(conv)
+    db.commit()
+    db.refresh(conv)
+
+    conv = (
+        db.query(Conversation)
+        .options(joinedload(Conversation.agent))
+        .filter(Conversation.id == conv.id)
+        .first()
+    )
+    assert conv is not None
+    return _conversation_summary(conv)
 
 
 @router.get("/conversations", response_model=ConversationListResponse)
@@ -120,21 +150,14 @@ async def stream_message(
             if user and conv.user_id and conv.user_id != user.id:
                 raise HTTPException(status_code=403, detail="Forbidden")
             history = load_conversation_history(db, conv.id)
-    elif user:
+
+    if conv is None:
         conv = get_or_create_conversation(
             db,
             conversation_id=None,
-            user_id=user.id,
+            user_id=user.id if user else None,
             agent_id=agent_uuid,
-            title=body.message[:50],
-        )
-    else:
-        conv = get_or_create_conversation(
-            db,
-            conversation_id=None,
-            user_id=None,
-            agent_id=agent_uuid,
-            title=body.message[:50],
+            title=(body.message[:50] if body.message else "New conversation"),
         )
 
     assert conv is not None

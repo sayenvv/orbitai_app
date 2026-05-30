@@ -29,8 +29,10 @@ export function HomeMobileContent() {
 
   const handleSend = () => {
     const trimmed = message.trim();
-    if (!trimmed && !selectedLibraryId) return;
-    router.push(`/c?prompt=${encodeURIComponent(trimmed)}`);
+    if (!trimmed) return;
+    router.push(
+      `/c?prompt=${encodeURIComponent(trimmed)}&send=${crypto.randomUUID()}`,
+    );
   };
 
   return (
@@ -145,7 +147,7 @@ export function HomeMobileContent() {
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={!message.trim() && !selectedLibraryId}
+                disabled={!message.trim()}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:bg-muted disabled:text-muted-foreground"
                 aria-label="Send"
               >
