@@ -42,3 +42,27 @@ next-env.d.ts
 *.sst
 *.meta 
 *.del
+
+# backend (Orbit_API — Python / FastAPI)
+Orbit_API/.venv/
+Orbit_API/venv/
+Orbit_API/**/__pycache__/
+Orbit_API/**/*.py[cod]
+Orbit_API/**/*$py.class
+Orbit_API/.pytest_cache/
+Orbit_API/.mypy_cache/
+Orbit_API/.ruff_cache/
+Orbit_API/.coverage
+Orbit_API/.coverage.*
+Orbit_API/htmlcov/
+Orbit_API/dist/
+Orbit_API/build/
+Orbit_API/*.egg-info/
+Orbit_API/.eggs/
+Orbit_API/.ipynb_checkpoints/
+Orbit_API/.python-version
+Orbit_API/*.log
+Orbit_API/.env
+Orbit_API/.env.local
+Orbit_API/.env.*.local
+*.pyc
