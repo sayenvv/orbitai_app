@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, FolderOpen, Loader2, Paperclip, Search, X } from "lucide-react";
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
-import { libraryItems, routeForAgent } from "@/lib/home-data";
+import { navigateToAgentChat, navigateToChatLaunch } from "@/lib/chat-navigation";
+import { libraryItems } from "@/lib/home-data";
 import { useAgents } from "@/hooks/use-agents";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppShell } from "@/components/layout/app-shell-context";
-import { appendSourceToSearchParams, uploadPdfAndWait, validatePdfFile, PdfUploadCancelledError } from "@/lib/rag-upload";
+import { uploadPdfAndWait, validatePdfFile, PdfUploadCancelledError } from "@/lib/rag-upload";
 import { HomeMobileContent } from "@/components/home/home-mobile-content";
 import { LibraryPicker } from "@/components/home/library-picker";
 
@@ -61,11 +62,11 @@ export default function HomePage() {
       setHeroUploadError("");
       try {
         const source = await uploadPdfAndWait(attachedFiles[0]);
-        const params = new URLSearchParams();
-        params.set("prompt", trimmed || "Summarize this document");
-        params.set("send", crypto.randomUUID());
-        appendSourceToSearchParams(params, source);
-        router.push(`/c?${params.toString()}`);
+        navigateToChatLaunch(router, {
+          prompt: trimmed || "Summarize this document",
+          sendKey: crypto.randomUUID(),
+          source,
+        });
       } catch (err) {
         if (err instanceof PdfUploadCancelledError) return;
         setHeroUploadError(err instanceof Error ? err.message : "Upload failed");
@@ -75,9 +76,10 @@ export default function HomePage() {
       return;
     }
 
-    router.push(
-      `/c?prompt=${encodeURIComponent(trimmed)}&send=${crypto.randomUUID()}`,
-    );
+    navigateToChatLaunch(router, {
+      prompt: trimmed,
+      sendKey: crypto.randomUUID(),
+    });
   };
 
   const selectedLibraryItem = selectedLibraryId
@@ -242,7 +244,7 @@ export default function HomePage() {
                 <button
                   key={agent.id}
                   type="button"
-                  onClick={() => router.push(routeForAgent(agent.id))}
+                  onClick={() => navigateToAgentChat(router, agent.id)}
                   className="w-full text-left"
                 >
                   <AgentCardTint

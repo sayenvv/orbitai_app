@@ -1,18 +1,14 @@
 "use client";
 
-import { BRAND_NAME } from "@orbit/ui";
 import { Message } from "@/types";
 import { AssistantReplyShimmer, AssistantTextShimmer } from "@/components/ui/skeleton";
 import { UpgradeCtaButton } from "@/components/plans/upgrade-cta";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 import {
   Bot,
   Copy,
   Check,
-  Sparkles,
-  Lightbulb,
-  FileText,
-  MessageSquare,
   Terminal,
 } from "lucide-react";
 import { useEffect, useRef, useState, memo } from "react";
@@ -27,32 +23,10 @@ type ChatMessagesProps = {
   streamingMsgId?: string | null;
   upgradeMessageId?: string | null;
   onUpgrade?: () => void;
-  onSuggestionClick?: (text: string) => void;
   contentClassName?: string;
   className?: string;
-  /** True when no specialized agent is selected — show default assistant branding. */
-  isClovaiChat?: boolean;
-  assistantName?: string;
-  assistantDescription?: string;
+  footer?: ReactNode;
 };
-
-const SUGGESTIONS = [
-  {
-    icon: Lightbulb,
-    title: "Explain a concept",
-    prompt: "Explain this concept in simple terms with an example.",
-  },
-  {
-    icon: FileText,
-    title: "Summarize content",
-    prompt: "Give me a concise summary of the key points.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Help me decide",
-    prompt: "What are the pros and cons I should consider?",
-  },
-] as const;
 
 export function ChatMessages({
   messages,
@@ -60,12 +34,9 @@ export function ChatMessages({
   streamingMsgId,
   upgradeMessageId,
   onUpgrade,
-  onSuggestionClick,
   contentClassName,
   className,
-  isClovaiChat = true,
-  assistantName,
-  assistantDescription,
+  footer,
 }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -76,65 +47,7 @@ export function ChatMessages({
     } else {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isLoading, streamingMsgId]);
-
-  if (messages.length === 0 && !isLoading) {
-    const displayName = assistantName?.trim() || BRAND_NAME;
-    const displayDescription =
-      assistantDescription?.trim() ||
-      `${displayName} is your AI assistant for study, research, writing, and everyday questions.`;
-
-    return (
-      <div
-        ref={scrollRef}
-        className={cn("min-h-0 flex-1 overflow-y-auto scroll-smooth w-full", className)}
-      >
-        <div
-          className={cn(
-            contentClassName,
-            "flex min-h-full flex-col items-center justify-center pb-8",
-          )}
-        >
-          <div className="w-full max-w-2xl space-y-8 text-center">
-            <div className="space-y-4">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
-              <Sparkles className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {isClovaiChat ? `Hi, I'm ${displayName}` : "What can I help with?"}
-              </h2>
-              <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">
-                {isClovaiChat
-                  ? displayDescription
-                  : "Ask anything — research, writing, planning, or brainstorming. Your conversation stays here in the sidebar."}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            {SUGGESTIONS.map(({ icon: Icon, title, prompt }) => (
-              <button
-                key={title}
-                type="button"
-                onClick={() => onSuggestionClick?.(prompt)}
-                className="press group flex flex-col items-start gap-2 rounded-2xl border border-border/50 bg-card/60 p-4 text-left shadow-sm backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card hover:shadow-md"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-105">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="text-sm font-medium">{title}</span>
-                <span className="text-[11px] leading-snug text-muted-foreground line-clamp-2">
-                  {prompt}
-                </span>
-              </button>
-            ))}
-          </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, [messages, isLoading, streamingMsgId, footer]);
 
   return (
     <div
@@ -161,6 +74,7 @@ export function ChatMessages({
           );
         })}
         {isLoading && !streamingMsgId && <AssistantReplyShimmer />}
+        {footer}
         <div ref={bottomRef} />
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useChatStore } from "@/store/chat-store";
 import { useAuthStore } from "@/store/auth-store";
 import { ChatMessages } from "./chat-messages";
+import { AgentSuggestions } from "./agent-suggestions";
 import { ChatActionsMenu } from "./chat-actions-menu";
 import { ChatThreadShimmer } from "@/components/ui/skeleton";
 import { ChatInput, type ChatInputHandle } from "./chat-input";
@@ -14,28 +15,28 @@ import {
   isSourceReady,
   mapRagDocumentToSource,
 } from "@/lib/rag-upload";
+import { buildAgentGreeting } from "@/lib/agent-greeting";
+import { conversationPath, navigateToNewChat } from "@/lib/chat-navigation";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useUsageStore } from "@/store/usage-store";
+import { useChatSessionStore } from "@/store/chat-session-store";
+import { useAgents } from "@/hooks/use-agents";
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-/** Survives React Strict Mode remounts — one auto-send per home navigation. */
+/** Survives React Strict Mode remounts — one auto-send per pending launch. */
 const processedInitialSends = new Set<string>();
+const processedAgentGreets = new Set<string>();
 
-export function ChatInterface({
-  initialSource,
-  agentId,
-  initialConversationId,
-  initialPrompt,
-}: {
-  initialSource?: StudySource | null;
-  agentId?: string;
-  initialConversationId?: string;
-  initialPrompt?: string;
-}) {
+export function ChatInterface({ conversationId }: { conversationId?: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { setHeader, openUpgrade, openAuthPrompt } = useAppShell();
+  const { agents } = useAgents();
+  const draftAgentSlug = useChatSessionStore((s) => s.draftAgentSlug);
+  const launchSeq = useChatSessionStore((s) => s.launchSeq);
+  const consumePending = useChatSessionStore((s) => s.consumePending);
+  const showInvalidChatNotice = useChatSessionStore((s) => s.showInvalidChatNotice);
+  const setDraftAgentSlug = useChatSessionStore((s) => s.setDraftAgentSlug);
   const {
     conversations,
     activeConversationId,
@@ -52,22 +53,30 @@ export function ChatInterface({
   } = useChatStore();
   const { isAuthenticated } = useAuthStore();
 
-  const [selectedSource, setSelectedSource] = useState<StudySource | null>(initialSource ?? null);
+  const [selectedSource, setSelectedSource] = useState<StudySource | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [defaultAssistant, setDefaultAssistant] = useState<{
-    name: string;
-    description: string;
-  } | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const [agentGreeting, setAgentGreeting] = useState<Message | null>(null);
+  const [conversationError, setConversationError] = useState(false);
   const handleSendMessageRef = useRef<(content: string) => Promise<void>>(async () => {});
   const streamingConversationRef = useRef(false);
   const chatInputRef = useRef<ChatInputHandle>(null);
+  const agentGreetingRef = useRef<Message | null>(null);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
+  const effectiveAgentSlug =
+    activeConversation?.agentSlug ?? draftAgentSlug ?? null;
+  const activeAgent = agents.find((agent) => agent.id === effectiveAgentSlug);
+
+  agentGreetingRef.current = agentGreeting;
+
   const displayMessages = useMemo(() => {
     const msgs = activeConversation?.messages ?? [];
+    const base =
+      agentGreeting && msgs.length === 0 && !conversationId ? [agentGreeting, ...msgs] : msgs;
     const seenIds = new Set<string>();
     const seenContent = new Set<string>();
-    return msgs.filter((msg) => {
+    return base.filter((msg) => {
       if (seenIds.has(msg.id)) return false;
       const contentKey = `${msg.role}:${msg.content.trim()}`;
       if (msg.content.trim() && seenContent.has(contentKey)) return false;
@@ -75,7 +84,18 @@ export function ChatInterface({
       if (msg.content.trim()) seenContent.add(contentKey);
       return true;
     });
-  }, [activeConversation?.messages]);
+  }, [activeConversation?.messages, agentGreeting, conversationId]);
+
+  useEffect(() => {
+    setConversationError(false);
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (!conversationError || !conversationId) return;
+    showInvalidChatNotice();
+    setConversationError(false);
+    router.replace("/");
+  }, [conversationError, conversationId, router, showInvalidChatNotice]);
 
   useEffect(() => {
     setHeader(null);
@@ -83,24 +103,62 @@ export function ChatInterface({
   }, [setHeader]);
 
   useEffect(() => {
-    let cancelled = false;
-    publicApi
-      .defaultChat()
-      .then((data) => {
-        if (!cancelled) {
-          setDefaultAssistant({
-            name: data.assistant_name,
-            description: data.description,
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setDefaultAssistant(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (conversationId) {
+      setActiveConversation(conversationId);
+      setAgentGreeting(null);
+      return;
+    }
+
+    setActiveConversation(null);
+
+    const pending = consumePending();
+    if (!pending) return;
+
+    if (pending.agentSlug) {
+      setDraftAgentSlug(pending.agentSlug);
+    }
+    if (pending.source) {
+      setSelectedSource(pending.source);
+    }
+    if (pending.prompt?.trim()) {
+      setPendingPrompt(pending.prompt.trim());
+    }
+  }, [conversationId, launchSeq, consumePending, setActiveConversation, setDraftAgentSlug]);
+
+  useLayoutEffect(() => {
+    if (conversationId) {
+      setAgentGreeting(null);
+      return;
+    }
+    if (!effectiveAgentSlug || !activeAgent) {
+      setAgentGreeting(null);
+      return;
+    }
+    if (pendingPrompt) return;
+    if ((activeConversation?.messages.length ?? 0) > 0) {
+      setAgentGreeting(null);
+      return;
+    }
+
+    const dedupeKey = `${effectiveAgentSlug}:${launchSeq}`;
+    if (processedAgentGreets.has(dedupeKey)) return;
+    processedAgentGreets.add(dedupeKey);
+
+    setAgentGreeting({
+      id: `greet-${dedupeKey}`,
+      role: "assistant",
+      content: buildAgentGreeting(activeAgent.name),
+      timestamp: new Date(),
+    });
+    requestAnimationFrame(() => chatInputRef.current?.focus());
+  }, [
+    conversationId,
+    effectiveAgentSlug,
+    activeAgent,
+    launchSeq,
+    pendingPrompt,
+    activeConversation?.messages.length,
+  ]);
 
   useEffect(() => {
     if (!selectedSource || selectedSource.type !== "uploaded-file") return;
@@ -126,14 +184,6 @@ export function ChatInterface({
     };
   }, [selectedSource?.id, selectedSource?.status, selectedSource?.type]);
 
-  useEffect(() => {
-    if (initialConversationId) {
-      setActiveConversation(initialConversationId);
-    } else if (initialPrompt) {
-      setActiveConversation(null);
-    }
-  }, [initialConversationId, initialPrompt, setActiveConversation]);
-
   const loadConversationMessages = useCallback(
     async (id: string) => {
       if (streamingConversationRef.current) return;
@@ -141,24 +191,37 @@ export function ChatInterface({
       const conv = useChatStore.getState().conversations.find((c) => c.id === id);
       if (conv && conv.messages.length > 0) {
         setActiveConversation(id);
+        if (conv.agentSlug) setDraftAgentSlug(conv.agentSlug);
         return;
       }
 
       setActiveConversation(id);
       setLoadingMessages(true);
+      setConversationError(false);
       try {
+        await refreshConversationsList();
+        const summary = useChatStore.getState().conversations.find((c) => c.id === id);
+
         const data = await chatApi.getConversation(id);
         const messages = data.messages.map(mapMessage);
         const latest = useChatStore.getState().conversations.find((c) => c.id === id);
-        if (latest && latest.messages.length > 0) return;
+        if (latest && latest.messages.length > 0) {
+          if (latest.agentSlug) setDraftAgentSlug(latest.agentSlug);
+          return;
+        }
 
         if (!latest) {
           addConversation({
             id,
-            title: "Chat",
+            title: summary?.title ?? "Chat",
             messages,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: summary?.createdAt ?? new Date(),
+            updatedAt: summary?.updatedAt ?? new Date(),
+            agentSlug: summary?.agentSlug ?? null,
+            agentName: summary?.agentName ?? null,
+            agentShortName: summary?.agentShortName ?? null,
+            iconKey: summary?.iconKey ?? null,
+            colorKey: summary?.colorKey ?? null,
           });
         } else {
           const existingIds = new Set(latest.messages.map((m) => m.id));
@@ -166,37 +229,51 @@ export function ChatInterface({
             if (!existingIds.has(msg.id)) addMessage(id, msg);
           }
         }
-      } catch {
-        // silently fail
+
+        if (summary?.agentSlug) setDraftAgentSlug(summary.agentSlug);
+        else setDraftAgentSlug(null);
+      } catch (err) {
+        const isMissing =
+          err instanceof ApiError && (err.status === 404 || err.status === 422 || err.status === 403);
+        if (isMissing) {
+          deleteConversation(id);
+          setActiveConversation(null);
+          setConversationError(true);
+        }
       } finally {
         setLoadingMessages(false);
       }
     },
-    [setActiveConversation, addConversation, addMessage],
+    [setActiveConversation, addConversation, addMessage, setDraftAgentSlug, refreshConversationsList, deleteConversation],
   );
 
   useEffect(() => {
-    if (!initialConversationId || !isAuthenticated || !conversationsHydrated) {
+    if (!conversationId || !isAuthenticated || !conversationsHydrated) {
       return;
     }
     if (streamingConversationRef.current || isLoading) return;
 
-    const conv = useChatStore
-      .getState()
-      .conversations.find((c) => c.id === initialConversationId);
+    const conv = useChatStore.getState().conversations.find((c) => c.id === conversationId);
+    if (conv?.agentSlug) {
+      setDraftAgentSlug(conv.agentSlug);
+    } else if (conv) {
+      setDraftAgentSlug(null);
+    }
+
     if (conv && conv.messages.length > 0) {
-      setActiveConversation(initialConversationId);
+      setActiveConversation(conversationId);
       return;
     }
 
-    void loadConversationMessages(initialConversationId);
+    void loadConversationMessages(conversationId);
   }, [
-    initialConversationId,
+    conversationId,
     isAuthenticated,
     conversationsHydrated,
     isLoading,
     loadConversationMessages,
     setActiveConversation,
+    setDraftAgentSlug,
   ]);
 
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
@@ -205,30 +282,22 @@ export function ChatInterface({
   const rafRef = useRef<number | null>(null);
 
   const syncConversationToUrl = useCallback(
-    (conversationId: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("prompt");
-      params.delete("send");
-      params.set("conversation", conversationId);
-      router.replace(`/c?${params.toString()}`);
+    (id: string) => {
+      router.replace(conversationPath(id));
     },
-    [router, searchParams],
+    [router],
   );
-
-  const clearPromptFromUrl = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (!params.has("prompt") && !params.has("send")) return;
-    params.delete("prompt");
-    params.delete("send");
-    const query = params.toString();
-    router.replace(query ? `/c?${query}` : "/c");
-  }, [router, searchParams]);
 
   const handleSendMessage = useCallback(
     async (content: string) => {
       if (!isAuthenticated) {
         openAuthPrompt();
         return;
+      }
+
+      const greeting = agentGreetingRef.current;
+      if (greeting) {
+        setAgentGreeting(null);
       }
 
       let activeSource = selectedSource;
@@ -245,16 +314,20 @@ export function ChatInterface({
           const existingId = activeConversationId;
           const tempId = existingId ?? crypto.randomUUID();
           const assistantMsgId = crypto.randomUUID();
+          const opening = greeting
+            ? [greeting, { id: crypto.randomUUID(), role: "user" as const, content, timestamp: new Date() }]
+            : [{ id: crypto.randomUUID(), role: "user" as const, content, timestamp: new Date() }];
           if (!existingId) {
             addConversation({
               id: tempId,
               title: content.slice(0, 50),
               messages: [
-                { id: crypto.randomUUID(), role: "user", content, timestamp: new Date() },
+                ...opening,
                 { id: assistantMsgId, role: "assistant", content: errorText, timestamp: new Date() },
               ],
               createdAt: new Date(),
               updatedAt: new Date(),
+              ...(effectiveAgentSlug ? { agentSlug: effectiveAgentSlug } : {}),
             });
           } else {
             addMessage(existingId, { id: crypto.randomUUID(), role: "user", content, timestamp: new Date() });
@@ -284,16 +357,20 @@ export function ChatInterface({
         timestamp: new Date(),
       };
 
-      let conversationId = tempId;
+      let streamConversationId = tempId;
+
+      const openingMessages = greeting
+        ? [greeting, userMessage, assistantMessage]
+        : [userMessage, assistantMessage];
 
       if (isNewConversation) {
         addConversation({
           id: tempId,
           title: content.slice(0, 50),
-          messages: [userMessage, assistantMessage],
+          messages: openingMessages,
           createdAt: new Date(),
           updatedAt: new Date(),
-          ...(agentId ? { agentSlug: agentId } : {}),
+          ...(effectiveAgentSlug ? { agentSlug: effectiveAgentSlug } : {}),
         });
       } else {
         addMessage(existingId, userMessage);
@@ -310,31 +387,29 @@ export function ChatInterface({
       const flushBuffer = () => {
         if (streamBufferRef.current !== lastFlushed) {
           lastFlushed = streamBufferRef.current;
-          updateMessage(conversationId, assistantMsgId, lastFlushed);
+          updateMessage(streamConversationId, assistantMsgId, lastFlushed);
         }
         rafRef.current = requestAnimationFrame(flushBuffer);
       };
       rafRef.current = requestAnimationFrame(flushBuffer);
 
       try {
-        const effectiveAgentId = agentId ?? activeConversation?.agentSlug ?? null;
-
         for await (const event of chatApi.streamMessage({
           message: content,
           conversation_id: isNewConversation ? null : existingId,
           source_id: activeSource?.id || null,
           source_type: activeSource?.type || null,
-          agent_id: effectiveAgentId,
+          agent_id: effectiveAgentSlug,
         })) {
           if (event.type === "start" && event.conversation_id) {
             if (isNewConversation) {
               updateConversationId(tempId, event.conversation_id);
-              conversationId = event.conversation_id;
+              streamConversationId = event.conversation_id;
               syncConversationToUrl(event.conversation_id);
               void refreshConversationsList();
-            } else if (event.conversation_id !== conversationId) {
-              updateConversationId(conversationId, event.conversation_id);
-              conversationId = event.conversation_id;
+            } else if (event.conversation_id !== streamConversationId) {
+              updateConversationId(streamConversationId, event.conversation_id);
+              streamConversationId = event.conversation_id;
             }
           } else if (event.type === "token") {
             streamBufferRef.current += event.content;
@@ -350,7 +425,7 @@ export function ChatInterface({
         }
 
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        updateMessage(conversationId, assistantMsgId, streamBufferRef.current);
+        updateMessage(streamConversationId, assistantMsgId, streamBufferRef.current);
         void refreshConversationsList();
       } catch (err) {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -365,7 +440,7 @@ export function ChatInterface({
           err instanceof ApiError && err.status === 429
             ? err.message
             : streamBufferRef.current || "Sorry, I encountered an error. Please try again.";
-        updateMessage(conversationId, assistantMsgId, errorText);
+        updateMessage(streamConversationId, assistantMsgId, errorText);
       } finally {
         streamingConversationRef.current = false;
         setStreamingMsgId(null);
@@ -374,10 +449,9 @@ export function ChatInterface({
     },
     [
       activeConversationId,
-      activeConversation?.agentSlug,
       addConversation,
       addMessage,
-      agentId,
+      effectiveAgentSlug,
       refreshConversationsList,
       selectedSource,
       setLoading,
@@ -386,7 +460,6 @@ export function ChatInterface({
       updateMessage,
       isAuthenticated,
       openAuthPrompt,
-      openUpgrade,
       setSelectedSource,
     ],
   );
@@ -394,42 +467,49 @@ export function ChatInterface({
   handleSendMessageRef.current = handleSendMessage;
 
   useLayoutEffect(() => {
-    const trimmed = initialPrompt?.trim();
+    const trimmed = pendingPrompt?.trim();
     if (!trimmed) return;
 
-    const sendId = searchParams.get("send");
-    const dedupeKey = sendId ?? trimmed;
+    const dedupeKey = trimmed;
     if (processedInitialSends.has(dedupeKey)) return;
 
     if (!isAuthenticated) {
       openAuthPrompt();
-      clearPromptFromUrl();
+      setPendingPrompt(null);
       return;
     }
 
     processedInitialSends.add(dedupeKey);
+    setPendingPrompt(null);
+    setAgentGreeting(null);
 
     void handleSendMessageRef.current(trimmed);
-    clearPromptFromUrl();
-  }, [initialPrompt, searchParams, clearPromptFromUrl, isAuthenticated, openAuthPrompt]);
+  }, [pendingPrompt, isAuthenticated, openAuthPrompt]);
 
   const handleDeleteConversation = useCallback(async () => {
     if (!activeConversationId || !isAuthenticated) return;
     await chatApi.deleteConversation(activeConversationId);
     deleteConversation(activeConversationId);
-    router.push("/");
+    navigateToNewChat(router);
   }, [activeConversationId, isAuthenticated, deleteConversation, router]);
 
   const handleNewChat = useCallback(() => {
-    setActiveConversation(null);
-    router.push("/");
-  }, [setActiveConversation, router]);
+    navigateToNewChat(router);
+  }, [router]);
 
   const showActionsMenu =
     displayMessages.length > 0 || Boolean(activeConversationId) || isLoading;
 
+  const hasUserMessages = displayMessages.some((message) => message.role === "user");
+  const showAgentSuggestions =
+    Boolean(activeAgent) &&
+    !hasUserMessages &&
+    !isLoading &&
+    !loadingMessages &&
+    !pendingPrompt &&
+    !conversationId;
+
   const contentClass = chatContentClass(showActionsMenu);
-  const isClovaiChat = !agentId && !activeConversation?.agentSlug;
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
@@ -461,13 +541,18 @@ export function ChatInterface({
           streamingMsgId={streamingMsgId}
           upgradeMessageId={upgradeMessageId}
           onUpgrade={openUpgrade}
-          isClovaiChat={isClovaiChat}
-          assistantName={defaultAssistant?.name}
-          assistantDescription={defaultAssistant?.description}
-          onSuggestionClick={(text) => {
-            void handleSendMessage(text);
-            chatInputRef.current?.focus();
-          }}
+          footer={
+            showAgentSuggestions && activeAgent ? (
+              <AgentSuggestions
+                agentSlug={activeAgent.id}
+                className="pt-3 pb-1"
+                onSelect={(prompt) => {
+                  void handleSendMessage(prompt);
+                  chatInputRef.current?.focus();
+                }}
+              />
+            ) : null
+          }
         />
       )}
       <ChatInput
@@ -483,4 +568,3 @@ export function ChatInterface({
     </div>
   );
 }
-

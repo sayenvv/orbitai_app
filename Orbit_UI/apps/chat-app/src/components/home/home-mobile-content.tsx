@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp, BookOpen, FolderOpen, Loader2, Paperclip, X } from "lucide-react";
 import { AgentListingIcon } from "@orbit/ui";
-import { getGreeting, libraryItems, routeForAgent } from "@/lib/home-data";
-import { appendSourceToSearchParams, uploadPdfAndWait, validatePdfFile, PdfUploadCancelledError } from "@/lib/rag-upload";
+import { getGreeting, libraryItems } from "@/lib/home-data";
+import { navigateToAgentChat, navigateToChatLaunch } from "@/lib/chat-navigation";
+import { uploadPdfAndWait, validatePdfFile, PdfUploadCancelledError } from "@/lib/rag-upload";
 import { useAgents } from "@/hooks/use-agents";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppShell } from "@/components/layout/app-shell-context";
@@ -56,11 +57,11 @@ export function HomeMobileContent() {
       setUploadError("");
       try {
         const source = await uploadPdfAndWait(attachedFile);
-        const params = new URLSearchParams();
-        params.set("prompt", trimmed || "Summarize this document");
-        params.set("send", crypto.randomUUID());
-        appendSourceToSearchParams(params, source);
-        router.push(`/c?${params.toString()}`);
+        navigateToChatLaunch(router, {
+          prompt: trimmed || "Summarize this document",
+          sendKey: crypto.randomUUID(),
+          source,
+        });
       } catch (err) {
         if (err instanceof PdfUploadCancelledError) return;
         setUploadError(err instanceof Error ? err.message : "Upload failed");
@@ -70,9 +71,10 @@ export function HomeMobileContent() {
       return;
     }
 
-    router.push(
-      `/c?prompt=${encodeURIComponent(trimmed)}&send=${crypto.randomUUID()}`,
-    );
+    navigateToChatLaunch(router, {
+      prompt: trimmed,
+      sendKey: crypto.randomUUID(),
+    });
   };
 
   const canSend = (message.trim().length > 0 || attachedFile) && !uploading;
@@ -134,7 +136,7 @@ export function HomeMobileContent() {
               <button
                 key={agent.id}
                 type="button"
-                onClick={() => router.push(routeForAgent(agent.id))}
+                onClick={() => navigateToAgentChat(router, agent.id)}
                 className="flex flex-col items-center gap-1.5 transition-transform active:scale-95"
               >
                 <AgentListingIcon iconKey={agent.iconKey} colorKey={agent.colorKey} size="lg" />

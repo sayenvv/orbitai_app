@@ -1,5 +1,16 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import { navigateToAgentChat } from "@/lib/chat-navigation";
 
 export default function JobSearchChatRedirect() {
-  redirect("/c?agent=job-search");
+  const router = useRouter();
+
+  useEffect(() => {
+    navigateToAgentChat(router, "job-search");
+  }, [router]);
+
+  return null;
 }

@@ -13,6 +13,7 @@ import {
 } from "@/components/home/app-sidebar-panels";
 import { LoginModal } from "@/components/login-modal";
 import { AuthPromptModal } from "@/components/auth-prompt-modal";
+import { InvalidChatModal } from "@/components/chat/invalid-chat-modal";
 import { ProfilePanel } from "@/components/profile-panel";
 import { SupportModal } from "@/components/home/support-modal";
 import { AppShellProvider, useAppShell } from "@/components/layout/app-shell-context";
@@ -21,9 +22,13 @@ import { MobileAppDrawer } from "@/components/layout/mobile-app-drawer";
 import { useAgents } from "@/hooks/use-agents";
 import { useLibrary } from "@/hooks/use-library";
 import { useLogout } from "@/hooks/use-auth";
-import { routeForAgent } from "@/lib/home-data";
+import {
+  navigateToAgentChat,
+  navigateToConversation,
+} from "@/lib/chat-navigation";
 import { publicApi } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
+import { useChatSessionStore } from "@/store/chat-session-store";
 import { useChatStore } from "@/store/chat-store";
 
 function ShellSectionSync() {
@@ -51,6 +56,8 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const handleLogout = useLogout();
+  const invalidChatNoticeOpen = useChatSessionStore((s) => s.invalidChatNoticeOpen);
+  const dismissInvalidChatNotice = useChatSessionStore((s) => s.dismissInvalidChatNotice);
   const { agents, loading: agentsLoading } = useAgents();
   const { uploads, generated, loading: libraryLoading, refresh: refreshLibrary } = useLibrary();
 
@@ -255,10 +262,10 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                         }}
                         onSelectGenerated={(file) => {
                           if (file.conversationId) {
-                            router.push(`/c?conversation=${encodeURIComponent(file.conversationId)}`);
+                            navigateToConversation(router, file.conversationId);
                             return;
                           }
-                          router.push(routeForAgent(file.agentSlug));
+                          navigateToAgentChat(router, file.agentSlug);
                         }}
                         onGenerateInsights={
                           isAuthenticated
@@ -296,7 +303,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                       <MainAgentsPanel
                         agents={agents}
                         loading={agentsLoading}
-                        onSelect={(agentId) => router.push(routeForAgent(agentId))}
+                        onSelect={(agentId) => navigateToAgentChat(router, agentId)}
                       />
                     )}
                   </div>
@@ -338,6 +345,8 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       )}
 
       <PdfPageLimitDialogHost />
+
+      <InvalidChatModal open={invalidChatNoticeOpen} onClose={dismissInvalidChatNotice} />
     </>
   );
 }
