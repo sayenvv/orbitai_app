@@ -56,8 +56,8 @@ export function AppSidebarContent({
   }, [expanded, isAuthenticated, chatsHydrated, chatsLoading, refresh]);
 
   const labelClassName = cn(
-    "transition-[opacity,max-width] duration-150 ease-out",
-    expanded ? "max-w-[12rem] opacity-100" : "max-w-0 opacity-0",
+    "whitespace-nowrap transition-[opacity,transform,max-width] duration-200 ease-out",
+    expanded ? "max-w-[12rem] translate-x-0 opacity-100" : "max-w-0 -translate-x-1 opacity-0",
   );
 
   const handleSectionChange = (next: SidebarSection) => {
@@ -99,6 +99,14 @@ export function AppSidebarContent({
     handleSectionChange("apps");
   };
 
+  const handleInsights = () => {
+    handleSectionChange("insights");
+  };
+
+  const handlePlans = () => {
+    handleSectionChange("plans");
+  };
+
   const handleSearch = () => {
     setFocusSearch(true);
     onExpand?.();
@@ -111,7 +119,7 @@ export function AppSidebarContent({
     <div
       className={cn(
         "flex flex-col",
-        !isDrawer && "min-h-0 flex-1",
+        !isDrawer && "min-h-0 flex-1 will-change-transform",
         expanded
           ? isDrawer
             ? "py-3"
@@ -134,20 +142,23 @@ export function AppSidebarContent({
           section={section}
           onNewChat={handleNewChat}
           onLibrary={handleLibrary}
+          onInsights={handleInsights}
           onAgents={handleAgents}
           onApps={handleApps}
+          onPlans={handlePlans}
           onSearch={handleSearch}
+          isAuthenticated={isAuthenticated}
         />
       )}
 
       {expanded && isAuthenticated && (
         <div
           className={cn(
-            "mt-3 border-t border-sidebar-border/60 pt-3",
+            "mt-2 border-t border-sidebar-border/50 pt-2",
             !isDrawer && "flex min-h-0 flex-1 flex-col",
           )}
         >
-          <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Recents
           </p>
           <SidebarRecentsList

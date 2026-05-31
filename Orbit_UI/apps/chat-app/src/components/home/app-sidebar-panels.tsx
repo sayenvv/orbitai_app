@@ -4,11 +4,13 @@ import { useMemo, useState, useRef, useEffect, type ChangeEvent, type ReactNode 
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
-  CreditCard,
+  Bot,
+  BrainCircuit,
+  Crown,
   Download,
   FileText,
   FolderOpen,
-  LayoutGrid,
+  LibraryBig,
   Loader2,
   Maximize2,
   MessageSquarePlus,
@@ -16,9 +18,13 @@ import {
   ScanText,
   Search,
   Sparkles,
+  SquarePen,
+  Store,
   Trash2,
   Upload,
-  LayoutDashboard,
+  X,
+  MoreHorizontal,
+  type LucideIcon,
 } from "lucide-react";
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
 import { SidebarRecentsRowsShimmer } from "@/components/ui/skeleton";
@@ -49,50 +55,100 @@ type SidebarSectionNavProps = {
 };
 
 const collapsedNavBtnClass =
-  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sidebar-foreground/70 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+  "group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sidebar-foreground/70 transition-colors duration-200 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground";
+
+type PremiumNavItem = {
+  id?: SidebarSection;
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  active?: boolean;
+  onClick?: () => void;
+  tone: string;
+};
+
+const navIconTones = {
+  chat: "from-blue-500/20 to-cyan-500/10 text-blue-500",
+  library: "from-amber-500/20 to-orange-500/10 text-amber-500",
+  insights: "from-violet-500/20 to-fuchsia-500/10 text-violet-500",
+  apps: "from-emerald-500/20 to-teal-500/10 text-emerald-500",
+  agents: "from-sky-500/20 to-indigo-500/10 text-sky-500",
+  plans: "from-rose-500/20 to-pink-500/10 text-rose-500",
+  search: "from-slate-500/20 to-slate-500/10 text-sidebar-foreground/70",
+} as const;
 
 type SidebarCollapsedNavProps = {
   section: SidebarSection;
   onNewChat: () => void;
   onLibrary: () => void;
+  onInsights: () => void;
   onAgents: () => void;
   onApps: () => void;
+  onPlans: () => void;
   onSearch: () => void;
+  isAuthenticated?: boolean;
 };
 
 export function SidebarCollapsedNav({
   section,
   onNewChat,
   onLibrary,
+  onInsights,
   onAgents,
   onApps,
+  onPlans,
   onSearch,
+  isAuthenticated = true,
 }: SidebarCollapsedNavProps) {
-  const items = [
-    { key: "new-chat", label: "New chat", icon: MessageSquarePlus, active: false, onClick: onNewChat },
-    { key: "library", label: "Library", icon: FolderOpen, active: section === "library", onClick: onLibrary },
-    { key: "agents", label: "Agents", icon: LayoutGrid, active: section === "agents", onClick: onAgents },
-    { key: "apps", label: "Apps", icon: Sparkles, active: section === "apps", onClick: onApps },
-    { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
-  ] as const;
+  const authenticatedItems: PremiumNavItem[] = [
+    { key: "new-chat", label: "New chat", icon: SquarePen, active: false, onClick: onNewChat, tone: navIconTones.chat },
+    { key: "library", label: "Library", icon: LibraryBig, active: section === "library", onClick: onLibrary, tone: navIconTones.library },
+    { key: "insights", label: "AI Board", icon: BrainCircuit, active: section === "insights", onClick: onInsights, tone: navIconTones.insights },
+    { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps, tone: navIconTones.apps },
+    { key: "agents", label: "Agents", icon: Bot, active: section === "agents", onClick: onAgents, tone: navIconTones.agents },
+    { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch, tone: navIconTones.search },
+  ];
+  const guestItems: PremiumNavItem[] = [
+    { key: "new-chat", label: "New chat", icon: SquarePen, active: false, onClick: onNewChat, tone: navIconTones.chat },
+    { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps, tone: navIconTones.apps },
+    { key: "plans", label: "Plans", icon: Crown, active: section === "plans", onClick: onPlans, tone: navIconTones.plans },
+    { key: "agents", label: "Agents", icon: Bot, active: section === "agents", onClick: onAgents, tone: navIconTones.agents },
+    { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch, tone: navIconTones.search },
+  ];
+  const items = isAuthenticated ? authenticatedItems : guestItems;
 
   return (
-    <div className="flex w-full flex-col items-center gap-1.5">
-      {items.map(({ key, label, icon: Icon, active, onClick }) => (
-        <button
-          key={key}
-          type="button"
-          onClick={onClick}
-          title={label}
-          aria-label={label}
-          className={cn(
-            collapsedNavBtnClass,
-            active && "bg-sidebar-accent text-sidebar-accent-foreground",
-          )}
-        >
-          <Icon className="h-4 w-4 shrink-0" />
-        </button>
+    <div className="relative flex w-full flex-col items-center gap-1.5">
+      {items.map(({ key, label, icon: Icon, active, onClick, tone }) => (
+        <div key={key} className="group/collapsed-nav relative">
+          <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            className={cn(
+              collapsedNavBtnClass,
+              active && "bg-sidebar-accent text-sidebar-accent-foreground",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute inset-1 rounded-[0.9rem] bg-gradient-to-br opacity-0 transition-opacity duration-200 group-hover/collapsed-nav:opacity-100",
+                tone,
+                active && "opacity-100",
+              )}
+              aria-hidden
+            />
+            <Icon className="relative h-4.5 w-4.5 shrink-0" />
+          </button>
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute left-[calc(100%+0.5rem)] top-1/2 z-[100] -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-lg bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 backdrop-blur-sm transition-all duration-150 group-hover/collapsed-nav:translate-x-0 group-hover/collapsed-nav:opacity-100 group-focus-within/collapsed-nav:translate-x-0 group-focus-within/collapsed-nav:opacity-100"
+          >
+            {label}
+          </span>
+        </div>
       ))}
+
     </div>
   );
 }
@@ -105,61 +161,144 @@ export function SidebarSectionNav({
   isAuthenticated = true,
   labelClassName = "",
 }: SidebarSectionNavProps) {
-  const authenticatedTabs: { id: SidebarSection; label: string; icon: typeof FolderOpen }[] = [
-    { id: "library", label: "Library", icon: FolderOpen },
-    { id: "insights", label: "AI Board", icon: LayoutDashboard },
-    { id: "apps", label: "Apps", icon: Sparkles },
-    { id: "agents", label: "Agents", icon: LayoutGrid },
+  const [moreOpen, setMoreOpen] = useState(false);
+  const authenticatedTabs: { id: SidebarSection; label: string; icon: LucideIcon; tone: string }[] = [
+    { id: "library", label: "Library", icon: LibraryBig, tone: navIconTones.library },
+    { id: "insights", label: "AI Board", icon: BrainCircuit, tone: navIconTones.insights },
+    { id: "apps", label: "Apps", icon: Store, tone: navIconTones.apps },
+    { id: "agents", label: "Agents", icon: Bot, tone: navIconTones.agents },
   ];
 
-  const guestTabs: { id: SidebarSection; label: string; icon: typeof FolderOpen }[] = [
-    { id: "apps", label: "Apps", icon: Sparkles },
-    { id: "plans", label: "Plans", icon: CreditCard },
-    { id: "agents", label: "Agents", icon: LayoutGrid },
+  const guestTabs: { id: SidebarSection; label: string; icon: LucideIcon; tone: string }[] = [
+    { id: "apps", label: "Apps", icon: Store, tone: navIconTones.apps },
+    { id: "plans", label: "Plans", icon: Crown, tone: navIconTones.plans },
+    { id: "agents", label: "Agents", icon: Bot, tone: navIconTones.agents },
   ];
 
   const tabs = isAuthenticated ? authenticatedTabs : guestTabs;
+  const primaryTabs = tabs.slice(0, 2);
+  const moreTabs = tabs.slice(2);
+  const moreActive = moreTabs.some((tab) => tab.id === section);
+
+  const handleSelect = (id: SidebarSection) => {
+    setMoreOpen(false);
+    onSectionChange(id);
+  };
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <button
         type="button"
         onClick={onNewChat}
         className={cn(
-          "flex h-11 items-center rounded-2xl transition-all duration-150",
-          expanded ? "gap-3 px-3 justify-start" : "justify-center",
-          "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "group flex h-9 items-center rounded-xl transition-colors duration-200",
+          expanded ? "gap-2.5 px-2.5 justify-start" : "justify-center",
+          "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
         )}
         title="New chat"
         aria-label="New chat"
       >
-        <MessageSquarePlus className="h-4 w-4 shrink-0" />
+        <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br", navIconTones.chat)}>
+          <SquarePen className="h-3.5 w-3.5 shrink-0" />
+        </span>
         {expanded && (
           <span className={cn("truncate text-sm font-medium", labelClassName)}>New chat</span>
         )}
       </button>
 
-      {tabs.map(({ id, label, icon: Icon }) => (
+      {primaryTabs.map(({ id, label, icon: Icon, tone }) => (
         <button
           key={id}
           type="button"
-          onClick={() => onSectionChange(id)}
+          onClick={() => handleSelect(id)}
           className={cn(
-            "flex h-11 items-center rounded-2xl transition-all duration-150",
-            expanded ? "gap-3 px-3 justify-start" : "justify-center",
+            "group relative flex h-9 items-center rounded-xl transition-colors duration-200",
+            expanded ? "gap-2.5 px-2.5 justify-start" : "justify-center",
             section === id
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              ? "bg-sidebar-accent/85 text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
           )}
           title={label}
           aria-label={label}
         >
-          <Icon className="h-4 w-4 shrink-0" />
+          <span
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br transition-transform duration-200 group-hover:scale-105",
+              tone,
+              section === id && "ring-1 ring-primary/20",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+          </span>
           {expanded && (
             <span className={cn("truncate text-sm font-medium", labelClassName)}>{label}</span>
           )}
         </button>
       ))}
+
+      {moreTabs.length > 0 && (
+        <div className="relative">
+          {!moreOpen && (
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              className={cn(
+                "group flex h-9 w-full items-center rounded-xl transition-colors duration-200",
+                expanded ? "gap-2.5 px-2.5 justify-start" : "justify-center",
+                moreActive
+                  ? "bg-sidebar-accent/85 text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
+              )}
+              title="More"
+              aria-label="More"
+              aria-expanded={moreOpen}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-500/20 to-slate-500/10 text-sidebar-foreground/75">
+                <MoreHorizontal className="h-3.5 w-3.5 shrink-0" />
+              </span>
+              {expanded && (
+                <span className={cn("truncate text-sm font-medium", labelClassName)}>More</span>
+              )}
+            </button>
+          )}
+
+          {expanded && moreOpen && (
+            <div className="absolute left-0 top-0 z-20 w-full rounded-2xl bg-background/95 p-1.5 ring-1 ring-border/50 backdrop-blur-xl">
+              <div className="mb-1 flex items-center justify-between px-2 py-1">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  More
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen(false)}
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Close more menu"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+              {moreTabs.map(({ id, label, icon: Icon, tone }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleSelect(id)}
+                  className={cn(
+                    "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-xs transition-colors",
+                    section === id
+                      ? "bg-sidebar-accent/80 text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                  )}
+                >
+                  <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br", tone)}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate font-medium">{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -334,16 +473,35 @@ export function SidebarRecentsList({
             useOuterScroll && "sticky top-0 z-10 -mx-0.5 bg-sidebar px-0.5 pb-2",
           )}
         >
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            ref={searchInputRef}
-            type="search"
-            enterKeyHint="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search recents…"
-            className="w-full rounded-full border border-border/50 bg-muted/60 py-2.5 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+          <div className="group relative">
+            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/10 via-transparent to-primary/5 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/75 transition-colors group-focus-within:text-primary" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              enterKeyHint="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search recent chats"
+              className="relative h-9 w-full rounded-xl border border-sidebar-border/70 bg-background/75 pl-8 pr-14 text-xs font-medium outline-none placeholder:text-muted-foreground/65 backdrop-blur-md transition focus:border-primary/30 focus:bg-background/95 focus:ring-2 focus:ring-primary/15"
+            />
+            {awaitingSearch || searchLoading ? (
+              <Loader2 className="absolute right-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : trimmedSearch ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 z-10 flex h-5.5 w-5.5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Clear recents search"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            ) : (
+              <span className="pointer-events-none absolute right-2.5 top-1/2 z-10 -translate-y-1/2 rounded border border-border/50 bg-muted/70 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-muted-foreground">
+                ⌘K
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -361,7 +519,7 @@ export function SidebarRecentsList({
           <>
             {groups.map((group) => (
               <div key={group.label} className="mb-3">
-                <p className="mb-1 px-2 text-[10px] font-medium text-muted-foreground">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
                   {group.label}
                 </p>
                 {group.items.map((conv) => (
@@ -407,10 +565,10 @@ function RecentChatItem({
       type="button"
       onClick={() => onSelect(conversation.id)}
       className={cn(
-        "group mb-0.5 flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm transition-colors",
+        "group mb-0.5 flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm transition-colors",
         isActive
-          ? "bg-accent text-accent-foreground"
-          : "text-foreground/80 hover:bg-muted/80",
+          ? "bg-sidebar-accent/80 text-sidebar-accent-foreground"
+          : "text-foreground/80 hover:bg-muted/70",
       )}
     >
       <span className="min-w-0 flex-1 truncate text-[13px] leading-snug">

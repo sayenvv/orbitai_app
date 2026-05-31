@@ -188,7 +188,7 @@ export function ChatActionsMenu({
 
   const visibleItems =
     variant === "header"
-      ? items.filter(({ id }) => id === "share" || id === "new" || id === "delete")
+      ? items.filter(({ id }) => id === "share")
       : items;
 
   return (
@@ -198,7 +198,7 @@ export function ChatActionsMenu({
         variant === "floating"
           ? "flex-col gap-2 rounded-2xl border border-border/50 bg-card/80 p-1.5 shadow-mac backdrop-blur-xl"
           : variant === "header"
-            ? "gap-0.5"
+            ? "gap-0.5 md:hidden"
             : "flex-col gap-1 p-0",
       )}
     >

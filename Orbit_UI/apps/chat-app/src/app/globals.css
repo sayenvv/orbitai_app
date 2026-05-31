@@ -85,10 +85,10 @@
   --sidebar-accent-foreground: oklch(0.24 0.018 264);
   --sidebar-border: oklch(0.875 0.008 264 / 0.85);
   --sidebar-ring: oklch(0.62 0.19 256);
-  --sidebar-collapse-duration: 120ms;
-  --sidebar-expand-duration: 200ms;
-  --sidebar-collapse-easing: cubic-bezier(0.4, 0, 0.2, 1);
-  --sidebar-expand-easing: cubic-bezier(0.32, 0.72, 0, 1);
+  --sidebar-collapse-duration: 260ms;
+  --sidebar-expand-duration: 260ms;
+  --sidebar-collapse-easing: cubic-bezier(0.22, 1, 0.36, 1);
+  --sidebar-expand-easing: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark {
@@ -193,6 +193,7 @@
 
   .app-shell-grid {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    will-change: grid-template-columns;
   }
 
   .app-shell-grid[data-sidebar="expanded"] {

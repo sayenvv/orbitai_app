@@ -71,10 +71,9 @@ export function MobileAppDrawer() {
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-3.5">
+        <div className="flex shrink-0 items-center justify-between px-4 py-3.5">
           <div className="min-w-0">
             <BrandMark size="sm" />
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Menu</p>
           </div>
           <button
             type="button"

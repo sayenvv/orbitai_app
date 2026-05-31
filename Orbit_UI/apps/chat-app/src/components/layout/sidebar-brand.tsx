@@ -22,7 +22,7 @@ export function SidebarBrand({ showText = true, className, onExpand }: SidebarBr
       />
       <span
         className={cn(
-          "overflow-hidden whitespace-nowrap text-[15px] font-semibold leading-none tracking-[-0.01em] text-foreground transition-[max-width,opacity,margin-left] duration-150 ease-out",
+          "overflow-hidden whitespace-nowrap bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-[15px] font-semibold leading-none tracking-[-0.01em] text-transparent transition-[max-width,opacity,margin-left] duration-150 ease-out",
           showText ? "ml-2 max-w-[7rem] opacity-100" : "ml-0 max-w-0 opacity-0",
         )}
         aria-hidden={!showText}
@@ -38,7 +38,7 @@ export function SidebarBrand({ showText = true, className, onExpand }: SidebarBr
         type="button"
         onClick={onExpand}
         className={cn(
-          "flex min-w-0 items-center overflow-hidden rounded-lg transition-colors hover:bg-sidebar-accent/60",
+          "flex min-w-0 items-center overflow-hidden rounded-xl transition-colors hover:bg-sidebar-accent/60",
           className,
         )}
         aria-label={`Expand ${BRAND_NAME} sidebar`}
@@ -51,7 +51,7 @@ export function SidebarBrand({ showText = true, className, onExpand }: SidebarBr
   return (
     <Link
       href="/"
-      className={cn("flex min-w-0 items-center overflow-hidden rounded-lg", className)}
+      className={cn("flex min-w-0 items-center overflow-hidden rounded-xl", className)}
       aria-label={`${BRAND_NAME} home`}
     >
       {content}

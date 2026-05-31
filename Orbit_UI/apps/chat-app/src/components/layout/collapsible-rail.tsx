@@ -60,19 +60,23 @@ export function CollapsibleRail({
 
   return (
     <aside
-      className={cn("flex h-full min-h-0 w-full flex-col overflow-hidden", className)}
+      className={cn(
+        "flex h-full min-h-0 w-full flex-col bg-sidebar/95 backdrop-blur-xl will-change-transform",
+        showExpanded ? "overflow-hidden" : "overflow-visible",
+        className,
+      )}
       aria-label={ariaLabel}
       aria-expanded={open}
     >
       <div
         className={cn(
-          "flex shrink-0 overflow-hidden bg-sidebar py-3",
-          showExpanded ? "items-center gap-1 px-2" : "justify-center px-0",
+          "flex shrink-0 overflow-hidden py-3 transition-[padding,gap] duration-200 ease-out",
+          showExpanded ? "items-center gap-1 px-2" : "justify-center gap-0 px-0",
         )}
       >
         <div
           className={cn(
-            "min-w-0 overflow-hidden",
+            "min-w-0 overflow-hidden transition-[opacity] duration-200 ease-out",
             showExpanded ? "flex-1" : "flex justify-center",
           )}
         >
@@ -82,7 +86,7 @@ export function CollapsibleRail({
           <button
             type="button"
             onClick={onToggle}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
             title={collapseLabel}
             aria-label={collapseLabel}
           >
@@ -91,11 +95,18 @@ export function CollapsibleRail({
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          showExpanded ? "overflow-hidden" : "overflow-visible",
+        )}
+      >
         <div
           className={cn(
-            "flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden [scrollbar-width:thin]",
-            showExpanded ? COLLAPSIBLE_RAIL_INNER_WIDTH : "w-full",
+            "flex min-h-0 flex-1 flex-col transition-[width] duration-200 ease-out [scrollbar-width:thin]",
+            showExpanded
+              ? `${COLLAPSIBLE_RAIL_INNER_WIDTH} overflow-y-auto overflow-x-hidden`
+              : "w-full overflow-visible",
           )}
         >
           {loading && loadingFallback ? loadingFallback : body}

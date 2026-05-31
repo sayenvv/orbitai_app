@@ -201,7 +201,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
           } as CSSProperties
         }
       >
-        <div className="hidden h-full min-h-0 overflow-hidden md:block">
+        <div className="relative z-30 hidden h-full min-h-0 overflow-visible md:block">
           <ChatHistoryRail />
         </div>
 
