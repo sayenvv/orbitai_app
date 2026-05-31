@@ -4,6 +4,7 @@ import {
   useChatSessionStore,
   type PendingChatLaunch,
 } from "@/store/chat-session-store";
+import { expandChatSideRail } from "@/store/chat-side-rail-store";
 import { useChatStore } from "@/store/chat-store";
 
 export function conversationPath(conversationId: string): string {
@@ -22,12 +23,14 @@ export function isChatRoute(pathname: string): boolean {
 export function navigateToNewChat(router: AppRouterInstance) {
   useChatSessionStore.getState().clearPending();
   useChatStore.getState().setActiveConversation(null);
+  expandChatSideRail();
   router.push("/c");
 }
 
 export function navigateToAgentChat(router: AppRouterInstance, agentSlug: string) {
   useChatSessionStore.getState().setPendingAgent(agentSlug);
   useChatStore.getState().setActiveConversation(null);
+  expandChatSideRail();
   router.push("/c");
 }
 
@@ -39,5 +42,6 @@ export function navigateToConversation(router: AppRouterInstance, conversationId
 export function navigateToChatLaunch(router: AppRouterInstance, launch: PendingChatLaunch) {
   useChatSessionStore.getState().setPendingLaunch(launch);
   useChatStore.getState().setActiveConversation(null);
+  expandChatSideRail();
   router.push("/c");
 }

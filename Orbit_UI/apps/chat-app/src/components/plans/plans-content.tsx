@@ -32,8 +32,8 @@ export function formatPlanLimit(limit: number | null): string {
 export function upgradeMailto(plan: string, label?: string): string {
   const display = label ?? `${plan.charAt(0).toUpperCase()}${plan.slice(1)}`;
   const subject = encodeURIComponent(`Upgrade to ${display}`);
-  const body = encodeURIComponent("Hi Orbit team,\n\nI'd like to upgrade my plan.\n\nThanks!");
-  return `mailto:support@orbitai.app?subject=${subject}&body=${body}`;
+  const body = encodeURIComponent("Hi Clovai team,\n\nI'd like to upgrade my plan.\n\nThanks!");
+  return `mailto:support@clovai.app?subject=${subject}&body=${body}`;
 }
 
 type PlansContentProps = {
@@ -252,7 +252,7 @@ export function PlansContent({
           Enterprise plans include dedicated support, custom SLAs, and volume pricing for teams.
         </p>
         <a
-          href="mailto:support@orbitai.app?subject=Enterprise%20inquiry"
+          href="mailto:support@clovai.app?subject=Enterprise%20inquiry"
           className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
         >
           Contact sales
@@ -261,8 +261,8 @@ export function PlansContent({
 
       <p className="text-center text-[11px] text-muted-foreground">
         Questions about billing?{" "}
-        <a href="mailto:support@orbitai.app" className="font-medium text-primary hover:underline">
-          support@orbitai.app
+        <a href="mailto:support@clovai.app" className="font-medium text-primary hover:underline">
+          support@clovai.app
         </a>
       </p>
     </div>

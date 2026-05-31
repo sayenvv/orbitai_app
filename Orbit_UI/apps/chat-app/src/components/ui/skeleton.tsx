@@ -57,3 +57,28 @@ export function SidebarRecentsShimmer({ rows = 5 }: { rows?: number }) {
     </div>
   );
 }
+
+export function ChatSideRailShimmer() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4" aria-hidden>
+      <div className="space-y-2">
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <Skeleton className="h-3.5 w-[70%] rounded-full" />
+        <Skeleton className="h-3 w-full rounded-full" />
+        <Skeleton className="h-3 w-[88%] rounded-full" />
+        <Skeleton className="h-10 w-full rounded-lg" />
+      </div>
+      <div className="space-y-2.5">
+        <Skeleton className="h-2.5 w-16 rounded-full" />
+        <Skeleton className="aspect-[2/1] w-full rounded-xl" />
+        <Skeleton className="aspect-[2/1] w-full rounded-xl" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-2.5 w-14 rounded-full" />
+        <Skeleton className="h-11 w-full rounded-xl" />
+        <Skeleton className="h-11 w-full rounded-xl" />
+        <Skeleton className="h-11 w-full rounded-xl" />
+      </div>
+    </div>
+  );
+}

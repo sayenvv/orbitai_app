@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { conversationPath } from "@/lib/chat-navigation";
 import type { Message } from "@/types";
 
 type ChatActionsMenuProps = {
@@ -19,6 +20,7 @@ type ChatActionsMenuProps = {
   canDelete?: boolean;
   onDelete?: () => void | Promise<void>;
   onNewChat?: () => void;
+  variant?: "floating" | "rail";
 };
 
 type CopiedAction = "link" | "conversation" | null;
@@ -38,7 +40,8 @@ function ActionButton({
   onClick,
   active,
   destructive,
-}: Omit<ActionItem, "id">) {
+  tooltipSide = "left",
+}: Omit<ActionItem, "id"> & { tooltipSide?: "left" | "right" }) {
   return (
     <div className="group/action relative">
       <button
@@ -59,9 +62,12 @@ function ActionButton({
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute right-[calc(100%+0.5rem)] top-1/2 z-50 -translate-x-1 -translate-y-1/2 whitespace-nowrap rounded-lg border border-border/50 bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 shadow-mac backdrop-blur-sm transition-all duration-150 group-hover/action:translate-x-0 group-hover/action:opacity-100 group-focus-within/action:translate-x-0 group-focus-within/action:opacity-100",
+          "pointer-events-none absolute top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-lg bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 backdrop-blur-sm transition-all duration-150 group-hover/action:opacity-100 group-focus-within/action:opacity-100",
+          tooltipSide === "left"
+            ? "right-[calc(100%+0.5rem)] -translate-x-1 group-hover/action:translate-x-0 group-focus-within/action:translate-x-0"
+            : "left-[calc(100%+0.5rem)] translate-x-1 group-hover/action:translate-x-0 group-focus-within/action:translate-x-0",
           destructive && "text-destructive",
-          active && "border-primary/20 text-primary",
+          active && "text-primary",
         )}
       >
         {label}
@@ -77,6 +83,7 @@ export function ChatActionsMenu({
   canDelete = false,
   onDelete,
   onNewChat,
+  variant = "floating",
 }: ChatActionsMenuProps) {
   const [copied, setCopied] = useState<CopiedAction>(null);
 
@@ -87,7 +94,7 @@ export function ChatActionsMenu({
 
   const handleCopyLink = async () => {
     const url = conversationId
-      ? `${window.location.origin}/c?conversation=${encodeURIComponent(conversationId)}`
+      ? `${window.location.origin}${conversationPath(conversationId)}`
       : window.location.href;
 
     await navigator.clipboard.writeText(url);
@@ -110,7 +117,7 @@ export function ChatActionsMenu({
 
   const handleShare = async () => {
     const url = conversationId
-      ? `${window.location.origin}/c?conversation=${encodeURIComponent(conversationId)}`
+      ? `${window.location.origin}${conversationPath(conversationId)}`
       : window.location.href;
 
     if (navigator.share) {
@@ -177,9 +184,16 @@ export function ChatActionsMenu({
   }
 
   return (
-    <div className="flex flex-col items-center gap-2 overflow-visible rounded-2xl border border-border/50 bg-card/80 p-1.5 shadow-mac backdrop-blur-xl">
+    <div
+      className={cn(
+        "flex flex-col items-center overflow-visible",
+        variant === "floating"
+          ? "gap-2 rounded-2xl border border-border/50 bg-card/80 p-1.5 shadow-mac backdrop-blur-xl"
+          : "gap-1 p-0",
+      )}
+    >
       {items.map(({ id, ...item }) => (
-        <ActionButton key={id} {...item} />
+        <ActionButton key={id} {...item} tooltipSide="left" />
       ))}
     </div>
   );

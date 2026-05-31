@@ -4,6 +4,7 @@ import { useChatStore } from "@/store/chat-store";
 import { useAuthStore } from "@/store/auth-store";
 import { ChatMessages } from "./chat-messages";
 import { AgentSuggestions } from "./agent-suggestions";
+import { ChatSideRail } from "./chat-side-rail";
 import { ChatActionsMenu } from "./chat-actions-menu";
 import { ChatThreadShimmer } from "@/components/ui/skeleton";
 import { ChatInput, type ChatInputHandle } from "./chat-input";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/rag-upload";
 import { buildAgentGreeting } from "@/lib/agent-greeting";
 import { conversationPath, navigateToNewChat } from "@/lib/chat-navigation";
+import { expandChatSideRail } from "@/store/chat-side-rail-store";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useUsageStore } from "@/store/usage-store";
 import { useChatSessionStore } from "@/store/chat-session-store";
@@ -85,6 +87,12 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       return true;
     });
   }, [activeConversation?.messages, agentGreeting, conversationId]);
+
+  useEffect(() => {
+    if (!conversationId) {
+      expandChatSideRail();
+    }
+  }, [conversationId]);
 
   useEffect(() => {
     setConversationError(false);
@@ -512,9 +520,10 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   const contentClass = chatContentClass(showActionsMenu);
 
   return (
-    <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 w-full flex-1 overflow-hidden">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {showActionsMenu && (
-        <div className="pointer-events-none absolute inset-y-0 right-3 z-20 flex items-center overflow-visible py-28 md:right-5">
+        <div className="pointer-events-none absolute inset-y-0 right-3 z-20 flex items-center overflow-visible py-28 md:right-5 xl:hidden">
           <div className="pointer-events-auto">
             <ChatActionsMenu
               conversationId={activeConversationId}
@@ -564,6 +573,20 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         onSelectSource={isAuthenticated ? setSelectedSource : () => {}}
         showContextSelector={isAuthenticated}
         conversationId={activeConversationId}
+      />
+      </div>
+
+      <ChatSideRail
+        className="hidden xl:flex"
+        showActionsMenu={showActionsMenu}
+        actions={{
+          conversationId: activeConversationId,
+          conversationTitle: activeConversation?.title,
+          messages: displayMessages,
+          canDelete: Boolean(activeConversationId && isAuthenticated),
+          onDelete: handleDeleteConversation,
+          onNewChat: handleNewChat,
+        }}
       />
     </div>
   );
