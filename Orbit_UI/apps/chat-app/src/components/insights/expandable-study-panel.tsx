@@ -87,7 +87,7 @@ export function ExpandableStudyPanel({
         type="button"
         onClick={isExpanded ? onCollapse : onExpand}
         title={isExpanded ? "Exit focus mode" : "Focus mode"}
-        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-border/45 bg-background/80 px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:bg-muted/50 hover:text-foreground"
+        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border/45 bg-background/80 px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:bg-muted/50 hover:text-foreground"
       >
         {isExpanded ? (
           <>
@@ -114,7 +114,7 @@ export function ExpandableStudyPanel({
     <div
       className={cn(
         studyPanelClass,
-        "flex min-h-0 flex-col",
+        "flex flex-col",
         isExpanded && "ring-1 ring-primary/20",
         className,
       )}

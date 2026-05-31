@@ -71,7 +71,7 @@ export function InsightStudyHub({ content, className }: InsightStudyHubProps) {
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
-      <div className="shrink-0 border-b border-border/35 px-4 py-3.5 md:px-5">
+      <div className="shrink-0 border-b border-border/35 px-4 py-3 md:px-5">
         <StudyTabStrip>
           {TAB_DEFS.map(({ id, label, icon: Icon, countKey }) => {
             const count = countKey ? counts[countKey] : undefined;
@@ -132,7 +132,7 @@ function OverviewTab({
 }) {
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatChip label="Insights" value={materials.keyInsights.length} icon={Lightbulb} />
         <StatChip label="Q&A" value={materials.qaPairs.length} icon={MessageCircleQuestion} />
         <StatChip label="Cards" value={materials.flashcards.length} icon={Layers} />
@@ -147,7 +147,7 @@ function OverviewTab({
         />
       )}
       <StudyContentCard variant="muted">
-        <InsightsMarkdown content={activeContent} className="text-sm" />
+        <InsightsMarkdown content={activeContent} className="text-sm leading-relaxed" />
       </StudyContentCard>
     </div>
   );
@@ -170,7 +170,7 @@ function StatChip({
           {label}
         </span>
       </div>
-      <p className="mt-1.5 text-xl font-semibold tabular-nums leading-none text-foreground">
+      <p className="mt-1.5 text-lg font-semibold tabular-nums leading-none text-foreground">
         {value}
       </p>
     </div>
@@ -193,8 +193,8 @@ function KeyInsightsTab({ items }: { items: string[] }) {
         Priority takeaways — use these as review anchors before exams or discussions.
       </TabIntro>
       {items.map((item, index) => (
-        <StudyContentCard key={index} variant="accent" className="flex gap-3.5 !py-4">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-xs font-bold text-primary">
+        <StudyContentCard key={index} variant="accent" className="flex gap-3 !py-3.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-[11px] font-bold text-primary">
             {index + 1}
           </span>
           <p className="text-sm leading-relaxed text-foreground">{item}</p>
@@ -229,13 +229,13 @@ function QaTab({ pairs }: { pairs: StudyMaterials["qaPairs"] }) {
             key={index}
             className="overflow-hidden rounded-xl border border-border/45 bg-background/50"
           >
-            <div className="border-b border-border/35 bg-muted/20 px-4 py-3.5 md:px-5">
+            <div className="border-b border-border/35 bg-muted/20 px-4 py-3 md:px-5">
               <StudySectionLabel>Question {index + 1}</StudySectionLabel>
               <p className="mt-1.5 text-sm font-medium leading-snug text-foreground">
                 {pair.question}
               </p>
             </div>
-            <div className="px-4 py-3.5 md:px-5">
+            <div className="px-4 py-3 md:px-5">
               {open ? (
                 <p className="text-sm leading-relaxed text-muted-foreground">{pair.answer}</p>
               ) : (
@@ -277,32 +277,32 @@ function FlashcardsTab({ cards }: { cards: StudyMaterials["flashcards"] }) {
   };
 
   return (
-    <div className="flex h-full min-h-[340px] flex-col">
+    <div className="flex h-full min-h-[320px] flex-col">
       <TabIntro>
         Tap the card to flip. Navigate with arrows — ideal for spaced repetition.
       </TabIntro>
       <button
         type="button"
         onClick={() => setFlipped((value) => !value)}
-        className="group relative mx-auto flex min-h-[240px] w-full max-w-md flex-1 flex-col items-center justify-center rounded-2xl border border-border/50 bg-gradient-to-br from-background via-card to-primary/[0.04] p-8 text-center transition-all duration-300 hover:border-primary/30 hover:shadow-[0_8px_32px_-12px_rgba(var(--primary),0.15)]"
+        className="group relative mx-auto flex min-h-[220px] w-full max-w-md flex-1 flex-col items-center justify-center rounded-2xl border border-border/50 bg-gradient-to-br from-background via-card to-primary/[0.04] p-8 text-center transition-all duration-300 hover:border-primary/30"
       >
-        <span className="absolute left-4 top-4 rounded-full border border-border/40 bg-background/80 px-2.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+        <span className="absolute left-4 top-4 rounded-full border border-border/40 bg-background/80 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
           {index + 1} / {cards.length}
         </span>
         <RotateCcw className="absolute right-4 top-4 h-4 w-4 text-muted-foreground/50 transition-transform group-hover:rotate-180" />
         <StudySectionLabel>{flipped ? "Answer" : "Prompt"}</StudySectionLabel>
-        <p className="mt-4 text-base font-medium leading-relaxed text-foreground md:text-lg">
+        <p className="mt-3 text-base font-medium leading-relaxed text-foreground">
           {flipped ? card.back : card.front}
         </p>
       </button>
-      <div className="mt-5 flex items-center justify-center gap-2">
+      <div className="mt-4 flex items-center justify-center gap-2">
         <NavButton disabled={index === 0} onClick={() => go(index - 1)}>
           <ChevronLeft className="h-4 w-4" />
         </NavButton>
         <button
           type="button"
           onClick={() => setFlipped(false)}
-          className="h-9 rounded-xl border border-border/45 bg-background px-4 text-xs font-medium text-foreground hover:bg-muted/40"
+          className="h-8 rounded-lg border border-border/45 bg-background px-3 text-xs font-medium text-foreground hover:bg-muted/40"
         >
           Reset card
         </button>
@@ -328,7 +328,7 @@ function NavButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/45 bg-background text-foreground transition-colors hover:bg-muted/40 disabled:opacity-35"
+      className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/45 bg-background text-foreground transition-colors hover:bg-muted/40 disabled:opacity-35"
     >
       {children}
     </button>
@@ -350,12 +350,12 @@ function VocabularyTab({ terms }: { terms: StudyMaterials["vocabulary"] }) {
       <TabIntro>
         Key terms and phrases extracted from the document — add them to your glossary.
       </TabIntro>
-      <div className="grid gap-2.5 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {terms.map((item) => (
-          <StudyContentCard key={item.term} className="!py-3.5">
+          <StudyContentCard key={item.term} className="!py-3">
             <p className="text-sm font-semibold text-foreground">{item.term}</p>
             {item.hint && (
-              <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                 {item.hint}
               </p>
             )}
@@ -381,11 +381,11 @@ function ConceptsTab({ concepts }: { concepts: StudyMaterials["concepts"] }) {
       <TabIntro>
         Big ideas from the document — connect each concept to examples in the PDF.
       </TabIntro>
-      <div className="grid gap-3">
+      <div className="grid gap-4">
         {concepts.map((concept, index) => (
-          <StudyContentCard key={index} className="flex items-start gap-3.5 !py-4">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-              <Zap className="h-4 w-4 text-primary" />
+          <StudyContentCard key={index} className="flex items-start gap-3 !py-3.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <Zap className="h-3.5 w-3.5 text-primary" />
             </span>
             <div>
               <p className="text-sm font-semibold text-foreground">{concept.title}</p>
@@ -424,7 +424,7 @@ function WordCloudTab({ keywords }: { keywords: StudyMaterials["keywords"] }) {
       <TabIntro>
         Frequently occurring terms — larger words appeared more often in the insight content.
       </TabIntro>
-      <div className="flex min-h-[300px] flex-wrap items-center justify-center gap-x-5 gap-y-4 rounded-2xl border border-border/40 bg-gradient-to-br from-primary/[0.05] via-background to-muted/15 p-10">
+      <div className="flex min-h-[260px] flex-wrap items-center justify-center gap-x-4 gap-y-3 rounded-2xl border border-border/40 bg-gradient-to-br from-primary/[0.05] via-background to-muted/15 p-8 md:min-h-[280px]">
         {keywords.map((keyword) => (
           <span
             key={keyword.word}

@@ -25,9 +25,12 @@ import { SidebarRecentsShimmer } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatFileSize, formatRelativeDate } from "@/lib/format-library";
 import { LibraryDeleteDialog } from "@/components/library/library-delete-dialog";
+import { InsightGeneratingOverlay } from "@/components/insights/insight-generating-overlay";
 import { InsightSectionTabs } from "@/components/insights/insight-panel";
+import { InsightShareMenu } from "@/components/insights/insight-share-menu";
 import { InsightsMarkdown } from "@/components/insights/insights-markdown";
 import { parseInsightSections } from "@/lib/parse-insight-sections";
+import { insightSourceLabel, isAiInsight } from "@/lib/insights";
 import { useRagUpload } from "@/hooks/use-rag-upload";
 import type { LibraryGeneratedFile, LibraryUpload } from "@/hooks/use-library";
 import type { Conversation } from "@/types";
@@ -371,20 +374,23 @@ type DeleteTarget =
 function LibraryCardIconActions({
   onDownload,
   onDelete,
+  shareSlot,
   downloadLabel = "Download",
   deleteLabel = "Delete",
   className,
 }: {
   onDownload?: () => void;
   onDelete?: () => void;
+  shareSlot?: ReactNode;
   downloadLabel?: string;
   deleteLabel?: string;
   className?: string;
 }) {
-  if (!onDownload && !onDelete) return null;
+  if (!onDownload && !onDelete && !shareSlot) return null;
 
   return (
     <div className={cn("flex shrink-0 items-center gap-0.5", className)}>
+      {shareSlot}
       {onDownload && (
         <button
           type="button"
@@ -497,6 +503,7 @@ type LibraryItemCardProps = {
   error?: ReactNode;
   onDownload?: () => void;
   onDelete?: () => void;
+  shareSlot?: ReactNode;
   downloadLabel?: string;
   deleteLabel?: string;
   onUseInChat?: () => void;
@@ -518,6 +525,7 @@ function LibraryItemCard({
   error,
   onDownload,
   onDelete,
+  shareSlot,
   downloadLabel,
   deleteLabel,
   onUseInChat,
@@ -564,6 +572,7 @@ function LibraryItemCard({
             <LibraryCardIconActions
               onDownload={onDownload}
               onDelete={onDelete}
+              shareSlot={shareSlot}
               downloadLabel={downloadLabel}
               deleteLabel={deleteLabel}
               className="-mr-1 -mt-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
@@ -978,13 +987,32 @@ export function MainLibraryPanel({
                   : undefined
               }
               onAdvancedInsights={
-                file.preview.trim() ? () => router.push(`/insights/${file.id}`) : undefined
+                file.preview.trim() && isAiInsight(file)
+                  ? () => router.push(`/insights/${file.id}`)
+                  : undefined
+              }
+              shareSlot={
+                isAiInsight(file) && file.preview.trim() ? (
+                  <InsightShareMenu
+                    variant="icon"
+                    insightId={file.id}
+                    title={file.title}
+                    preview={file.preview}
+                    sourceName={insightSourceLabel(file, uploads)}
+                  />
+                ) : undefined
               }
             />
           ))}
         </div>
       )}
       </div>
+
+      {insightsGeneratingId && (
+        <InsightGeneratingOverlay
+          sourceName={uploads.find((upload) => upload.id === insightsGeneratingId)?.title}
+        />
+      )}
     </>
   );
 }

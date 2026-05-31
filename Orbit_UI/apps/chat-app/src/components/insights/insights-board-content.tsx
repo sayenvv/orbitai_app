@@ -65,7 +65,7 @@ export function InsightsBoardContent() {
   }, [insights, uploads]);
 
   const renderCards = (items: typeof filtered) => (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 xl:gap-6">
       {items.map((file) => (
         <InsightBoardCard
           key={file.id}
@@ -217,8 +217,13 @@ export function InsightDetailContent({ insightId }: InsightDetailContentProps) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+        <div className="w-full max-w-sm rounded-3xl border border-border/45 bg-card/80 p-8 text-center shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur-sm">
+          <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
+          <StudySectionLabel className="mt-5 block">Study view</StudySectionLabel>
+          <p className="mt-2 text-sm font-medium text-foreground">Loading insights</p>
+          <p className="mt-1 text-xs text-muted-foreground">Preparing your study toolkit…</p>
+        </div>
       </div>
     );
   }

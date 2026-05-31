@@ -9,17 +9,9 @@ import { useAuthStore } from "@/store/auth-store";
 export default function InsightDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { setHeader, openLogin } = useAppShell();
+  const { openLogin } = useAppShell();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const insightId = params.id;
-
-  useEffect(() => {
-    setHeader({
-      title: "AI Insights",
-      subtitle: "Document & analysis",
-    });
-    return () => setHeader(null);
-  }, [setHeader]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -31,7 +23,7 @@ export default function InsightDetailPage() {
   if (!isAuthenticated || !insightId) return null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <InsightDetailContent insightId={insightId} />
     </div>
   );

@@ -441,7 +441,7 @@ export function InsightDoubtChat({
                 type="button"
                 onClick={() => onFullscreenChange?.(true)}
                 title="Focus mode"
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/45 bg-background/80 px-3 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/45 bg-background/80 px-3 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               >
                 <Maximize2 className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Focus</span>
@@ -457,7 +457,7 @@ export function InsightDoubtChat({
                 setDockedOpen((open) => !open);
               }}
               aria-expanded={dockedOpen || fullscreen}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/45 bg-background/80 px-3 text-xs font-medium text-foreground hover:bg-muted/50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/45 bg-background/80 px-3 text-xs font-medium text-foreground hover:bg-muted/50"
             >
               {dockedOpen || fullscreen ? (
                 <>
@@ -475,7 +475,7 @@ export function InsightDoubtChat({
         </div>
 
         {dockedOpen && !fullscreen && (
-          <div className="h-[min(44vh,440px)] border-t border-border/35">{chatBody}</div>
+          <div className="h-[min(44vh,420px)] border-t border-border/35">{chatBody}</div>
         )}
       </div>
       {fullscreenOverlay}

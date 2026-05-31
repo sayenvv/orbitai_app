@@ -1,16 +1,31 @@
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 
 /** Shared surface styles for AI Board / study views */
 export const studyPanelClass =
-  "overflow-hidden rounded-2xl border border-border/45 bg-card/75 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur-sm dark:bg-card/60";
+  "overflow-hidden rounded-3xl border border-border/45 bg-card/75 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur-sm dark:bg-card/60";
 
 export const studyPanelHeaderClass =
-  "flex items-start justify-between gap-3 border-b border-border/40 px-5 py-4";
+  "flex items-start justify-between gap-3 border-b border-border/40 px-5 py-4 md:px-6 md:py-4";
 
-export function StudyPageBackdrop({ children }: { children: ReactNode }) {
+export function StudyPageBackdrop({
+  children,
+  scrollable = false,
+  scrollRef,
+}: {
+  children: ReactNode;
+  /** When true, always allow vertical scroll (use on detail pages with tall stacked panels). */
+  scrollable?: boolean;
+  scrollRef?: RefObject<HTMLDivElement | null>;
+}) {
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
+    <div
+      ref={scrollRef}
+      className={cn(
+        "relative flex min-h-0 flex-1 flex-col",
+        scrollable ? "overflow-y-auto" : "overflow-y-auto lg:overflow-hidden",
+      )}
+    >
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="aurora opacity-70" />
         <div className="grid-dots absolute inset-0 opacity-[0.35]" />
