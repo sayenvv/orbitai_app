@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.public.auth import require_chat_user
 from app.db.session import get_db
-from app.models import User
+from app.models import Agent, User
 from app.schemas import (
+    DefaultChatResponse,
     LibraryGeneratedFileResponse,
     LibraryResponse,
     PlanLimitItem,
@@ -15,7 +16,7 @@ from app.schemas import (
     RagDocumentResponse,
     SubscriptionResponse,
 )
-from app.services.agent_registry import AgentRegistry
+from app.services.agent_registry import AgentRegistry, CLOVAI_AGENT_SLUG
 from app.services.library_store import list_user_library
 from app.services.plan_limit_store import list_plan_limits
 from app.services.rag.document_store import list_user_documents
@@ -54,6 +55,22 @@ def list_agents(db: Session = Depends(get_db)):
             )
             for a in agents
         ]
+    )
+
+
+@router.get("/default-chat", response_model=DefaultChatResponse)
+def default_chat(db: Session = Depends(get_db)):
+    agent = db.query(Agent).filter(Agent.slug == CLOVAI_AGENT_SLUG).first()
+    if agent:
+        return DefaultChatResponse(
+            assistant_name=agent.name,
+            description=agent.description
+            or "Your AI assistant for study, research, writing, and everyday questions.",
+        )
+    config = AgentRegistry(db).get_clovai()
+    return DefaultChatResponse(
+        assistant_name=config.name if config else "Assistant",
+        description="Your AI assistant for study, research, writing, and everyday questions.",
     )
 
 

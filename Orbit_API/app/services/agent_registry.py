@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import Agent, AgentConfiguration, AgentTool, Tool
 
+CLOVAI_AGENT_SLUG = "clovai"
+DEFAULT_AGENT_SLUG = "study-helper"
+
 
 @dataclass
 class AgentRuntimeConfig:
@@ -36,7 +39,27 @@ class AgentRegistry:
             return None
         return self._to_runtime(agent)
 
+    def get_clovai(self) -> AgentRuntimeConfig | None:
+        """Platform default chat assistant — configured in Control Center, not shown in public catalog."""
+        agent = (
+            self.db.query(Agent)
+            .options(
+                joinedload(Agent.configuration),
+                joinedload(Agent.agent_tools).joinedload(AgentTool.tool),
+            )
+            .filter(Agent.slug == CLOVAI_AGENT_SLUG)
+            .first()
+        )
+        if not agent or not agent.configuration:
+            return None
+        return self._to_runtime(agent)
+
     def get_default(self) -> AgentRuntimeConfig | None:
+        """Default agent for non-chat flows (e.g. library insight generation)."""
+        preferred = self.get_by_slug(DEFAULT_AGENT_SLUG)
+        if preferred:
+            return preferred
+
         agent = (
             self.db.query(Agent)
             .options(
@@ -54,7 +77,7 @@ class AgentRegistry:
     def list_active_public(self) -> list[Agent]:
         return (
             self.db.query(Agent)
-            .filter(Agent.status == "active")
+            .filter(Agent.status == "active", Agent.slug != CLOVAI_AGENT_SLUG)
             .order_by(Agent.name)
             .all()
         )

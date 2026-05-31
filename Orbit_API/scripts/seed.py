@@ -28,6 +28,66 @@ def parse_seed_uuid(value: str) -> uuid.UUID:
     return uuid.UUID(value)
 
 
+def ensure_clovai_agent(db, agents_data: list, configs_data: list, mappings_data: list) -> None:
+    """Upsert the platform default Clovai agent so existing databases pick it up on re-seed."""
+    clovai = next((a for a in agents_data if a.get("slug") == "clovai"), None)
+    if not clovai:
+        return
+
+    agent_id = uuid.UUID(clovai["id"])
+    agent = db.get(Agent, agent_id)
+    if not agent:
+        agent = db.query(Agent).filter(Agent.slug == "clovai").first()
+
+    if not agent:
+        agent = Agent(
+            id=agent_id,
+            slug=clovai["slug"],
+            name=clovai["name"],
+            short_name=clovai["shortName"],
+            description=clovai.get("description", ""),
+            status=clovai.get("status", "active"),
+            icon_key=clovai.get("iconKey", "Sparkles"),
+            color_key=clovai.get("colorKey", "indigo"),
+        )
+        db.add(agent)
+    else:
+        agent.name = clovai["name"]
+        agent.short_name = clovai["shortName"]
+        agent.description = clovai.get("description", "")
+        agent.status = clovai.get("status", "active")
+        agent.icon_key = clovai.get("iconKey", "Sparkles")
+        agent.color_key = clovai.get("colorKey", "indigo")
+
+    cfg = next((c for c in configs_data if c.get("agentId") == clovai["id"]), None)
+    if cfg:
+        existing_cfg = (
+            db.query(AgentConfiguration).filter(AgentConfiguration.agent_id == agent.id).first()
+        )
+        if not existing_cfg:
+            db.add(
+                AgentConfiguration(
+                    id=uuid.UUID(cfg["id"]),
+                    agent_id=agent.id,
+                    model=cfg.get("model", "gpt-4o-mini"),
+                    temperature=cfg.get("temperature", 0.5),
+                    max_tokens=cfg.get("maxTokens", 2048),
+                    system_prompt=cfg.get("systemPrompt", ""),
+                )
+            )
+
+    tools_by_agent = {m["agentId"]: m["toolIds"] for m in mappings_data}
+    for tool_id_str in tools_by_agent.get(clovai["id"], []):
+        tool_id = parse_seed_uuid(tool_id_str)
+        link = (
+            db.query(AgentTool)
+            .filter(AgentTool.agent_id == agent.id, AgentTool.tool_id == tool_id)
+            .first()
+        )
+        if not link:
+            db.add(AgentTool(agent_id=agent.id, tool_id=tool_id))
+
+
 def seed() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -54,6 +114,9 @@ def seed() -> None:
         tools_by_agent = {m["agentId"]: m["toolIds"] for m in mappings_data}
 
         for a in agents_data:
+            if a.get("slug") == "clovai":
+                continue
+
             agent_id = uuid.UUID(a["id"])
             agent = db.query(Agent).filter(Agent.id == agent_id).first()
             if not agent:
@@ -97,6 +160,8 @@ def seed() -> None:
                 )
                 if not link:
                     db.add(AgentTool(agent_id=agent_id, tool_id=tool_id))
+
+        ensure_clovai_agent(db, agents_data, configs_data, mappings_data)
 
         if not db.query(User).filter(User.email == "demo@orbit.ai").first():
             db.add(

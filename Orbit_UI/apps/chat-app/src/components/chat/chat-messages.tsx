@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND_NAME } from "@orbit/ui";
 import { Message } from "@/types";
 import { AssistantReplyShimmer, AssistantTextShimmer } from "@/components/ui/skeleton";
 import { UpgradeCtaButton } from "@/components/plans/upgrade-cta";
@@ -29,6 +30,10 @@ type ChatMessagesProps = {
   onSuggestionClick?: (text: string) => void;
   contentClassName?: string;
   className?: string;
+  /** True when no specialized agent is selected — show default assistant branding. */
+  isClovaiChat?: boolean;
+  assistantName?: string;
+  assistantDescription?: string;
 };
 
 const SUGGESTIONS = [
@@ -58,6 +63,9 @@ export function ChatMessages({
   onSuggestionClick,
   contentClassName,
   className,
+  isClovaiChat = true,
+  assistantName,
+  assistantDescription,
 }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -71,6 +79,11 @@ export function ChatMessages({
   }, [messages, isLoading, streamingMsgId]);
 
   if (messages.length === 0 && !isLoading) {
+    const displayName = assistantName?.trim() || BRAND_NAME;
+    const displayDescription =
+      assistantDescription?.trim() ||
+      `${displayName} is your AI assistant for study, research, writing, and everyday questions.`;
+
     return (
       <div
         ref={scrollRef}
@@ -89,11 +102,12 @@ export function ChatMessages({
             </div>
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                What can I help with?
+                {isClovaiChat ? `Hi, I'm ${displayName}` : "What can I help with?"}
               </h2>
               <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">
-                Ask anything — research, writing, planning, or brainstorming. Your conversation
-                stays here in the sidebar.
+                {isClovaiChat
+                  ? displayDescription
+                  : "Ask anything — research, writing, planning, or brainstorming. Your conversation stays here in the sidebar."}
               </p>
             </div>
           </div>

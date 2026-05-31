@@ -1,4 +1,5 @@
 from typing import AsyncIterator
+from uuid import UUID
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
@@ -7,8 +8,25 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import Conversation, Message
-from app.services.agent_registry import AgentRegistry, AgentRuntimeConfig
+from app.services.agent_registry import AgentRegistry, AgentRuntimeConfig, CLOVAI_AGENT_SLUG
 from app.services.plan_ai_stack import ChatStackConfig, PlanAiStack, get_plan_ai_stack
+
+CLOVAI_FALLBACK_SYSTEM_PROMPT = (
+    "You are a helpful AI assistant. Be warm, clear, and concise."
+)
+
+
+def _clovai_fallback_config(chat_stack: ChatStackConfig) -> AgentRuntimeConfig:
+    return AgentRuntimeConfig(
+        agent_id=UUID(int=0),
+        slug=CLOVAI_AGENT_SLUG,
+        name="Assistant",
+        model=chat_stack.model or settings.local_llm_default_model,
+        temperature=0.7,
+        max_tokens=4096,
+        system_prompt=CLOVAI_FALLBACK_SYSTEM_PROMPT,
+        tool_names=[],
+    )
 
 
 def _stub_stream(text: str) -> AsyncIterator[str]:
@@ -152,8 +170,6 @@ async def stream_agent_response(
     user_id=None,
     user_plan: str | None = None,
 ) -> AsyncIterator[str]:
-    from uuid import UUID
-
     from app.services.rag.retrieval import build_rag_prompt, retrieve_context
 
     effective_message = user_message
@@ -168,21 +184,14 @@ async def stream_agent_response(
             effective_message = build_rag_prompt(context=context, user_message=user_message)
 
     registry = AgentRegistry(db)
+    stack = _resolve_plan_stack(db, user_plan)
+    chat_stack = stack.chat
+
     config: AgentRuntimeConfig | None = None
     if agent_slug:
         config = registry.get_by_slug(agent_slug)
     if not config:
-        config = registry.get_default()
-
-    if not config:
-        async for chunk in _stub_stream(
-            "No active agent is configured. Run the seed script and publish an agent."
-        ):
-            yield chunk
-        return
-
-    stack = _resolve_plan_stack(db, user_plan)
-    chat_stack = stack.chat
+        config = registry.get_clovai() or _clovai_fallback_config(chat_stack)
 
     if chat_stack.provider == "azure_openai":
         async for token in _stream_azure(

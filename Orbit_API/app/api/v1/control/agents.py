@@ -118,6 +118,22 @@ def publish_agent(
     return agent
 
 
+def _get_or_create_configuration(db: Session, agent: Agent) -> AgentConfiguration:
+    cfg = db.query(AgentConfiguration).filter(AgentConfiguration.agent_id == agent.id).first()
+    if cfg:
+        return cfg
+    cfg = AgentConfiguration(
+        agent_id=agent.id,
+        model="gpt-4o-mini",
+        temperature=0.5,
+        max_tokens=2048,
+        system_prompt=f"You are {agent.name}. Be helpful and concise.",
+    )
+    db.add(cfg)
+    db.flush()
+    return cfg
+
+
 @router.get("/agents/{agent_id}/configuration", response_model=ControlConfigurationResponse)
 def get_configuration(
     agent_id: str,
@@ -125,9 +141,8 @@ def get_configuration(
     _: User = Depends(require_operator),
 ):
     agent = _require_agent(db, agent_id)
-    cfg = db.query(AgentConfiguration).filter(AgentConfiguration.agent_id == agent.id).first()
-    if not cfg:
-        raise HTTPException(status_code=404, detail="Configuration not found")
+    cfg = _get_or_create_configuration(db, agent)
+    db.commit()
     return ControlConfigurationResponse(
         model=cfg.model,
         temperature=cfg.temperature,
@@ -144,9 +159,7 @@ def update_configuration(
     _: User = Depends(require_operator),
 ):
     agent = _require_agent(db, agent_id)
-    cfg = db.query(AgentConfiguration).filter(AgentConfiguration.agent_id == agent.id).first()
-    if not cfg:
-        raise HTTPException(status_code=404, detail="Configuration not found")
+    cfg = _get_or_create_configuration(db, agent)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(cfg, field, value)
     db.commit()

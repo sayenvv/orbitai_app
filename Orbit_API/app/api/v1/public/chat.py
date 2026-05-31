@@ -36,6 +36,13 @@ from app.services.token_usage import (
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+def _resolve_agent_uuid(registry: AgentRegistry, agent_slug: str | None) -> UUID | None:
+    if not agent_slug:
+        return None
+    config = registry.get_by_slug(agent_slug)
+    return config.agent_id if config else None
+
+
 def _conversation_summary(conv: Conversation) -> ConversationSummary:
     agent: Agent | None = conv.agent
     return ConversationSummary(
@@ -59,8 +66,7 @@ def create_conversation(
     db: Session = Depends(get_db),
 ):
     registry = AgentRegistry(db)
-    agent_config = registry.get_by_slug(body.agent_id) if body.agent_id else registry.get_default()
-    agent_uuid = agent_config.agent_id if agent_config else None
+    agent_uuid = _resolve_agent_uuid(registry, body.agent_id)
 
     conv = Conversation(
         user_id=user.id,
@@ -157,18 +163,26 @@ async def stream_message(
     user: User = Depends(require_chat_user),
 ):
     registry = AgentRegistry(db)
-    agent_config = registry.get_by_slug(body.agent_id) if body.agent_id else registry.get_default()
-    agent_uuid = agent_config.agent_id if agent_config else None
 
     history: list[tuple[str, str]] = []
     conv: Conversation | None = None
+    agent_slug: str | None = body.agent_id or None
 
     if body.conversation_id:
-        conv = db.query(Conversation).filter(Conversation.id == body.conversation_id).first()
+        conv = (
+            db.query(Conversation)
+            .options(joinedload(Conversation.agent))
+            .filter(Conversation.id == body.conversation_id)
+            .first()
+        )
         if conv:
             if conv.user_id and conv.user_id != user.id:
                 raise HTTPException(status_code=403, detail="Forbidden")
             history = load_conversation_history(db, conv.id)
+            if not agent_slug and conv.agent:
+                agent_slug = conv.agent.slug
+
+    agent_uuid = _resolve_agent_uuid(registry, agent_slug)
 
     if conv is None:
         conv = get_or_create_conversation(
@@ -199,7 +213,7 @@ async def stream_message(
         async for token in stream_agent_response(
             db,
             user_message=body.message,
-            agent_slug=body.agent_id,
+            agent_slug=agent_slug,
             history=history,
             source_id=body.source_id if body.source_id else None,
             user_id=user.id,

@@ -56,6 +56,11 @@ class PublicAgentListResponse(BaseModel):
     data: list[PublicAgentResponse]
 
 
+class DefaultChatResponse(BaseModel):
+    assistant_name: str
+    description: str
+
+
 # --- Chat ---
 
 

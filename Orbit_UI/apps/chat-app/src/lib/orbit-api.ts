@@ -273,7 +273,14 @@ export const authApi = {
 
 // ─── Public misc (`/api/*`) ───────────────────────────────────────────────────
 
+export type ApiDefaultChat = {
+  assistant_name: string;
+  description: string;
+};
+
 export const publicApi = {
+  defaultChat: () => request<ApiDefaultChat>(API_BASE_URL, "/default-chat"),
+
   agents: () =>
     request<{ data: ApiAgent[] }>(API_BASE_URL, "/agents"),
 

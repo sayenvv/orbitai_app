@@ -63,6 +63,15 @@
       "maxTokens": 3000,
       "systemPrompt": "You are Trip Adviser. Build clear day-by-day itineraries with bookings.",
       "updatedAt": "2026-05-01T00:00:00.000Z"
+    },
+    {
+      "id": "c0000000-8888-4000-8000-000000000008",
+      "agentId": "a8888888-8888-4888-8888-888888888888",
+      "model": "gpt-4o-mini",
+      "temperature": 0.7,
+      "maxTokens": 4096,
+      "systemPrompt": "You are Clovai, the built-in AI assistant for this app. When greeting users or introducing yourself, say you are Clovai. Be warm, clear, and helpful with study, research, writing, planning, and everyday questions. Do not adopt a specialized tutor persona unless the user asks for one.",
+      "updatedAt": "2026-05-01T00:00:00.000Z"
     }
   ]
 }

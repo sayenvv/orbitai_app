@@ -54,6 +54,10 @@ export function ChatInterface({
 
   const [selectedSource, setSelectedSource] = useState<StudySource | null>(initialSource ?? null);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [defaultAssistant, setDefaultAssistant] = useState<{
+    name: string;
+    description: string;
+  } | null>(null);
   const handleSendMessageRef = useRef<(content: string) => Promise<void>>(async () => {});
   const streamingConversationRef = useRef(false);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -77,6 +81,26 @@ export function ChatInterface({
     setHeader(null);
     return () => setHeader(null);
   }, [setHeader]);
+
+  useEffect(() => {
+    let cancelled = false;
+    publicApi
+      .defaultChat()
+      .then((data) => {
+        if (!cancelled) {
+          setDefaultAssistant({
+            name: data.assistant_name,
+            description: data.description,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDefaultAssistant(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedSource || selectedSource.type !== "uploaded-file") return;
@@ -269,6 +293,7 @@ export function ChatInterface({
           messages: [userMessage, assistantMessage],
           createdAt: new Date(),
           updatedAt: new Date(),
+          ...(agentId ? { agentSlug: agentId } : {}),
         });
       } else {
         addMessage(existingId, userMessage);
@@ -292,12 +317,14 @@ export function ChatInterface({
       rafRef.current = requestAnimationFrame(flushBuffer);
 
       try {
+        const effectiveAgentId = agentId ?? activeConversation?.agentSlug ?? null;
+
         for await (const event of chatApi.streamMessage({
           message: content,
           conversation_id: isNewConversation ? null : existingId,
           source_id: activeSource?.id || null,
           source_type: activeSource?.type || null,
-          agent_id: agentId || null,
+          agent_id: effectiveAgentId,
         })) {
           if (event.type === "start" && event.conversation_id) {
             if (isNewConversation) {
@@ -347,6 +374,7 @@ export function ChatInterface({
     },
     [
       activeConversationId,
+      activeConversation?.agentSlug,
       addConversation,
       addMessage,
       agentId,
@@ -401,6 +429,7 @@ export function ChatInterface({
     displayMessages.length > 0 || Boolean(activeConversationId) || isLoading;
 
   const contentClass = chatContentClass(showActionsMenu);
+  const isClovaiChat = !agentId && !activeConversation?.agentSlug;
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
@@ -432,6 +461,9 @@ export function ChatInterface({
           streamingMsgId={streamingMsgId}
           upgradeMessageId={upgradeMessageId}
           onUpgrade={openUpgrade}
+          isClovaiChat={isClovaiChat}
+          assistantName={defaultAssistant?.name}
+          assistantDescription={defaultAssistant?.description}
           onSuggestionClick={(text) => {
             void handleSendMessage(text);
             chatInputRef.current?.focus();

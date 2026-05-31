@@ -64,16 +64,23 @@ export function AgentsListPage() {
                       iconClassName="h-4 w-4"
                       className="h-9 w-9 rounded-lg p-0"
                     />
-                    <span
-                      className={
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " +
-                        (agent.status === "active"
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                          : "bg-muted text-muted-foreground")
-                      }
-                    >
-                      {agent.status}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span
+                        className={
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                          (agent.status === "active"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : "bg-muted text-muted-foreground")
+                        }
+                      >
+                        {agent.status}
+                      </span>
+                      {agent.slug === "clovai" && (
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          Default chat
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <Link
                     href={`/agents/${agent.id}/edit`}

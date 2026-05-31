@@ -69,6 +69,16 @@
       "status": "active",
       "iconKey": "Plane",
       "colorKey": "sunset"
+    },
+    {
+      "id": "a8888888-8888-4888-8888-888888888888",
+      "slug": "clovai",
+      "name": "Clovai",
+      "shortName": "Clovai",
+      "description": "Default assistant when no specialized agent is selected",
+      "status": "active",
+      "iconKey": "Sparkles",
+      "colorKey": "indigo"
     }
   ]
 }
