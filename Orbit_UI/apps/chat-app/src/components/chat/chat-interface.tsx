@@ -11,6 +11,7 @@ import { ChatInput, type ChatInputHandle } from "./chat-input";
 import { Message, StudySource } from "@/types";
 import { ApiError, chatApi, mapMessage, publicApi } from "@/lib/orbit-api";
 import { chatContentClass } from "@/lib/chat-layout";
+import { randomId } from "@/lib/utils";
 import {
   isSourceProcessing,
   isSourceReady,
@@ -53,16 +54,19 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     setLoading,
     deleteConversation,
   } = useChatStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
 
   const [selectedSource, setSelectedSource] = useState<StudySource | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const [pendingLaunchKey, setPendingLaunchKey] = useState<string | null>(null);
   const [agentGreeting, setAgentGreeting] = useState<Message | null>(null);
   const [conversationError, setConversationError] = useState(false);
+  const [mobileComposerHeight, setMobileComposerHeight] = useState(0);
   const handleSendMessageRef = useRef<(content: string) => Promise<void>>(async () => {});
   const streamingConversationRef = useRef(false);
   const chatInputRef = useRef<ChatInputHandle>(null);
+  const mobileComposerRef = useRef<HTMLDivElement>(null);
   const agentGreetingRef = useRef<Message | null>(null);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
@@ -106,11 +110,6 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   }, [conversationError, conversationId, router, showInvalidChatNotice]);
 
   useEffect(() => {
-    setHeader(null);
-    return () => setHeader(null);
-  }, [setHeader]);
-
-  useEffect(() => {
     if (conversationId) {
       setActiveConversation(conversationId);
       setAgentGreeting(null);
@@ -130,8 +129,31 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     }
     if (pending.prompt?.trim()) {
       setPendingPrompt(pending.prompt.trim());
+      setPendingLaunchKey(pending.sendKey ?? pending.prompt.trim());
     }
   }, [conversationId, launchSeq, consumePending, setActiveConversation, setDraftAgentSlug]);
+
+  useLayoutEffect(() => {
+    const el = mobileComposerRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      if (window.innerWidth >= 768) {
+        setMobileComposerHeight(0);
+        return;
+      }
+      setMobileComposerHeight(el.offsetHeight);
+    };
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (conversationId) {
@@ -256,7 +278,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   );
 
   useEffect(() => {
-    if (!conversationId || !isAuthenticated || !conversationsHydrated) {
+    if (!conversationId || !isAuthenticated || !conversationsHydrated || authLoading) {
       return;
     }
     if (streamingConversationRef.current || isLoading) return;
@@ -277,6 +299,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   }, [
     conversationId,
     isAuthenticated,
+    authLoading,
     conversationsHydrated,
     isLoading,
     loadConversationMessages,
@@ -320,11 +343,11 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           const errorText =
             err instanceof ApiError ? err.message : "Document is still processing. Try again shortly.";
           const existingId = activeConversationId;
-          const tempId = existingId ?? crypto.randomUUID();
-          const assistantMsgId = crypto.randomUUID();
+          const tempId = existingId ?? randomId();
+          const assistantMsgId = randomId();
           const opening = greeting
-            ? [greeting, { id: crypto.randomUUID(), role: "user" as const, content, timestamp: new Date() }]
-            : [{ id: crypto.randomUUID(), role: "user" as const, content, timestamp: new Date() }];
+            ? [greeting, { id: randomId(), role: "user" as const, content, timestamp: new Date() }]
+            : [{ id: randomId(), role: "user" as const, content, timestamp: new Date() }];
           if (!existingId) {
             addConversation({
               id: tempId,
@@ -338,7 +361,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
               ...(effectiveAgentSlug ? { agentSlug: effectiveAgentSlug } : {}),
             });
           } else {
-            addMessage(existingId, { id: crypto.randomUUID(), role: "user", content, timestamp: new Date() });
+            addMessage(existingId, { id: randomId(), role: "user", content, timestamp: new Date() });
             addMessage(existingId, { id: assistantMsgId, role: "assistant", content: errorText, timestamp: new Date() });
           }
           return;
@@ -348,7 +371,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       }
 
       const userMessage: Message = {
-        id: crypto.randomUUID(),
+        id: randomId(),
         role: "user",
         content,
         timestamp: new Date(),
@@ -356,8 +379,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
 
       const existingId = activeConversationId;
       const isNewConversation = !existingId;
-      const tempId = isNewConversation ? crypto.randomUUID() : existingId;
-      const assistantMsgId = crypto.randomUUID();
+      const tempId = isNewConversation ? randomId() : existingId;
+      const assistantMsgId = randomId();
       const assistantMessage: Message = {
         id: assistantMsgId,
         role: "assistant",
@@ -477,22 +500,25 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   useLayoutEffect(() => {
     const trimmed = pendingPrompt?.trim();
     if (!trimmed) return;
+    if (authLoading) return;
 
-    const dedupeKey = trimmed;
+    const dedupeKey = pendingLaunchKey ?? trimmed;
     if (processedInitialSends.has(dedupeKey)) return;
 
     if (!isAuthenticated) {
       openAuthPrompt();
       setPendingPrompt(null);
+      setPendingLaunchKey(null);
       return;
     }
 
     processedInitialSends.add(dedupeKey);
     setPendingPrompt(null);
+    setPendingLaunchKey(null);
     setAgentGreeting(null);
 
     void handleSendMessageRef.current(trimmed);
-  }, [pendingPrompt, isAuthenticated, openAuthPrompt]);
+  }, [pendingPrompt, pendingLaunchKey, isAuthenticated, authLoading, openAuthPrompt]);
 
   const handleDeleteConversation = useCallback(async () => {
     if (!activeConversationId || !isAuthenticated) return;
@@ -519,11 +545,52 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
 
   const contentClass = chatContentClass(showActionsMenu);
 
+  useEffect(() => {
+    if (!conversationId) {
+      setHeader(null);
+      return;
+    }
+
+    const title = activeConversation?.title?.trim() || "Chat";
+    const subtitle =
+      activeAgent?.shortName ?? activeAgent?.name ?? activeConversation?.agentShortName ?? undefined;
+
+    setHeader({
+      title,
+      subtitle,
+      actions: showActionsMenu ? (
+        <ChatActionsMenu
+          variant="header"
+          conversationId={activeConversationId}
+          conversationTitle={activeConversation?.title}
+          messages={displayMessages}
+          canDelete={Boolean(activeConversationId && isAuthenticated)}
+          onDelete={handleDeleteConversation}
+          onNewChat={handleNewChat}
+        />
+      ) : undefined,
+    });
+
+    return () => setHeader(null);
+  }, [
+    conversationId,
+    activeConversation?.title,
+    activeConversation?.agentShortName,
+    activeAgent,
+    activeConversationId,
+    displayMessages,
+    isAuthenticated,
+    setHeader,
+    showActionsMenu,
+    handleDeleteConversation,
+    handleNewChat,
+  ]);
+
   return (
     <div className="flex min-h-0 w-full flex-1 overflow-hidden">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {showActionsMenu && (
-        <div className="pointer-events-none absolute inset-y-0 right-3 z-20 flex items-center overflow-visible py-28 md:right-5 xl:hidden">
+        <div className="pointer-events-none absolute inset-y-0 right-3 z-20 hidden items-center overflow-visible py-28 md:flex md:right-5 xl:hidden">
           <div className="pointer-events-auto">
             <ChatActionsMenu
               conversationId={activeConversationId}
@@ -537,7 +604,14 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         </div>
       )}
       {loadingMessages ? (
-        <div className="min-h-0 flex-1 overflow-y-auto w-full">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto w-full max-md:pb-0"
+          style={
+            mobileComposerHeight > 0
+              ? { paddingBottom: mobileComposerHeight + 8 }
+              : undefined
+          }
+        >
           <div className={contentClass}>
             <ChatThreadShimmer />
           </div>
@@ -545,6 +619,12 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       ) : (
         <ChatMessages
           contentClassName={contentClass}
+          className="max-md:pb-0"
+          style={
+            mobileComposerHeight > 0
+              ? { paddingBottom: mobileComposerHeight + 8 }
+              : undefined
+          }
           messages={displayMessages}
           isLoading={isLoading}
           streamingMsgId={streamingMsgId}
@@ -564,16 +644,22 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           }
         />
       )}
-      <ChatInput
-        ref={chatInputRef}
-        columnClassName={contentClass}
-        onSend={handleSendMessage}
-        isLoading={isLoading}
-        selectedSource={isAuthenticated ? selectedSource : null}
-        onSelectSource={isAuthenticated ? setSelectedSource : () => {}}
-        showContextSelector={isAuthenticated}
-        conversationId={activeConversationId}
-      />
+      <div
+        ref={mobileComposerRef}
+        className="shrink-0 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40"
+      >
+        <ChatInput
+          ref={chatInputRef}
+          columnClassName={contentClass}
+          onSend={handleSendMessage}
+          isLoading={isLoading}
+          selectedSource={isAuthenticated ? selectedSource : null}
+          onSelectSource={isAuthenticated ? setSelectedSource : () => {}}
+          showContextSelector={isAuthenticated}
+          conversationId={activeConversationId}
+          mobileBottom
+        />
+      </div>
       </div>
 
       <ChatSideRail

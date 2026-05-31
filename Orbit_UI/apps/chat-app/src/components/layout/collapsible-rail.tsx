@@ -82,7 +82,7 @@ export function CollapsibleRail({
           <button
             type="button"
             onClick={onToggle}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
             title={collapseLabel}
             aria-label={collapseLabel}
           >

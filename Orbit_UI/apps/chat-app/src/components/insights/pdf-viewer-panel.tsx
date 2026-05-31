@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle, FileText, Loader2 } from "lucide-react";
-import { API_BASE_URL } from "@/lib/orbit-api";
+import { getApiBaseUrl } from "@/lib/orbit-api";
 import { cn } from "@/lib/utils";
 
 type PdfViewerPanelProps = {
@@ -30,7 +30,7 @@ export function PdfViewerPanel({
     setError("");
     setObjectUrl(null);
 
-    fetch(`${API_BASE_URL}/files/${documentId}/download`, { credentials: "include" })
+    fetch(`${getApiBaseUrl()}/files/${documentId}/download`, { credentials: "include" })
       .then(async (response) => {
         if (!response.ok) {
           const payload = await response.json().catch(() => null);

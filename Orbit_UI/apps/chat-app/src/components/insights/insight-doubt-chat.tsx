@@ -21,7 +21,7 @@ import { useAppShell } from "@/components/layout/app-shell-context";
 import { ApiError, chatApi } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
 import type { Message } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, randomId } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -124,12 +124,12 @@ function DoubtChatBody({
       }
 
       const userMessage: Message = {
-        id: crypto.randomUUID(),
+        id: randomId(),
         role: "user",
         content,
         timestamp: new Date(),
       };
-      const assistantMsgId = crypto.randomUUID();
+      const assistantMsgId = randomId();
 
       setMessages((prev) => [
         ...prev,

@@ -12,6 +12,7 @@ import { useAppShell } from "@/components/layout/app-shell-context";
 import { uploadPdfAndWait, validatePdfFile, PdfUploadCancelledError } from "@/lib/rag-upload";
 import { HomeMobileContent } from "@/components/home/home-mobile-content";
 import { LibraryPicker } from "@/components/home/library-picker";
+import { randomId } from "@/lib/utils";
 
 export default function HomePage() {
   const { agents } = useAgents();
@@ -64,7 +65,7 @@ export default function HomePage() {
         const source = await uploadPdfAndWait(attachedFiles[0]);
         navigateToChatLaunch(router, {
           prompt: trimmed || "Summarize this document",
-          sendKey: crypto.randomUUID(),
+          sendKey: randomId(),
           source,
         });
       } catch (err) {
@@ -78,7 +79,7 @@ export default function HomePage() {
 
     navigateToChatLaunch(router, {
       prompt: trimmed,
-      sendKey: crypto.randomUUID(),
+      sendKey: randomId(),
     });
   };
 
@@ -88,7 +89,7 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col md:hidden">
+      <div className="flex h-full min-h-0 flex-1 flex-col md:hidden">
         <HomeMobileContent />
       </div>
 

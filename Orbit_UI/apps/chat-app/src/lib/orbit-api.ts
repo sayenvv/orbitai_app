@@ -1,11 +1,39 @@
 import type { User } from "@/store/auth-store";
 import type { Conversation, Message } from "@/types";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const DEFAULT_API_BASE_URL = "http://localhost:8000/api";
+const DEFAULT_CHAT_API_BASE_URL = "http://localhost:8000/api/chat";
 
-export const CHAT_API_BASE_URL =
-  process.env.NEXT_PUBLIC_CHAT_API_URL || "http://localhost:8000/api/chat";
+function resolveApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+
+  // Same-origin /api (Next.js dev proxy) so session cookies work on mobile network IPs.
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/api`;
+  }
+
+  return DEFAULT_API_BASE_URL;
+}
+
+function resolveChatApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_CHAT_API_URL) return process.env.NEXT_PUBLIC_CHAT_API_URL;
+  return `${resolveApiBaseUrl().replace(/\/api\/?$/, "")}/api/chat`;
+}
+
+/** Resolve at call time so browser uses same-origin /api (session cookies). */
+export function getApiBaseUrl(): string {
+  return resolveApiBaseUrl();
+}
+
+export function getChatApiBaseUrl(): string {
+  return resolveChatApiBaseUrl();
+}
+
+/** @deprecated use getApiBaseUrl() for runtime resolution */
+export const API_BASE_URL = DEFAULT_API_BASE_URL;
+
+/** @deprecated use getChatApiBaseUrl() for runtime resolution */
+export const CHAT_API_BASE_URL = DEFAULT_CHAT_API_BASE_URL;
 
 /** Raw user shape from Orbit API */
 export type ApiUser = {
@@ -206,7 +234,7 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && path.includes("/auth/")) {
       const { useAuthStore } = await import("@/store/auth-store");
       useAuthStore.getState().logout();
     }
@@ -233,7 +261,7 @@ async function uploadRequest<T>(
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && path.includes("/auth/")) {
       const { useAuthStore } = await import("@/store/auth-store");
       useAuthStore.getState().logout();
     }
@@ -247,28 +275,28 @@ async function uploadRequest<T>(
 // ─── Auth (`/api/auth/*`) ───────────────────────────────────────────────────
 
 export const authApi = {
-  me: () => request<ApiUser>(API_BASE_URL, "/auth/chat/me"),
+  me: () => request<ApiUser>(getApiBaseUrl(), "/auth/chat/me"),
 
   login: (email: string, password: string) =>
-    request<{ user: ApiUser }>(API_BASE_URL, "/auth/chat/login", {
+    request<{ user: ApiUser }>(getApiBaseUrl(), "/auth/chat/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   register: (name: string, email: string, password: string) =>
-    request<{ user: ApiUser }>(API_BASE_URL, "/auth/chat/register", {
+    request<{ user: ApiUser }>(getApiBaseUrl(), "/auth/chat/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
     }),
 
   updateProfile: (name: string) =>
-    request<ApiUser>(API_BASE_URL, "/auth/chat/me", {
+    request<ApiUser>(getApiBaseUrl(), "/auth/chat/me", {
       method: "PATCH",
       body: JSON.stringify({ name }),
     }),
 
   logout: () =>
-    request<{ ok: boolean }>(API_BASE_URL, "/auth/chat/logout", { method: "POST" }),
+    request<{ ok: boolean }>(getApiBaseUrl(), "/auth/chat/logout", { method: "POST" }),
 };
 
 // ─── Public misc (`/api/*`) ───────────────────────────────────────────────────
@@ -279,42 +307,42 @@ export type ApiDefaultChat = {
 };
 
 export const publicApi = {
-  defaultChat: () => request<ApiDefaultChat>(API_BASE_URL, "/default-chat"),
+  defaultChat: () => request<ApiDefaultChat>(getApiBaseUrl(), "/default-chat"),
 
   agents: () =>
-    request<{ data: ApiAgent[] }>(API_BASE_URL, "/agents"),
+    request<{ data: ApiAgent[] }>(getApiBaseUrl(), "/agents"),
 
   subscription: () =>
-    request<ApiTokenUsage>(API_BASE_URL, "/subscription"),
+    request<ApiTokenUsage>(getApiBaseUrl(), "/subscription"),
 
   plans: () =>
-    request<{ data: ApiPlanLimit[] }>(API_BASE_URL, "/plans"),
+    request<{ data: ApiPlanLimit[] }>(getApiBaseUrl(), "/plans"),
 
-  files: () => request<{ data: ApiRagDocument[] }>(API_BASE_URL, "/files"),
+  files: () => request<{ data: ApiRagDocument[] }>(getApiBaseUrl(), "/files"),
 
-  getFile: (id: string) => request<ApiRagDocument>(API_BASE_URL, `/files/${id}`),
+  getFile: (id: string) => request<ApiRagDocument>(getApiBaseUrl(), `/files/${id}`),
 
   deleteFile: (id: string) =>
-    request<{ ok: boolean }>(API_BASE_URL, `/files/${id}`, { method: "DELETE" }),
+    request<{ ok: boolean }>(getApiBaseUrl(), `/files/${id}`, { method: "DELETE" }),
 
   inspectPdf: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return uploadRequest<ApiPdfInspect>(API_BASE_URL, "/files/inspect", formData);
+    return uploadRequest<ApiPdfInspect>(getApiBaseUrl(), "/files/inspect", formData);
   },
 
   downloadUpload: (id: string, filename: string) =>
     import("@/lib/file-download").then(({ downloadFromApi }) =>
-      downloadFromApi(`${API_BASE_URL}/files/${id}/download`, filename, "application/pdf"),
+      downloadFromApi(`${getApiBaseUrl()}/files/${id}/download`, filename, "application/pdf"),
     ),
 
   deleteGenerated: (id: string) =>
-    request<{ ok: boolean }>(API_BASE_URL, `/library/generated/${id}`, { method: "DELETE" }),
+    request<{ ok: boolean }>(getApiBaseUrl(), `/library/generated/${id}`, { method: "DELETE" }),
 
   downloadGenerated: (id: string, filename: string) =>
     import("@/lib/file-download").then(({ downloadFromApi }) =>
       downloadFromApi(
-        `${API_BASE_URL}/library/generated/${id}/download`,
+        `${getApiBaseUrl()}/library/generated/${id}/download`,
         filename.endsWith(".txt") ? filename : `${filename}.txt`,
         "text/plain",
       ),
@@ -322,7 +350,7 @@ export const publicApi = {
 
   generateUploadInsights: (documentId: string) =>
     request<ApiLibraryGenerated>(
-      API_BASE_URL,
+      getApiBaseUrl(),
       `/library/uploads/${documentId}/insights`,
       { method: "POST" },
     ),
@@ -333,7 +361,7 @@ export const publicApi = {
     if (conversationId) {
       formData.append("conversation_id", conversationId);
     }
-    return uploadRequest<ApiRagDocument>(API_BASE_URL, "/files/upload", formData);
+    return uploadRequest<ApiRagDocument>(getApiBaseUrl(), "/files/upload", formData);
   },
 
   waitForFileReady: async (
@@ -345,7 +373,7 @@ export const publicApi = {
     const started = Date.now();
 
     while (true) {
-      const doc = await request<ApiRagDocument>(API_BASE_URL, `/files/${id}`);
+      const doc = await request<ApiRagDocument>(getApiBaseUrl(), `/files/${id}`);
       options?.onProgress?.(doc);
 
       if (doc.status === "ready") return doc;
@@ -361,12 +389,12 @@ export const publicApi = {
   },
 
   studyMaterials: () =>
-    request<{ data: unknown[] }>(API_BASE_URL, "/study-materials"),
+    request<{ data: unknown[] }>(getApiBaseUrl(), "/study-materials"),
 
-  library: () => request<ApiLibraryResponse>(API_BASE_URL, "/library"),
+  library: () => request<ApiLibraryResponse>(getApiBaseUrl(), "/library"),
 
   getGeneratedInsight: (id: string) =>
-    request<ApiLibraryGenerated>(API_BASE_URL, `/library/generated/${id}`),
+    request<ApiLibraryGenerated>(getApiBaseUrl(), `/library/generated/${id}`),
 };
 
 // ─── Chat (`/api/chat/*`) ───────────────────────────────────────────────────
@@ -385,22 +413,22 @@ export const chatApi = {
     if (params?.q?.trim()) search.set("q", params.q.trim());
     const query = search.toString();
     return request<ConversationListResult>(
-      CHAT_API_BASE_URL,
+      getChatApiBaseUrl(),
       query ? `/conversations?${query}` : "/conversations",
     );
   },
 
   createConversation: (body: { agent_id?: string | null; title?: string }) =>
-    request<ApiConversationSummary>(CHAT_API_BASE_URL, "/conversations", {
+    request<ApiConversationSummary>(getChatApiBaseUrl(), "/conversations", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   getConversation: (id: string) =>
-    request<{ messages: ApiMessage[] }>(CHAT_API_BASE_URL, `/conversations/${id}`),
+    request<{ messages: ApiMessage[] }>(getChatApiBaseUrl(), `/conversations/${id}`),
 
   deleteConversation: (id: string) =>
-    request<void>(CHAT_API_BASE_URL, `/conversations/${id}`, { method: "DELETE" }),
+    request<void>(getChatApiBaseUrl(), `/conversations/${id}`, { method: "DELETE" }),
 
   streamMessage: async function* (
     body: {
@@ -412,7 +440,7 @@ export const chatApi = {
       history?: { role: string; content: string }[];
     },
   ): AsyncGenerator<StreamEvent> {
-    const response = await fetch(`${CHAT_API_BASE_URL}/message/stream`, {
+    const response = await fetch(`${getChatApiBaseUrl()}/message/stream`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

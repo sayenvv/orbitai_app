@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export function chatContentClass(actionsInset = false) {
   return cn(
     "mx-auto w-full max-w-4xl px-4 sm:px-6",
-    actionsInset && "max-xl:pr-16 max-xl:md:pr-20",
+    actionsInset && "md:max-xl:pr-16 lg:max-xl:pr-20",
   );
 }
 

@@ -55,7 +55,7 @@ export function SupportModal({
   ];
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 safe-x">
       <button
         type="button"
         aria-label="Close"
@@ -67,7 +67,7 @@ export function SupportModal({
         role="dialog"
         aria-modal="true"
         aria-label="Settings & Help"
-        className="relative z-10 flex max-h-[min(88dvh,540px)] w-full flex-col overflow-hidden rounded-t-2xl border border-border/60 bg-card shadow-2xl sm:max-w-md sm:rounded-2xl"
+        className="relative z-10 flex max-h-[min(85dvh,540px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
           <div>

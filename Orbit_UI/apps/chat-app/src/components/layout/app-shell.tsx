@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, type CSSProperties, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { PdfPageLimitDialogHost } from "@/components/rag/pdf-page-limit-dialog";
 import { NavbarUpgradeLink } from "@/components/plans/upgrade-cta";
 import {
@@ -132,48 +132,58 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       </Suspense>
 
       {/* Mobile header */}
-      <header className="safe-top safe-x flex shrink-0 items-center justify-between bg-background px-4 pb-3 pt-2 md:hidden">
-        <div className="flex items-center gap-2.5">
+      <header className="safe-top safe-x relative z-10 flex shrink-0 items-center justify-between gap-2 bg-background/80 px-4 pb-3 pt-2 backdrop-blur-sm md:hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <button
             type="button"
             onClick={() => setMobileDrawerOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-card/90 text-foreground transition-colors hover:bg-muted"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-muted"
             aria-label="Open menu"
           >
             <Menu className="h-4 w-4" />
           </button>
-          <NavbarBrand showText={!header?.title} />
-          {header?.title && (
-            <div className="min-w-0">
+          {header?.title ? (
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold leading-none">{header.title}</p>
               {header.subtitle && (
                 <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{header.subtitle}</p>
               )}
             </div>
+          ) : (
+            <NavbarBrand showText />
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {header?.actions}
           {isAuthenticated ? (
             <>
-              <NavbarUpgradeLink className="hidden sm:inline-flex" />
+              <NavbarUpgradeLink />
               <button
-              type="button"
-              onClick={() => setProfileOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20"
-              aria-label="Profile"
-            >
-              <span className="text-[10px] font-bold text-primary">{initials}</span>
-            </button>
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20"
+                aria-label="Profile"
+              >
+                <span className="text-[10px] font-bold text-primary">{initials}</span>
+              </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => openLogin("login")}
-              className="flex h-9 items-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground"
-            >
-              <LogIn className="h-3.5 w-3.5" />
-              Join
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openLogin("login")}
+                className="inline-flex h-9 items-center rounded-full border border-border px-3.5 text-xs font-medium transition-colors hover:bg-accent"
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => openLogin("register")}
+                className="inline-flex h-9 items-center rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Sign Up
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -193,13 +203,13 @@ function AppShellLayout({ children }: { children: ReactNode }) {
           <ChatHistoryRail />
         </div>
 
-        <div className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="hidden shrink-0 md:block">
             <AppTopBar />
           </div>
 
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div aria-hidden className="pointer-events-none absolute inset-0 hidden md:block">
+            <div aria-hidden className="pointer-events-none absolute inset-0">
               <div className="aurora" />
             </div>
 
@@ -270,7 +280,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                   )}
                 </div>
               ) : (
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+                <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
               )}
             </div>
           </div>

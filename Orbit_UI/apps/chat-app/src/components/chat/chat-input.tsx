@@ -15,6 +15,7 @@ type ChatInputProps = {
   showContextSelector?: boolean;
   conversationId?: string | null;
   columnClassName?: string;
+  mobileBottom?: boolean;
 };
 
 export type ChatInputHandle = {
@@ -30,6 +31,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     showContextSelector = true,
     columnClassName,
     conversationId,
+    mobileBottom = false,
   },
   ref,
 ) {
@@ -90,7 +92,14 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
   };
 
   return (
-    <div className="shrink-0 w-full bg-transparent pb-4 pt-3 safe-bottom sm:pb-5">
+    <div
+      className={cn(
+        "shrink-0 w-full safe-bottom safe-x",
+        mobileBottom
+          ? "border-t-0 bg-transparent pb-3 pt-2"
+          : "border-t border-border/40 bg-background/80 pb-3 pt-2 backdrop-blur-sm md:border-t-0 md:bg-transparent md:pt-3 md:pb-5",
+      )}
+    >
       <div className={cn("relative w-full", columnClassName)}>
         <input
           ref={fileInputRef}
@@ -101,7 +110,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         />
 
         {showContextSelector && (
-          <div className="mb-2">
+          <div className="mb-2 hidden sm:block">
             <ContextSelector
               selectedSource={selectedSource}
               onSelect={onSelectSource}
@@ -111,7 +120,14 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         )}
 
         <form onSubmit={handleSubmit} className="w-full">
-          <div className="w-full rounded-[28px] border border-border/60 bg-card/95 p-2 shadow-[0_16px_48px_-16px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.45)]">
+          <div
+            className={cn(
+              "w-full rounded-[28px] border border-border/60 p-2",
+              mobileBottom
+                ? "bg-transparent shadow-none"
+                : "bg-card/95 shadow-[0_16px_48px_-16px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.45)]",
+            )}
+          >
             <div className="flex items-end gap-1.5">
               <button
                 type="button"
@@ -168,7 +184,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
             </div>
           </div>
 
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/80">
+          <p className="mt-2 hidden items-center justify-center gap-1.5 text-[11px] text-muted-foreground/80 sm:flex">
             <Sparkles className="h-3 w-3 shrink-0 text-primary/60" />
             {pdfUploading
               ? pdfProgress || "Processing PDF…"

@@ -32,6 +32,7 @@ export function LibraryPicker({
 }: LibraryPickerProps) {
   const [mounted, setMounted] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [centerOnMobile, setCenterOnMobile] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -39,12 +40,20 @@ export function LibraryPicker({
     if (!open || !anchorRef.current) return;
 
     const updatePosition = () => {
+      const mobile = window.innerWidth < 768;
+      setCenterOnMobile(mobile);
+
+      if (mobile) {
+        setPosition({ top: 0, left: 0 });
+        return;
+      }
+
       const rect = anchorRef.current!.getBoundingClientRect();
-      const panelWidth = 576; // 36rem
+      const panelWidth = 576;
       const padding = 12;
       const left = Math.min(
         Math.max(padding, rect.left),
-        window.innerWidth - panelWidth - padding
+        window.innerWidth - panelWidth - padding,
       );
       setPosition({ top: rect.bottom + 8, left });
     };
@@ -88,8 +97,12 @@ export function LibraryPicker({
         role="dialog"
         aria-modal="true"
         aria-label="Library"
-        className="fixed z-[9999] w-[36rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-border/60 bg-card shadow-mac-lg"
-        style={{ top: position.top, left: position.left }}
+        className={
+          centerOnMobile
+            ? "fixed left-1/2 top-1/2 z-[9999] max-h-[min(70vh,28rem)] w-[calc(100vw-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-mac-lg"
+            : "fixed z-[9999] w-[36rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-border/60 bg-card shadow-mac-lg"
+        }
+        style={centerOnMobile ? undefined : { top: position.top, left: position.left }}
       >
         <div className="flex items-center gap-2 border-b border-border/40 px-3 py-2.5">
           <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -98,7 +111,6 @@ export function LibraryPicker({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search uploads & generated content…"
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
-            autoFocus
           />
         </div>
         <div className="max-h-72 overflow-auto p-1">

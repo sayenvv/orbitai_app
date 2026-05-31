@@ -58,12 +58,12 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
           setIsSubmitting(false);
           return;
         }
-        const data = await authApi.register(name.trim(), email.trim(), password);
-        setUser(mapApiUser(data.user));
+        await authApi.register(name.trim(), email.trim(), password);
       } else {
-        const data = await authApi.login(email.trim(), password);
-        setUser(mapApiUser(data.user));
+        await authApi.login(email.trim(), password);
       }
+      const me = await authApi.me();
+      setUser(mapApiUser(me));
       resetForm();
       onClose();
     } catch (err: unknown) {

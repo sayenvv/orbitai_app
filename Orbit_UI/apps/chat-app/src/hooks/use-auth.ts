@@ -5,6 +5,8 @@ import { authApi, mapApiUser } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
 import { useUsageStore } from "@/store/usage-store";
 
+const AUTH_TIMEOUT_MS = 8_000;
+
 export function useCurrentUser() {
   const { setUser, setLoading } = useAuthStore();
 
@@ -18,18 +20,28 @@ export function useCurrentUser() {
   }, [setUser]);
 
   useEffect(() => {
-    checkAuth().finally(() => setLoading(false));
+    let cancelled = false;
+
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, AUTH_TIMEOUT_MS);
+
+    void checkAuth().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") checkAuth();
+      if (document.visibilityState === "visible") void checkAuth();
     };
-    const handleFocus = () => checkAuth();
+    const handleFocus = () => void checkAuth();
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
-    const interval = setInterval(checkAuth, 60_000);
+    const interval = setInterval(() => void checkAuth(), 60_000);
 
     return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
       clearInterval(interval);

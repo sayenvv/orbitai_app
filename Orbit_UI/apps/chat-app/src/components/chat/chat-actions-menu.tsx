@@ -20,7 +20,7 @@ type ChatActionsMenuProps = {
   canDelete?: boolean;
   onDelete?: () => void | Promise<void>;
   onNewChat?: () => void;
-  variant?: "floating" | "rail";
+  variant?: "floating" | "rail" | "header";
 };
 
 type CopiedAction = "link" | "conversation" | null;
@@ -41,7 +41,8 @@ function ActionButton({
   active,
   destructive,
   tooltipSide = "left",
-}: Omit<ActionItem, "id"> & { tooltipSide?: "left" | "right" }) {
+  compact = false,
+}: Omit<ActionItem, "id"> & { tooltipSide?: "left" | "right"; compact?: boolean }) {
   return (
     <div className="group/action relative">
       <button
@@ -50,6 +51,7 @@ function ActionButton({
         onClick={onClick}
         className={cn(
           "press flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+          compact && "h-9 w-9 rounded-full",
           destructive
             ? "text-destructive hover:bg-destructive/10"
             : active
@@ -63,6 +65,7 @@ function ActionButton({
         role="tooltip"
         className={cn(
           "pointer-events-none absolute top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-lg bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 backdrop-blur-sm transition-all duration-150 group-hover/action:opacity-100 group-focus-within/action:opacity-100",
+          compact && "hidden",
           tooltipSide === "left"
             ? "right-[calc(100%+0.5rem)] -translate-x-1 group-hover/action:translate-x-0 group-focus-within/action:translate-x-0"
             : "left-[calc(100%+0.5rem)] translate-x-1 group-hover/action:translate-x-0 group-focus-within/action:translate-x-0",
@@ -183,17 +186,29 @@ export function ChatActionsMenu({
     });
   }
 
+  const visibleItems =
+    variant === "header"
+      ? items.filter(({ id }) => id === "share" || id === "new" || id === "delete")
+      : items;
+
   return (
     <div
       className={cn(
-        "flex flex-col items-center overflow-visible",
+        "flex items-center overflow-visible",
         variant === "floating"
-          ? "gap-2 rounded-2xl border border-border/50 bg-card/80 p-1.5 shadow-mac backdrop-blur-xl"
-          : "gap-1 p-0",
+          ? "flex-col gap-2 rounded-2xl border border-border/50 bg-card/80 p-1.5 shadow-mac backdrop-blur-xl"
+          : variant === "header"
+            ? "gap-0.5"
+            : "flex-col gap-1 p-0",
       )}
     >
-      {items.map(({ id, ...item }) => (
-        <ActionButton key={id} {...item} tooltipSide="left" />
+      {visibleItems.map(({ id, ...item }) => (
+        <ActionButton
+          key={id}
+          {...item}
+          compact={variant === "header"}
+          tooltipSide={variant === "header" ? "right" : "left"}
+        />
       ))}
     </div>
   );

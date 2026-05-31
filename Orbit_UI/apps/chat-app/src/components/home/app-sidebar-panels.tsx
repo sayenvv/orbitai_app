@@ -205,6 +205,8 @@ type SidebarRecentsListProps = {
   autoFocusSearch?: boolean;
   onSearchFocused?: () => void;
   historyLoading?: boolean;
+  /** When true, list grows naturally and parent scrolls (mobile drawer). */
+  useOuterScroll?: boolean;
 };
 
 export function SidebarRecentsList({
@@ -220,6 +222,7 @@ export function SidebarRecentsList({
   autoFocusSearch = false,
   onSearchFocused,
   historyLoading,
+  useOuterScroll = false,
 }: SidebarRecentsListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -292,9 +295,10 @@ export function SidebarRecentsList({
   useEffect(() => {
     if (!onLoadMore || !hasMore || loading || loadingMore || trimmedSearch.length > 0) return;
 
-    const root = scrollRootRef.current;
+    const root = useOuterScroll ? null : scrollRootRef.current;
     const target = loadMoreRef.current;
-    if (!root || !target) return;
+    if (!useOuterScroll && !root) return;
+    if (!target) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -305,7 +309,7 @@ export function SidebarRecentsList({
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [onLoadMore, hasMore, loading, loadingMore, trimmedSearch, groups.length]);
+  }, [onLoadMore, hasMore, loading, loadingMore, trimmedSearch, groups.length, useOuterScroll]);
 
   useEffect(() => {
     if (!autoFocusSearch) return;
@@ -317,22 +321,31 @@ export function SidebarRecentsList({
   }, [autoFocusSearch, onSearchFocused]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className={cn("flex flex-col", !useOuterScroll && "min-h-0 flex-1")}>
       {!compact && (
-        <div className="relative mb-2 px-0.5">
-          <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+        <div
+          className={cn(
+            "relative mb-2 w-full shrink-0",
+            useOuterScroll && "sticky top-0 z-10 -mx-0.5 bg-sidebar px-0.5 pb-2",
+          )}
+        >
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={searchInputRef}
-            type="text"
+            type="search"
+            enterKeyHint="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search recents…"
-            className="w-full rounded-full border-0 bg-muted/50 py-1.5 pl-8 pr-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full rounded-full border border-border/50 bg-muted/60 py-2.5 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       )}
 
-      <div ref={scrollRootRef} className="min-h-0 flex-1 overflow-y-auto pb-2">
+      <div
+        ref={scrollRootRef}
+        className={cn("pb-2", !useOuterScroll && "min-h-0 flex-1 overflow-y-auto")}
+      >
         {showListShimmer ? (
           <SidebarRecentsRowsShimmer />
         ) : groups.length === 0 ? (

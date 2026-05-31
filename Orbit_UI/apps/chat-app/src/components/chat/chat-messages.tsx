@@ -4,7 +4,7 @@ import { Message } from "@/types";
 import { AssistantReplyShimmer, AssistantTextShimmer } from "@/components/ui/skeleton";
 import { UpgradeCtaButton } from "@/components/plans/upgrade-cta";
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   Bot,
   Copy,
@@ -25,6 +25,7 @@ type ChatMessagesProps = {
   onUpgrade?: () => void;
   contentClassName?: string;
   className?: string;
+  style?: CSSProperties;
   footer?: ReactNode;
 };
 
@@ -36,6 +37,7 @@ export function ChatMessages({
   onUpgrade,
   contentClassName,
   className,
+  style,
   footer,
 }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -53,6 +55,7 @@ export function ChatMessages({
     <div
       ref={scrollRef}
       className={cn("min-h-0 flex-1 overflow-y-auto scroll-smooth w-full", className)}
+      style={style}
     >
       <div className={cn(contentClassName, "space-y-1 py-6 sm:py-8")}>
         {messages.map((message, index) => {

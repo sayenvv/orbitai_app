@@ -21,10 +21,19 @@ import { cn } from "@/lib/utils";
 type AppSidebarContentProps = {
   expanded: boolean;
   onExpand?: () => void;
+  onNavigate?: () => void;
+  /** Drawer uses outer scroll; rail keeps inner flex + scroll. */
+  variant?: "rail" | "drawer";
   className?: string;
 };
 
-export function AppSidebarContent({ expanded, onExpand, className }: AppSidebarContentProps) {
+export function AppSidebarContent({
+  expanded,
+  onExpand,
+  onNavigate,
+  variant = "rail",
+  className,
+}: AppSidebarContentProps) {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const activeConversationId = useChatStore((s) => s.activeConversationId);
@@ -62,15 +71,18 @@ export function AppSidebarContent({ expanded, onExpand, className }: AppSidebarC
     } else if (next === "insights") {
       router.push("/insights");
     }
+    onNavigate?.();
   };
 
   const handleNewChat = () => {
     setSection("home");
     navigateToNewChat(router);
+    onNavigate?.();
   };
 
   const openChat = (id: string) => {
     router.push(`/c/${encodeURIComponent(id)}`);
+    onNavigate?.();
   };
 
   const handleLibrary = () => {
@@ -87,12 +99,18 @@ export function AppSidebarContent({ expanded, onExpand, className }: AppSidebarC
   };
 
   const historyLoading = chatsLoading || !chatsHydrated;
+  const isDrawer = variant === "drawer";
 
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-1 flex-col",
-        expanded ? "px-2 py-3" : "items-center px-0 pb-3 pt-1",
+        "flex flex-col",
+        !isDrawer && "min-h-0 flex-1",
+        expanded
+          ? isDrawer
+            ? "py-3"
+            : "px-2 py-3"
+          : "items-center px-0 pb-3 pt-1",
         className,
       )}
     >
@@ -116,7 +134,12 @@ export function AppSidebarContent({ expanded, onExpand, className }: AppSidebarC
       )}
 
       {expanded && isAuthenticated && (
-        <div className="mt-3 flex min-h-0 flex-1 flex-col border-t border-sidebar-border/60 pt-3">
+        <div
+          className={cn(
+            "mt-3 border-t border-sidebar-border/60 pt-3",
+            !isDrawer && "flex min-h-0 flex-1 flex-col",
+          )}
+        >
           <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Recents
           </p>
@@ -132,6 +155,7 @@ export function AppSidebarContent({ expanded, onExpand, className }: AppSidebarC
             onDelete={(id) => void removeConversation(id)}
             autoFocusSearch={focusSearch}
             onSearchFocused={() => setFocusSearch(false)}
+            useOuterScroll={isDrawer}
           />
         </div>
       )}
@@ -140,7 +164,10 @@ export function AppSidebarContent({ expanded, onExpand, className }: AppSidebarC
         <div className="mt-3 space-y-3 border-t border-sidebar-border/60 pt-3">
           <button
             type="button"
-            onClick={() => openLogin("login")}
+            onClick={() => {
+              openLogin("login");
+              onNavigate?.();
+            }}
             className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -160,7 +187,10 @@ export function AppSidebarContent({ expanded, onExpand, className }: AppSidebarC
         collapsed={!expanded}
         showTopBorder={expanded}
         labelClassName={labelClassName}
-        onOpen={() => openSupport("settings")}
+        onOpen={() => {
+          openSupport("settings");
+          onNavigate?.();
+        }}
       />
     </div>
   );

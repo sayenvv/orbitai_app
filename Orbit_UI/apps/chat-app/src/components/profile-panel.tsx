@@ -90,7 +90,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 safe-x safe-top safe-bottom">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
@@ -98,7 +98,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-xl mx-4 rounded-2xl border bg-card shadow-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative mx-auto flex w-full max-w-xl max-h-[min(85dvh,640px)] flex-col rounded-2xl border bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <div>

@@ -171,10 +171,17 @@
 /* ─── Mobile full-screen shell ───────────────────────────────────── */
 
 .app-shell {
-  height: 100dvh;
-  height: -webkit-fill-available;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .app-shell {
+    height: 100dvh;
+    height: -webkit-fill-available;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
 }
 
 @media (min-width: 768px) {
