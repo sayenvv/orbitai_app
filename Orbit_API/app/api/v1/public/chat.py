@@ -91,14 +91,21 @@ def create_conversation(
 def list_conversations(
     limit: int = Query(default=20, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
+    q: str | None = Query(default=None, max_length=200),
     user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
-    rows = (
+    query = (
         db.query(Conversation)
         .options(joinedload(Conversation.agent))
         .filter(Conversation.user_id == user.id)
-        .order_by(Conversation.updated_at.desc())
+    )
+    if q and q.strip():
+        term = q.strip().replace("%", "").replace("_", "")
+        if term:
+            query = query.filter(Conversation.title.ilike(f"%{term}%"))
+    rows = (
+        query.order_by(Conversation.updated_at.desc())
         .offset(offset)
         .limit(limit + 1)
         .all()

@@ -11,6 +11,7 @@ export function useSidebarChats() {
   const loading = useChatStore((s) => s.conversationsLoading);
   const loadingMore = useChatStore((s) => s.conversationsLoadingMore);
   const hasMore = useChatStore((s) => s.conversationsHasMore);
+  const hydrated = useChatStore((s) => s.conversationsHydrated);
   const refreshConversationsList = useChatStore((s) => s.refreshConversationsList);
   const loadMoreConversationsList = useChatStore((s) => s.loadMoreConversationsList);
   const deleteConversation = useChatStore((s) => s.deleteConversation);
@@ -46,6 +47,7 @@ export function useSidebarChats() {
     loading,
     loadingMore,
     hasMore,
+    hydrated,
     refresh,
     loadMore,
     removeConversation,

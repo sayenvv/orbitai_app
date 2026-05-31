@@ -378,10 +378,11 @@ export type ConversationListResult = {
 };
 
 export const chatApi = {
-  listConversations: (params?: { limit?: number; offset?: number }) => {
+  listConversations: (params?: { limit?: number; offset?: number; q?: string }) => {
     const search = new URLSearchParams();
     if (params?.limit != null) search.set("limit", String(params.limit));
     if (params?.offset != null) search.set("offset", String(params.offset));
+    if (params?.q?.trim()) search.set("q", params.q.trim());
     const query = search.toString();
     return request<ConversationListResult>(
       CHAT_API_BASE_URL,

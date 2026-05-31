@@ -1,52 +1,68 @@
 import { create } from "zustand";
 
-const STORAGE_KEY = "orbit-chat-side-rail-open";
+export type ChatSideRailSide = "left" | "right";
+
+const STORAGE_KEYS: Record<ChatSideRailSide, string> = {
+  right: "orbit-chat-side-rail-open",
+  left: "clovai-chat-side-rail-left-open",
+};
 
 type ChatSideRailState = {
-  open: boolean;
+  leftOpen: boolean;
+  rightOpen: boolean;
   hydrated: boolean;
   hydrate: () => void;
-  toggle: () => void;
-  setOpen: (open: boolean) => void;
+  toggle: (side: ChatSideRailSide) => void;
+  setOpen: (side: ChatSideRailSide, open: boolean) => void;
   expandForNewChat: () => void;
 };
 
-function persistOpen(open: boolean) {
+function readStoredOpen(side: ChatSideRailSide): boolean | null {
   try {
-    localStorage.setItem(STORAGE_KEY, String(open));
+    const stored = localStorage.getItem(STORAGE_KEYS[side]);
+    if (stored !== null) return stored === "true";
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function persistOpen(side: ChatSideRailSide, open: boolean) {
+  try {
+    localStorage.setItem(STORAGE_KEYS[side], String(open));
   } catch {
     // ignore
   }
 }
 
 export const useChatSideRailStore = create<ChatSideRailState>((set) => ({
-  open: true,
+  leftOpen: true,
+  rightOpen: true,
   hydrated: false,
   hydrate: () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored !== null) {
-        set({ open: stored === "true", hydrated: true });
-        return;
-      }
-    } catch {
-      // ignore
-    }
-    set({ hydrated: true });
+    const leftStored = readStoredOpen("left");
+    const rightStored = readStoredOpen("right");
+    set({
+      leftOpen: leftStored ?? true,
+      rightOpen: rightStored ?? true,
+      hydrated: true,
+    });
   },
-  toggle: () =>
+  toggle: (side) =>
     set((state) => {
-      const next = !state.open;
-      persistOpen(next);
-      return { open: next };
+      const key = side === "left" ? "leftOpen" : "rightOpen";
+      const next = !state[key];
+      persistOpen(side, next);
+      return { [key]: next };
     }),
-  setOpen: (open) => {
-    persistOpen(open);
-    set({ open });
+  setOpen: (side, open) => {
+    persistOpen(side, open);
+    set(side === "left" ? { leftOpen: open } : { rightOpen: open });
   },
   expandForNewChat: () => {
-    persistOpen(true);
-    set({ open: true });
+    persistOpen("left", true);
+    persistOpen("right", true);
+    set({ leftOpen: true, rightOpen: true });
   },
 }));
 

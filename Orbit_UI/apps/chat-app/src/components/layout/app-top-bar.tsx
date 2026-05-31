@@ -20,7 +20,7 @@ export function AppTopBar() {
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between bg-background/80 px-4 backdrop-blur-sm md:px-6">
-      <div className="flex min-w-0 flex-1 items-center gap-3 pl-4 lg:pl-6">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {header?.leading}
         {header?.title && (
           <div className="min-w-0">

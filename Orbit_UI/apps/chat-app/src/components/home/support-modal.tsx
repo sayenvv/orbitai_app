@@ -226,16 +226,23 @@ export function SettingsHelpFooterTab({
   onOpen,
 }: SettingsHelpFooterTabProps) {
   return (
-    <div className={cn("mt-auto", showTopBorder && "border-t border-sidebar-border/60 pt-3")}>
+    <div
+      className={cn(
+        "mt-auto w-full",
+        collapsed && "flex justify-center",
+        showTopBorder && "border-t border-sidebar-border/60 pt-3",
+      )}
+    >
       <button
         type="button"
         onClick={onOpen}
         title="Settings & Help"
         aria-label="Settings & Help"
         className={cn(
-          "flex h-11 w-full items-center rounded-2xl transition-all duration-300",
-          collapsed ? "justify-center" : "gap-3 px-3 justify-start",
-          "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "flex items-center text-sidebar-foreground/70 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          collapsed
+            ? "h-9 w-9 shrink-0 justify-center rounded-xl"
+            : "h-11 w-full gap-3 rounded-2xl px-3 justify-start",
         )}
       >
         <Settings className="h-4 w-4 shrink-0" strokeWidth={2} />

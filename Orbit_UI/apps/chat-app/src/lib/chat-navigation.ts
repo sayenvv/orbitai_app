@@ -24,7 +24,7 @@ export function navigateToNewChat(router: AppRouterInstance) {
   useChatSessionStore.getState().clearPending();
   useChatStore.getState().setActiveConversation(null);
   expandChatSideRail();
-  router.push("/c");
+  router.push("/");
 }
 
 export function navigateToAgentChat(router: AppRouterInstance, agentSlug: string) {

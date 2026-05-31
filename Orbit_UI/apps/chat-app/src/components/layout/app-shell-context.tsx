@@ -20,8 +20,6 @@ export type AppHeaderState = {
 };
 
 type AppShellContextValue = {
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
   mobileDrawerOpen: boolean;
   setMobileDrawerOpen: (open: boolean) => void;
   section: SidebarSection;
@@ -50,7 +48,6 @@ const AppShellContext = createContext<AppShellContextValue | null>(null);
 
 export function AppShellProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [section, setSection] = useState<SidebarSection>("home");
   const [profileOpen, setProfileOpen] = useState(false);
@@ -92,8 +89,6 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      sidebarOpen,
-      setSidebarOpen,
       mobileDrawerOpen,
       setMobileDrawerOpen,
       section,
@@ -118,7 +113,6 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
       setHeader,
     }),
     [
-      sidebarOpen,
       mobileDrawerOpen,
       section,
       profileOpen,

@@ -48,9 +48,19 @@ export function ChatThreadShimmer() {
   );
 }
 
-export function SidebarRecentsShimmer({ rows = 5 }: { rows?: number }) {
+export function SidebarRecentsShimmer({ rows = 6 }: { rows?: number }) {
   return (
-    <div className="space-y-2 px-1 py-1" aria-hidden>
+    <div className="space-y-3 px-1 py-1" aria-hidden aria-label="Loading chat history">
+      <Skeleton className="h-8 w-full rounded-full" />
+      <SidebarRecentsRowsShimmer rows={rows} />
+    </div>
+  );
+}
+
+export function SidebarRecentsRowsShimmer({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="space-y-2 px-1 py-1" aria-hidden aria-label="Loading chats">
+      <Skeleton className="h-2.5 w-12 rounded-full" />
       {Array.from({ length: rows }).map((_, i) => (
         <Skeleton key={i} className="h-9 w-full rounded-full" />
       ))}

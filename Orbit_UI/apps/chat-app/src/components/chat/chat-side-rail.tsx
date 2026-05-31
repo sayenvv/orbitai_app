@@ -11,6 +11,8 @@ import {
   Crown,
   LayoutGrid,
   PanelLeft,
+  PanelLeftClose,
+  PanelRight,
   PanelRightClose,
   Shield,
   Sparkles,
@@ -28,6 +30,7 @@ import { ChatActionsMenu } from "@/components/chat/chat-actions-menu";
 import { ChatSideRailShimmer } from "@/components/ui/skeleton";
 import { useChatSideRail } from "@/hooks/use-chat-side-rail";
 import { useUsageStore } from "@/store/usage-store";
+import type { ChatSideRailSide } from "@/store/chat-side-rail-store";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
 
@@ -41,6 +44,7 @@ type ChatSideRailActions = {
 };
 
 type ChatSideRailProps = {
+  side?: ChatSideRailSide;
   className?: string;
   showActionsMenu?: boolean;
   actions?: ChatSideRailActions;
@@ -108,8 +112,13 @@ function RailAdCard({ ad }: { ad: ChatSideRailAd }) {
   );
 }
 
-export function ChatSideRail({ className, showActionsMenu, actions }: ChatSideRailProps) {
-  const { open, hydrated, toggle } = useChatSideRail();
+export function ChatSideRail({
+  side = "right",
+  className,
+  showActionsMenu,
+  actions,
+}: ChatSideRailProps) {
+  const { open, hydrated, toggle } = useChatSideRail(side);
   const [contentReady, setContentReady] = useState(false);
   const plan = useUsageStore((s) => s.usage?.plan ?? "free");
   const showUpgrade = plan === "free";
@@ -126,6 +135,9 @@ export function ChatSideRail({ className, showActionsMenu, actions }: ChatSideRa
   }, [open, hydrated]);
 
   const showShimmer = open && (!hydrated || !contentReady);
+  const CollapseIcon = side === "left" ? PanelLeftClose : PanelRightClose;
+  const ExpandIcon = side === "left" ? PanelRight : PanelLeft;
+  const showRailActions = side === "right" && showActionsMenu;
 
   return (
     <aside
@@ -135,7 +147,7 @@ export function ChatSideRail({ className, showActionsMenu, actions }: ChatSideRa
         !hydrated && "w-[300px]",
         className,
       )}
-      aria-label="Chat sidebar"
+      aria-label={side === "left" ? "Chat resources (left)" : "Chat sidebar"}
       aria-expanded={open}
     >
       {open ? (
@@ -152,7 +164,7 @@ export function ChatSideRail({ className, showActionsMenu, actions }: ChatSideRa
               title="Collapse panel"
               aria-label="Collapse panel"
             >
-              <PanelRightClose className="h-4 w-4" strokeWidth={2} />
+              <CollapseIcon className="h-4 w-4" strokeWidth={2} />
             </button>
           </header>
 
@@ -284,10 +296,10 @@ export function ChatSideRail({ className, showActionsMenu, actions }: ChatSideRa
             title="Expand panel"
             aria-label="Expand panel"
           >
-            <PanelLeft className="h-4 w-4" strokeWidth={2} />
+            <ExpandIcon className="h-4 w-4" strokeWidth={2} />
           </button>
 
-          {showActionsMenu && actions && (
+          {showRailActions && actions && (
             <div className="my-3 flex min-h-0 flex-1 flex-col items-center justify-center overflow-visible">
               <ChatActionsMenu
                 variant="rail"

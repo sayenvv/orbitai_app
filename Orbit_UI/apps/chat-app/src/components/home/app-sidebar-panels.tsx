@@ -21,8 +21,9 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
-import { SidebarRecentsShimmer } from "@/components/ui/skeleton";
+import { SidebarRecentsRowsShimmer } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { chatApi, mapConversationSummary } from "@/lib/orbit-api";
 import { formatFileSize, formatRelativeDate } from "@/lib/format-library";
 import { LibraryDeleteDialog } from "@/components/library/library-delete-dialog";
 import { InsightGeneratingOverlay } from "@/components/insights/insight-generating-overlay";
@@ -46,6 +47,52 @@ type SidebarSectionNavProps = {
   isAuthenticated?: boolean;
   labelClassName?: string;
 };
+
+const collapsedNavBtnClass =
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sidebar-foreground/70 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+
+type SidebarCollapsedNavProps = {
+  section: SidebarSection;
+  onNewChat: () => void;
+  onLibrary: () => void;
+  onAgents: () => void;
+  onSearch: () => void;
+};
+
+export function SidebarCollapsedNav({
+  section,
+  onNewChat,
+  onLibrary,
+  onAgents,
+  onSearch,
+}: SidebarCollapsedNavProps) {
+  const items = [
+    { key: "new-chat", label: "New chat", icon: MessageSquarePlus, active: false, onClick: onNewChat },
+    { key: "library", label: "Library", icon: FolderOpen, active: section === "library", onClick: onLibrary },
+    { key: "agents", label: "Agents", icon: LayoutGrid, active: section === "agents", onClick: onAgents },
+    { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
+  ] as const;
+
+  return (
+    <div className="flex w-full flex-col items-center gap-1.5">
+      {items.map(({ key, label, icon: Icon, active, onClick }) => (
+        <button
+          key={key}
+          type="button"
+          onClick={onClick}
+          title={label}
+          aria-label={label}
+          className={cn(
+            collapsedNavBtnClass,
+            active && "bg-sidebar-accent text-sidebar-accent-foreground",
+          )}
+        >
+          <Icon className="h-4 w-4 shrink-0" />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function SidebarSectionNav({
   expanded,
@@ -74,7 +121,7 @@ export function SidebarSectionNav({
         type="button"
         onClick={onNewChat}
         className={cn(
-          "flex h-11 items-center rounded-2xl transition-all duration-300",
+          "flex h-11 items-center rounded-2xl transition-all duration-150",
           expanded ? "gap-3 px-3 justify-start" : "justify-center",
           "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         )}
@@ -93,7 +140,7 @@ export function SidebarSectionNav({
           type="button"
           onClick={() => onSectionChange(id)}
           className={cn(
-            "flex h-11 items-center rounded-2xl transition-all duration-300",
+            "flex h-11 items-center rounded-2xl transition-all duration-150",
             expanded ? "gap-3 px-3 justify-start" : "justify-center",
             section === id
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
@@ -155,6 +202,9 @@ type SidebarRecentsListProps = {
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
   compact?: boolean;
+  autoFocusSearch?: boolean;
+  onSearchFocused?: () => void;
+  historyLoading?: boolean;
 };
 
 export function SidebarRecentsList({
@@ -167,24 +217,80 @@ export function SidebarRecentsList({
   onSelect,
   onDelete,
   compact = false,
+  autoFocusSearch = false,
+  onSearchFocused,
+  historyLoading,
 }: SidebarRecentsListProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Conversation[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const filtered = useMemo(
-    () =>
-      conversations.filter((conv) =>
-        conv.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
-    [conversations, searchQuery],
-  );
-
-  const groups = useMemo(() => groupRecents(filtered), [filtered]);
-  const isSearching = searchQuery.trim().length > 0;
+  const trimmedSearch = searchQuery.trim();
+  const isSearching = debouncedQuery.length > 0;
+  const awaitingSearch = trimmedSearch.length > 0 && !isSearching;
+  const showHistoryShimmer =
+    (historyLoading ?? loading) && conversations.length === 0 && trimmedSearch.length === 0;
 
   useEffect(() => {
-    if (!onLoadMore || !hasMore || loading || loadingMore || isSearching) return;
+    if (!trimmedSearch) {
+      setDebouncedQuery("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(trimmedSearch);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [trimmedSearch]);
+
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearchLoading(true);
+
+    void chatApi
+      .listConversations({ q: debouncedQuery, limit: 50 })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        setSearchResults(data.data.map(mapConversationSummary));
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setSearchResults([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSearchLoading(false);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [debouncedQuery]);
+
+  const displayConversations =
+    trimmedSearch.length === 0
+      ? conversations
+      : awaitingSearch
+        ? conversations
+        : searchLoading
+          ? []
+          : (searchResults ?? []);
+
+  const showListShimmer =
+    showHistoryShimmer || (trimmedSearch.length > 0 && isSearching && searchLoading);
+
+  const groups = useMemo(() => groupRecents(displayConversations), [displayConversations]);
+
+  useEffect(() => {
+    if (!onLoadMore || !hasMore || loading || loadingMore || trimmedSearch.length > 0) return;
 
     const root = scrollRootRef.current;
     const target = loadMoreRef.current;
@@ -199,7 +305,16 @@ export function SidebarRecentsList({
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [onLoadMore, hasMore, loading, loadingMore, isSearching, groups.length]);
+  }, [onLoadMore, hasMore, loading, loadingMore, trimmedSearch, groups.length]);
+
+  useEffect(() => {
+    if (!autoFocusSearch) return;
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+      onSearchFocused?.();
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [autoFocusSearch, onSearchFocused]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -207,6 +322,7 @@ export function SidebarRecentsList({
         <div className="relative mb-2 px-0.5">
           <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -217,11 +333,11 @@ export function SidebarRecentsList({
       )}
 
       <div ref={scrollRootRef} className="min-h-0 flex-1 overflow-y-auto pb-2">
-        {loading && conversations.length === 0 ? (
-          <SidebarRecentsShimmer />
+        {showListShimmer ? (
+          <SidebarRecentsRowsShimmer />
         ) : groups.length === 0 ? (
           <p className="px-1 py-6 text-center text-[11px] text-muted-foreground">
-            {searchQuery ? "No matching chats" : "No recent chats"}
+            {trimmedSearch.length > 0 ? "No matching chats" : "No recent chats"}
           </p>
         ) : (
           <>
@@ -241,7 +357,7 @@ export function SidebarRecentsList({
                 ))}
               </div>
             ))}
-            {!isSearching && hasMore && (
+            {trimmedSearch.length === 0 && hasMore && (
               <div ref={loadMoreRef} className="flex justify-center py-3">
                 {loadingMore && (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Loading more chats" />

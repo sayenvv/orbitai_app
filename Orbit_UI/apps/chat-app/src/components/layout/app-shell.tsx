@@ -1,15 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, type ReactNode } from "react";
+import { Suspense, useEffect, type CSSProperties, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Menu, PanelLeft, PanelRight } from "lucide-react";
+import { LogIn, Menu } from "lucide-react";
 import { PdfPageLimitDialogHost } from "@/components/rag/pdf-page-limit-dialog";
 import { NavbarUpgradeLink } from "@/components/plans/upgrade-cta";
-import { AppSidebar } from "@/components/home/app-sidebar";
 import {
   MainAgentsPanel,
   MainLibraryPanel,
-  type SidebarSection,
 } from "@/components/home/app-sidebar-panels";
 import { LoginModal } from "@/components/login-modal";
 import { AuthPromptModal } from "@/components/auth-prompt-modal";
@@ -18,7 +16,10 @@ import { ProfilePanel } from "@/components/profile-panel";
 import { SupportModal } from "@/components/home/support-modal";
 import { AppShellProvider, useAppShell } from "@/components/layout/app-shell-context";
 import { AppTopBar } from "@/components/layout/app-top-bar";
+import { ChatHistoryRail } from "@/components/chat/chat-history-rail";
+import { NavbarBrand } from "@/components/layout/navbar-brand";
 import { MobileAppDrawer } from "@/components/layout/mobile-app-drawer";
+import { useChatSideRail } from "@/hooks/use-chat-side-rail";
 import { useAgents } from "@/hooks/use-agents";
 import { useLibrary } from "@/hooks/use-library";
 import { useLogout } from "@/hooks/use-auth";
@@ -30,6 +31,10 @@ import { publicApi } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatSessionStore } from "@/store/chat-session-store";
 import { useChatStore } from "@/store/chat-store";
+import {
+  COLLAPSIBLE_RAIL_COLLAPSED_WIDTH_PX,
+  COLLAPSIBLE_RAIL_EXPANDED_WIDTH_PX,
+} from "@/components/layout/collapsible-rail";
 
 function ShellSectionSync() {
   const pathname = usePathname();
@@ -62,8 +67,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   const { uploads, generated, loading: libraryLoading, refresh: refreshLibrary } = useLibrary();
 
   const {
-    sidebarOpen,
-    setSidebarOpen,
     setMobileDrawerOpen,
     section,
     setSection,
@@ -84,8 +87,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
     header,
   } = useAppShell();
 
-  const sidebarWidthClass = sidebarOpen ? "left-[16rem]" : "left-[5rem]";
-
   const initials = user?.name
     ? user.name
         .split(" ")
@@ -95,34 +96,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
         .slice(0, 2)
     : "?";
 
-  const handleSectionChange = (next: SidebarSection) => {
-    setSection(next);
-    if (next === "home") {
-      setSidebarOpen(true);
-      useChatStore.getState().setActiveConversation(null);
-      if (pathname !== "/") {
-        router.push("/");
-      } else if (searchParams.get("section")) {
-        router.replace("/");
-      }
-    } else if (next === "library") {
-      if (pathname !== "/" || searchParams.get("section") !== "library") {
-        router.push("/?section=library");
-      }
-    } else if (next === "insights") {
-      if (!pathname.startsWith("/insights")) {
-        router.push("/insights");
-      }
-    } else if (next === "agents") {
-      if (pathname !== "/" || searchParams.get("section") !== "agents") {
-        router.push("/?section=agents");
-      }
-    } else if (next === "plans") {
-      if (pathname !== "/plans") {
-        router.push("/plans");
-      }
-    }
-  };
 
   useEffect(() => {
     if (pathname === "/plans") {
@@ -143,12 +116,14 @@ function AppShellLayout({ children }: { children: ReactNode }) {
     useChatStore.setState({ conversationsHydrated: true });
   }, [isAuthenticated]);
 
-  const storeActiveConversationId = useChatStore((s) => s.activeConversationId);
-  const sidebarActiveConversationId =
-    searchParams.get("conversation") ?? storeActiveConversationId;
-
   const showSectionPanel =
     pathname === "/" && (section === "library" || section === "agents");
+
+  const { open: sidebarOpen, hydrated: sidebarHydrated } = useChatSideRail("left");
+  const sidebarWidth =
+    !sidebarHydrated || sidebarOpen
+      ? COLLAPSIBLE_RAIL_EXPANDED_WIDTH_PX
+      : COLLAPSIBLE_RAIL_COLLAPSED_WIDTH_PX;
 
   return (
     <>
@@ -167,6 +142,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
           >
             <Menu className="h-4 w-4" />
           </button>
+          <NavbarBrand showText={!header?.title} />
           {header?.title && (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-none">{header.title}</p>
@@ -204,113 +180,98 @@ function AppShellLayout({ children }: { children: ReactNode }) {
 
       <MobileAppDrawer />
 
-      <main className="app-shell relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-        <div className="relative flex min-h-0 flex-1 overflow-hidden">
-          {/* Desktop sidebar */}
-          <div className="relative hidden shrink-0 lg:flex">
-            <AppSidebar
-              expanded={sidebarOpen}
-              section={section}
-              onSectionChange={handleSectionChange}
-              activeConversationId={sidebarActiveConversationId}
-              onOpenSettings={() => openSupport("settings")}
-            />
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`absolute top-0 z-40 flex h-14 min-w-8 items-center justify-center rounded-r-md bg-sidebar px-2 py-2 text-muted-foreground shadow-mac transition-[left,color,background-color,box-shadow] duration-300 ease-out hover:bg-sidebar-accent/60 hover:text-primary ${sidebarWidthClass}`}
-              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-              aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              {sidebarOpen ? (
-                <PanelLeft className="h-5 w-5" strokeWidth={2.25} />
-              ) : (
-                <PanelRight className="h-5 w-5" strokeWidth={2.25} />
-              )}
-            </button>
+      <main
+        className="app-shell app-shell-grid relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background md:grid"
+        data-sidebar={sidebarHydrated ? (sidebarOpen ? "expanded" : "collapsed") : undefined}
+        style={
+          {
+            "--sidebar-width": sidebarWidth,
+          } as CSSProperties
+        }
+      >
+        <div className="hidden h-full min-h-0 overflow-hidden md:block">
+          <ChatHistoryRail />
+        </div>
+
+        <div className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <div className="hidden shrink-0 md:block">
+            <AppTopBar />
           </div>
 
-          {/* Main column */}
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="hidden md:block">
-              <AppTopBar />
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div aria-hidden className="pointer-events-none absolute inset-0 hidden md:block">
+              <div className="aurora" />
             </div>
 
-            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div aria-hidden className="pointer-events-none absolute inset-0 hidden md:block">
-                <div className="aurora" />
-              </div>
-
-              <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden">
-                {showSectionPanel ? (
-                  <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6 md:py-8">
-                    {section === "library" ? (
-                      <MainLibraryPanel
-                        uploads={uploads}
-                        generated={generated}
-                        loading={libraryLoading}
-                        isAuthenticated={isAuthenticated}
-                        onRefresh={refreshLibrary}
-                        onRequireAuth={() => openLogin("login")}
-                        onSelectUpload={(upload) => {
-                          const params = new URLSearchParams({
-                            sourceId: upload.id,
-                            sourceName: upload.title,
-                            sourceType: "uploaded-file",
-                          });
-                          router.push(`/c?${params.toString()}`);
-                        }}
-                        onSelectGenerated={(file) => {
-                          if (file.conversationId) {
-                            navigateToConversation(router, file.conversationId);
-                            return;
-                          }
-                          navigateToAgentChat(router, file.agentSlug);
-                        }}
-                        onGenerateInsights={
-                          isAuthenticated
-                            ? (upload) => publicApi.generateUploadInsights(upload.id)
-                            : undefined
+            <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden">
+              {showSectionPanel ? (
+                <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6 md:py-8">
+                  {section === "library" ? (
+                    <MainLibraryPanel
+                      uploads={uploads}
+                      generated={generated}
+                      loading={libraryLoading}
+                      isAuthenticated={isAuthenticated}
+                      onRefresh={refreshLibrary}
+                      onRequireAuth={() => openLogin("login")}
+                      onSelectUpload={(upload) => {
+                        const params = new URLSearchParams({
+                          sourceId: upload.id,
+                          sourceName: upload.title,
+                          sourceType: "uploaded-file",
+                        });
+                        router.push(`/c?${params.toString()}`);
+                      }}
+                      onSelectGenerated={(file) => {
+                        if (file.conversationId) {
+                          navigateToConversation(router, file.conversationId);
+                          return;
                         }
-                        onDownloadUpload={
-                          isAuthenticated
-                            ? (upload) => void publicApi.downloadUpload(upload.id, upload.title)
-                            : undefined
-                        }
-                        onDeleteUpload={
-                          isAuthenticated
-                            ? async (upload) => {
-                                await publicApi.deleteFile(upload.id);
-                                await refreshLibrary();
-                              }
-                            : undefined
-                        }
-                        onDownloadGenerated={
-                          isAuthenticated
-                            ? (file) => void publicApi.downloadGenerated(file.id, file.title)
-                            : undefined
-                        }
-                        onDeleteGenerated={
-                          isAuthenticated
-                            ? async (file) => {
-                                await publicApi.deleteGenerated(file.id);
-                                await refreshLibrary();
-                              }
-                            : undefined
-                        }
-                      />
-                    ) : (
-                      <MainAgentsPanel
-                        agents={agents}
-                        loading={agentsLoading}
-                        onSelect={(agentId) => navigateToAgentChat(router, agentId)}
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-                )}
-              </div>
+                        navigateToAgentChat(router, file.agentSlug);
+                      }}
+                      onGenerateInsights={
+                        isAuthenticated
+                          ? (upload) => publicApi.generateUploadInsights(upload.id)
+                          : undefined
+                      }
+                      onDownloadUpload={
+                        isAuthenticated
+                          ? (upload) => void publicApi.downloadUpload(upload.id, upload.title)
+                          : undefined
+                      }
+                      onDeleteUpload={
+                        isAuthenticated
+                          ? async (upload) => {
+                              await publicApi.deleteFile(upload.id);
+                              await refreshLibrary();
+                            }
+                          : undefined
+                      }
+                      onDownloadGenerated={
+                        isAuthenticated
+                          ? (file) => void publicApi.downloadGenerated(file.id, file.title)
+                          : undefined
+                      }
+                      onDeleteGenerated={
+                        isAuthenticated
+                          ? async (file) => {
+                              await publicApi.deleteGenerated(file.id);
+                              await refreshLibrary();
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <MainAgentsPanel
+                      agents={agents}
+                      loading={agentsLoading}
+                      onSelect={(agentId) => navigateToAgentChat(router, agentId)}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+              )}
             </div>
           </div>
         </div>
