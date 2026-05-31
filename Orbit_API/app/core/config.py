@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str = "change-me"
     database_url: str = "postgresql+psycopg://orbit:orbit@localhost:5432/orbit"
-    cors_origins: str = "http://localhost:3001,http://localhost:3003,http://localhost:3004"
+    cors_origins: str = (
+        "http://localhost:3001,http://localhost:3003,http://localhost:3004,"
+        "http://192.168.1.4:3001,http://192.168.1.4:3003,http://192.168.1.4:3004"
+    )
     openai_api_key: str = ""
     llm_provider: str = "openai"  # "openai" | "ollama" | "azure_openai"
     auth_cookie_name: str = "orbit_session"  # legacy; cleared on realm login

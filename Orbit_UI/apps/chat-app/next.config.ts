@@ -5,7 +5,7 @@ const apiProxy = process.env.API_PROXY_URL ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
-  allowedDevOrigins: ["192.168.1.16", "172.20.10.2"],
+  allowedDevOrigins: ["192.168.1.4", "192.168.1.16", "172.20.10.2"],
   images: {
     remotePatterns: [
       {

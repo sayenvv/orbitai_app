@@ -37,7 +37,7 @@ import type { LibraryGeneratedFile, LibraryUpload } from "@/hooks/use-library";
 import type { Conversation } from "@/types";
 import type { HomeAgent } from "@/lib/home-data";
 
-export type SidebarSection = "home" | "library" | "insights" | "agents" | "plans";
+export type SidebarSection = "home" | "library" | "insights" | "agents" | "apps" | "plans";
 
 type SidebarSectionNavProps = {
   expanded: boolean;
@@ -56,6 +56,7 @@ type SidebarCollapsedNavProps = {
   onNewChat: () => void;
   onLibrary: () => void;
   onAgents: () => void;
+  onApps: () => void;
   onSearch: () => void;
 };
 
@@ -64,12 +65,14 @@ export function SidebarCollapsedNav({
   onNewChat,
   onLibrary,
   onAgents,
+  onApps,
   onSearch,
 }: SidebarCollapsedNavProps) {
   const items = [
     { key: "new-chat", label: "New chat", icon: MessageSquarePlus, active: false, onClick: onNewChat },
     { key: "library", label: "Library", icon: FolderOpen, active: section === "library", onClick: onLibrary },
     { key: "agents", label: "Agents", icon: LayoutGrid, active: section === "agents", onClick: onAgents },
+    { key: "apps", label: "Apps", icon: Sparkles, active: section === "apps", onClick: onApps },
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ] as const;
 
@@ -105,10 +108,12 @@ export function SidebarSectionNav({
   const authenticatedTabs: { id: SidebarSection; label: string; icon: typeof FolderOpen }[] = [
     { id: "library", label: "Library", icon: FolderOpen },
     { id: "insights", label: "AI Board", icon: LayoutDashboard },
+    { id: "apps", label: "Apps", icon: Sparkles },
     { id: "agents", label: "Agents", icon: LayoutGrid },
   ];
 
   const guestTabs: { id: SidebarSection; label: string; icon: typeof FolderOpen }[] = [
+    { id: "apps", label: "Apps", icon: Sparkles },
     { id: "plans", label: "Plans", icon: CreditCard },
     { id: "agents", label: "Agents", icon: LayoutGrid },
   ];

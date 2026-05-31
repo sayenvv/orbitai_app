@@ -47,7 +47,7 @@ function ShellSectionSync() {
       return;
     }
     const section = searchParams.get("section");
-    if (section === "library" || section === "agents") {
+    if (section === "library" || section === "agents" || section === "apps") {
       setSection(section);
     }
   }, [pathname, searchParams, setSection]);
@@ -100,6 +100,8 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (pathname === "/plans") {
       setSection("plans");
+    } else if (pathname.startsWith("/apps")) {
+      setSection("apps");
     } else if (pathname.startsWith("/insights")) {
       setSection("insights");
     } else if (pathname !== "/") {

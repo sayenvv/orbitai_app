@@ -64,6 +64,8 @@ export function AppSidebarContent({
     setSection(next);
     if (next === "plans") {
       router.push("/plans");
+    } else if (next === "apps") {
+      router.push("/apps");
     } else if (next === "library") {
       router.push("/?section=library");
     } else if (next === "agents") {
@@ -91,6 +93,10 @@ export function AppSidebarContent({
 
   const handleAgents = () => {
     handleSectionChange("agents");
+  };
+
+  const handleApps = () => {
+    handleSectionChange("apps");
   };
 
   const handleSearch = () => {
@@ -129,6 +135,7 @@ export function AppSidebarContent({
           onNewChat={handleNewChat}
           onLibrary={handleLibrary}
           onAgents={handleAgents}
+          onApps={handleApps}
           onSearch={handleSearch}
         />
       )}
