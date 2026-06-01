@@ -15,7 +15,6 @@ import {
   PanelRight,
   PanelRightClose,
   Shield,
-  Sparkles,
 } from "lucide-react";
 
 import {
@@ -323,13 +322,6 @@ export function ChatSideRail({
                 <Crown className="h-4 w-4" />
               </Link>
             )}
-            <Link
-              href="/insights"
-              title="Study insights"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            >
-              <Sparkles className="h-4 w-4" />
-            </Link>
             <Link
               href="/?section=agents"
               title="Browse agents"

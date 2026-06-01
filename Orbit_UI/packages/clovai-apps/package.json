@@ -1,0 +1,20 @@
+{
+  "name": "@orbit/clovai-apps",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "echo \"no lint\""
+  },
+  "peerDependencies": {
+    "lucide-react": "^1.16.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@orbit/tsconfig": "workspace:*",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}

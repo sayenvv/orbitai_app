@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname, "../.."),
   },
-  transpilePackages: ["@orbit/ui", "@orbit/types"],
+  transpilePackages: ["@orbit/ui", "@orbit/types", "@orbit/clovai-apps"],
   async rewrites() {
     return [
       {

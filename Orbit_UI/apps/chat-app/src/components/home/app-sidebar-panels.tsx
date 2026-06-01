@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   Bot,
-  BrainCircuit,
   Crown,
   Download,
   FileText,
@@ -15,7 +14,6 @@ import {
   Maximize2,
   MessageSquarePlus,
   Plus,
-  ScanText,
   Search,
   Sparkles,
   SquarePen,
@@ -34,16 +32,16 @@ import { formatFileSize, formatRelativeDate } from "@/lib/format-library";
 import { LibraryDeleteDialog } from "@/components/library/library-delete-dialog";
 import { InsightGeneratingOverlay } from "@/components/insights/insight-generating-overlay";
 import { InsightSectionTabs } from "@/components/insights/insight-panel";
-import { InsightShareMenu } from "@/components/insights/insight-share-menu";
 import { InsightsMarkdown } from "@/components/insights/insights-markdown";
 import { parseInsightSections } from "@/lib/parse-insight-sections";
-import { insightSourceLabel, isAiInsight } from "@/lib/insights";
+import { isAiInsight } from "@/lib/insights";
 import { useRagUpload } from "@/hooks/use-rag-upload";
 import type { LibraryGeneratedFile, LibraryUpload } from "@/hooks/use-library";
 import type { Conversation } from "@/types";
 import type { HomeAgent } from "@/lib/home-data";
+import { appsCatalog, type CatalogApp } from "@orbit/clovai-apps";
 
-export type SidebarSection = "home" | "library" | "insights" | "agents" | "apps" | "plans";
+export type SidebarSection = "home" | "library" | "agents" | "apps" | "plans";
 
 type SidebarSectionNavProps = {
   expanded: boolean;
@@ -70,7 +68,6 @@ type PremiumNavItem = {
 const navIconTones = {
   chat: "from-blue-500/20 to-cyan-500/10 text-blue-500",
   library: "from-amber-500/20 to-orange-500/10 text-amber-500",
-  insights: "from-violet-500/20 to-fuchsia-500/10 text-violet-500",
   apps: "from-emerald-500/20 to-teal-500/10 text-emerald-500",
   agents: "from-sky-500/20 to-indigo-500/10 text-sky-500",
   plans: "from-rose-500/20 to-pink-500/10 text-rose-500",
@@ -81,7 +78,6 @@ type SidebarCollapsedNavProps = {
   section: SidebarSection;
   onNewChat: () => void;
   onLibrary: () => void;
-  onInsights: () => void;
   onAgents: () => void;
   onApps: () => void;
   onPlans: () => void;
@@ -93,7 +89,6 @@ export function SidebarCollapsedNav({
   section,
   onNewChat,
   onLibrary,
-  onInsights,
   onAgents,
   onApps,
   onPlans,
@@ -103,7 +98,6 @@ export function SidebarCollapsedNav({
   const authenticatedItems: PremiumNavItem[] = [
     { key: "new-chat", label: "New chat", icon: SquarePen, active: false, onClick: onNewChat, tone: navIconTones.chat },
     { key: "library", label: "Library", icon: LibraryBig, active: section === "library", onClick: onLibrary, tone: navIconTones.library },
-    { key: "insights", label: "AI Board", icon: BrainCircuit, active: section === "insights", onClick: onInsights, tone: navIconTones.insights },
     { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps, tone: navIconTones.apps },
     { key: "agents", label: "Agents", icon: Bot, active: section === "agents", onClick: onAgents, tone: navIconTones.agents },
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch, tone: navIconTones.search },
@@ -164,7 +158,6 @@ export function SidebarSectionNav({
   const [moreOpen, setMoreOpen] = useState(false);
   const authenticatedTabs: { id: SidebarSection; label: string; icon: LucideIcon; tone: string }[] = [
     { id: "library", label: "Library", icon: LibraryBig, tone: navIconTones.library },
-    { id: "insights", label: "AI Board", icon: BrainCircuit, tone: navIconTones.insights },
     { id: "apps", label: "Apps", icon: Store, tone: navIconTones.apps },
     { id: "agents", label: "Agents", icon: Bot, tone: navIconTones.agents },
   ];
@@ -663,6 +656,111 @@ type DeleteTarget =
   | { kind: "upload"; item: LibraryUpload }
   | { kind: "generated"; item: LibraryGeneratedFile };
 
+type OpenInTarget = {
+  upload: LibraryUpload;
+  insight?: LibraryGeneratedFile;
+};
+
+const LIBRARY_OPEN_IN_APP_SLUGS = ["research-companion", "career-coach"] as const;
+const libraryOpenInApps = appsCatalog.filter((app) =>
+  LIBRARY_OPEN_IN_APP_SLUGS.includes(app.slug as (typeof LIBRARY_OPEN_IN_APP_SLUGS)[number]),
+);
+
+function OpenInAppPicker({
+  target,
+  onCancel,
+  onSelect,
+}: {
+  target: OpenInTarget | null;
+  onCancel: () => void;
+  onSelect: (app: CatalogApp) => void;
+}) {
+  if (!target) return null;
+
+  return (
+    <div className="fixed inset-0 z-[10004] flex items-center justify-center overflow-hidden bg-background/70 px-4 backdrop-blur-md">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="Close app picker"
+        onClick={onCancel}
+      />
+      <div aria-hidden className="pointer-events-none absolute inset-0 opacity-80">
+        <div className="aurora opacity-70" />
+        <div className="grid-dots absolute inset-0 opacity-25" />
+      </div>
+
+      <div className="relative w-full max-w-[24rem] overflow-hidden rounded-[1.75rem] border border-border/55 bg-card/92 p-4 shadow-[0_22px_70px_rgba(15,23,42,0.2)] ring-1 ring-white/10 backdrop-blur-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+              Open in
+            </p>
+            <h2 className="mt-1 text-lg font-semibold tracking-tight">Choose an app</h2>
+            <p className="mt-1 truncate text-xs text-muted-foreground">{target.upload.title}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+            aria-label="Close app picker"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {libraryOpenInApps.map((app) => {
+            const compatible = app.slug === "research-companion";
+            return (
+              <button
+                key={app.slug}
+                type="button"
+                onClick={() => compatible && onSelect(app)}
+                disabled={!compatible}
+                title={compatible ? `Open in ${app.name}` : "Uploaded files are not compatible with this app"}
+                className={cn(
+                  "group flex w-full items-center gap-3 rounded-2xl border border-border/50 bg-background/70 p-3 text-left transition-all",
+                  compatible
+                    ? "hover:-translate-y-0.5 hover:border-primary/30 hover:bg-background"
+                    : "cursor-not-allowed opacity-55",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-sm",
+                    app.heroGradient,
+                  )}
+                >
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-foreground">
+                    {app.name}
+                  </span>
+                  <span className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                    {compatible ? app.shortDescription : "Incompatible with uploaded files"}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide",
+                    compatible
+                      ? "bg-primary/10 text-primary opacity-80 transition-opacity group-hover:opacity-100"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {compatible ? "Open" : "Blocked"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LibraryCardIconActions({
   onDownload,
   onDelete,
@@ -712,23 +810,25 @@ function LibraryCardIconActions({
 function LibraryCardActions({
   onUseInChat,
   onGenerateInsights,
-  onAdvancedInsights,
   onToggleExpand,
   expanded = false,
   useInChatDisabled = false,
   insightsLoading = false,
+  insightsLabel = "Generate",
+  insightsTitle = "Generate AI insights",
   useInChatTitle = "Use in chat",
 }: {
   onUseInChat?: () => void;
   onGenerateInsights?: () => void;
-  onAdvancedInsights?: () => void;
   onToggleExpand?: () => void;
   expanded?: boolean;
   useInChatDisabled?: boolean;
   insightsLoading?: boolean;
+  insightsLabel?: string;
+  insightsTitle?: string;
   useInChatTitle?: string;
 }) {
-  if (!onUseInChat && !onGenerateInsights && !onAdvancedInsights && !onToggleExpand) return null;
+  if (!onUseInChat && !onGenerateInsights && !onToggleExpand) return null;
 
   return (
     <div className="mt-3 flex flex-wrap gap-2">
@@ -755,23 +855,12 @@ function LibraryCardActions({
           Chat
         </button>
       )}
-      {onAdvancedInsights && (
-        <button
-          type="button"
-          onClick={onAdvancedInsights}
-          title="View full insights in AI Board"
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/50 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/50"
-        >
-          <ScanText className="h-3.5 w-3.5 shrink-0 text-primary" />
-          Advanced Insights
-        </button>
-      )}
       {onGenerateInsights && (
         <button
           type="button"
           onClick={onGenerateInsights}
-          disabled={useInChatDisabled || insightsLoading}
-          title={useInChatDisabled ? "Available when processing completes" : "Generate AI insights"}
+          disabled={useInChatDisabled}
+          title={useInChatDisabled ? "Available when processing completes" : insightsTitle}
           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/50 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-45"
         >
           {insightsLoading ? (
@@ -779,7 +868,7 @@ function LibraryCardActions({
           ) : (
             <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
           )}
-          {insightsLoading ? "Generating…" : "AI Insights"}
+          {insightsLoading ? "Generating…" : insightsLabel}
         </button>
       )}
     </div>
@@ -800,12 +889,13 @@ type LibraryItemCardProps = {
   deleteLabel?: string;
   onUseInChat?: () => void;
   onGenerateInsights?: () => void;
-  onAdvancedInsights?: () => void;
   expandContent?: string;
   expanded?: boolean;
   onToggleExpand?: () => void;
   useInChatDisabled?: boolean;
   insightsLoading?: boolean;
+  insightsLabel?: string;
+  insightsTitle?: string;
 };
 
 function LibraryItemCard({
@@ -822,12 +912,13 @@ function LibraryItemCard({
   deleteLabel,
   onUseInChat,
   onGenerateInsights,
-  onAdvancedInsights,
   expandContent,
   expanded = false,
   onToggleExpand,
   useInChatDisabled,
   insightsLoading,
+  insightsLabel,
+  insightsTitle,
 }: LibraryItemCardProps) {
   const sections = useMemo(
     () => (expandContent ? parseInsightSections(expandContent) : []),
@@ -899,11 +990,12 @@ function LibraryItemCard({
           <LibraryCardActions
             onUseInChat={onUseInChat}
             onGenerateInsights={onGenerateInsights}
-            onAdvancedInsights={onAdvancedInsights}
             onToggleExpand={expandContent ? onToggleExpand : undefined}
             expanded={expanded}
             useInChatDisabled={useInChatDisabled}
             insightsLoading={insightsLoading}
+            insightsLabel={insightsLabel}
+            insightsTitle={insightsTitle}
           />
         </div>
       </div>
@@ -934,6 +1026,7 @@ export function MainLibraryPanel({
   const [insightsGeneratingId, setInsightsGeneratingId] = useState<string | null>(null);
   const [insightsError, setInsightsError] = useState("");
   const [expandedGeneratedId, setExpandedGeneratedId] = useState<string | null>(null);
+  const [openInTarget, setOpenInTarget] = useState<OpenInTarget | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploading, progress, error: uploadError, uploadPdf, clearError } = useRagUpload();
 
@@ -959,21 +1052,40 @@ export function MainLibraryPanel({
   };
 
   const handleGenerateInsights = async (upload: LibraryUpload) => {
+    if (insightsGeneratingId === upload.id) return;
     if (!onGenerateInsights || upload.status !== "ready") return;
     setInsightsError("");
     setInsightsGeneratingId(upload.id);
     try {
-      const created = await onGenerateInsights(upload);
-      setTab("generated");
+      await onGenerateInsights(upload);
       await onRefresh?.();
-      if (created?.id) {
-        router.push(`/insights/${created.id}`);
-      }
     } catch (err) {
       setInsightsError(err instanceof Error ? err.message : "Failed to generate insights");
     } finally {
       setInsightsGeneratingId(null);
     }
+  };
+
+  const findGeneratedInsightForUpload = (upload: LibraryUpload) =>
+    generated.find((file) => {
+      if (!isAiInsight(file)) return false;
+      return (
+        file.sourceDocumentId === upload.id ||
+        file.sourceFilename === upload.title ||
+        file.title === `Insights: ${upload.title}`
+      );
+    });
+
+  const handleOpenInApp = (target: OpenInTarget, app: CatalogApp) => {
+    const params = new URLSearchParams({
+      sourceId: target.upload.id,
+      sourceName: target.upload.title,
+      sourceType: "uploaded-file",
+    });
+    if (target.insight?.id) {
+      params.set("insightId", target.insight.id);
+    }
+    router.push(`/apps/${app.slug}/workspace?${params.toString()}`);
   };
 
   const handleConfirmDelete = async () => {
@@ -1039,6 +1151,17 @@ export function MainLibraryPanel({
         deleting={deleting}
         onCancel={() => !deleting && setDeleteTarget(null)}
         onConfirm={() => void handleConfirmDelete()}
+      />
+
+      <OpenInAppPicker
+        target={openInTarget}
+        onCancel={() => setOpenInTarget(null)}
+        onSelect={(app) => {
+          if (!openInTarget) return;
+          const target = openInTarget;
+          setOpenInTarget(null);
+          handleOpenInApp(target, app);
+        }}
       />
 
       <div className="mx-auto w-full max-w-5xl space-y-6 pt-14">
@@ -1124,17 +1247,6 @@ export function MainLibraryPanel({
           </button>
         </div>
 
-        {tab === "generated" && generated.length > 0 && (
-          <button
-            type="button"
-            onClick={() => router.push("/insights")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border/60 px-3.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/50"
-          >
-            <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
-            AI Board
-          </button>
-        )}
-
         <div className="relative min-w-[220px] flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -1184,59 +1296,82 @@ export function MainLibraryPanel({
         </div>
       ) : tab === "uploads" ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredUploads.map((upload) => (
-            <LibraryItemCard
-              key={upload.id}
-              icon={
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/[0.08] text-red-600 dark:text-red-400">
-                  <FileText className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                </div>
-              }
-              title={upload.title}
-              badges={
-                <>
-                  <span
-                    className={cn(
-                      "inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                      uploadStatusClass(upload.status),
-                    )}
-                  >
-                    {uploadStatusLabel(upload.status)}
-                  </span>
-                  {upload.status === "ready" && upload.pageCount > 0 && (
-                    <span className="text-[11px] text-muted-foreground">
-                      {upload.pagesProcessed}/{upload.pageCount} pg
+          {filteredUploads.map((upload) => {
+            const generatedInsight = findGeneratedInsightForUpload(upload);
+            const isGenerating = insightsGeneratingId === upload.id;
+            const insightsReady = Boolean(generatedInsight);
+            return (
+              <LibraryItemCard
+                key={upload.id}
+                icon={
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/[0.08] text-red-600 dark:text-red-400">
+                    <FileText className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </div>
+                }
+                title={upload.title}
+                badges={
+                  <>
+                    <span
+                      className={cn(
+                        "inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                        uploadStatusClass(upload.status),
+                      )}
+                    >
+                      {uploadStatusLabel(upload.status)}
                     </span>
-                  )}
-                </>
-              }
-              meta={`${formatFileSize(upload.fileSizeBytes)} · ${formatRelativeDate(upload.createdAt)}`}
-              error={
-                upload.status === "failed" && upload.errorMessage ? (
-                  <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-destructive">
-                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span className="line-clamp-2">{upload.errorMessage}</span>
-                  </p>
-                ) : undefined
-              }
-              onDownload={onDownloadUpload ? () => onDownloadUpload(upload) : undefined}
-              onDelete={
-                onDeleteUpload
-                  ? () => setDeleteTarget({ kind: "upload", item: upload })
-                  : undefined
-              }
-              downloadLabel="Download PDF"
-              deleteLabel="Delete upload"
-              onUseInChat={() => onSelectUpload(upload)}
-              onGenerateInsights={
-                onGenerateInsights && isAuthenticated
-                  ? () => void handleGenerateInsights(upload)
-                  : undefined
-              }
-              insightsLoading={insightsGeneratingId === upload.id}
-              useInChatDisabled={upload.status !== "ready"}
-            />
-          ))}
+                    {insightsReady && (
+                      <span className="inline-flex rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                        Insights ready
+                      </span>
+                    )}
+                    {upload.status === "ready" && upload.pageCount > 0 && (
+                      <span className="text-[11px] text-muted-foreground">
+                        {upload.pagesProcessed}/{upload.pageCount} pg
+                      </span>
+                    )}
+                  </>
+                }
+                meta={`${formatFileSize(upload.fileSizeBytes)} · ${formatRelativeDate(upload.createdAt)}`}
+                error={
+                  upload.status === "failed" && upload.errorMessage ? (
+                    <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-destructive">
+                      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span className="line-clamp-2">{upload.errorMessage}</span>
+                    </p>
+                  ) : undefined
+                }
+                onDownload={onDownloadUpload ? () => onDownloadUpload(upload) : undefined}
+                onDelete={
+                  onDeleteUpload
+                    ? () => setDeleteTarget({ kind: "upload", item: upload })
+                    : undefined
+                }
+                downloadLabel="Download PDF"
+                deleteLabel="Delete upload"
+                onUseInChat={() => onSelectUpload(upload)}
+                onGenerateInsights={
+                  onGenerateInsights && isAuthenticated
+                    ? () => {
+                        if (isGenerating) return;
+                        if (generatedInsight) {
+                          setOpenInTarget({ upload, insight: generatedInsight });
+                          return;
+                        }
+                        void handleGenerateInsights(upload);
+                      }
+                    : undefined
+                }
+                insightsLoading={isGenerating}
+                insightsLabel={insightsReady ? "Open in" : "Generate"}
+                insightsTitle={
+                  insightsReady
+                    ? "Choose an app to open this document"
+                    : "Generate AI insights"
+                }
+                useInChatDisabled={upload.status !== "ready"}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1277,22 +1412,6 @@ export function MainLibraryPanel({
                         current === file.id ? null : file.id,
                       )
                   : undefined
-              }
-              onAdvancedInsights={
-                file.preview.trim() && isAiInsight(file)
-                  ? () => router.push(`/insights/${file.id}`)
-                  : undefined
-              }
-              shareSlot={
-                isAiInsight(file) && file.preview.trim() ? (
-                  <InsightShareMenu
-                    variant="icon"
-                    insightId={file.id}
-                    title={file.title}
-                    preview={file.preview}
-                    sourceName={insightSourceLabel(file, uploads)}
-                  />
-                ) : undefined
               }
             />
           ))}

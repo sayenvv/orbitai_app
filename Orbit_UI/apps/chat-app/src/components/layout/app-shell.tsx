@@ -42,10 +42,6 @@ function ShellSectionSync() {
   const { setSection } = useAppShell();
 
   useEffect(() => {
-    if (pathname.startsWith("/insights")) {
-      setSection("insights");
-      return;
-    }
     const section = searchParams.get("section");
     if (section === "library" || section === "agents" || section === "apps") {
       setSection(section);
@@ -102,8 +98,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       setSection("plans");
     } else if (pathname.startsWith("/apps")) {
       setSection("apps");
-    } else if (pathname.startsWith("/insights")) {
-      setSection("insights");
     } else if (pathname !== "/") {
       setSection("home");
     }

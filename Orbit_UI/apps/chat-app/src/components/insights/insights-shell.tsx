@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode, RefObject } from "react";
 
-/** Shared surface styles for AI Board / study views */
+/** Shared surface styles for document study views. */
 export const studyPanelClass =
   "overflow-hidden rounded-3xl border border-border/45 bg-card/75 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur-sm dark:bg-card/60";
 

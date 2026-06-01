@@ -8,15 +8,19 @@ import { cn } from "@/lib/utils";
 type PdfViewerPanelProps = {
   documentId: string;
   filename?: string | null;
+  activePage?: number;
   className?: string;
   embedded?: boolean;
+  showHeader?: boolean;
 };
 
 export function PdfViewerPanel({
   documentId,
   filename,
+  activePage = 1,
   className,
   embedded = false,
+  showHeader = true,
 }: PdfViewerPanelProps) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +65,9 @@ export function PdfViewerPanel({
     };
   }, [documentId]);
 
+  const iframeSrc =
+    objectUrl && activePage > 1 ? `${objectUrl}#page=${activePage}` : objectUrl;
+
   return (
     <div
       className={cn(
@@ -69,7 +76,7 @@ export function PdfViewerPanel({
         className,
       )}
     >
-      {!embedded && (
+      {!embedded && showHeader && (
         <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
           <FileText className="h-4 w-4 shrink-0 text-red-500" />
           <p className="truncate text-sm font-medium text-foreground">
@@ -92,10 +99,11 @@ export function PdfViewerPanel({
           </div>
         )}
 
-        {!loading && !error && objectUrl && (
+        {!loading && !error && iframeSrc && (
           <iframe
+            key={`${documentId}-${activePage}`}
             title={filename ? `${filename} preview` : "PDF preview"}
-            src={objectUrl}
+            src={iframeSrc}
             className="h-full w-full border-0"
           />
         )}

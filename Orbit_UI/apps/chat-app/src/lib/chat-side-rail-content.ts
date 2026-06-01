@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, Lightbulb, Sparkles, Zap } from "lucide-react";
+import { BookOpen, Sparkles, Zap } from "lucide-react";
 import { BRAND_NAME } from "@orbit/ui";
 
 export type ChatSideRailPromo = {
@@ -84,13 +84,6 @@ export const CHAT_SIDE_RAIL_ADS: ChatSideRailAd[] = [
 ];
 
 export const CHAT_SIDE_RAIL_LINKS: ChatSideRailLink[] = [
-  {
-    id: "insights",
-    label: "Study insights",
-    description: "Notes and tools from your PDFs",
-    href: "/insights",
-    icon: Lightbulb,
-  },
   {
     id: "library",
     label: "Library",

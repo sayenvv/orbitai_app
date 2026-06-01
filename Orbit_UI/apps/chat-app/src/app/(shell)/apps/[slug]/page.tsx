@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpenCheck,
+  BriefcaseBusiness,
   Brush,
   Camera,
   CheckCircle2,
@@ -19,10 +21,10 @@ import {
   Users,
   Wand2,
 } from "lucide-react";
-import { AppStoreCard } from "@/components/apps/app-store-card";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
-import { appsCatalog, findCatalogApp } from "@/lib/apps-catalog";
+import { AppStoreCard } from "@/components/apps/app-store-card";
+import { appsCatalog, findCatalogApp } from "@orbit/clovai-apps";
 import { cn } from "@/lib/utils";
 
 const iconMap = {
@@ -33,6 +35,8 @@ const iconMap = {
   mic: Mic2,
   image: ImagePlus,
   sparkles: Sparkles,
+  briefcase: BriefcaseBusiness,
+  book: BookOpenCheck,
 } as const;
 
 export default function AppDetailPage() {

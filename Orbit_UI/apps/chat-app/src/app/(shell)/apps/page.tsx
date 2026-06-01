@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
+  BookOpenCheck,
+  BriefcaseBusiness,
   Brush,
   Camera,
   ChevronLeft,
@@ -21,13 +23,13 @@ import {
 } from "lucide-react";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
-import { AppStoreCard } from "@/components/apps/app-store-card";
 import {
   appCategories,
   appsCatalog,
   featuredApps,
   sponsoredApps,
-} from "@/lib/apps-catalog";
+} from "@orbit/clovai-apps";
+import { AppStoreCard } from "@/components/apps/app-store-card";
 import { cn } from "@/lib/utils";
 
 const iconMap = {
@@ -38,6 +40,8 @@ const iconMap = {
   mic: Mic2,
   image: ImagePlus,
   sparkles: Sparkles,
+  briefcase: BriefcaseBusiness,
+  book: BookOpenCheck,
 } as const;
 
 export default function AppsPage() {
@@ -149,6 +153,8 @@ export default function AppsPage() {
               >
                 {featuredApps.map((app) => {
                   const Icon = iconMap[app.iconKey] ?? Sparkles;
+                  const primaryShot = app.screenshots[0];
+                  const secondaryShots = app.screenshots.slice(1, 3);
                   return (
                     <Link
                       key={app.slug}
@@ -161,9 +167,10 @@ export default function AppsPage() {
                           app.heroGradient,
                         )}
                       >
-                        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
-                        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-black/10 blur-3xl" />
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.14),transparent_40%)]" />
+                        <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-white/20 blur-3xl" />
+                        <div className="pointer-events-none absolute bottom-0 right-1/3 h-56 w-56 rounded-full bg-fuchsia-300/20 blur-3xl" />
+                        <div className="pointer-events-none absolute -bottom-20 -left-10 h-72 w-72 rounded-full bg-cyan-300/18 blur-3xl" />
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.30),transparent_32%),radial-gradient(circle_at_20%_80%,rgba(255,255,255,0.18),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.16),transparent_44%)]" />
 
                         <div className="relative flex flex-col justify-between gap-8 md:gap-10">
                           <div className="flex items-center gap-2.5 sm:gap-3">
@@ -206,7 +213,7 @@ export default function AppsPage() {
                         </div>
 
                         <div className="relative mt-8 hidden items-center md:flex">
-                          <div className="w-full rounded-[2rem] border border-white/25 bg-white/18 p-3 shadow-2xl backdrop-blur-md">
+                          <div className="w-full rounded-[2rem] border border-white/25 bg-white/18 p-3 shadow-2xl shadow-black/20 backdrop-blur-md">
                             <div className="overflow-hidden rounded-[1.5rem] bg-white/95 text-slate-950 shadow-2xl">
                               <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
                                 <div className="flex items-center gap-2">
@@ -219,13 +226,34 @@ export default function AppsPage() {
                                 </span>
                               </div>
                               <div className="space-y-4 p-5">
-                                <div className={cn("rounded-2xl bg-gradient-to-br p-5 text-white", app.heroGradient)}>
-                                  <div className="flex items-center justify-between">
-                                    <Icon className="h-7 w-7" />
-                                    <Sparkles className="h-5 w-5 opacity-80" />
+                                <div
+                                  className={cn(
+                                    "relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white",
+                                    primaryShot?.gradientClass ?? app.heroGradient,
+                                  )}
+                                >
+                                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.55),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.16),transparent_44%)]" />
+                                  <div className="relative flex items-center justify-between">
+                                    <Icon className="h-7 w-7 drop-shadow-sm" />
+                                    <Sparkles className="h-5 w-5 opacity-90" />
                                   </div>
-                                  <p className="mt-10 text-xl font-bold">{app.name}</p>
-                                  <p className="mt-1 text-sm text-white/80">{app.category} workflow</p>
+                                  <div className="relative mt-10 max-w-[70%]">
+                                    <p className="text-xl font-bold">{primaryShot?.title ?? app.name}</p>
+                                    <p className="mt-1 text-sm text-white/85">
+                                      {primaryShot?.caption ?? `${app.category} workflow`}
+                                    </p>
+                                  </div>
+                                  <div className="absolute bottom-5 right-5 grid grid-cols-2 gap-1.5">
+                                    {secondaryShots.map((shot) => (
+                                      <span
+                                        key={shot.title}
+                                        className={cn(
+                                          "h-10 w-14 rounded-xl bg-gradient-to-br ring-1 ring-white/25",
+                                          shot.gradientClass,
+                                        )}
+                                      />
+                                    ))}
+                                  </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2">
                                   {app.badges.map((badge) => (

@@ -46,10 +46,10 @@ export function InsightGeneratingOverlay({ sourceName }: InsightGeneratingOverla
           </div>
 
           <StudySectionLabel className="mt-6 block text-center">
-            AI insights
+            Research Companion
           </StudySectionLabel>
           <h2 className="mt-2 text-center text-base font-semibold tracking-tight text-foreground">
-            Building your study toolkit
+            Generating document insights
           </h2>
           {sourceName && (
             <p className="mt-1.5 truncate text-center text-xs text-muted-foreground">
@@ -90,7 +90,7 @@ export function InsightGeneratingOverlay({ sourceName }: InsightGeneratingOverla
           </div>
 
           <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground">
-            This usually takes a moment. You&apos;ll land in the full study view when ready.
+            This usually takes a moment. Keep this open while Research Companion prepares the file.
           </p>
         </div>
       </div>

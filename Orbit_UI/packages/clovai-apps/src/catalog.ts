@@ -6,6 +6,14 @@ export type AppScreenshot = {
   gradientClass: string;
 };
 
+export type CatalogSubApp = {
+  slug: string;
+  name: string;
+  description: string;
+  modelAccess: string;
+  badges: string[];
+};
+
 export type CatalogApp = {
   slug: string;
   name: string;
@@ -16,7 +24,9 @@ export type CatalogApp = {
     | "film"
     | "mic"
     | "image"
-    | "sparkles";
+    | "sparkles"
+    | "briefcase"
+    | "book";
   category: string;
   tag: string;
   tier: AppTier;
@@ -32,6 +42,7 @@ export type CatalogApp = {
   featured?: boolean;
   badges: string[];
   screenshots: AppScreenshot[];
+  subApps?: CatalogSubApp[];
 };
 
 export type SponsoredApp = {
@@ -262,6 +273,110 @@ export const appsCatalog: CatalogApp[] = [
       },
     ],
   },
+  {
+    slug: "career-coach",
+    name: "Career Coach",
+    iconKey: "briefcase",
+    category: "Career",
+    tag: "Jobs",
+    tier: "starter",
+    tagline: "Prepare resumes, job applications, and interviews with confidence.",
+    heroGradient: "from-blue-600 via-indigo-600 to-violet-700",
+    shortDescription: "AI job search prep for resumes, interviews, and role-specific practice.",
+    description:
+      "Career Coach helps jobseekers create tailored resumes, improve LinkedIn summaries, practice mock interviews, and prepare confident answers for specific roles. Upload a job description, generate a focused preparation plan, and rehearse behavioral or technical questions.",
+    monthlyUsers: "14.3k monthly users",
+    usageCount: "430k interview sessions",
+    rating: 4.8,
+    installs: "41k installs",
+    modelAccess: "Starter model access",
+    badges: ["Resume tailoring", "Mock interviews", "Role prep"],
+    subApps: [
+      {
+        slug: "resume-builder",
+        name: "Resume Builder",
+        description: "Create role-specific resumes, achievements, and ATS-friendly summaries.",
+        modelAccess: "Starter model access",
+        badges: ["ATS keywords", "Role matching", "Summary rewrite"],
+      },
+      {
+        slug: "mock-interview",
+        name: "Mock Interview",
+        description: "Practice behavioral, technical, and role-specific interview questions.",
+        modelAccess: "Starter model access",
+        badges: ["Live practice", "Answer feedback", "Question bank"],
+      },
+    ],
+    screenshots: [
+      {
+        title: "Job match brief",
+        caption: "Compare your profile against a role and identify gaps.",
+        gradientClass: "from-blue-500/35 via-indigo-500/25 to-violet-500/25",
+      },
+      {
+        title: "Interview simulator",
+        caption: "Practice role-specific questions with guided feedback.",
+        gradientClass: "from-indigo-500/35 via-blue-500/20 to-cyan-500/25",
+      },
+      {
+        title: "Resume optimizer",
+        caption: "Tailor achievements, keywords, and summaries for each application.",
+        gradientClass: "from-violet-500/30 via-indigo-500/20 to-blue-500/25",
+      },
+    ],
+  },
+  {
+    slug: "research-companion",
+    name: "Research Companion",
+    iconKey: "book",
+    category: "Research",
+    tag: "Study",
+    tier: "pro",
+    tagline: "Read papers, organize evidence, and build study notes faster.",
+    heroGradient: "from-teal-600 via-emerald-600 to-lime-700",
+    shortDescription: "Academic research assistant for papers, citations, summaries, and study plans.",
+    description:
+      "Research Companion supports students, researchers, and analysts with literature review workflows. Summarize papers, extract methods and findings, compare sources, build citation-ready notes, and turn dense academic material into structured study plans.",
+    monthlyUsers: "11.7k monthly users",
+    usageCount: "360k papers reviewed",
+    rating: 4.9,
+    installs: "33k installs",
+    modelAccess: "Pro model access",
+    badges: ["Paper summaries", "Citation notes", "Study planner"],
+    subApps: [
+      {
+        slug: "paper-summarizer",
+        name: "Paper Summarizer",
+        description: "Summarize abstracts, methods, findings, and limitations from academic papers.",
+        modelAccess: "Pro model access",
+        badges: ["Methods extract", "Findings", "Limitations"],
+      },
+      {
+        slug: "literature-review",
+        name: "Literature Review",
+        description: "Organize sources into a comparison matrix and identify research gaps.",
+        modelAccess: "Pro model access",
+        badges: ["Source matrix", "Research gaps", "Evidence notes"],
+      },
+    ],
+    screenshots: [
+      {
+        title: "Paper workspace",
+        caption: "Extract abstract, methods, findings, and limitations.",
+        gradientClass: "from-teal-500/35 via-emerald-500/25 to-lime-500/20",
+      },
+      {
+        title: "Literature matrix",
+        caption: "Compare sources by topic, evidence strength, and research gap.",
+        gradientClass: "from-emerald-500/35 via-teal-500/20 to-cyan-500/25",
+      },
+      {
+        title: "Study notes",
+        caption: "Convert academic material into revision notes and flashcard prompts.",
+        gradientClass: "from-lime-500/30 via-emerald-500/20 to-teal-500/25",
+      },
+    ],
+  },
 ];
 
 export const sponsoredApps: SponsoredApp[] = [
@@ -283,6 +398,13 @@ export const sponsoredApps: SponsoredApp[] = [
 
 export function findCatalogApp(slug: string): CatalogApp | undefined {
   return appsCatalog.find((app) => app.slug === slug);
+}
+
+export function findCatalogSubApp(
+  appSlug: string,
+  subAppSlug: string,
+): CatalogSubApp | undefined {
+  return findCatalogApp(appSlug)?.subApps?.find((subApp) => subApp.slug === subAppSlug);
 }
 
 export const featuredApps: CatalogApp[] = appsCatalog.filter((app) => app.featured);

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  BookOpenCheck,
+  BriefcaseBusiness,
   Brush,
   Camera,
   Download,
@@ -13,7 +15,7 @@ import {
   Star,
   Wand2,
 } from "lucide-react";
-import type { CatalogApp } from "@/lib/apps-catalog";
+import type { CatalogApp } from "@orbit/clovai-apps";
 import { cn } from "@/lib/utils";
 
 const iconMap = {
@@ -24,6 +26,8 @@ const iconMap = {
   mic: Mic2,
   image: ImagePlus,
   sparkles: Sparkles,
+  briefcase: BriefcaseBusiness,
+  book: BookOpenCheck,
 } as const;
 
 type AppStoreCardProps = {
@@ -33,6 +37,8 @@ type AppStoreCardProps = {
 
 export function AppStoreCard({ app, locked = false }: AppStoreCardProps) {
   const Icon = iconMap[app.iconKey] ?? Sparkles;
+  const primaryShot = app.screenshots[0];
+  const secondaryShots = app.screenshots.slice(1, 3);
 
   return (
     <Link
@@ -52,10 +58,26 @@ export function AppStoreCard({ app, locked = false }: AppStoreCardProps) {
         <div className="absolute right-2.5 top-2.5 rounded-full bg-white/20 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-white ring-1 ring-white/25 backdrop-blur-sm">
           {app.tier === "pro" ? "Pro" : "Starter"}
         </div>
-        <div className="absolute inset-x-2.5 bottom-2.5 h-10 rounded-xl bg-white/18 backdrop-blur-sm" />
+        <div className="absolute inset-x-2.5 bottom-2.5 overflow-hidden rounded-xl bg-white/18 p-1.5 backdrop-blur-sm">
+          <div
+            className={cn(
+              "relative h-8 overflow-hidden rounded-lg bg-gradient-to-br",
+              primaryShot?.gradientClass ?? app.heroGradient,
+            )}
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(255,255,255,0.66),transparent_34%)]" />
+            <div className="absolute bottom-1.5 left-1.5 h-1.5 w-9 rounded-full bg-white/75" />
+            <div className="absolute bottom-1.5 right-1.5 h-1.5 w-4 rounded-full bg-white/45" />
+          </div>
+        </div>
       </div>
 
-      <div className={cn("relative hidden aspect-[16/10] overflow-hidden bg-gradient-to-br p-3 sm:block", app.heroGradient)}>
+      <div
+        className={cn(
+          "relative hidden aspect-[16/10] overflow-hidden bg-gradient-to-br p-3 sm:block",
+          app.heroGradient,
+        )}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_10%,rgba(255,255,255,0.34),transparent_32%)]" />
         <div className="absolute left-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white ring-1 ring-white/25 backdrop-blur-sm">
           <Icon className="h-5 w-5" />
@@ -71,14 +93,35 @@ export function AppStoreCard({ app, locked = false }: AppStoreCardProps) {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
           </div>
           <div className="grid h-[calc(100%-0.875rem)] grid-cols-[0.75fr_1fr] gap-2">
-            <div className={cn("min-h-0 rounded-lg bg-gradient-to-br", app.heroGradient)} />
+            <div
+              className={cn(
+                "relative min-h-0 overflow-hidden rounded-lg bg-gradient-to-br",
+                primaryShot?.gradientClass ?? app.heroGradient,
+              )}
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(255,255,255,0.65),transparent_34%),linear-gradient(145deg,rgba(255,255,255,0.18),transparent_42%)]" />
+              <div className="absolute inset-x-2 bottom-2 rounded-md bg-white/24 p-1.5 backdrop-blur-sm">
+                <div className="h-1.5 w-2/3 rounded-full bg-white/75" />
+                <div className="mt-1 h-1.5 w-1/2 rounded-full bg-white/45" />
+              </div>
+            </div>
             <div className="space-y-1.5">
               <div className="h-2 w-3/4 rounded-full bg-slate-200" />
               <div className="h-2 w-full rounded-full bg-slate-100" />
               <div className="h-2 w-2/3 rounded-full bg-slate-100" />
               <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <div className="h-8 rounded-md bg-slate-100" />
-                <div className="h-8 rounded-md bg-slate-100" />
+                {secondaryShots.map((shot) => (
+                  <div
+                    key={shot.title}
+                    className={cn(
+                      "relative h-8 overflow-hidden rounded-md bg-gradient-to-br",
+                      shot.gradientClass,
+                    )}
+                  >
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(255,255,255,0.55),transparent_38%)]" />
+                    <div className="absolute bottom-1.5 left-1.5 h-1 w-7 rounded-full bg-white/65" />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -88,8 +131,12 @@ export function AppStoreCard({ app, locked = false }: AppStoreCardProps) {
       <div className="flex min-h-0 flex-1 flex-col p-2.5 sm:p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="truncate text-[13px] font-semibold tracking-tight sm:text-base">{app.name}</h3>
-            <p className="truncate text-[10px] font-medium text-primary sm:text-xs">{app.category}</p>
+            <h3 className="truncate text-[13px] font-semibold tracking-tight sm:text-base">
+              {app.name}
+            </h3>
+            <p className="truncate text-[10px] font-medium text-primary sm:text-xs">
+              {app.category}
+            </p>
           </div>
           {locked && (
             <span className="hidden rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary min-[380px]:inline-flex">
@@ -111,8 +158,8 @@ export function AppStoreCard({ app, locked = false }: AppStoreCardProps) {
             <Download className="h-3 w-3 text-primary sm:h-3.5 sm:w-3.5" />
             {app.installs}
           </span>
-          <span className="inline-flex items-center gap-1 font-semibold text-primary">
-            {locked ? "Unlock" : "View"}
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90 sm:px-3 sm:text-[11px]">
+            {locked ? "Unlock" : "Use"}
             <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 sm:h-3.5 sm:w-3.5" />
           </span>
         </div>
