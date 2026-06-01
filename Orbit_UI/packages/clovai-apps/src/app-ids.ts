@@ -14,6 +14,7 @@ export type CatalogAppId = (typeof catalogAppIds)[keyof typeof catalogAppIds];
 
 const catalogAppIdBySlug: Record<string, CatalogAppId> = {
   "logo-studio": catalogAppIds.logoStudio,
+  "photo-studio": catalogAppIds.photoGenerator,
   "photo-generator": catalogAppIds.photoGenerator,
   "creative-editor": catalogAppIds.creativeEditor,
   "video-snippets": catalogAppIds.videoSnippets,

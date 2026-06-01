@@ -1,0 +1,5959 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
+import {
+  Brush,
+  Camera,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  Crop,
+  Download,
+  Eraser,
+  FlipHorizontal2,
+  FolderOpen,
+  ImageIcon,
+  ImagePlus,
+  Layers,
+  Lasso,
+  MessageCircle,
+  MousePointer2,
+  Move,
+  PanelLeft,
+  PanelLeftClose,
+  PanelRight,
+  PanelRightClose,
+  Palette,
+  Loader2,
+  Pipette,
+  RotateCw,
+  ShoppingBag,
+  SlidersHorizontal,
+  Sparkles,
+  Square,
+  Star,
+  Triangle,
+  Type,
+  Upload,
+  Wand2,
+  Minus,
+  ArrowUpRight,
+  Hexagon,
+  Diamond,
+  Trash2,
+  Plus,
+  Search,
+  X,
+  LayoutGrid,
+  type LucideIcon,
+} from "lucide-react";
+
+import { PHOTO_STUDIO_IMAGE_FORMATS_LABEL } from "./image-formats";
+
+export type PhotoStudioCreationType = "logo" | "product" | "lifestyle" | "campaign";
+
+export type RecentPhotoProject = {
+  key: string;
+  title: string;
+  assetId?: string | null;
+  assetName?: string | null;
+  openedAt: number;
+};
+
+export type PhotoStudioView = "overview" | "workspace";
+
+export type CanvasBackgroundId =
+  | "violet-sunset"
+  | "cyan-ocean"
+  | "fuchsia-pop"
+  | "amber-glow"
+  | "emerald-fresh"
+  | "midnight"
+  | "custom"
+  | "checkerboard";
+
+export type PhotoStudioGeneratedItem = {
+  id: string;
+  prompt: string;
+  creationType: PhotoStudioCreationType;
+  aspectRatio: string;
+  stylePreset: string;
+  label: string;
+  previewGradient: string;
+  createdAt: number;
+  transparentBackground?: boolean;
+  canvasBackgroundId?: CanvasBackgroundId;
+  variantIndex?: number;
+  imageUrl?: string;
+};
+
+export type PhotoStudioAppProps = {
+  assetId?: string | null;
+  assetName?: string | null;
+  assetImageUrl?: string | null;
+  initialView?: PhotoStudioView;
+  recentProjects?: RecentPhotoProject[];
+  onOpenRecentProject?: (project: RecentPhotoProject) => void;
+  formatRecentTime?: (openedAt: number) => string;
+  onOpenLibrary?: () => void;
+  onUploadAsset?: () => void;
+  onOpenEmptyWorkspace?: () => void;
+  onNewWorkspace?: () => void;
+  onGenerate?: (input: {
+    prompt: string;
+    creationType: PhotoStudioCreationType;
+    aspectRatio: string;
+    stylePreset: string;
+    transparentBackground?: boolean;
+  }) => void | Promise<void | PhotoStudioGeneratedItem[]>;
+  generating?: boolean;
+  assetUploading?: boolean;
+  assetUploadProgress?: string | null;
+  assetUploadError?: string | null;
+};
+
+const creationTypes: Array<{
+  id: PhotoStudioCreationType;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+}> = [
+  {
+    id: "logo",
+    label: "Logo & brand",
+    description: "Transparent PNG logos — preview on colorful backgrounds.",
+    icon: Wand2,
+  },
+  {
+    id: "product",
+    label: "Product photo",
+    description: "Clean studio shots and e-commerce visuals.",
+    icon: ShoppingBag,
+  },
+  {
+    id: "lifestyle",
+    label: "Lifestyle scene",
+    description: "Editorial mockups and in-context photography.",
+    icon: Camera,
+  },
+  {
+    id: "campaign",
+    label: "Campaign visual",
+    description: "Ads, banners, and social-ready creatives.",
+    icon: ImagePlus,
+  },
+];
+
+const aspectRatios = ["1:1", "4:5", "16:9", "9:16"] as const;
+
+type CanvasDesignProfile = {
+  title: string;
+  emptyDescription: string;
+  previewHintIdle: string;
+  previewHintActive: string;
+  navbarStatus: string;
+  navbarEditingStatus: string;
+  exportTransparentLabel: string;
+  exportTransparentFilenameSuffix: string;
+};
+
+function getCanvasDesignByAspectRatio(aspectRatio: string): CanvasDesignProfile {
+  switch (aspectRatio) {
+    case "16:9":
+      return {
+        title: "Design a banner",
+        emptyDescription:
+          "Use shapes, text, and brush tools to compose your banner. Swap preview backgrounds in the left panel, then export a mockup or transparent PNG.",
+        previewHintIdle:
+          "Pick a background, then add shapes, text, and brush strokes to design your banner.",
+        previewHintActive: "Preview your banner on different colorful backgrounds.",
+        navbarStatus: "Banner canvas",
+        navbarEditingStatus: "Designing banner",
+        exportTransparentLabel: "Transparent PNG",
+        exportTransparentFilenameSuffix: "-transparent",
+      };
+    case "4:5":
+      return {
+        title: "Design a product image",
+        emptyDescription:
+          "Use shapes, text, and brush tools to create your product visual. Swap preview backgrounds, then export when ready.",
+        previewHintIdle:
+          "Pick a background, then add shapes, text, and brush strokes to design your product image.",
+        previewHintActive: "Preview your product image on different backgrounds.",
+        navbarStatus: "Product canvas",
+        navbarEditingStatus: "Designing product image",
+        exportTransparentLabel: "Transparent PNG",
+        exportTransparentFilenameSuffix: "-transparent",
+      };
+    case "9:16":
+      return {
+        title: "Design a story",
+        emptyDescription:
+          "Use shapes, text, and brush tools to create your vertical creative. Swap preview backgrounds, then export when ready.",
+        previewHintIdle:
+          "Pick a background, then add shapes, text, and brush strokes to design your story.",
+        previewHintActive: "Preview your story on different colorful backgrounds.",
+        navbarStatus: "Story canvas",
+        navbarEditingStatus: "Designing story",
+        exportTransparentLabel: "Transparent PNG",
+        exportTransparentFilenameSuffix: "-transparent",
+      };
+    case "1:1":
+    default:
+      return {
+        title: "Design a logo",
+        emptyDescription:
+          "Use shapes, text, and brush tools to build your logo. Swap preview backgrounds in the left panel, then export a transparent PNG or mockup.",
+        previewHintIdle:
+          "Pick a background, then add shapes, text, and brush strokes to design your logo.",
+        previewHintActive: "Preview your logo on different colorful backgrounds.",
+        navbarStatus: "Logo canvas",
+        navbarEditingStatus: "Designing logo",
+        exportTransparentLabel: "Logo PNG",
+        exportTransparentFilenameSuffix: "-logo-transparent",
+      };
+  }
+}
+
+type PhotoStudioAspectRatio = (typeof aspectRatios)[number];
+
+const aspectRatioOptions: Array<{
+  id: PhotoStudioAspectRatio;
+  intent: string;
+}> = [
+  { id: "1:1", intent: "Logo & brand mark" },
+  { id: "4:5", intent: "Product & portrait" },
+  { id: "16:9", intent: "Banner & hero" },
+  { id: "9:16", intent: "Story & vertical" },
+];
+
+function AspectRatioFrame({
+  ratio,
+  selected = false,
+}: {
+  ratio: PhotoStudioAspectRatio;
+  selected?: boolean;
+}) {
+  const frameSizes: Record<PhotoStudioAspectRatio, string> = {
+    "1:1": "h-8 w-8",
+    "4:5": "h-9 w-[1.45rem]",
+    "16:9": "h-[1.35rem] w-10",
+    "9:16": "h-10 w-[1.35rem]",
+  };
+
+  return (
+    <span
+      className={cn(
+        "block shrink-0 rounded-[4px] border transition-colors duration-200",
+        frameSizes[ratio],
+        selected
+          ? "border-violet-500/50 bg-violet-500/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
+          : "border-border/50 bg-muted/40 group-hover:border-border/70 group-hover:bg-muted/55",
+      )}
+      aria-hidden
+    />
+  );
+}
+
+function isPhotoStudioAspectRatio(value: string): value is PhotoStudioAspectRatio {
+  return (aspectRatios as readonly string[]).includes(value);
+}
+
+function AspectRatioPicker({
+  value,
+  onChange,
+  variant = "premium",
+}: {
+  value: PhotoStudioAspectRatio;
+  onChange: (ratio: PhotoStudioAspectRatio) => void;
+  variant?: "premium" | "compact";
+}) {
+  if (variant === "compact") {
+    return (
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aspect ratio">
+        {aspectRatios.map((ratio) => (
+          <button
+            key={ratio}
+            type="button"
+            onClick={() => onChange(ratio)}
+            aria-pressed={value === ratio}
+            className={cn(
+              "inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-semibold transition-colors",
+              value === ratio
+                ? "bg-violet-600 text-white shadow-sm shadow-violet-500/20"
+                : "bg-muted/70 text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {ratio}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2" role="group" aria-label="Aspect ratio">
+      {aspectRatioOptions.map((option) => {
+        const selected = value === option.id;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChange(option.id)}
+            aria-pressed={selected}
+            aria-label={`${option.id} — ${option.intent}`}
+            className={cn(
+              "group relative flex flex-col items-center gap-2.5 rounded-xl border px-2 py-3 text-center transition-all duration-200",
+              selected
+                ? "border-violet-400/30 bg-gradient-to-b from-violet-500/[0.07] via-violet-500/[0.03] to-transparent shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5)] ring-1 ring-violet-500/20"
+                : "border-border/35 bg-background/50 hover:border-border/60 hover:bg-background/80",
+            )}
+          >
+            {selected ? (
+              <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-white shadow-sm">
+                <Check className="h-2.5 w-2.5" strokeWidth={3} />
+              </span>
+            ) : (
+              <span className="absolute right-1.5 top-1.5 h-4 w-4 rounded-full border border-border/40 bg-background/80 opacity-0 transition-opacity group-hover:opacity-100" />
+            )}
+            <AspectRatioFrame ratio={option.id} selected={selected} />
+            <span className="min-w-0 px-0.5">
+              <span
+                className={cn(
+                  "block text-[11px] font-semibold tracking-tight",
+                  selected ? "text-foreground" : "text-foreground/90",
+                )}
+              >
+                {option.id}
+              </span>
+              <span className="mt-0.5 block text-[9px] leading-snug text-muted-foreground">
+                {option.intent}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const stylePresets = [
+  { id: "studio", label: "Studio clean" },
+  { id: "editorial", label: "Editorial" },
+  { id: "cinematic", label: "Cinematic" },
+  { id: "minimal", label: "Minimal brand" },
+] as const;
+
+type AccentTheme = {
+  badge: string;
+  icon: string;
+  card: string;
+  panelHeader: string;
+  glow: string;
+};
+
+const accentThemes = {
+  violet: {
+    badge: "bg-violet-500/15 text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-300",
+    icon: "bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/25",
+    card: "border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/60 hover:border-violet-300 hover:shadow-[0_12px_32px_rgba(124,58,237,0.12)] dark:border-violet-500/20 dark:from-violet-950/30 dark:via-background dark:to-indigo-950/20",
+    panelHeader: "from-violet-500/10 via-indigo-500/5 to-transparent",
+    glow: "bg-violet-400/30",
+  },
+  cyan: {
+    badge: "bg-cyan-500/15 text-cyan-800 ring-1 ring-cyan-500/20 dark:text-cyan-300",
+    icon: "bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/25",
+    card: "border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/60 hover:border-cyan-300 hover:shadow-[0_12px_32px_rgba(6,182,212,0.12)] dark:border-cyan-500/20 dark:from-cyan-950/30 dark:via-background dark:to-sky-950/20",
+    panelHeader: "from-cyan-500/10 via-sky-500/5 to-transparent",
+    glow: "bg-cyan-400/30",
+  },
+  fuchsia: {
+    badge: "bg-fuchsia-500/15 text-fuchsia-700 ring-1 ring-fuchsia-500/20 dark:text-fuchsia-300",
+    icon: "bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/25",
+    card: "border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/90 via-white to-pink-50/60 hover:border-fuchsia-300 hover:shadow-[0_12px_32px_rgba(217,70,239,0.12)] dark:border-fuchsia-500/20 dark:from-fuchsia-950/30 dark:via-background dark:to-pink-950/20",
+    panelHeader: "from-fuchsia-500/10 via-pink-500/5 to-transparent",
+    glow: "bg-fuchsia-400/30",
+  },
+  amber: {
+    badge: "bg-amber-500/15 text-amber-800 ring-1 ring-amber-500/20 dark:text-amber-300",
+    icon: "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25",
+    card: "border-amber-200/70 bg-gradient-to-br from-amber-50/90 via-white to-orange-50/60 hover:border-amber-300 hover:shadow-[0_12px_32px_rgba(245,158,11,0.12)] dark:border-amber-500/20 dark:from-amber-950/30 dark:via-background dark:to-orange-950/20",
+    panelHeader: "from-amber-500/10 via-orange-500/5 to-transparent",
+    glow: "bg-amber-400/30",
+  },
+  emerald: {
+    badge: "bg-emerald-500/15 text-emerald-800 ring-1 ring-emerald-500/20 dark:text-emerald-300",
+    icon: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25",
+    card: "border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/60 hover:border-emerald-300 hover:shadow-[0_12px_32px_rgba(16,185,129,0.12)] dark:border-emerald-500/20 dark:from-emerald-950/30 dark:via-background dark:to-teal-950/20",
+    panelHeader: "from-emerald-500/10 via-teal-500/5 to-transparent",
+    glow: "bg-emerald-400/30",
+  },
+  rose: {
+    badge: "bg-rose-500/15 text-rose-800 ring-1 ring-rose-500/20 dark:text-rose-300",
+    icon: "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/25",
+    card: "border-rose-200/70 bg-gradient-to-br from-rose-50/90 via-white to-red-50/60 hover:border-rose-300 hover:shadow-[0_12px_32px_rgba(244,63,94,0.12)] dark:border-rose-500/20 dark:from-rose-950/30 dark:via-background dark:to-red-950/20",
+    panelHeader: "from-rose-500/10 via-red-500/5 to-transparent",
+    glow: "bg-rose-400/30",
+  },
+} as const satisfies Record<string, AccentTheme>;
+
+const recentAccentKeys = ["violet", "cyan", "fuchsia", "emerald", "amber", "rose"] as const;
+
+const creationTypeAccents: Record<PhotoStudioCreationType, keyof typeof accentThemes> = {
+  logo: "violet",
+  product: "amber",
+  lifestyle: "emerald",
+  campaign: "rose",
+};
+
+const GENERATION_BATCH_SIZE = 4;
+
+const generationPreviewGradients = [
+  "from-violet-500 via-fuchsia-500 to-indigo-600",
+  "from-cyan-500 via-sky-500 to-blue-600",
+  "from-fuchsia-500 via-pink-500 to-rose-600",
+  "from-emerald-500 via-teal-500 to-cyan-600",
+] as const;
+
+const canvasBackgroundPresets: Array<{
+  id: CanvasBackgroundId;
+  label: string;
+  css?: string;
+  tailwind?: string;
+  checkerboard?: boolean;
+  exportStops?: Array<{ offset: number; color: string }>;
+}> = [
+  {
+    id: "violet-sunset",
+    label: "Violet sunset",
+    css: "linear-gradient(135deg, #7c3aed 0%, #d946ef 50%, #06b6d4 100%)",
+    tailwind: "from-violet-600 via-fuchsia-500 to-cyan-500",
+    exportStops: [
+      { offset: 0, color: "#7c3aed" },
+      { offset: 0.5, color: "#d946ef" },
+      { offset: 1, color: "#06b6d4" },
+    ],
+  },
+  {
+    id: "cyan-ocean",
+    label: "Cyan ocean",
+    css: "linear-gradient(135deg, #0891b2 0%, #0ea5e9 50%, #2563eb 100%)",
+    tailwind: "from-cyan-600 via-sky-500 to-blue-600",
+    exportStops: [
+      { offset: 0, color: "#0891b2" },
+      { offset: 0.5, color: "#0ea5e9" },
+      { offset: 1, color: "#2563eb" },
+    ],
+  },
+  {
+    id: "fuchsia-pop",
+    label: "Fuchsia pop",
+    css: "linear-gradient(135deg, #c026d3 0%, #ec4899 50%, #f43f5e 100%)",
+    tailwind: "from-fuchsia-600 via-pink-500 to-rose-500",
+    exportStops: [
+      { offset: 0, color: "#c026d3" },
+      { offset: 0.5, color: "#ec4899" },
+      { offset: 1, color: "#f43f5e" },
+    ],
+  },
+  {
+    id: "amber-glow",
+    label: "Amber glow",
+    css: "linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%)",
+    tailwind: "from-amber-600 via-amber-500 to-yellow-400",
+    exportStops: [
+      { offset: 0, color: "#d97706" },
+      { offset: 0.5, color: "#f59e0b" },
+      { offset: 1, color: "#fbbf24" },
+    ],
+  },
+  {
+    id: "emerald-fresh",
+    label: "Emerald fresh",
+    css: "linear-gradient(135deg, #059669 0%, #10b981 50%, #14b8a6 100%)",
+    tailwind: "from-emerald-600 via-emerald-500 to-teal-500",
+    exportStops: [
+      { offset: 0, color: "#059669" },
+      { offset: 0.5, color: "#10b981" },
+      { offset: 1, color: "#14b8a6" },
+    ],
+  },
+  {
+    id: "midnight",
+    label: "Midnight",
+    css: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)",
+    tailwind: "from-indigo-950 via-indigo-900 to-violet-900",
+    exportStops: [
+      { offset: 0, color: "#1e1b4b" },
+      { offset: 0.5, color: "#312e81" },
+      { offset: 1, color: "#4c1d95" },
+    ],
+  },
+  {
+    id: "custom",
+    label: "Custom color",
+  },
+  {
+    id: "checkerboard",
+    label: "Checkerboard",
+    checkerboard: true,
+  },
+];
+
+const DEFAULT_CUSTOM_CANVAS_BACKGROUND = "#6366f1";
+
+const defaultCanvasBackgroundIds: CanvasBackgroundId[] = [
+  "violet-sunset",
+  "cyan-ocean",
+  "fuchsia-pop",
+  "emerald-fresh",
+];
+
+const checkerboardBackgroundStyle: CSSProperties = {
+  backgroundImage:
+    "linear-gradient(45deg, #f1f5f9 25%, transparent 25%), linear-gradient(-45deg, #f1f5f9 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f1f5f9 75%), linear-gradient(-45deg, transparent 75%, #f1f5f9 75%)",
+  backgroundSize: "20px 20px",
+  backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+};
+
+const canvasWorkspaceClasses =
+  "bg-[#e8e9ec] [background-image:radial-gradient(circle,rgba(15,23,42,0.09)_1px,transparent_1px)] [background-size:20px_20px] dark:bg-[#121214] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.06)_1px,transparent_1px)]";
+
+const CANVAS_ZOOM_MIN = 0.5;
+const CANVAS_ZOOM_MAX = 2;
+const CANVAS_ZOOM_STEP = 0.1;
+const CANVAS_ZOOM_DEFAULT = 1;
+
+function clampCanvasZoom(value: number) {
+  return Math.min(CANVAS_ZOOM_MAX, Math.max(CANVAS_ZOOM_MIN, Number(value.toFixed(2))));
+}
+
+function CanvasZoomControls({
+  zoom,
+  onZoomIn,
+  onZoomOut,
+  onReset,
+}: {
+  zoom: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onReset: () => void;
+}) {
+  const canZoomOut = zoom > CANVAS_ZOOM_MIN;
+  const canZoomIn = zoom < CANVAS_ZOOM_MAX;
+  const isDefaultZoom = zoom === CANVAS_ZOOM_DEFAULT;
+
+  return (
+    <div className="pointer-events-none absolute right-5 top-5 z-30 md:right-6 md:top-6">
+      <div className="pointer-events-auto inline-flex items-center gap-0.5 rounded-xl border border-border/40 bg-background/95 p-0.5 shadow-[0_4px_18px_rgba(15,23,42,0.08)] backdrop-blur-md ring-1 ring-black/[0.04] dark:bg-background/90 dark:ring-white/[0.06]">
+        <button
+          type="button"
+          onClick={onZoomOut}
+          disabled={!canZoomOut}
+          aria-label="Zoom out"
+          title="Zoom out"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-muted/60 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Minus className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </button>
+        <button
+          type="button"
+          onClick={onReset}
+          disabled={isDefaultZoom}
+          aria-label={`Canvas zoom ${Math.round(zoom * 100)} percent`}
+          title={isDefaultZoom ? "Canvas zoom" : "Reset zoom to 100%"}
+          className={cn(
+            "min-w-[2.85rem] rounded-md px-2 py-1 text-center text-[10px] font-semibold tabular-nums transition-colors",
+            isDefaultZoom
+              ? "text-foreground"
+              : "text-violet-700 hover:bg-violet-500/10 dark:text-violet-300",
+          )}
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          type="button"
+          onClick={onZoomIn}
+          disabled={!canZoomIn}
+          aria-label="Zoom in"
+          title="Zoom in"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-muted/60 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function getCanvasBackgroundPreset(id: CanvasBackgroundId) {
+  return canvasBackgroundPresets.find((preset) => preset.id === id) ?? canvasBackgroundPresets[0];
+}
+
+function resolveCanvasBackgroundStyle(
+  backgroundId: CanvasBackgroundId,
+  customColor: string,
+  customGradientEnd?: string,
+): CSSProperties | undefined {
+  const preset = getCanvasBackgroundPreset(backgroundId);
+  if (preset.checkerboard) return checkerboardBackgroundStyle;
+  if (backgroundId === "custom") {
+    if (customGradientEnd && customGradientEnd !== customColor) {
+      return {
+        background: `linear-gradient(135deg, ${customColor} 0%, ${customGradientEnd} 100%)`,
+      };
+    }
+    return { background: customColor };
+  }
+  return preset.css ? { background: preset.css } : undefined;
+}
+
+function getLogoInitials(prompt: string): string {
+  const words = prompt.trim().split(/\s+/).filter(Boolean);
+  const initials = words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? "")
+    .join("");
+  return initials || "LG";
+}
+
+function getLogoWordmark(prompt: string): string {
+  const words = prompt.trim().split(/\s+/).filter(Boolean);
+  return words[0]?.slice(0, 20) ?? "Logo";
+}
+
+function drawCanvasBackgroundToContext(
+  ctx: CanvasRenderingContext2D,
+  backgroundId: CanvasBackgroundId,
+  width: number,
+  height: number,
+  customColor = DEFAULT_CUSTOM_CANVAS_BACKGROUND,
+  customGradientEnd?: string,
+) {
+  const preset = getCanvasBackgroundPreset(backgroundId);
+  if (preset.checkerboard) {
+    drawCheckerboardBackground(ctx, width, height);
+    return;
+  }
+  if (backgroundId === "custom") {
+    if (customGradientEnd && customGradientEnd !== customColor) {
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, customColor);
+      gradient.addColorStop(1, customGradientEnd);
+      ctx.fillStyle = gradient;
+    } else {
+      ctx.fillStyle = customColor;
+    }
+    ctx.fillRect(0, 0, width, height);
+    return;
+  }
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  for (const stop of preset.exportStops ?? []) {
+    gradient.addColorStop(stop.offset, stop.color);
+  }
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+}
+
+function drawLogoPreviewToContext(
+  ctx: CanvasRenderingContext2D,
+  prompt: string,
+  width: number,
+  height: number,
+  variantIndex = 0,
+) {
+  const initials = getLogoInitials(prompt);
+  const wordmark = getLogoWordmark(prompt);
+  const cx = width / 2;
+  const markRadius = Math.min(width, height) * 0.14;
+  const markCenterY = height * 0.42 + variantIndex * 2;
+  const accentHue = (variantIndex * 72 + 260) % 360;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.25)";
+  ctx.shadowBlur = Math.max(8, markRadius * 0.35);
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(cx, markCenterY, markRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = `hsl(${accentHue} 65% 48%)`;
+  ctx.font = `700 ${markRadius * 0.72}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(initials, cx, markCenterY + markRadius * 0.02);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `600 ${Math.max(14, markRadius * 0.38)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.fillText(wordmark, cx, markCenterY + markRadius * 1.55, width * 0.88);
+  ctx.restore();
+}
+
+function GeneratedLogoPreview({
+  prompt,
+  variantIndex = 0,
+}: {
+  prompt: string;
+  variantIndex?: number;
+}) {
+  const initials = getLogoInitials(prompt);
+  const wordmark = getLogoWordmark(prompt);
+  const accentHue = (variantIndex * 72 + 260) % 360;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center p-[14%]">
+      <div className="flex w-full max-w-[78%] flex-col items-center gap-[0.35em] text-center">
+        <div
+          className="flex aspect-square w-[38%] items-center justify-center rounded-full bg-white shadow-[0_12px_40px_rgba(0,0,0,0.22)]"
+          aria-hidden
+        >
+          <span
+            className="text-[clamp(1.25rem,8cqi,3.5rem)] font-bold leading-none"
+            style={{ color: `hsl(${accentHue} 65% 48%)` }}
+          >
+            {initials}
+          </span>
+        </div>
+        <p className="w-full truncate text-[clamp(0.75rem,4.5cqi,1.35rem)] font-semibold leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.35)]">
+          {wordmark}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function createGenerationBatch(input: {
+  prompt: string;
+  creationType: PhotoStudioCreationType;
+  aspectRatio: string;
+  stylePreset: string;
+  transparentBackground?: boolean;
+}): PhotoStudioGeneratedItem[] {
+  const batchId = `${Date.now()}`;
+  const isTransparentLogo = input.creationType === "logo" && input.transparentBackground !== false;
+  return Array.from({ length: GENERATION_BATCH_SIZE }, (_, index) => ({
+    id: `${batchId}-${index}`,
+    prompt: input.prompt,
+    creationType: input.creationType,
+    aspectRatio: input.aspectRatio,
+    stylePreset: input.stylePreset,
+    label: isTransparentLogo ? `Logo ${index + 1}` : `Variant ${index + 1}`,
+    previewGradient: generationPreviewGradients[index % generationPreviewGradients.length],
+    createdAt: Date.now(),
+    transparentBackground: isTransparentLogo,
+    canvasBackgroundId: isTransparentLogo
+      ? defaultCanvasBackgroundIds[index % defaultCanvasBackgroundIds.length]
+      : undefined,
+    variantIndex: index,
+  }));
+}
+
+const GENERATION_LAYER_PREFIX = "gen-";
+
+function isGenerationLayerId(id: string): boolean {
+  return id.startsWith(GENERATION_LAYER_PREFIX);
+}
+
+function generationLayerId(generationId: string, suffix: string): string {
+  return `${GENERATION_LAYER_PREFIX}${generationId}-${suffix}`;
+}
+
+function getGenerationAccentColor(variantIndex = 0): string {
+  const accentHue = (variantIndex * 72 + 260) % 360;
+  return `hsl(${accentHue} 65% 48%)`;
+}
+
+function buildLayersFromGeneration(item: PhotoStudioGeneratedItem): {
+  shapes: CanvasShapeElement[];
+  texts: CanvasTextElement[];
+} {
+  const variantIndex = item.variantIndex ?? 0;
+  const accentColor = getGenerationAccentColor(variantIndex);
+
+  if (item.transparentBackground && item.creationType === "logo") {
+    const initials = getLogoInitials(item.prompt);
+    const wordmark = getLogoWordmark(item.prompt);
+    return {
+      shapes: [
+        {
+          id: generationLayerId(item.id, "mark"),
+          shapeType: "circle",
+          x: 50,
+          y: 42,
+          width: 28,
+          height: 28,
+          strokeWidth: 1,
+          strokeColor: "#f3f4f6",
+          fillColor: "#ffffff",
+          fillOpacity: 1,
+          cornerRadius: 0,
+          label: "",
+        },
+      ],
+      texts: [
+        {
+          id: generationLayerId(item.id, "initials"),
+          x: 50,
+          y: 42,
+          width: 18,
+          height: 8,
+          content: initials,
+          fontStyleId: "bold-headline",
+          fontSize: 34,
+          color: accentColor,
+        },
+        {
+          id: generationLayerId(item.id, "wordmark"),
+          x: 50,
+          y: 58,
+          width: 72,
+          height: 10,
+          content: wordmark,
+          fontStyleId: "modern-sans",
+          fontSize: 26,
+          color: "#ffffff",
+        },
+      ],
+    };
+  }
+
+  return {
+    shapes: [
+      {
+        id: generationLayerId(item.id, "frame"),
+        shapeType: "rectangle",
+        x: 50,
+        y: 46,
+        width: 78,
+        height: 58,
+        strokeWidth: 2,
+        strokeColor: "rgba(255,255,255,0.55)",
+        fillColor: "#ffffff",
+        fillOpacity: 0.12,
+        cornerRadius: 14,
+        label: "",
+      },
+    ],
+    texts: [
+      {
+        id: generationLayerId(item.id, "caption"),
+        x: 50,
+        y: 86,
+        width: 84,
+        height: 12,
+        content: item.prompt.trim().slice(0, 96) || item.label,
+        fontStyleId: "modern-sans",
+        fontSize: 16,
+        color: "#ffffff",
+      },
+    ],
+  };
+}
+
+function GeneratedItemsGrid({
+  items,
+  selectedId,
+  materializedId,
+  onSelect,
+}: {
+  items: PhotoStudioGeneratedItem[];
+  selectedId?: string | null;
+  materializedId?: string | null;
+  onSelect: (item: PhotoStudioGeneratedItem) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/40 bg-muted/15 px-3 py-6 text-center">
+        <Sparkles className="mx-auto h-5 w-5 text-muted-foreground" />
+        <p className="mt-2 text-xs font-semibold text-foreground">No generations yet</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+          Generate from the Prompt tool to add logos and visuals here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {items.map((item) => {
+        const selected = selectedId === item.id;
+        const onCanvas = materializedId === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onSelect(item)}
+            className={cn(
+              "group overflow-hidden rounded-xl border text-left transition-all",
+              selected
+                ? "border-primary/40 ring-2 ring-primary/15"
+                : "border-border/40 hover:border-primary/25",
+            )}
+          >
+            <div
+              className={cn(
+                "relative flex aspect-square items-end overflow-hidden bg-gradient-to-br p-2",
+                !item.transparentBackground && item.previewGradient,
+              )}
+            >
+              {onCanvas ? (
+                <span className="absolute right-1.5 top-1.5 z-10 rounded bg-primary px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-primary-foreground">
+                  On canvas
+                </span>
+              ) : null}
+              {item.transparentBackground ? (
+                <>
+                  <div
+                    className={cn(
+                      "absolute inset-0 bg-gradient-to-br",
+                      getCanvasBackgroundPreset(item.canvasBackgroundId ?? "violet-sunset").tailwind,
+                    )}
+                  />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[11px] font-bold text-violet-600 shadow-md">
+                      {getLogoInitials(item.prompt)}
+                    </div>
+                    <span className="max-w-full truncate text-[8px] font-semibold text-white drop-shadow">
+                      {getLogoWordmark(item.prompt)}
+                    </span>
+                  </div>
+                  <span className="absolute left-1.5 top-1.5 rounded bg-black/45 px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-white">
+                    PNG
+                  </span>
+                </>
+              ) : (
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.28),transparent_42%)]" />
+              )}
+              <span className="relative rounded-md bg-black/35 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm">
+                {item.label}
+              </span>
+            </div>
+            <div className="border-t border-border/30 bg-background/95 px-2 py-1.5">
+              <p className="truncate text-[10px] font-semibold text-foreground">
+                {creationTypes.find((type) => type.id === item.creationType)?.label ?? "Visual"}
+              </p>
+              <p className="mt-0.5 truncate text-[9px] text-muted-foreground">{item.aspectRatio}</p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type SavedCanvasDesign = {
+  id: string;
+  title: string;
+  aspectRatio: PhotoStudioAspectRatio;
+  canvasBackgroundId: CanvasBackgroundId;
+  shapes: CanvasShapeElement[];
+  texts: CanvasTextElement[];
+  createdAt: number;
+  source: "system" | "user";
+};
+
+type CanvasLayerListItem = {
+  id: string;
+  kind: "shape" | "text";
+  label: string;
+  color: string;
+  shapeType?: PhotoStudioShapeType;
+};
+
+function DesignPreviewThumbnail({
+  design,
+  aspectRatio,
+  variant = "compact",
+}: {
+  design: Pick<SavedCanvasDesign, "shapes" | "texts" | "canvasBackgroundId">;
+  aspectRatio: PhotoStudioAspectRatio;
+  variant?: "compact" | "card";
+}) {
+  const aspectClass =
+    variant === "card"
+      ? "aspect-square"
+      : aspectRatio === "1:1"
+        ? "aspect-square"
+        : aspectRatio === "4:5"
+          ? "aspect-[4/5]"
+          : aspectRatio === "16:9"
+            ? "aspect-video"
+            : "aspect-[9/16]";
+
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden",
+        variant === "card" ? "w-full rounded-none" : "mx-auto w-full max-w-[72px] rounded-lg ring-1 ring-black/10",
+        aspectClass,
+      )}
+      style={resolveCanvasBackgroundStyle(design.canvasBackgroundId, DEFAULT_CUSTOM_CANVAS_BACKGROUND)}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10" />
+      {design.shapes.slice(0, 4).map((shape, index) => (
+        <span
+          key={shape.id}
+          className="absolute rounded-full ring-1 ring-white/40"
+          style={{
+            background: shape.fillColor,
+            width: `${18 + index * 4}%`,
+            height: `${18 + index * 4}%`,
+            left: `${20 + index * 14}%`,
+            top: `${22 + (index % 2) * 18}%`,
+            opacity: 0.85,
+          }}
+        />
+      ))}
+      {design.texts.length > 0 && variant === "compact" ? (
+        <span
+          className={cn(
+            "absolute bottom-1.5 left-1.5 right-1.5 truncate rounded bg-black/35 px-1 py-0.5 font-semibold text-white",
+            "text-[6px]",
+          )}
+        >
+          {design.texts[0]?.content}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function OwnDesignsGrid({
+  items,
+  searchQuery,
+  filterAspectRatio,
+  activeId,
+  onSelect,
+  onDelete,
+}: {
+  items: SavedCanvasDesign[];
+  searchQuery: string;
+  filterAspectRatio: PhotoStudioAspectRatio;
+  activeId?: string | null;
+  onSelect: (design: SavedCanvasDesign) => void;
+  onDelete: (id: string) => void;
+}) {
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredItems = useMemo(() => {
+    return items.filter((design) => {
+      if (design.aspectRatio !== filterAspectRatio) return false;
+      if (!normalizedQuery) return true;
+      const intent = aspectRatioOptions.find((option) => option.id === design.aspectRatio)?.intent ?? "";
+      return (
+        design.title.toLowerCase().includes(normalizedQuery) ||
+        design.aspectRatio.includes(normalizedQuery) ||
+        intent.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [filterAspectRatio, items, normalizedQuery]);
+
+  const visibleItems = filteredItems;
+
+  if (items.filter((design) => design.aspectRatio === filterAspectRatio).length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/40 bg-muted/15 px-3 py-6 text-center">
+        <Layers className="mx-auto h-5 w-5 text-muted-foreground" />
+        <p className="mt-2 text-xs font-semibold text-foreground">No templates yet</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+          Starter layouts for this canvas format will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  if (visibleItems.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/40 bg-muted/15 px-3 py-6 text-center">
+        <Search className="mx-auto h-5 w-5 text-muted-foreground" />
+        <p className="mt-2 text-xs font-semibold text-foreground">No templates found</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+          Try a different search term or clear the filter.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border/25 ring-1 ring-border/25">
+      {visibleItems.map((design) => {
+        const active = activeId === design.id;
+        return (
+          <div key={design.id} className="group relative bg-background">
+            <button
+              type="button"
+              onClick={() => onSelect(design)}
+              aria-label={design.title}
+              aria-pressed={active}
+              className={cn(
+                "relative block w-full overflow-hidden transition-all duration-200",
+                active ? "ring-2 ring-inset ring-primary/70" : "hover:ring-1 hover:ring-inset hover:ring-primary/25",
+              )}
+            >
+              <DesignPreviewThumbnail
+                design={design}
+                aspectRatio={design.aspectRatio}
+                variant="card"
+              />
+              {active ? (
+                <span className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                  <Check className="h-2 w-2" strokeWidth={3} />
+                </span>
+              ) : null}
+            </button>
+            {design.source === "user" ? (
+              <button
+                type="button"
+                onClick={() => onDelete(design.id)}
+                aria-label={`Remove ${design.title}`}
+                className="absolute left-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded bg-background/90 text-muted-foreground opacity-0 shadow-sm transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+              >
+                <Trash2 className="h-2.5 w-2.5" />
+              </button>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CanvasLayersList({
+  layers,
+  selectedShapeId,
+  selectedTextId,
+  onSelectLayer,
+}: {
+  layers: CanvasLayerListItem[];
+  selectedShapeId?: string | null;
+  selectedTextId?: string | null;
+  onSelectLayer: (layer: CanvasLayerListItem) => void;
+}) {
+  if (layers.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/35 bg-muted/10 px-3 py-4 text-center">
+        <p className="text-[10px] leading-relaxed text-muted-foreground">
+          Canvas layers will appear here as you add shapes and text.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {layers.map((layer) => {
+        const selected =
+          (layer.kind === "shape" && selectedShapeId === layer.id) ||
+          (layer.kind === "text" && selectedTextId === layer.id);
+        const ShapeIcon =
+          layer.kind === "shape" && layer.shapeType
+            ? shapeTypes.find((shape) => shape.id === layer.shapeType)?.icon ?? Square
+            : layer.kind === "text"
+              ? Type
+              : Square;
+
+        return (
+          <button
+            key={layer.id}
+            type="button"
+            onClick={() => onSelectLayer(layer)}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-all",
+              selected
+                ? "border-violet-400/30 bg-violet-500/[0.07] ring-1 ring-violet-500/15"
+                : "border-border/30 bg-background/50 hover:bg-background",
+            )}
+          >
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-border/30"
+              style={{ background: `${layer.color}22`, color: layer.color }}
+            >
+              <ShapeIcon className="h-3.5 w-3.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[11px] font-semibold text-foreground">{layer.label}</span>
+              <span className="block text-[9px] capitalize text-muted-foreground">{layer.kind}</span>
+            </span>
+            {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-violet-600" /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type LeftPanelTab = "assets" | "designs" | "generations";
+
+const leftSidebarTabs: Array<{
+  id: LeftPanelTab;
+  label: string;
+  shortLabel: string;
+  hint: string;
+  icon: LucideIcon;
+}> = [
+  {
+    id: "assets",
+    label: "Assets",
+    shortLabel: "Assets",
+    hint: "Project settings, canvas format, and backgrounds",
+    icon: FolderOpen,
+  },
+  {
+    id: "designs",
+    label: "Designs",
+    shortLabel: "Designs",
+    hint: "Starter templates provided by the app",
+    icon: Layers,
+  },
+  {
+    id: "generations",
+    label: "Generations",
+    shortLabel: "AI Gen",
+    hint: "AI-generated visual variants",
+    icon: Sparkles,
+  },
+];
+type WorkspaceTool =
+  | "select"
+  | "move"
+  | "crop"
+  | "brush"
+  | "eraser"
+  | "text"
+  | "shape"
+  | "eyedropper"
+  | "mask"
+  | "adjust"
+  | "flip"
+  | "rotate"
+  | "layers";
+type AssistPanel = "prompt" | "chat";
+
+export type PhotoStudioShapeType =
+  | "rectangle"
+  | "square"
+  | "circle"
+  | "ellipse"
+  | "triangle"
+  | "line"
+  | "arrow"
+  | "star"
+  | "hexagon"
+  | "diamond";
+
+const shapeTypes: Array<{ id: PhotoStudioShapeType; label: string; icon: LucideIcon }> = [
+  { id: "rectangle", label: "Rectangle", icon: Square },
+  { id: "square", label: "Square", icon: Square },
+  { id: "circle", label: "Circle", icon: Circle },
+  { id: "ellipse", label: "Ellipse", icon: Circle },
+  { id: "triangle", label: "Triangle", icon: Triangle },
+  { id: "line", label: "Line", icon: Minus },
+  { id: "arrow", label: "Arrow", icon: ArrowUpRight },
+  { id: "star", label: "Star", icon: Star },
+  { id: "hexagon", label: "Hexagon", icon: Hexagon },
+  { id: "diamond", label: "Diamond", icon: Diamond },
+];
+
+const SHAPE_DRAG_MIME = "application/x-photo-studio-shape";
+const MIN_SHAPE_SIZE = 4;
+const DEFAULT_SHAPE_STROKE_WIDTH = 5;
+const MIN_SHAPE_STROKE_WIDTH = 1;
+const MAX_SHAPE_STROKE_WIDTH = 16;
+const DEFAULT_SHAPE_STROKE_COLOR = "#7c3aed";
+const DEFAULT_SHAPE_FILL_COLOR = "#8b5cf6";
+const DEFAULT_SHAPE_FILL_OPACITY = 0.2;
+const DEFAULT_SHAPE_CORNER_RADIUS = 3;
+const MIN_SHAPE_CORNER_RADIUS = 0;
+
+const DEFAULT_BRUSH_COLOR = "#7c3aed";
+const DEFAULT_BRUSH_SIZE = 8;
+const MIN_BRUSH_SIZE = 2;
+const MAX_BRUSH_SIZE = 32;
+const DEFAULT_BRUSH_OPACITY = 1;
+
+const DEFAULT_TEXT_COLOR = "#1e1b4b";
+const DEFAULT_TEXT_FONT_SIZE = 28;
+const MIN_TEXT_FONT_SIZE = 12;
+const MAX_TEXT_FONT_SIZE = 96;
+const DEFAULT_TEXT_WIDTH = 32;
+const MIN_TEXT_WIDTH = 12;
+const MAX_TEXT_WIDTH = 80;
+
+export type PhotoStudioFontStyleId =
+  | "modern-sans"
+  | "classic-serif"
+  | "display-serif"
+  | "bold-headline"
+  | "light-minimal"
+  | "monospace"
+  | "script"
+  | "handwritten"
+  | "condensed"
+  | "rounded";
+
+type FontCategory = "sans-serif" | "serif" | "display" | "monospace" | "script";
+
+type PhotoStudioFontStyle = {
+  id: PhotoStudioFontStyleId;
+  label: string;
+  category: FontCategory;
+  sample: string;
+  preview: string;
+  fontFamily: string;
+  fontWeight: number | string;
+  fontStyle?: "normal" | "italic";
+  letterSpacing?: string;
+  textTransform?: "none" | "uppercase";
+};
+
+const fontCategoryLabels: Record<FontCategory, string> = {
+  "sans-serif": "Sans Serif",
+  serif: "Serif",
+  display: "Display",
+  monospace: "Monospace",
+  script: "Script & Handwriting",
+};
+
+const fontCategoryOrder: FontCategory[] = ["sans-serif", "serif", "display", "monospace", "script"];
+
+const fontStyles: PhotoStudioFontStyle[] = [
+  {
+    id: "modern-sans",
+    label: "Modern Sans",
+    category: "sans-serif",
+    sample: "The quick brown fox jumps",
+    preview: "Clean and versatile for UI copy",
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+    fontWeight: 600,
+  },
+  {
+    id: "light-minimal",
+    label: "Light Minimal",
+    category: "sans-serif",
+    sample: "Refined editorial spacing",
+    preview: "Refined spacing for captions",
+    fontFamily: "ui-sans-serif, system-ui, sans-serif",
+    fontWeight: 300,
+    letterSpacing: "0.06em",
+  },
+  {
+    id: "rounded",
+    label: "Soft Rounded",
+    category: "sans-serif",
+    sample: "Friendly product labels",
+    preview: "Friendly tone for product labels",
+    fontFamily: "ui-rounded, 'SF Pro Rounded', 'Nunito', sans-serif",
+    fontWeight: 700,
+  },
+  {
+    id: "classic-serif",
+    label: "Classic Serif",
+    category: "serif",
+    sample: "Timeless editorial prose",
+    preview: "Timeless editorial body text",
+    fontFamily: "Georgia, 'Times New Roman', Times, serif",
+    fontWeight: 400,
+  },
+  {
+    id: "display-serif",
+    label: "Display Serif",
+    category: "serif",
+    sample: "Elegant headline style",
+    preview: "Elegant headlines and titles",
+    fontFamily: "Georgia, 'Palatino Linotype', 'Book Antiqua', serif",
+    fontWeight: 700,
+  },
+  {
+    id: "bold-headline",
+    label: "Bold Headline",
+    category: "display",
+    sample: "Poster headline",
+    preview: "High-impact poster typography",
+    fontFamily: "Impact, 'Arial Black', sans-serif",
+    fontWeight: 700,
+    letterSpacing: "0.02em",
+    textTransform: "uppercase",
+  },
+  {
+    id: "condensed",
+    label: "Condensed Caps",
+    category: "display",
+    sample: "Badge label text",
+    preview: "Tight tracking for badges",
+    fontFamily: "'Arial Narrow', 'Helvetica Neue', sans-serif",
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+  },
+  {
+    id: "monospace",
+    label: "Code Mono",
+    category: "monospace",
+    sample: "const canvas = true;",
+    preview: "Technical notes and labels",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontWeight: 500,
+  },
+  {
+    id: "script",
+    label: "Elegant Script",
+    category: "script",
+    sample: "With love, always",
+    preview: "Decorative signatures and quotes",
+    fontFamily: "Snell Roundhand, 'Brush Script MT', cursive",
+    fontWeight: 400,
+    fontStyle: "italic",
+  },
+  {
+    id: "handwritten",
+    label: "Casual Script",
+    category: "script",
+    sample: "Hello there!",
+    preview: "Personal, hand-drawn character",
+    fontFamily: "Bradley Hand, 'Segoe Print', 'Comic Sans MS', cursive",
+    fontWeight: 400,
+  },
+];
+
+function getFontStyleById(id: PhotoStudioFontStyleId): PhotoStudioFontStyle {
+  return fontStyles.find((style) => style.id === id) ?? fontStyles[0];
+}
+
+function fontStyleCss(style: PhotoStudioFontStyle): CSSProperties {
+  return {
+    fontFamily: style.fontFamily,
+    fontWeight: style.fontWeight,
+    fontStyle: style.fontStyle,
+    letterSpacing: style.letterSpacing,
+    textTransform: style.textTransform,
+  };
+}
+
+function groupFontStylesByCategory(): Array<{ category: FontCategory; styles: PhotoStudioFontStyle[] }> {
+  return fontCategoryOrder
+    .map((category) => ({
+      category,
+      styles: fontStyles.filter((style) => style.category === category),
+    }))
+    .filter((group) => group.styles.length > 0);
+}
+
+function loadImageElement(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+async function drawSvgElementToContext(
+  ctx: CanvasRenderingContext2D,
+  svg: SVGSVGElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("width", String(width));
+  clone.setAttribute("height", String(height));
+  const markup = new XMLSerializer().serializeToString(clone);
+  const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml;charset=utf-8" }));
+  try {
+    const image = await loadImageElement(url);
+    ctx.drawImage(image, x, y, width, height);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function drawCheckerboardBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const tile = 20;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "#f1f5f9";
+  for (let y = 0; y < height; y += tile) {
+    for (let x = 0; x < width; x += tile) {
+      if (((x / tile) + (y / tile)) % 2 === 1) {
+        ctx.fillRect(x, y, tile, tile);
+      }
+    }
+  }
+}
+
+function buildCanvasFont(style: PhotoStudioFontStyle, fontSize: number): string {
+  const weight = style.fontWeight;
+  const stylePart = style.fontStyle === "italic" ? "italic " : "";
+  const family = style.fontFamily.split(",")[0]?.trim() ?? "sans-serif";
+  return `${stylePart}${weight} ${fontSize}px ${family}`;
+}
+
+function drawWrappedTextOnContext(
+  ctx: CanvasRenderingContext2D,
+  content: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+) {
+  const paragraphs = content.split("\n");
+  let cursorY = y;
+  for (const paragraph of paragraphs) {
+    const words = paragraph.split(/\s+/).filter(Boolean);
+    let line = "";
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (ctx.measureText(candidate).width > maxWidth && line) {
+        ctx.fillText(line, x, cursorY, maxWidth);
+        cursorY += lineHeight;
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) {
+      ctx.fillText(line, x, cursorY, maxWidth);
+      cursorY += lineHeight;
+    }
+    if (paragraphs.length > 1) cursorY += lineHeight * 0.15;
+  }
+}
+
+type PaintPoint = { x: number; y: number };
+
+type BrushSettings = {
+  color: string;
+  size: number;
+  opacity: number;
+};
+
+type EraserSettings = {
+  size: number;
+};
+
+type DrawingToolMode = "none" | "brush" | "eraser";
+
+function getLocalPaintPoint(clientX: number, clientY: number, container: HTMLElement): PaintPoint | null {
+  const rect = container.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top,
+  };
+}
+
+function interpolatePaintPoints(from: PaintPoint, to: PaintPoint, step: number): PaintPoint[] {
+  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  if (distance <= step) return [to];
+  const count = Math.max(1, Math.ceil(distance / step));
+  return Array.from({ length: count }, (_, index) => {
+    const t = (index + 1) / count;
+    return {
+      x: from.x + (to.x - from.x) * t,
+      y: from.y + (to.y - from.y) * t,
+    };
+  });
+}
+
+function configurePaintContext(ctx: CanvasRenderingContext2D, dpr: number) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.imageSmoothingEnabled = true;
+}
+
+function drawBrushDot(ctx: CanvasRenderingContext2D, point: PaintPoint, settings: BrushSettings) {
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = settings.color;
+  ctx.globalAlpha = settings.opacity;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, settings.size / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBrushSegment(
+  ctx: CanvasRenderingContext2D,
+  from: PaintPoint,
+  to: PaintPoint,
+  settings: BrushSettings,
+) {
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = settings.color;
+  ctx.globalAlpha = settings.opacity;
+  ctx.lineWidth = settings.size;
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawEraserDot(ctx: CanvasRenderingContext2D, point: PaintPoint, size: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#000000";
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, size / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawEraserSegment(ctx: CanvasRenderingContext2D, from: PaintPoint, to: PaintPoint, size: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = size;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+type CanvasShapeElement = {
+  id: string;
+  shapeType: PhotoStudioShapeType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  strokeWidth: number;
+  strokeColor: string;
+  fillColor: string;
+  fillOpacity: number;
+  cornerRadius: number;
+  label: string;
+};
+
+function distancePointToSegment(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(px - x1, py - y1);
+  }
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+  const closestX = x1 + t * dx;
+  const closestY = y1 + t * dy;
+  return Math.hypot(px - closestX, py - closestY);
+}
+
+type ShapePixelBounds = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+};
+
+function getPercentElementBounds(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  rect: { width: number; height: number },
+): ShapePixelBounds {
+  const left = ((x - width / 2) / 100) * rect.width;
+  const right = ((x + width / 2) / 100) * rect.width;
+  const top = ((y - height / 2) / 100) * rect.height;
+  const bottom = ((y + height / 2) / 100) * rect.height;
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
+function getShapePixelBounds(shape: CanvasShapeElement, rect: { width: number; height: number }): ShapePixelBounds {
+  return getPercentElementBounds(shape.x, shape.y, shape.width, shape.height, rect);
+}
+
+function viewBoxPointToPixels(vx: number, vy: number, bounds: ShapePixelBounds): PaintPoint {
+  return {
+    x: bounds.left + (vx / 100) * bounds.width,
+    y: bounds.top + (vy / 100) * bounds.height,
+  };
+}
+
+function shapeStrokePaddingPx(shape: CanvasShapeElement, bounds: ShapePixelBounds): number {
+  const scale = Math.min(bounds.width, bounds.height) / 100;
+  const strokeScale = shape.shapeType === "line" ? 1.25 : 1;
+  return Math.max(2, shape.strokeWidth * strokeScale * scale * 0.6);
+}
+
+function shapeHitByEraser(
+  shape: CanvasShapeElement,
+  center: PaintPoint,
+  radius: number,
+  rect: { width: number; height: number },
+): boolean {
+  const bounds = getShapePixelBounds(shape, rect);
+  const touchRadius = radius + shapeStrokePaddingPx(shape, bounds);
+
+  if (shape.shapeType === "line") {
+    const start = viewBoxPointToPixels(10, 82, bounds);
+    const end = viewBoxPointToPixels(90, 18, bounds);
+    return (
+      distancePointToSegment(center.x, center.y, start.x, start.y, end.x, end.y) <= touchRadius
+    );
+  }
+
+  if (shape.shapeType === "arrow") {
+    const start = viewBoxPointToPixels(12, 78, bounds);
+    const end = viewBoxPointToPixels(72, 28, bounds);
+    if (distancePointToSegment(center.x, center.y, start.x, start.y, end.x, end.y) <= touchRadius) {
+      return true;
+    }
+  }
+
+  const closestX = Math.max(bounds.left, Math.min(center.x, bounds.right));
+  const closestY = Math.max(bounds.top, Math.min(center.y, bounds.bottom));
+  return Math.hypot(center.x - closestX, center.y - closestY) <= touchRadius;
+}
+
+function collectEraserSamplePoints(from: PaintPoint, to: PaintPoint, size: number): PaintPoint[] {
+  const step = Math.max(1, size / 8);
+  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  if (distance <= step) return [from, to];
+  const points = interpolatePaintPoints(from, to, step);
+  return [from, ...points];
+}
+
+type CanvasTextElement = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  content: string;
+  fontStyleId: PhotoStudioFontStyleId;
+  fontSize: number;
+  color: string;
+};
+
+function createCanvasText(fontStyleId: PhotoStudioFontStyleId, x: number, y: number): CanvasTextElement {
+  return {
+    id: `text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    x: Math.min(92, Math.max(8, x)),
+    y: Math.min(92, Math.max(8, y)),
+    width: DEFAULT_TEXT_WIDTH,
+    height: 10,
+    content: "Text",
+    fontStyleId,
+    fontSize: DEFAULT_TEXT_FONT_SIZE,
+    color: DEFAULT_TEXT_COLOR,
+  };
+}
+
+function textHitByEraser(
+  text: CanvasTextElement,
+  center: PaintPoint,
+  radius: number,
+  rect: { width: number; height: number },
+): boolean {
+  const bounds = getPercentElementBounds(text.x, text.y, text.width, text.height, rect);
+  const closestX = Math.max(bounds.left, Math.min(center.x, bounds.right));
+  const closestY = Math.max(bounds.top, Math.min(center.y, bounds.bottom));
+  return Math.hypot(center.x - closestX, center.y - closestY) <= radius + 4;
+}
+
+function shapeSupportsFill(shapeType: PhotoStudioShapeType): boolean {
+  return shapeType !== "line";
+}
+
+function shapeSupportsCornerRadius(shapeType: PhotoStudioShapeType): boolean {
+  return shapeType === "rectangle" || shapeType === "square";
+}
+
+function getShapeViewBoxRect(
+  shapeType: PhotoStudioShapeType,
+): { x: number; y: number; width: number; height: number } | null {
+  switch (shapeType) {
+    case "rectangle":
+      return { x: 8, y: 18, width: 84, height: 64 };
+    case "square":
+      return { x: 15, y: 15, width: 70, height: 70 };
+    default:
+      return null;
+  }
+}
+
+function getMaxCornerRadius(shapeType: PhotoStudioShapeType): number {
+  const rect = getShapeViewBoxRect(shapeType);
+  if (!rect) return 0;
+  return Math.floor(Math.min(rect.width, rect.height) / 2);
+}
+
+function getDefaultShapeSize(shapeType: PhotoStudioShapeType): { width: number; height: number } {
+  switch (shapeType) {
+    case "rectangle":
+      return { width: 28, height: 16 };
+    case "square":
+      return { width: 18, height: 18 };
+    case "circle":
+      return { width: 16, height: 16 };
+    case "ellipse":
+      return { width: 24, height: 14 };
+    case "triangle":
+      return { width: 18, height: 16 };
+    case "line":
+      return { width: 30, height: 4 };
+    case "arrow":
+      return { width: 26, height: 10 };
+    case "star":
+      return { width: 18, height: 18 };
+    case "hexagon":
+      return { width: 18, height: 18 };
+    case "diamond":
+      return { width: 14, height: 20 };
+    default:
+      return { width: 18, height: 18 };
+  }
+}
+
+function createCanvasShape(shapeType: PhotoStudioShapeType, x: number, y: number): CanvasShapeElement {
+  const size = getDefaultShapeSize(shapeType);
+  return {
+    id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    shapeType,
+    x: Math.min(95, Math.max(5, x)),
+    y: Math.min(95, Math.max(5, y)),
+    width: size.width,
+    height: size.height,
+    strokeWidth: DEFAULT_SHAPE_STROKE_WIDTH,
+    strokeColor: DEFAULT_SHAPE_STROKE_COLOR,
+    fillColor: DEFAULT_SHAPE_FILL_COLOR,
+    fillOpacity: DEFAULT_SHAPE_FILL_OPACITY,
+    cornerRadius: shapeSupportsCornerRadius(shapeType) ? DEFAULT_SHAPE_CORNER_RADIUS : 0,
+    label: "",
+  };
+}
+
+function createHardcodedSavedDesigns(): SavedCanvasDesign[] {
+  const now = Date.now();
+  const day = 86_400_000;
+
+  const shape = (
+    id: string,
+    shapeType: PhotoStudioShapeType,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    fillColor: string,
+    strokeColor = fillColor,
+  ): CanvasShapeElement => ({
+    id,
+    shapeType,
+    x,
+    y,
+    width,
+    height,
+    strokeWidth: 3,
+    strokeColor,
+    fillColor,
+    fillOpacity: 0.8,
+    cornerRadius: shapeType === "rectangle" || shapeType === "square" ? 4 : 0,
+    label: "",
+  });
+
+  const text = (
+    id: string,
+    content: string,
+    x: number,
+    y: number,
+    color = "#ffffff",
+    fontStyleId: PhotoStudioFontStyleId = "bold-headline",
+  ): CanvasTextElement => ({
+    id,
+    x,
+    y,
+    width: 38,
+    height: 10,
+    content,
+    fontStyleId,
+    fontSize: 16,
+    color,
+  });
+
+  return [
+    {
+      id: "design-mock-orbit-logo",
+      title: "Orbit Brand Mark",
+      aspectRatio: "1:1",
+      canvasBackgroundId: "violet-sunset",
+      shapes: [
+        shape("mock-s-1", "circle", 50, 42, 26, 26, "#a855f7", "#7c3aed"),
+        shape("mock-s-2", "ellipse", 50, 42, 36, 36, "#c084fc", "#ddd6fe"),
+      ],
+      texts: [text("mock-t-1", "ORBIT", 50, 68)],
+      createdAt: now - day * 3,
+    },
+    {
+      id: "design-mock-minimal-badge",
+      title: "Minimal Badge",
+      aspectRatio: "1:1",
+      canvasBackgroundId: "midnight",
+      shapes: [
+        shape("mock-s-3", "hexagon", 50, 45, 30, 30, "#6366f1", "#818cf8"),
+        shape("mock-s-4", "diamond", 50, 45, 18, 18, "#22d3ee", "#06b6d4"),
+      ],
+      texts: [text("mock-t-2", "STUDIO", 50, 72, "#e2e8f0", "modern-sans")],
+      createdAt: now - day * 5,
+    },
+    {
+      id: "design-mock-product-hero",
+      title: "Product Hero",
+      aspectRatio: "1:1",
+      canvasBackgroundId: "amber-glow",
+      shapes: [
+        shape("mock-s-5", "rectangle", 50, 55, 52, 38, "#f97316", "#ea580c"),
+        shape("mock-s-6", "circle", 50, 38, 22, 22, "#fde68a", "#fbbf24"),
+      ],
+      texts: [text("mock-t-3", "NEW DROP", 50, 78, "#1c1917")],
+      createdAt: now - day * 2,
+    },
+    {
+      id: "design-mock-launch-banner",
+      title: "Launch Banner",
+      aspectRatio: "1:1",
+      canvasBackgroundId: "cyan-ocean",
+      shapes: [
+        shape("mock-s-9", "rectangle", 50, 50, 72, 48, "#0ea5e9", "#0284c7"),
+        shape("mock-s-10", "arrow", 68, 50, 24, 14, "#ffffff", "#e0f2fe"),
+      ],
+      texts: [text("mock-t-5", "SUMMER LAUNCH", 32, 52, "#ffffff")],
+      createdAt: now - day * 1,
+    },
+    {
+      id: "design-mock-web-hero",
+      title: "Web Hero",
+      aspectRatio: "1:1",
+      canvasBackgroundId: "fuchsia-pop",
+      shapes: [
+        shape("mock-s-11", "ellipse", 28, 50, 28, 40, "#ec4899", "#db2777"),
+        shape("mock-s-12", "triangle", 72, 50, 26, 36, "#a855f7", "#9333ea"),
+      ],
+      texts: [text("mock-t-6", "CREATIVE SUITE", 50, 78, "#fdf4ff")],
+      createdAt: now - day * 4,
+    },
+    {
+      id: "design-mock-neon-pulse",
+      title: "Neon Pulse",
+      aspectRatio: "1:1",
+      canvasBackgroundId: "fuchsia-pop",
+      shapes: [
+        shape("mock-s-17", "circle", 50, 46, 32, 32, "#d946ef", "#a855f7"),
+        shape("mock-s-18", "star", 50, 46, 20, 20, "#fdf4ff", "#f0abfc"),
+      ],
+      texts: [text("mock-t-9", "PULSE", 50, 74, "#fdf4ff")],
+      createdAt: now - day * 9,
+    },
+    {
+      id: "design-mock-ocean-mark",
+      title: "Ocean Mark",
+      aspectRatio: "1:1",
+      canvasBackgroundId: "cyan-ocean",
+      shapes: [
+        shape("mock-s-19", "triangle", 50, 44, 34, 34, "#06b6d4", "#0891b2"),
+        shape("mock-s-20", "hexagon", 50, 44, 22, 22, "#67e8f9", "#22d3ee"),
+      ],
+      texts: [text("mock-t-10", "WAVE", 50, 72, "#ecfeff", "modern-sans")],
+      createdAt: now - day * 10,
+    },
+  ].map((design) => ({ ...design, source: "system" as const })) as SavedCanvasDesign[];
+}
+
+const HARDCODED_SAVED_DESIGNS = createHardcodedSavedDesigns();
+
+const colorPaletteGroups: Array<{ name: string; swatches: string[] }> = [
+  {
+    name: "Studio violet",
+    swatches: ["#7c3aed", "#8b5cf6", "#a855f7", "#d946ef", "#6366f1", "#4f46e5"],
+  },
+  {
+    name: "Ocean & sky",
+    swatches: ["#0891b2", "#0ea5e9", "#2563eb", "#06b6d4", "#0284c7", "#14b8a6"],
+  },
+  {
+    name: "Warm glow",
+    swatches: ["#d97706", "#f59e0b", "#f97316", "#ef4444", "#f43f5e", "#ec4899"],
+  },
+  {
+    name: "Earth & slate",
+    swatches: ["#059669", "#10b981", "#1e293b", "#334155", "#ffffff", "#0f172a"],
+  },
+];
+
+const quickColorSwatches = colorPaletteGroups.flatMap((group) => group.swatches);
+
+function normalizeHexColor(input: string): string | null {
+  const cleaned = input.trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{6}$/.test(cleaned)) return null;
+  return `#${cleaned.toLowerCase()}`;
+}
+
+function PremiumColorPicker({
+  label,
+  value,
+  onChange,
+  density = "full",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  density?: "full" | "compact" | "minimal";
+}) {
+  const colorInputRef = useRef<HTMLInputElement>(null);
+  const [hexDraft, setHexDraft] = useState(value.toUpperCase());
+
+  useEffect(() => {
+    setHexDraft(value.toUpperCase());
+  }, [value]);
+
+  const commitHexDraft = () => {
+    const normalized = normalizeHexColor(hexDraft);
+    if (normalized) {
+      onChange(normalized);
+      setHexDraft(normalized.toUpperCase());
+      return;
+    }
+    setHexDraft(value.toUpperCase());
+  };
+
+  const swatchButton = (color: string, size: "sm" | "md" = "md") => {
+    const selected = value.toLowerCase() === color.toLowerCase();
+    return (
+      <button
+        key={color}
+        type="button"
+        onClick={() => onChange(color)}
+        aria-label={`Select color ${color}`}
+        aria-pressed={selected}
+        className={cn(
+          "relative shrink-0 overflow-hidden rounded-full border border-black/10 shadow-sm transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40",
+          size === "sm" ? "h-5 w-5" : "h-6 w-6",
+          selected && "ring-2 ring-violet-500 ring-offset-2 ring-offset-background scale-110",
+        )}
+        style={{ background: color }}
+      >
+        {selected ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/15">
+            <Check className={cn("text-white drop-shadow", size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3")} strokeWidth={3} />
+          </span>
+        ) : null}
+      </button>
+    );
+  };
+
+  const hiddenColorInput = (
+    <input
+      ref={colorInputRef}
+      type="color"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="sr-only"
+      aria-label={`${label} custom picker`}
+    />
+  );
+
+  if (density === "minimal") {
+    return (
+      <div className="flex items-center justify-between gap-3">
+        <label className="text-[11px] font-medium text-foreground">{label}</label>
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {quickColorSwatches.slice(0, 8).map((color) => swatchButton(color, "sm"))}
+          <button
+            type="button"
+            onClick={() => colorInputRef.current?.click()}
+            className="relative h-7 w-7 overflow-hidden rounded-lg ring-1 ring-border/40 transition-transform hover:scale-105"
+            style={{ background: value }}
+            aria-label={`${label} custom color`}
+          >
+            <span className="absolute inset-0 ring-1 ring-inset ring-black/10" />
+          </button>
+          {hiddenColorInput}
+        </div>
+      </div>
+    );
+  }
+
+  if (density === "compact") {
+    return (
+      <label className="block space-y-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          {label}
+        </span>
+        <div className="overflow-hidden rounded-xl border border-border/35 bg-gradient-to-br from-muted/25 via-background to-background p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => colorInputRef.current?.click()}
+              className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg shadow-md ring-1 ring-black/10 transition-transform hover:scale-105"
+              style={{ background: value }}
+              aria-label={`${label} custom color`}
+            />
+            <input
+              type="text"
+              value={hexDraft}
+              onChange={(event) => setHexDraft(event.target.value.toUpperCase())}
+              onBlur={commitHexDraft}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitHexDraft();
+                }
+              }}
+              spellCheck={false}
+              className="h-8 min-w-0 flex-1 rounded-lg border border-border/40 bg-background/90 px-2 font-mono text-[10px] uppercase tracking-wide text-foreground outline-none focus:border-violet-400/50 focus:ring-2 focus:ring-violet-500/10"
+              aria-label={`${label} hex value`}
+            />
+            {hiddenColorInput}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {quickColorSwatches.slice(0, 12).map((color) => swatchButton(color, "sm"))}
+          </div>
+        </div>
+      </label>
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      <p className="text-[11px] font-semibold text-foreground">{label}</p>
+      <div className="overflow-hidden rounded-xl border border-border/35 bg-gradient-to-br from-muted/30 via-background/80 to-violet-500/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:from-muted/15 dark:via-background dark:to-violet-500/[0.05]">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => colorInputRef.current?.click()}
+            className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-xl shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-black/10 transition-transform hover:scale-[1.03]"
+            style={{ background: value }}
+            aria-label={`${label} custom color`}
+          >
+            <span className="absolute inset-0 bg-gradient-to-br from-white/25 via-transparent to-black/10 opacity-80" />
+            <span className="absolute inset-x-1 bottom-1 rounded bg-black/35 px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-white opacity-0 transition-opacity group-hover:opacity-100">
+              Pick
+            </span>
+          </button>
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Hex</p>
+            <input
+              type="text"
+              value={hexDraft}
+              onChange={(event) => setHexDraft(event.target.value.toUpperCase())}
+              onBlur={commitHexDraft}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitHexDraft();
+                }
+              }}
+              spellCheck={false}
+              className="h-9 w-full rounded-lg border border-border/40 bg-background/95 px-2.5 font-mono text-xs uppercase tracking-wide text-foreground shadow-sm outline-none transition-colors focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+              aria-label={`${label} hex value`}
+            />
+          </div>
+          {hiddenColorInput}
+        </div>
+
+        <div className="mt-3 space-y-2.5 border-t border-border/25 pt-3">
+          {colorPaletteGroups.map((group) => (
+            <div key={group.name}>
+              <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {group.name}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {group.swatches.map((color) => swatchButton(color))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShapeColorInput({
+  label,
+  value,
+  onChange,
+  density = "full",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  density?: "full" | "compact" | "minimal";
+}) {
+  return <PremiumColorPicker label={label} value={value} onChange={onChange} density={density} />;
+}
+
+function CompactColorInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return <PremiumColorPicker label={label} value={value} onChange={onChange} density="compact" />;
+}
+
+function OptionSegmentedControl<T extends string>({
+  label,
+  hint,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: T;
+  options: Array<{ id: T; label: string }>;
+  onChange: (id: T) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-[11px] font-semibold text-foreground">{label}</p>
+        {hint ? (
+          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{hint}</p>
+        ) : null}
+      </div>
+      <div
+        className="grid gap-0.5 rounded-lg bg-muted/35 p-0.5 ring-1 ring-border/30"
+        style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+        role="group"
+        aria-label={label}
+      >
+        {options.map((option) => {
+          const selected = value === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onChange(option.id)}
+              aria-pressed={selected}
+              className={cn(
+                "h-8 rounded-md px-2 text-[11px] font-semibold transition-all duration-200",
+                selected
+                  ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
+                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CanvasShapePaths({
+  shapeType,
+  strokeWidth,
+  strokeColor,
+  fillColor,
+  fillOpacity,
+  cornerRadius = DEFAULT_SHAPE_CORNER_RADIUS,
+}: {
+  shapeType: PhotoStudioShapeType;
+  strokeWidth: number;
+  strokeColor: string;
+  fillColor: string;
+  fillOpacity: number;
+  cornerRadius?: number;
+}) {
+  const stroke = strokeColor;
+  const fill = fillColor;
+  const lineStrokeWidth = strokeWidth * 1.25;
+  const maxCornerRadius = getMaxCornerRadius(shapeType);
+  const rx = shapeSupportsCornerRadius(shapeType)
+    ? Math.min(maxCornerRadius, Math.max(MIN_SHAPE_CORNER_RADIUS, cornerRadius))
+    : 0;
+
+  switch (shapeType) {
+    case "rectangle":
+      return (
+        <rect
+          x="8"
+          y="18"
+          width="84"
+          height="64"
+          rx={rx}
+          ry={rx}
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+        />
+      );
+    case "square":
+      return (
+        <rect
+          x="15"
+          y="15"
+          width="70"
+          height="70"
+          rx={rx}
+          ry={rx}
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+        />
+      );
+    case "circle":
+      return <circle cx="50" cy="50" r="38" fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={strokeWidth} />;
+    case "ellipse":
+      return <ellipse cx="50" cy="50" rx="42" ry="28" fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={strokeWidth} />;
+    case "triangle":
+      return (
+        <polygon
+          points="50,12 88,88 12,88"
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+        />
+      );
+    case "line":
+      return <line x1="10" y1="82" x2="90" y2="18" stroke={stroke} strokeWidth={lineStrokeWidth} strokeLinecap="round" />;
+    case "arrow":
+      return (
+        <>
+          <line x1="12" y1="78" x2="72" y2="28" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" />
+          <polygon points="72,28 58,32 64,46" fill={stroke} />
+        </>
+      );
+    case "star":
+      return (
+        <polygon
+          points="50,8 61,36 92,36 67,54 76,84 50,66 24,84 33,54 8,36 39,36"
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+        />
+      );
+    case "hexagon":
+      return (
+        <polygon
+          points="50,8 86,28 86,72 50,92 14,72 14,28"
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+        />
+      );
+    case "diamond":
+      return (
+        <polygon
+          points="50,8 88,50 50,92 12,50"
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+        />
+      );
+    default:
+      return null;
+  }
+}
+
+function CanvasPaintLayer({
+  paintCanvasRef,
+  mode,
+  eraserPreviewPoint,
+  eraserSize,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+}: {
+  paintCanvasRef: RefObject<HTMLCanvasElement | null>;
+  mode: DrawingToolMode;
+  eraserPreviewPoint: PaintPoint | null;
+  eraserSize: number;
+  onPointerDown: (event: PointerEvent<HTMLCanvasElement>) => void;
+  onPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void;
+  onPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void;
+}) {
+  const interactive = mode !== "none";
+
+  return (
+    <>
+      <canvas
+        ref={paintCanvasRef}
+        className={cn(
+          "absolute inset-0 h-full w-full",
+          interactive ? "z-[15]" : "z-[8] pointer-events-none",
+          interactive && "touch-none",
+          mode === "brush" && "cursor-crosshair",
+          mode === "eraser" && "cursor-none",
+          !interactive && "pointer-events-none",
+        )}
+        aria-hidden={!interactive}
+        onPointerDown={interactive ? onPointerDown : undefined}
+        onPointerMove={interactive ? onPointerMove : undefined}
+        onPointerUp={interactive ? onPointerUp : undefined}
+        onPointerLeave={interactive ? onPointerUp : undefined}
+        onPointerCancel={interactive ? onPointerUp : undefined}
+      />
+
+      {mode === "eraser" && eraserPreviewPoint ? (
+        <div
+          className="pointer-events-none absolute z-[16] rounded-full border border-foreground/40 bg-foreground/5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]"
+          style={{
+            width: eraserSize,
+            height: eraserSize,
+            left: eraserPreviewPoint.x - eraserSize / 2,
+            top: eraserPreviewPoint.y - eraserSize / 2,
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function CanvasShapeItem({
+  shape,
+  selected,
+  selectable,
+  movable,
+  resizable,
+  textEditable,
+  isEditingText,
+  canvasRef,
+  onSelect,
+  onMove,
+  onResize,
+  onStartEditText,
+  onEndEditText,
+  onUpdateLabel,
+}: {
+  shape: CanvasShapeElement;
+  selected: boolean;
+  selectable: boolean;
+  movable: boolean;
+  resizable: boolean;
+  textEditable: boolean;
+  isEditingText: boolean;
+  canvasRef: RefObject<HTMLDivElement | null>;
+  onSelect: () => void;
+  onMove: (id: string, x: number, y: number) => void;
+  onResize: (id: string, next: Pick<CanvasShapeElement, "x" | "y" | "width" | "height">) => void;
+  onStartEditText: () => void;
+  onEndEditText: () => void;
+  onUpdateLabel: (id: string, label: string) => void;
+}) {
+  const [draftLabel, setDraftLabel] = useState(shape.label);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
+  const canHaveText = shapeSupportsFill(shape.shapeType);
+
+  useEffect(() => {
+    if (isEditingText) {
+      setDraftLabel(shape.label);
+      textInputRef.current?.focus();
+      textInputRef.current?.select();
+    }
+  }, [isEditingText, shape.label]);
+
+  const commitLabel = () => {
+    onUpdateLabel(shape.id, draftLabel.trim());
+    onEndEditText();
+  };
+
+  const cancelLabel = () => {
+    setDraftLabel(shape.label);
+    onEndEditText();
+  };
+
+  const handleDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!textEditable || !canHaveText || isEditingText) return;
+    event.stopPropagation();
+    onSelect();
+    onStartEditText();
+  };
+  const startMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (isEditingText) return;
+
+    const canDrag = movable || selectable;
+    if (!canDrag) {
+      event.stopPropagation();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (selectable) {
+      onSelect();
+    }
+
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const canvasNode = canvasRef.current;
+      if (!canvasNode) return;
+
+      const rect = canvasNode.getBoundingClientRect();
+      const x = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      const y = ((moveEvent.clientY - rect.top) / rect.height) * 100;
+      onMove(shape.id, x, y);
+    };
+
+    const handlePointerUp = () => {
+      target.releasePointerCapture(event.pointerId);
+      target.removeEventListener("pointermove", handlePointerMove);
+      target.removeEventListener("pointerup", handlePointerUp);
+      target.removeEventListener("pointercancel", handlePointerUp);
+    };
+
+    target.addEventListener("pointermove", handlePointerMove);
+    target.addEventListener("pointerup", handlePointerUp);
+    target.addEventListener("pointercancel", handlePointerUp);
+  };
+
+  const startResize = (handle: "nw" | "ne" | "sw" | "se", event: PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+
+    const left = shape.x - shape.width / 2;
+    const right = shape.x + shape.width / 2;
+    const top = shape.y - shape.height / 2;
+    const bottom = shape.y + shape.height / 2;
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const canvasNode = canvasRef.current;
+      if (!canvasNode) return;
+
+      const rect = canvasNode.getBoundingClientRect();
+      const pointerX = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      const pointerY = ((moveEvent.clientY - rect.top) / rect.height) * 100;
+
+      let nextLeft = left;
+      let nextRight = right;
+      let nextTop = top;
+      let nextBottom = bottom;
+
+      if (handle.includes("w")) nextLeft = pointerX;
+      if (handle.includes("e")) nextRight = pointerX;
+      if (handle.includes("n")) nextTop = pointerY;
+      if (handle.includes("s")) nextBottom = pointerY;
+
+      if (nextRight - nextLeft < MIN_SHAPE_SIZE) {
+        if (handle.includes("w")) nextLeft = nextRight - MIN_SHAPE_SIZE;
+        else nextRight = nextLeft + MIN_SHAPE_SIZE;
+      }
+      if (nextBottom - nextTop < MIN_SHAPE_SIZE) {
+        if (handle.includes("n")) nextTop = nextBottom - MIN_SHAPE_SIZE;
+        else nextBottom = nextTop + MIN_SHAPE_SIZE;
+      }
+
+      nextLeft = Math.max(0, Math.min(nextLeft, 100 - MIN_SHAPE_SIZE));
+      nextTop = Math.max(0, Math.min(nextTop, 100 - MIN_SHAPE_SIZE));
+      nextRight = Math.max(nextLeft + MIN_SHAPE_SIZE, Math.min(nextRight, 100));
+      nextBottom = Math.max(nextTop + MIN_SHAPE_SIZE, Math.min(nextBottom, 100));
+
+      const width = nextRight - nextLeft;
+      const height = nextBottom - nextTop;
+
+      onResize(shape.id, {
+        x: nextLeft + width / 2,
+        y: nextTop + height / 2,
+        width,
+        height,
+      });
+    };
+
+    const handlePointerUp = () => {
+      target.releasePointerCapture(event.pointerId);
+      target.removeEventListener("pointermove", handlePointerMove);
+      target.removeEventListener("pointerup", handlePointerUp);
+      target.removeEventListener("pointercancel", handlePointerUp);
+    };
+
+    target.addEventListener("pointermove", handlePointerMove);
+    target.addEventListener("pointerup", handlePointerUp);
+    target.addEventListener("pointercancel", handlePointerUp);
+  };
+
+  const resizeHandles: Array<{ id: "nw" | "ne" | "sw" | "se"; className: string }> = [
+    { id: "nw", className: "left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize" },
+    { id: "ne", className: "right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize" },
+    { id: "sw", className: "bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize" },
+    { id: "se", className: "bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize" },
+  ];
+
+  return (
+    <div
+      role="img"
+      data-canvas-shape=""
+      aria-label={shape.label || shape.shapeType}
+      onPointerDown={startMove}
+      onDoubleClick={handleDoubleClick}
+      className={cn(
+        "absolute touch-none",
+        movable && "cursor-grab active:cursor-grabbing",
+        selectable && !movable && !isEditingText && "cursor-pointer",
+        textEditable && canHaveText && selected && !isEditingText && "cursor-text",
+        selected && "ring-2 ring-violet-500/60 ring-offset-1 rounded-sm",
+      )}
+      style={{
+        left: `${shape.x}%`,
+        top: `${shape.y}%`,
+        width: `${shape.width}%`,
+        height: `${shape.height}%`,
+        transform: "translate(-50%, -50%)",
+      }}
+    >
+      <svg viewBox="0 0 100 100" className="h-full w-full overflow-visible pointer-events-none" aria-hidden>
+        <CanvasShapePaths
+          shapeType={shape.shapeType}
+          strokeWidth={shape.strokeWidth}
+          strokeColor={shape.strokeColor}
+          fillColor={shape.fillColor}
+          fillOpacity={shape.fillOpacity}
+          cornerRadius={shape.cornerRadius}
+        />
+      </svg>
+
+      {canHaveText && shape.label && !isEditingText ? (
+        <div className="pointer-events-none absolute inset-[12%] z-[5] flex items-center justify-center">
+          <p
+            className="w-full text-center text-[clamp(7px,1.1em,13px)] font-semibold leading-tight break-words line-clamp-4"
+            style={{ color: shape.strokeColor }}
+          >
+            {shape.label}
+          </p>
+        </div>
+      ) : null}
+
+      {canHaveText && isEditingText ? (
+        <textarea
+          ref={textInputRef}
+          value={draftLabel}
+          onChange={(event) => setDraftLabel(event.target.value)}
+          onBlur={commitLabel}
+          onPointerDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              commitLabel();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              cancelLabel();
+            }
+          }}
+          placeholder="Add text…"
+          rows={2}
+          className="absolute inset-[10%] z-20 resize-none rounded border border-transparent bg-transparent p-1 text-center text-[clamp(7px,1.1em,13px)] font-semibold leading-tight text-foreground outline-none focus:border-violet-400/40 focus:ring-2 focus:ring-violet-400/25"
+        />
+      ) : null}
+
+      {selected && resizable
+        ? resizeHandles.map((handle) => (
+            <button
+              key={handle.id}
+              type="button"
+              aria-label={`Resize ${shape.shapeType} from ${handle.id}`}
+              onPointerDown={(event) => startResize(handle.id, event)}
+              className={cn(
+                "absolute z-10 h-2.5 w-2.5 rounded-full border border-violet-400 bg-white shadow-sm",
+                handle.className,
+              )}
+            />
+          ))
+        : null}
+    </div>
+  );
+}
+
+function FontStyleList({
+  activeFontStyleId,
+  onSelect,
+  expanded = true,
+  embedded = false,
+}: {
+  activeFontStyleId: PhotoStudioFontStyleId;
+  onSelect: (id: PhotoStudioFontStyleId) => void;
+  expanded?: boolean;
+  embedded?: boolean;
+}) {
+  const groups = groupFontStylesByCategory();
+
+  if (!expanded) {
+    return (
+      <div className="flex flex-col gap-1">
+        {fontStyles.map((style) => {
+          const selected = activeFontStyleId === style.id;
+          return (
+            <WorkspaceTooltip key={style.id} label={style.label} enabled>
+              <button
+                type="button"
+                onClick={() => onSelect(style.id)}
+                className={cn(
+                  "flex h-9 w-full items-center justify-center rounded-lg border transition-all duration-200",
+                  selected
+                    ? "border-primary/30 bg-primary/10 text-primary ring-1 ring-primary/15"
+                    : "border-border/30 bg-background/55 text-foreground hover:bg-background",
+                )}
+                aria-label={style.label}
+                aria-pressed={selected}
+              >
+                <span className="text-base leading-none" style={fontStyleCss(style)}>
+                  Ag
+                </span>
+              </button>
+            </WorkspaceTooltip>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "space-y-4",
+        embedded && "max-h-[min(18rem,42vh)] overflow-y-auto pr-0.5 [scrollbar-width:thin]",
+      )}
+    >
+      {groups.map((group, groupIndex) => (
+        <section key={group.category} className={cn(groupIndex > 0 && "pt-1")}>
+          <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            {fontCategoryLabels[group.category]}
+          </p>
+          <div className="space-y-1.5">
+            {group.styles.map((style) => {
+              const selected = activeFontStyleId === style.id;
+              return (
+                <button
+                  key={style.id}
+                  type="button"
+                  onClick={() => onSelect(style.id)}
+                  className={cn(
+                    "group relative flex w-full flex-col gap-1.5 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
+                    selected
+                      ? "border-violet-400/40 bg-violet-500/[0.07] shadow-[inset_3px_0_0_0] shadow-violet-500"
+                      : "border-border/35 bg-background/60 hover:border-border/60 hover:bg-background",
+                  )}
+                  aria-label={style.label}
+                  aria-pressed={selected}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[11px] font-semibold tracking-tight text-foreground">
+                      {style.label}
+                    </span>
+                    {selected ? (
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white">
+                        <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                      </span>
+                    ) : (
+                      <span className="h-4 w-4 shrink-0 rounded-full border border-border/50 bg-background/80 opacity-0 transition-opacity group-hover:opacity-100" />
+                    )}
+                  </div>
+                  <p
+                    className="truncate text-[15px] leading-snug text-foreground/90"
+                    style={fontStyleCss(style)}
+                  >
+                    {style.sample}
+                  </p>
+                  <p className="truncate text-[10px] leading-relaxed text-muted-foreground">
+                    {style.preview}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function CanvasTextItem({
+  text,
+  fontStyle,
+  selected,
+  selectable,
+  movable,
+  resizable,
+  editable,
+  isEditing,
+  canvasRef,
+  onSelect,
+  onMove,
+  onResize,
+  onStartEdit,
+  onEndEdit,
+  onUpdateContent,
+}: {
+  text: CanvasTextElement;
+  fontStyle: PhotoStudioFontStyle;
+  selected: boolean;
+  selectable: boolean;
+  movable: boolean;
+  resizable: boolean;
+  editable: boolean;
+  isEditing: boolean;
+  canvasRef: RefObject<HTMLDivElement | null>;
+  onSelect: () => void;
+  onMove: (id: string, x: number, y: number) => void;
+  onResize: (id: string, width: number) => void;
+  onStartEdit: () => void;
+  onEndEdit: () => void;
+  onUpdateContent: (id: string, content: string) => void;
+}) {
+  const [draftContent, setDraftContent] = useState(text.content);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      setDraftContent(text.content);
+      textInputRef.current?.focus();
+      textInputRef.current?.select();
+    }
+  }, [isEditing, text.content]);
+
+  const commitContent = () => {
+    onUpdateContent(text.id, draftContent.trim() || "Text");
+    onEndEdit();
+  };
+
+  const cancelEdit = () => {
+    setDraftContent(text.content);
+    onEndEdit();
+  };
+
+  const handleDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!editable || isEditing) return;
+    event.stopPropagation();
+    onSelect();
+    onStartEdit();
+  };
+
+  const startMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (isEditing) return;
+
+    const canDrag = movable || selectable;
+    if (!canDrag) {
+      event.stopPropagation();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (selectable) {
+      onSelect();
+    }
+
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const canvasNode = canvasRef.current;
+      if (!canvasNode) return;
+      const rect = canvasNode.getBoundingClientRect();
+      const x = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      const y = ((moveEvent.clientY - rect.top) / rect.height) * 100;
+      onMove(text.id, x, y);
+    };
+
+    const handlePointerUp = () => {
+      target.releasePointerCapture(event.pointerId);
+      target.removeEventListener("pointermove", handlePointerMove);
+      target.removeEventListener("pointerup", handlePointerUp);
+      target.removeEventListener("pointercancel", handlePointerUp);
+    };
+
+    target.addEventListener("pointermove", handlePointerMove);
+    target.addEventListener("pointerup", handlePointerUp);
+    target.addEventListener("pointercancel", handlePointerUp);
+  };
+
+  const startResize = (event: PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+    const startWidth = text.width;
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const canvasNode = canvasRef.current;
+      if (!canvasNode) return;
+      const rect = canvasNode.getBoundingClientRect();
+      const pointerX = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      const leftEdge = text.x - startWidth / 2;
+      const nextWidth = Math.min(MAX_TEXT_WIDTH, Math.max(MIN_TEXT_WIDTH, (pointerX - leftEdge) * 2));
+      onResize(text.id, nextWidth);
+    };
+
+    const handlePointerUp = () => {
+      target.releasePointerCapture(event.pointerId);
+      target.removeEventListener("pointermove", handlePointerMove);
+      target.removeEventListener("pointerup", handlePointerUp);
+      target.removeEventListener("pointercancel", handlePointerUp);
+    };
+
+    target.addEventListener("pointermove", handlePointerMove);
+    target.addEventListener("pointerup", handlePointerUp);
+    target.addEventListener("pointercancel", handlePointerUp);
+  };
+
+  const textStyle: CSSProperties = {
+    ...fontStyleCss(fontStyle),
+    color: text.color,
+    fontSize: `clamp(12px, ${text.fontSize * 0.11}cqw, ${text.fontSize}px)`,
+  };
+
+  return (
+    <div
+      role="textbox"
+      data-canvas-text=""
+      aria-label={text.content}
+      onPointerDown={startMove}
+      onDoubleClick={handleDoubleClick}
+      className={cn(
+        "absolute touch-none",
+        movable && "cursor-grab active:cursor-grabbing",
+        selectable && !movable && !isEditing && "cursor-pointer",
+        editable && selected && !isEditing && "cursor-text",
+        selected && "ring-2 ring-violet-500/60 ring-offset-1 rounded-sm",
+      )}
+      style={{
+        left: `${text.x}%`,
+        top: `${text.y}%`,
+        width: `${text.width}%`,
+        transform: "translate(-50%, -50%)",
+      }}
+    >
+      {isEditing ? (
+        <textarea
+          ref={textInputRef}
+          value={draftContent}
+          onChange={(event) => setDraftContent(event.target.value)}
+          onBlur={commitContent}
+          onPointerDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              commitContent();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              cancelEdit();
+            }
+          }}
+          rows={3}
+          className="w-full resize-none rounded border border-transparent bg-transparent p-1.5 leading-tight text-foreground outline-none focus:border-violet-400/40 focus:ring-2 focus:ring-violet-400/25"
+          style={textStyle}
+        />
+      ) : (
+        <p
+          className="w-full whitespace-pre-wrap break-words leading-tight"
+          style={textStyle}
+        >
+          {text.content}
+        </p>
+      )}
+
+      {selected && resizable ? (
+        <button
+          type="button"
+          aria-label="Resize text width"
+          onPointerDown={startResize}
+          className="absolute bottom-0 right-0 z-10 h-2.5 w-2.5 translate-x-1/2 translate-y-1/2 rounded-full border border-violet-400 bg-white shadow-sm cursor-ew-resize"
+        />
+      ) : null}
+    </div>
+  );
+}
+
+const workspaceTools: Array<{ id: WorkspaceTool; label: string; shortcut: string; icon: LucideIcon }> = [
+  { id: "select", label: "Select", shortcut: "V", icon: MousePointer2 },
+  { id: "move", label: "Move", shortcut: "M", icon: Move },
+  { id: "crop", label: "Crop", shortcut: "C", icon: Crop },
+  { id: "brush", label: "Brush", shortcut: "B", icon: Brush },
+  { id: "eraser", label: "Eraser", shortcut: "E", icon: Eraser },
+  { id: "text", label: "Text", shortcut: "T", icon: Type },
+  { id: "shape", label: "Shape", shortcut: "S", icon: Square },
+  { id: "eyedropper", label: "Pick", shortcut: "I", icon: Pipette },
+  { id: "mask", label: "Mask", shortcut: "K", icon: Lasso },
+  { id: "adjust", label: "Adjust", shortcut: "A", icon: SlidersHorizontal },
+  { id: "flip", label: "Flip", shortcut: "F", icon: FlipHorizontal2 },
+  { id: "rotate", label: "Rotate", shortcut: "R", icon: RotateCw },
+  { id: "layers", label: "Layers", shortcut: "L", icon: Layers },
+];
+
+const assistTools: Array<{ id: AssistPanel; label: string; description: string; icon: LucideIcon }> = [
+  { id: "prompt", label: "Prompt", description: "Describe what to generate", icon: Sparkles },
+  { id: "chat", label: "Ask", description: "Chat about your canvas", icon: MessageCircle },
+];
+
+const RIGHT_SIDEBAR_COLLAPSED_WIDTH = 72;
+const RIGHT_SIDEBAR_DEFAULT_WIDTH = 288;
+const RIGHT_SIDEBAR_MIN_WIDTH = 240;
+const RIGHT_SIDEBAR_MAX_WIDTH = 480;
+const RIGHT_SIDEBAR_WIDTH_STORAGE_KEY = "ps-right-sidebar-width";
+
+function readStoredSidebarWidth(): number {
+  if (typeof window === "undefined") return RIGHT_SIDEBAR_DEFAULT_WIDTH;
+  const raw = localStorage.getItem(RIGHT_SIDEBAR_WIDTH_STORAGE_KEY);
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  if (!Number.isFinite(parsed)) return RIGHT_SIDEBAR_DEFAULT_WIDTH;
+  return Math.min(RIGHT_SIDEBAR_MAX_WIDTH, Math.max(RIGHT_SIDEBAR_MIN_WIDTH, parsed));
+}
+
+function writeStoredSidebarWidth(width: number): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(RIGHT_SIDEBAR_WIDTH_STORAGE_KEY, String(width));
+}
+
+function SidebarResizeHandle({
+  onDrag,
+  onDragEnd,
+}: {
+  onDrag: (deltaX: number) => void;
+  onDragEnd: () => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setDragging(true);
+      let lastX = event.clientX;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        onDrag(moveEvent.clientX - lastX);
+        lastX = moveEvent.clientX;
+      };
+
+      const handleMouseUp = () => {
+        setDragging(false);
+        onDragEnd();
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [onDrag, onDragEnd],
+  );
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      onMouseDown={handleMouseDown}
+      className={cn(
+        "absolute -left-1.5 top-0 z-10 h-full w-3 cursor-col-resize",
+        dragging && "bg-primary/10",
+      )}
+    />
+  );
+}
+
+function WorkspaceTooltip({
+  label,
+  hint,
+  enabled = true,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  enabled?: boolean;
+  children: ReactNode;
+}) {
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const showTooltip = useCallback(() => {
+    if (!enabled) return;
+    const node = triggerRef.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    setPosition({ top: rect.top + rect.height / 2, left: rect.left - 10 });
+  }, [enabled]);
+
+  const hideTooltip = useCallback(() => setPosition(null), []);
+
+  return (
+    <>
+      <div
+        ref={triggerRef}
+        className="relative w-full"
+        onMouseEnter={showTooltip}
+        onMouseLeave={hideTooltip}
+        onFocus={showTooltip}
+        onBlur={hideTooltip}
+      >
+        {children}
+      </div>
+      {enabled && position
+        ? createPortal(
+            <div
+              role="tooltip"
+              style={{ top: position.top, left: position.left }}
+              className="pointer-events-none fixed z-[200] max-w-[14rem] -translate-x-full -translate-y-1/2 rounded-xl border border-border/30 bg-popover px-2.5 py-1.5 backdrop-blur-sm"
+            >
+              <span className="block text-xs font-semibold text-foreground">{label}</span>
+              {hint ? (
+                <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground">{hint}</span>
+              ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+function WorkspaceSidebarExpandButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute left-0 top-1/2 z-20 hidden h-16 w-5 -translate-y-1/2 items-center justify-center rounded-r-lg border border-l-0 border-border/30 bg-white text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground lg:inline-flex dark:bg-background"
+      aria-label="Show assets sidebar"
+      title="Show assets sidebar"
+    >
+      <PanelLeft className="h-3.5 w-3.5" strokeWidth={2} />
+    </button>
+  );
+}
+
+function cn(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
+
+function LauncherPanel({
+  label,
+  title,
+  accent = "violet",
+  children,
+}: {
+  label: string;
+  title: string;
+  accent?: keyof typeof accentThemes;
+  children: ReactNode;
+}) {
+  const theme = accentThemes[accent];
+  return (
+    <section className="overflow-hidden rounded-[1.35rem] border border-border/40 bg-card/90 shadow-[0_8px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+      <div
+        className={cn(
+          "relative border-b border-border/30 bg-gradient-to-r px-5 py-4 md:px-6",
+          theme.panelHeader,
+        )}
+      >
+        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 opacity-80" />
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          {label}
+        </p>
+        <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+      </div>
+      <div className="p-5 md:p-6">{children}</div>
+    </section>
+  );
+}
+
+function LauncherOptionCard({
+  icon: Icon,
+  title,
+  description,
+  badge,
+  accent,
+  onClick,
+  disabled,
+  loading,
+  loadingLabel,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  badge?: string;
+  accent: keyof typeof accentThemes;
+  onClick?: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  loadingLabel?: string;
+}) {
+  const theme = accentThemes[accent];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      className={cn(
+        "group relative flex w-full items-start gap-4 overflow-hidden rounded-[1.25rem] border p-5 text-left transition-all duration-300 hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0",
+        theme.card,
+      )}
+    >
+      <span
+        className={cn(
+          "pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full blur-2xl transition-opacity group-hover:opacity-100",
+          theme.glow,
+          "opacity-60",
+        )}
+      />
+      <span
+        className={cn(
+          "relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105",
+          theme.icon,
+        )}
+      >
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="relative min-w-0 flex-1">
+        <span className="flex items-start justify-between gap-3">
+          <span className="min-w-0">
+            {badge ? (
+              <span
+                className={cn(
+                  "mb-1.5 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]",
+                  theme.badge,
+                )}
+              >
+                {badge}
+              </span>
+            ) : null}
+            <span className="block text-[15px] font-semibold tracking-tight text-foreground">
+              {loading && loadingLabel ? loadingLabel : title}
+            </span>
+          </span>
+          <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+        </span>
+        <span className="mt-1.5 block text-[13px] leading-relaxed text-muted-foreground">{description}</span>
+      </span>
+    </button>
+  );
+}
+
+function PhotoStudioLauncher({
+  recentProjects,
+  onOpenRecentProject,
+  formatRecentTime,
+  onOpenLibrary,
+  onUploadAsset,
+  assetUploading,
+  assetUploadProgress,
+  assetUploadError,
+}: {
+  recentProjects: RecentPhotoProject[];
+  onOpenRecentProject?: (project: RecentPhotoProject) => void;
+  formatRecentTime: (openedAt: number) => string;
+  onOpenLibrary?: () => void;
+  onUploadAsset?: () => void;
+  assetUploading?: boolean;
+  assetUploadProgress?: string | null;
+  assetUploadError?: string | null;
+}) {
+  return (
+    <div className="relative min-h-0 flex-1 overflow-y-auto">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" />
+        <div className="absolute right-0 top-32 h-80 w-80 rounded-full bg-fuchsia-400/15 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 md:px-8 md:py-7">
+        <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-600 to-cyan-600 p-6 text-white shadow-[0_20px_60px_rgba(124,58,237,0.25)] md:p-8">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(56,189,248,0.35),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.1),transparent_50%)]" />
+          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-16 left-1/4 h-44 w-44 rounded-full bg-cyan-300/20 blur-3xl" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 ring-1 ring-white/20 backdrop-blur-sm">
+                <Sparkles className="h-3.5 w-3.5" />
+                Photo Studio
+              </div>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-[2.65rem] md:leading-tight">
+                Start creating visuals
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 md:text-base">
+                Resume recent work, open an image from your library, or switch to the Workspace tab to
+                start creating logos, product photos, and campaign visuals.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
+              {[
+                { label: "Logos", className: "bg-white/15 ring-white/20" },
+                { label: "Product shots", className: "bg-cyan-400/20 ring-cyan-200/30" },
+                { label: "Campaigns", className: "bg-fuchsia-400/20 ring-fuchsia-200/30" },
+              ].map((chip) => (
+                <span
+                  key={chip.label}
+                  className={cn(
+                    "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold text-white ring-1 backdrop-blur-sm",
+                    chip.className,
+                  )}
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <LauncherPanel label="Get started" title="Choose how to begin" accent="fuchsia">
+          <div className="grid gap-3 lg:grid-cols-2">
+            <LauncherOptionCard
+              icon={FolderOpen}
+              badge="Library"
+              accent="violet"
+              title="Open from library"
+              description="Browse JPG, PNG, and JPEG images from your library."
+              onClick={onOpenLibrary}
+              disabled={!onOpenLibrary}
+            />
+            <LauncherOptionCard
+              icon={Upload}
+              badge="Local file"
+              accent="cyan"
+              title="Upload from device"
+              description={`Pick a ${PHOTO_STUDIO_IMAGE_FORMATS_LABEL} image from your device and open it in the workspace.`}
+              onClick={onUploadAsset}
+              disabled={!onUploadAsset}
+              loading={assetUploading}
+              loadingLabel={assetUploadProgress || "Uploading…"}
+            />
+          </div>
+          {assetUploadError ? (
+            <p className="mt-3 text-sm text-destructive">{assetUploadError}</p>
+          ) : null}
+        </LauncherPanel>
+
+        <LauncherPanel label="Recent" title="Continue where you left off" accent="cyan">
+          {recentProjects.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {recentProjects.slice(0, 6).map((project, index) => {
+                const accent = recentAccentKeys[index % recentAccentKeys.length];
+                const theme = accentThemes[accent];
+                return (
+                  <button
+                    key={project.key}
+                    type="button"
+                    onClick={() => onOpenRecentProject?.(project)}
+                    disabled={!onOpenRecentProject}
+                    className={cn(
+                      "group relative flex items-start gap-3 overflow-hidden rounded-[1.15rem] px-4 py-4 text-left transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50",
+                      theme.card,
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105",
+                        theme.icon,
+                      )}
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">
+                        {project.title}
+                      </span>
+                      <span className="mt-1 block text-[11px] text-muted-foreground">
+                        {formatRecentTime(project.openedAt)}
+                        {project.assetId ? " · Image attached" : " · Blank workspace"}
+                      </span>
+                    </span>
+                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-[1.15rem] border border-dashed border-cyan-300/40 bg-gradient-to-br from-cyan-50/70 via-white to-violet-50/50 px-5 py-8 text-center dark:border-cyan-500/20 dark:from-cyan-950/20 dark:via-background dark:to-violet-950/10">
+              <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-violet-600 text-white shadow-lg shadow-cyan-500/20">
+                <ImageIcon className="h-5 w-5" />
+              </span>
+              <p className="mt-3 text-sm font-medium text-foreground">No recent projects yet</p>
+              <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
+                Your recent Photo Studio projects will appear here once you open a workspace or attach an
+                image from your library.
+              </p>
+            </div>
+          )}
+        </LauncherPanel>
+      </div>
+    </div>
+  );
+}
+
+function PhotoStudioWorkspace({
+  assetId,
+  assetName,
+  assetImageUrl,
+  onOpenLibrary,
+  onUploadAsset,
+  onGenerate,
+  generating = false,
+  assetUploading,
+}: {
+  assetId?: string | null;
+  assetName?: string | null;
+  assetImageUrl?: string | null;
+  onOpenLibrary?: () => void;
+  onUploadAsset?: () => void;
+  onGenerate?: PhotoStudioAppProps["onGenerate"];
+  generating?: boolean;
+  assetUploading?: boolean;
+}) {
+  const [prompt, setPrompt] = useState("");
+  const [creationType, setCreationType] = useState<PhotoStudioCreationType>("logo");
+  const [aspectRatio, setAspectRatio] = useState<PhotoStudioAspectRatio>("1:1");
+  const [stylePreset, setStylePreset] = useState<(typeof stylePresets)[number]["id"]>("studio");
+  const [logoTransparentBackground, setLogoTransparentBackground] = useState(true);
+  const [canvasBackgroundId, setCanvasBackgroundId] = useState<CanvasBackgroundId>("violet-sunset");
+  const [customCanvasBackgroundColor, setCustomCanvasBackgroundColor] = useState(
+    DEFAULT_CUSTOM_CANVAS_BACKGROUND,
+  );
+  const [customCanvasGradientEnd, setCustomCanvasGradientEnd] = useState("#a855f7");
+  const [customCanvasGradientEnabled, setCustomCanvasGradientEnabled] = useState(false);
+  const [leftPanelTab, setLeftPanelTab] = useState<LeftPanelTab>("assets");
+  const [projectName, setProjectName] = useState(() => assetName?.trim() ?? "");
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+  const [activeTool, setActiveTool] = useState<WorkspaceTool>("select");
+  const [activeShapeType, setActiveShapeType] = useState<PhotoStudioShapeType>("rectangle");
+  const [editToolSubPanel, setEditToolSubPanel] = useState<WorkspaceTool | null>(null);
+  const [activeAssistPanel, setActiveAssistPanel] = useState<AssistPanel | null>(null);
+  const [canvasShapes, setCanvasShapes] = useState<CanvasShapeElement[]>([]);
+  const [canvasTexts, setCanvasTexts] = useState<CanvasTextElement[]>([]);
+  const [activeFontStyleId, setActiveFontStyleId] = useState<PhotoStudioFontStyleId>("modern-sans");
+  const [brushSettings, setBrushSettings] = useState<BrushSettings>({
+    color: DEFAULT_BRUSH_COLOR,
+    size: DEFAULT_BRUSH_SIZE,
+    opacity: DEFAULT_BRUSH_OPACITY,
+  });
+  const [eraserSettings, setEraserSettings] = useState<EraserSettings>({
+    size: DEFAULT_BRUSH_SIZE,
+  });
+  const [eraserPreviewPoint, setEraserPreviewPoint] = useState<PaintPoint | null>(null);
+  const [canvasHasEdits, setCanvasHasEdits] = useState(false);
+  const paintCanvasRef = useRef<HTMLCanvasElement>(null);
+  const lastPaintPointRef = useRef<PaintPoint | null>(null);
+  const isPaintingRef = useRef(false);
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+  const [editingShapeTextId, setEditingShapeTextId] = useState<string | null>(null);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [canvasDragOver, setCanvasDragOver] = useState(false);
+  const [shapeDragActive, setShapeDragActive] = useState(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvasZoom, setCanvasZoom] = useState(CANVAS_ZOOM_DEFAULT);
+  const [rightToolbarExpanded, setRightToolbarExpanded] = useState(true);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(RIGHT_SIDEBAR_DEFAULT_WIDTH);
+  const [generatedItems, setGeneratedItems] = useState<PhotoStudioGeneratedItem[]>([]);
+  const [selectedGenerationId, setSelectedGenerationId] = useState<string | null>(null);
+  const [materializedGenerationId, setMaterializedGenerationId] = useState<string | null>(null);
+  const [savedDesigns, setSavedDesigns] = useState<SavedCanvasDesign[]>(HARDCODED_SAVED_DESIGNS);
+  const [designSearchQuery, setDesignSearchQuery] = useState("");
+  const [activeSavedDesignId, setActiveSavedDesignId] = useState<string | null>(null);
+  const [localGenerating, setLocalGenerating] = useState(false);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ id: string; role: "user" | "assistant"; content: string }>
+  >([]);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleCanvasZoomIn = useCallback(() => {
+    setCanvasZoom((current) => clampCanvasZoom(current + CANVAS_ZOOM_STEP));
+  }, []);
+
+  const handleCanvasZoomOut = useCallback(() => {
+    setCanvasZoom((current) => clampCanvasZoom(current - CANVAS_ZOOM_STEP));
+  }, []);
+
+  const handleCanvasZoomReset = useCallback(() => {
+    setCanvasZoom(CANVAS_ZOOM_DEFAULT);
+  }, []);
+
+  const workspaceTitle = projectName.trim() || "Untitled project";
+  const hasAsset = Boolean(assetId);
+  const isGenerating = generating || localGenerating;
+  const selectedGeneration =
+    generatedItems.find((item) => item.id === selectedGenerationId) ?? null;
+  const selectedShape = canvasShapes.find((shape) => shape.id === selectedShapeId) ?? null;
+  const selectedText = canvasTexts.find((text) => text.id === selectedTextId) ?? null;
+  const manualCanvasLayers = useMemo((): CanvasLayerListItem[] => {
+    const shapeLayers = canvasShapes
+      .filter((shape) => !isGenerationLayerId(shape.id))
+      .map((shape) => ({
+        id: shape.id,
+        kind: "shape" as const,
+        label: shape.label || shapeTypes.find((item) => item.id === shape.shapeType)?.label || "Shape",
+        color: shape.strokeColor,
+        shapeType: shape.shapeType,
+      }));
+    const textLayers = canvasTexts
+      .filter((text) => !isGenerationLayerId(text.id))
+      .map((text) => ({
+        id: text.id,
+        kind: "text" as const,
+        label: text.content || "Text",
+        color: text.color,
+      }));
+    return [...shapeLayers.slice().reverse(), ...textLayers.slice().reverse()];
+  }, [canvasShapes, canvasTexts]);
+  const manualLayerCount = manualCanvasLayers.length;
+  const canvasAspectRatio = aspectRatio;
+  const canvasDesign = getCanvasDesignByAspectRatio(canvasAspectRatio);
+
+  const applyGenerationToCanvas = useCallback((item: PhotoStudioGeneratedItem) => {
+    setSelectedGenerationId(item.id);
+    if (isPhotoStudioAspectRatio(item.aspectRatio)) {
+      setAspectRatio(item.aspectRatio);
+    }
+    if (item.canvasBackgroundId) {
+      setCanvasBackgroundId(item.canvasBackgroundId);
+    } else if (!item.transparentBackground) {
+      setCanvasBackgroundId(
+        defaultCanvasBackgroundIds[(item.variantIndex ?? 0) % defaultCanvasBackgroundIds.length],
+      );
+    }
+
+    if (materializedGenerationId !== item.id) {
+      const { shapes, texts } = buildLayersFromGeneration(item);
+      setCanvasShapes((current) => [
+        ...current.filter((shape) => !isGenerationLayerId(shape.id)),
+        ...shapes,
+      ]);
+      setCanvasTexts((current) => [
+        ...current.filter((text) => !isGenerationLayerId(text.id)),
+        ...texts,
+      ]);
+      setMaterializedGenerationId(item.id);
+      setSelectedShapeId(shapes[0]?.id ?? null);
+      setSelectedTextId(null);
+      setEditingShapeTextId(null);
+      setEditingTextId(null);
+      setActiveTool("select");
+      setEditToolSubPanel(null);
+    }
+
+    setCanvasHasEdits(true);
+  }, [materializedGenerationId]);
+
+  const saveCurrentDesign = useCallback(() => {
+    const manualShapes = canvasShapes.filter((shape) => !isGenerationLayerId(shape.id));
+    const manualTexts = canvasTexts.filter((text) => !isGenerationLayerId(text.id));
+    if (manualShapes.length === 0 && manualTexts.length === 0) return;
+
+    const design: SavedCanvasDesign = {
+      id: `design-${Date.now()}`,
+      title: projectName.trim() || `Design ${savedDesigns.length + 1}`,
+      aspectRatio,
+      canvasBackgroundId,
+      shapes: structuredClone(manualShapes),
+      texts: structuredClone(manualTexts),
+      createdAt: Date.now(),
+      source: "user",
+    };
+
+    setSavedDesigns((current) => [design, ...current]);
+    setActiveSavedDesignId(design.id);
+    setLeftPanelTab("designs");
+  }, [aspectRatio, canvasBackgroundId, canvasShapes, canvasTexts, projectName, savedDesigns.length]);
+
+  const loadSavedDesign = useCallback((design: SavedCanvasDesign) => {
+    setAspectRatio(design.aspectRatio);
+    setCanvasBackgroundId(design.canvasBackgroundId);
+    setCanvasShapes(structuredClone(design.shapes));
+    setCanvasTexts(structuredClone(design.texts));
+    setSelectedGenerationId(null);
+    setMaterializedGenerationId(null);
+    setActiveSavedDesignId(design.id);
+    setSelectedShapeId(null);
+    setSelectedTextId(null);
+    setEditingShapeTextId(null);
+    setEditingTextId(null);
+    setActiveTool("select");
+    setEditToolSubPanel(null);
+    setCanvasHasEdits(true);
+  }, []);
+
+  const deleteSavedDesign = useCallback((id: string) => {
+    setSavedDesigns((current) => {
+      const target = current.find((design) => design.id === id);
+      if (!target || target.source === "system") return current;
+      return current.filter((design) => design.id !== id);
+    });
+    setActiveSavedDesignId((current) => (current === id ? null : current));
+  }, []);
+
+  const selectCanvasLayer = useCallback((layer: CanvasLayerListItem) => {
+    if (layer.kind === "shape") {
+      setSelectedShapeId(layer.id);
+      setSelectedTextId(null);
+      setEditingShapeTextId(null);
+      setEditingTextId(null);
+    } else {
+      setSelectedTextId(layer.id);
+      setSelectedShapeId(null);
+      setEditingShapeTextId(null);
+      setEditingTextId(null);
+    }
+    setActiveTool("select");
+    setEditToolSubPanel(null);
+    setLeftPanelTab("designs");
+  }, []);
+
+  useEffect(() => {
+    if (!assetName?.trim()) return;
+    setProjectName((current) => current.trim() || assetName.trim());
+  }, [assetName]);
+
+  useEffect(() => {
+    setRightSidebarWidth(readStoredSidebarWidth());
+  }, []);
+
+  useEffect(() => {
+    const container = canvasRef.current;
+    const paintCanvas = paintCanvasRef.current;
+    if (!container || !paintCanvas) return;
+
+    const resizePaintCanvas = () => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const snapshot = document.createElement("canvas");
+      snapshot.width = paintCanvas.width;
+      snapshot.height = paintCanvas.height;
+      const snapshotCtx = snapshot.getContext("2d");
+      if (snapshotCtx && paintCanvas.width > 0 && paintCanvas.height > 0) {
+        snapshotCtx.drawImage(paintCanvas, 0, 0);
+      }
+
+      paintCanvas.width = Math.floor(rect.width * dpr);
+      paintCanvas.height = Math.floor(rect.height * dpr);
+      paintCanvas.style.width = `${rect.width}px`;
+      paintCanvas.style.height = `${rect.height}px`;
+
+      const ctx = paintCanvas.getContext("2d");
+      if (!ctx) return;
+      configurePaintContext(ctx, dpr);
+
+      if (snapshot.width > 0 && snapshot.height > 0) {
+        ctx.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, rect.width, rect.height);
+      }
+    };
+
+    const observer = new ResizeObserver(resizePaintCanvas);
+    observer.observe(container);
+    resizePaintCanvas();
+    return () => observer.disconnect();
+  }, [canvasAspectRatio, selectedGenerationId]);
+
+  const handleGenerate = async () => {
+    const trimmed = prompt.trim();
+    if (!trimmed || isGenerating) return;
+
+    setLocalGenerating(true);
+    try {
+      const input = {
+        prompt: trimmed,
+        creationType,
+        aspectRatio,
+        stylePreset,
+        transparentBackground: creationType === "logo" ? logoTransparentBackground : undefined,
+      };
+      const result = await onGenerate?.(input);
+      if (!Array.isArray(result) || result.length === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 900));
+      }
+      const newItems =
+        Array.isArray(result) && result.length > 0
+          ? result
+          : createGenerationBatch(input);
+
+      setGeneratedItems((current) => [...newItems, ...current]);
+      if (newItems[0]) {
+        applyGenerationToCanvas(newItems[0]);
+      }
+      setLeftPanelTab("generations");
+    } finally {
+      setLocalGenerating(false);
+    }
+  };
+
+  const handleRightSidebarResize = useCallback((deltaX: number) => {
+    setRightSidebarWidth((current) =>
+      Math.min(RIGHT_SIDEBAR_MAX_WIDTH, Math.max(RIGHT_SIDEBAR_MIN_WIDTH, current - deltaX)),
+    );
+  }, []);
+
+  const handleRightSidebarResizeEnd = useCallback(() => {
+    setRightSidebarWidth((current) => {
+      writeStoredSidebarWidth(current);
+      return current;
+    });
+  }, []);
+
+  const toggleRightToolbar = useCallback(() => {
+    setRightToolbarExpanded((current) => {
+      if (current) setActiveAssistPanel(null);
+      return !current;
+    });
+  }, []);
+
+  const openAssistPanel = (panel: AssistPanel) => {
+    setActiveAssistPanel((current) => (current === panel ? null : panel));
+    setRightToolbarExpanded(true);
+  };
+
+  const focusSelectionToolbar = useCallback(() => {
+    setActiveAssistPanel(null);
+    setRightToolbarExpanded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedShapeId && !selectedTextId) return;
+    focusSelectionToolbar();
+  }, [selectedShapeId, selectedTextId, focusSelectionToolbar]);
+
+  const selectWorkspaceTool = (tool: WorkspaceTool) => {
+    setActiveTool(tool);
+    setActiveAssistPanel(null);
+    if (tool !== "select" && tool !== "shape") {
+      setSelectedShapeId(null);
+      setSelectedTextId(null);
+      setEditingShapeTextId(null);
+      setEditingTextId(null);
+    }
+    if (tool !== "eraser") {
+      setEraserPreviewPoint(null);
+      isPaintingRef.current = false;
+      lastPaintPointRef.current = null;
+    }
+    if (tool === "shape") {
+      setEditToolSubPanel("shape");
+      setRightToolbarExpanded(true);
+    } else if (tool === "text") {
+      setEditToolSubPanel("text");
+      setRightToolbarExpanded(true);
+    } else {
+      setEditToolSubPanel(null);
+    }
+    if (tool === "brush" || tool === "eraser") {
+      setRightToolbarExpanded(true);
+    }
+  };
+
+  const closeEditToolSubPanel = () => {
+    setEditToolSubPanel(null);
+  };
+
+  const handleShapeDragStart = (event: DragEvent<HTMLButtonElement>, shapeType: PhotoStudioShapeType) => {
+    event.dataTransfer.setData(SHAPE_DRAG_MIME, shapeType);
+    event.dataTransfer.setData("text/plain", shapeType);
+    event.dataTransfer.effectAllowed = "copy";
+    setActiveShapeType(shapeType);
+    setShapeDragActive(true);
+  };
+
+  const handleShapeDragEnd = () => {
+    setShapeDragActive(false);
+    setCanvasDragOver(false);
+  };
+
+  const handleCanvasDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (
+      !event.dataTransfer.types.includes(SHAPE_DRAG_MIME) &&
+      !event.dataTransfer.types.includes("text/plain")
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setCanvasDragOver(true);
+  };
+
+  const handleCanvasDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (!nextTarget || !canvasRef.current?.contains(nextTarget)) {
+      setCanvasDragOver(false);
+    }
+  };
+
+  const handleCanvasDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setCanvasDragOver(false);
+    setShapeDragActive(false);
+    const shapeType = (event.dataTransfer.getData(SHAPE_DRAG_MIME) ||
+      event.dataTransfer.getData("text/plain")) as PhotoStudioShapeType;
+    if (!shapeTypes.some((shape) => shape.id === shapeType) || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    const newShape = createCanvasShape(shapeType, x, y);
+    setCanvasShapes((current) => [...current, newShape]);
+    setSelectedShapeId(newShape.id);
+    setSelectedTextId(null);
+    setEditingShapeTextId(null);
+    setEditingTextId(null);
+    setActiveTool("shape");
+    setEditToolSubPanel("shape");
+    setRightToolbarExpanded(true);
+    setCanvasHasEdits(true);
+  };
+
+  const resizeCanvasShape = (
+    id: string,
+    next: Pick<CanvasShapeElement, "x" | "y" | "width" | "height">,
+  ) => {
+    setCanvasShapes((current) =>
+      current.map((shape) => (shape.id === id ? { ...shape, ...next } : shape)),
+    );
+  };
+
+  const updateShapeStrokeWidth = (id: string, strokeWidth: number) => {
+    const clamped = Math.min(MAX_SHAPE_STROKE_WIDTH, Math.max(MIN_SHAPE_STROKE_WIDTH, strokeWidth));
+    setCanvasShapes((current) =>
+      current.map((shape) => (shape.id === id ? { ...shape, strokeWidth: clamped } : shape)),
+    );
+  };
+
+  const updateShapeCornerRadius = (id: string, cornerRadius: number) => {
+    setCanvasShapes((current) =>
+      current.map((shape) => {
+        if (shape.id !== id || !shapeSupportsCornerRadius(shape.shapeType)) return shape;
+        const maxRadius = getMaxCornerRadius(shape.shapeType);
+        const clamped = Math.min(maxRadius, Math.max(MIN_SHAPE_CORNER_RADIUS, cornerRadius));
+        return { ...shape, cornerRadius: clamped };
+      }),
+    );
+  };
+
+  const updateShapeColors = (
+    id: string,
+    next: Partial<Pick<CanvasShapeElement, "strokeColor" | "fillColor" | "fillOpacity">>,
+  ) => {
+    setCanvasShapes((current) =>
+      current.map((shape) => (shape.id === id ? { ...shape, ...next } : shape)),
+    );
+  };
+
+  const updateShapeLabel = (id: string, label: string) => {
+    setCanvasShapes((current) =>
+      current.map((shape) => (shape.id === id ? { ...shape, label } : shape)),
+    );
+  };
+
+  const updateTextContent = (id: string, content: string) => {
+    setCanvasTexts((current) =>
+      current.map((text) => (text.id === id ? { ...text, content } : text)),
+    );
+  };
+
+  const updateTextFontStyle = (id: string, fontStyleId: PhotoStudioFontStyleId) => {
+    setCanvasTexts((current) =>
+      current.map((text) => (text.id === id ? { ...text, fontStyleId } : text)),
+    );
+  };
+
+  const updateTextColor = (id: string, color: string) => {
+    setCanvasTexts((current) => current.map((text) => (text.id === id ? { ...text, color } : text)));
+  };
+
+  const updateTextFontSize = (id: string, fontSize: number) => {
+    const clamped = Math.min(MAX_TEXT_FONT_SIZE, Math.max(MIN_TEXT_FONT_SIZE, fontSize));
+    setCanvasTexts((current) =>
+      current.map((text) => (text.id === id ? { ...text, fontSize: clamped } : text)),
+    );
+  };
+
+  const resizeCanvasText = (id: string, width: number) => {
+    const clamped = Math.min(MAX_TEXT_WIDTH, Math.max(MIN_TEXT_WIDTH, width));
+    setCanvasTexts((current) =>
+      current.map((text) => (text.id === id ? { ...text, width: clamped } : text)),
+    );
+  };
+
+  const moveCanvasText = (id: string, x: number, y: number) => {
+    setCanvasTexts((current) =>
+      current.map((text) =>
+        text.id === id
+          ? {
+              ...text,
+              x: Math.min(95, Math.max(5, x)),
+              y: Math.min(95, Math.max(5, y)),
+            }
+          : text,
+      ),
+    );
+  };
+
+  const handleCanvasTextDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (activeTool !== "text") return;
+    const container = canvasRef.current;
+    if (!container) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = container.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    const newText = createCanvasText(activeFontStyleId, x, y);
+    setCanvasTexts((current) => [...current, newText]);
+    setSelectedTextId(newText.id);
+    setSelectedShapeId(null);
+    setEditingTextId(newText.id);
+    setCanvasHasEdits(true);
+  };
+
+  const eraseShapesAtPoints = useCallback((points: PaintPoint[], radius: number) => {
+    const container = canvasRef.current;
+    if (!container || points.length === 0) return;
+    const rect = container.getBoundingClientRect();
+
+    setCanvasShapes((shapes) => {
+      const removedShapeIds = new Set<string>();
+      for (const point of points) {
+        for (const shape of shapes) {
+          if (!removedShapeIds.has(shape.id) && shapeHitByEraser(shape, point, radius, rect)) {
+            removedShapeIds.add(shape.id);
+          }
+        }
+      }
+      if (removedShapeIds.size === 0) return shapes;
+
+      setSelectedShapeId((current) => (current && removedShapeIds.has(current) ? null : current));
+      setEditingShapeTextId((current) => (current && removedShapeIds.has(current) ? null : current));
+      return shapes.filter((shape) => !removedShapeIds.has(shape.id));
+    });
+
+    setCanvasTexts((texts) => {
+      const removedTextIds = new Set<string>();
+      for (const point of points) {
+        for (const text of texts) {
+          if (!removedTextIds.has(text.id) && textHitByEraser(text, point, radius, rect)) {
+            removedTextIds.add(text.id);
+          }
+        }
+      }
+      if (removedTextIds.size === 0) return texts;
+
+      setSelectedTextId((current) => (current && removedTextIds.has(current) ? null : current));
+      setEditingTextId((current) => (current && removedTextIds.has(current) ? null : current));
+      return texts.filter((text) => !removedTextIds.has(text.id));
+    });
+  }, []);
+
+  const paintStrokeBetween = useCallback(
+    (from: PaintPoint, to: PaintPoint) => {
+      const paintCanvas = paintCanvasRef.current;
+      const ctx = paintCanvas?.getContext("2d");
+      if (!ctx) return;
+
+      if (activeTool === "brush") {
+        const step = Math.max(1, brushSettings.size / 5);
+        const points = interpolatePaintPoints(from, to, step);
+        let previous = from;
+        points.forEach((point) => {
+          drawBrushSegment(ctx, previous, point, brushSettings);
+          previous = point;
+        });
+        return;
+      }
+
+      if (activeTool === "eraser") {
+        const samplePoints = collectEraserSamplePoints(from, to, eraserSettings.size);
+        let previous = from;
+        samplePoints.slice(1).forEach((point) => {
+          drawEraserSegment(ctx, previous, point, eraserSettings.size);
+          previous = point;
+        });
+        eraseShapesAtPoints(samplePoints, eraserSettings.size / 2);
+      }
+    },
+    [activeTool, brushSettings, eraserSettings.size, eraseShapesAtPoints],
+  );
+
+  const handlePaintPointerDown = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => {
+      if (activeTool !== "brush" && activeTool !== "eraser") return;
+      const container = canvasRef.current;
+      const paintCanvas = paintCanvasRef.current;
+      const ctx = paintCanvas?.getContext("2d");
+      if (!container || !ctx) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      isPaintingRef.current = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setCanvasHasEdits(true);
+
+      const point = getLocalPaintPoint(event.clientX, event.clientY, container);
+      if (!point) return;
+
+      lastPaintPointRef.current = point;
+
+      if (activeTool === "brush") {
+        drawBrushDot(ctx, point, brushSettings);
+      } else {
+        setEraserPreviewPoint(point);
+        drawEraserDot(ctx, point, eraserSettings.size);
+        eraseShapesAtPoints([point], eraserSettings.size / 2);
+      }
+    },
+    [activeTool, brushSettings, eraserSettings.size, eraseShapesAtPoints],
+  );
+
+  const handlePaintPointerMove = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => {
+      const container = canvasRef.current;
+      if (!container) return;
+
+      const point = getLocalPaintPoint(event.clientX, event.clientY, container);
+      if (!point) return;
+
+      if (activeTool === "eraser") {
+        setEraserPreviewPoint(point);
+      }
+
+      if (!isPaintingRef.current) return;
+
+      const lastPoint = lastPaintPointRef.current;
+      if (!lastPoint) {
+        lastPaintPointRef.current = point;
+        return;
+      }
+
+      paintStrokeBetween(lastPoint, point);
+      lastPaintPointRef.current = point;
+    },
+    [activeTool, paintStrokeBetween],
+  );
+
+  const handlePaintPointerUp = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
+    const wasPainting = isPaintingRef.current;
+    isPaintingRef.current = false;
+    lastPaintPointRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if ((event.type === "pointerleave" || event.type === "pointercancel") && wasPainting) {
+      setEraserPreviewPoint(null);
+    }
+  }, []);
+
+  const clearPaintCanvas = () => {
+    const paintCanvas = paintCanvasRef.current;
+    const ctx = paintCanvas?.getContext("2d");
+    if (!paintCanvas || !ctx) return;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
+    ctx.restore();
+  };
+
+  const deleteCanvasShape = useCallback((id: string) => {
+    setCanvasShapes((current) => current.filter((shape) => shape.id !== id));
+    setSelectedShapeId((current) => (current === id ? null : current));
+    setEditingShapeTextId((current) => (current === id ? null : current));
+  }, []);
+
+  const deleteCanvasText = useCallback((id: string) => {
+    setCanvasTexts((current) => current.filter((text) => text.id !== id));
+    setSelectedTextId((current) => (current === id ? null : current));
+    setEditingTextId((current) => (current === id ? null : current));
+  }, []);
+
+  const moveCanvasShape = (id: string, x: number, y: number) => {
+    setCanvasShapes((current) =>
+      current.map((shape) =>
+        shape.id === id
+          ? {
+              ...shape,
+              x: Math.min(95, Math.max(5, x)),
+              y: Math.min(95, Math.max(5, y)),
+            }
+          : shape,
+      ),
+    );
+  };
+
+  const hasCanvasEdits =
+    shapeDragActive ||
+    canvasDragOver ||
+    canvasShapes.length > 0 ||
+    canvasTexts.length > 0 ||
+    canvasHasEdits;
+  const hideCanvasOverlay = hasCanvasEdits || Boolean(selectedGeneration);
+  const showEmptyCanvasOverlay = !hasCanvasEdits && !selectedGeneration;
+  const isGenerationMaterialized = Boolean(
+    selectedGeneration && materializedGenerationId === selectedGeneration.id,
+  );
+  const showStandardGenerationPreview =
+    Boolean(selectedGeneration) &&
+    !selectedGeneration.transparentBackground &&
+    !isGenerationMaterialized;
+  const showAiGeneratedLogo =
+    Boolean(selectedGeneration?.transparentBackground) && !isGenerationMaterialized;
+  const hasExportableCanvasContent = hasCanvasEdits || Boolean(selectedGeneration);
+  const usesDesignCanvas = !showStandardGenerationPreview;
+
+  const canvasSurfaceStyle: CSSProperties | undefined = (() => {
+    const customEnd = customCanvasGradientEnabled ? customCanvasGradientEnd : undefined;
+    if (usesDesignCanvas) {
+      return resolveCanvasBackgroundStyle(canvasBackgroundId, customCanvasBackgroundColor, customEnd);
+    }
+    return undefined;
+  })();
+
+  const handleExportCanvas = useCallback(
+    async (mode: "composite" | "transparent" = "composite") => {
+      const container = canvasRef.current;
+      const paintCanvas = paintCanvasRef.current;
+      if (!container || isExporting) return;
+
+      setIsExporting(true);
+      try {
+        const rect = container.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        const width = Math.floor(rect.width);
+        const height = Math.floor(rect.height);
+        const exportCanvas = document.createElement("canvas");
+        exportCanvas.width = Math.floor(width * dpr);
+        exportCanvas.height = Math.floor(height * dpr);
+        const ctx = exportCanvas.getContext("2d");
+        if (!ctx) return;
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        if (mode === "composite") {
+          const customEnd = customCanvasGradientEnabled ? customCanvasGradientEnd : undefined;
+          if (usesDesignCanvas || showAiGeneratedLogo) {
+            drawCanvasBackgroundToContext(
+              ctx,
+              canvasBackgroundId,
+              width,
+              height,
+              customCanvasBackgroundColor,
+              customEnd,
+            );
+          } else if (showStandardGenerationPreview && selectedGeneration) {
+            drawCanvasBackgroundToContext(
+              ctx,
+              defaultCanvasBackgroundIds[(selectedGeneration.variantIndex ?? 0) % defaultCanvasBackgroundIds.length],
+              width,
+              height,
+            );
+          } else if (hasCanvasEdits && !selectedGeneration) {
+            drawCheckerboardBackground(ctx, width, height);
+          } else {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+          }
+        }
+
+        if (showAiGeneratedLogo && selectedGeneration) {
+          drawLogoPreviewToContext(
+            ctx,
+            selectedGeneration.prompt,
+            width,
+            height,
+            selectedGeneration.variantIndex ?? 0,
+          );
+        }
+
+        if (paintCanvas && paintCanvas.width > 0 && paintCanvas.height > 0) {
+          ctx.drawImage(paintCanvas, 0, 0, width, height);
+        }
+
+        const shapeNodes = container.querySelectorAll<HTMLElement>("[data-canvas-shape]");
+        for (const node of shapeNodes) {
+          const svg = node.querySelector("svg");
+          if (!svg) continue;
+          const nodeRect = node.getBoundingClientRect();
+          await drawSvgElementToContext(
+            ctx,
+            svg,
+            nodeRect.left - rect.left,
+            nodeRect.top - rect.top,
+            nodeRect.width,
+            nodeRect.height,
+          );
+          const label = node.querySelector("p");
+          if (label?.textContent?.trim()) {
+            ctx.save();
+            ctx.fillStyle = label.style.color || DEFAULT_SHAPE_STROKE_COLOR;
+            ctx.font = `600 ${Math.max(10, nodeRect.height * 0.14)}px ui-sans-serif, system-ui, sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(
+              label.textContent.trim(),
+              nodeRect.left - rect.left + nodeRect.width / 2,
+              nodeRect.top - rect.top + nodeRect.height / 2,
+              nodeRect.width * 0.76,
+            );
+            ctx.restore();
+          }
+        }
+
+        for (const text of canvasTexts) {
+          const fontStyle = getFontStyleById(text.fontStyleId);
+          const boxWidth = (text.width / 100) * width;
+          const centerX = (text.x / 100) * width;
+          const centerY = (text.y / 100) * height;
+          const fontSize = Math.min(text.fontSize, Math.max(12, boxWidth * 0.11));
+          ctx.save();
+          ctx.fillStyle = text.color;
+          ctx.font = buildCanvasFont(fontStyle, fontSize);
+          if (fontStyle.letterSpacing) {
+            (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
+              fontStyle.letterSpacing;
+          }
+          ctx.textAlign = "left";
+          ctx.textBaseline = "top";
+          drawWrappedTextOnContext(
+            ctx,
+            text.content,
+            centerX - boxWidth / 2,
+            centerY - fontSize * 0.45,
+            boxWidth,
+            fontSize * 1.2,
+          );
+          ctx.restore();
+        }
+
+        const slug = workspaceTitle.replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "photo-studio";
+        const link = document.createElement("a");
+        link.download =
+          mode === "transparent"
+            ? `${slug}${canvasDesign.exportTransparentFilenameSuffix}.png`
+            : `${slug}.png`;
+        link.href = exportCanvas.toDataURL("image/png");
+        link.click();
+      } catch {
+        // Export failed silently — canvas may be empty or tainted.
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [
+      canvasBackgroundId,
+      canvasDesign.exportTransparentFilenameSuffix,
+      canvasTexts,
+      customCanvasBackgroundColor,
+      customCanvasGradientEnabled,
+      customCanvasGradientEnd,
+      hasCanvasEdits,
+      isExporting,
+      selectedGeneration,
+      showAiGeneratedLogo,
+      showStandardGenerationPreview,
+      usesDesignCanvas,
+      workspaceTitle,
+    ],
+  );
+
+  const canSelectShapes = activeTool === "select" || activeTool === "shape";
+  const canSelectTexts = activeTool === "select";
+  const canMoveShapes = activeTool === "move";
+  const canMoveTexts = activeTool === "move";
+  const canDragShapes = canMoveShapes || canSelectShapes;
+  const canDragTexts = canMoveTexts || canSelectTexts;
+  const canResizeShapes = activeTool === "select";
+  const canResizeTexts = activeTool === "select";
+  const canEditShapeText = activeTool === "select";
+  const canEditCanvasText = activeTool === "select";
+  const isTextToolActive = activeTool === "text";
+  const isBrushToolActive = activeTool === "brush";
+  const isEraserToolActive = activeTool === "eraser";
+  const isDrawingToolActive = isBrushToolActive || isEraserToolActive;
+  const isCanvasElementToolActive = isDrawingToolActive || isTextToolActive;
+  const drawingToolMode: DrawingToolMode = isBrushToolActive
+    ? "brush"
+    : isEraserToolActive
+      ? "eraser"
+      : "none";
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (activeTool !== "select") return;
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      if (editingShapeTextId || editingTextId) return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT")
+      ) {
+        return;
+      }
+
+      if (selectedShapeId) {
+        event.preventDefault();
+        deleteCanvasShape(selectedShapeId);
+        return;
+      }
+
+      if (selectedTextId) {
+        event.preventDefault();
+        deleteCanvasText(selectedTextId);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    activeTool,
+    deleteCanvasShape,
+    deleteCanvasText,
+    editingShapeTextId,
+    editingTextId,
+    selectedShapeId,
+    selectedTextId,
+  ]);
+
+  const workspaceGridColumns = leftSidebarCollapsed
+    ? "lg:[grid-template-columns:minmax(0,1fr)]"
+    : "lg:[grid-template-columns:17rem_minmax(0,1fr)]";
+
+  const closeAssistPanel = () => {
+    setActiveAssistPanel(null);
+  };
+
+  const renderPromptPanel = () => (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Prompt</p>
+          <textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            rows={5}
+            placeholder="Describe your logo, product shot, or campaign visual…"
+            className="mt-2 w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+          />
+        </div>
+
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Creation type
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {creationTypes.map((type) => {
+              const Icon = type.icon;
+              const accent = creationTypeAccents[type.id];
+              const theme = accentThemes[accent];
+              const selected = creationType === type.id;
+              return (
+                <button
+                  key={type.id}
+                  type="button"
+                  onClick={() => setCreationType(type.id)}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all",
+                    selected
+                      ? "border-primary/25 bg-primary/10 ring-2 ring-primary/10"
+                      : "border-border/30 bg-background/55 hover:bg-background",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                      selected ? theme.icon : "bg-muted/60 text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold text-foreground">{type.label}</span>
+                    <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                      {type.description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {creationType === "logo" ? (
+          <div className="rounded-xl border border-violet-400/25 bg-violet-500/[0.06] p-3">
+            <OptionSegmentedControl
+              label="Logo background"
+              hint="Transparent PNG removes the backdrop for overlays. Solid bakes a background into the generated logo."
+              value={logoTransparentBackground ? "transparent" : "solid"}
+              options={[
+                { id: "transparent", label: "Transparent" },
+                { id: "solid", label: "Solid" },
+              ]}
+              onChange={(id) => setLogoTransparentBackground(id === "transparent")}
+            />
+            <p className="mt-2.5 text-[10px] leading-relaxed text-muted-foreground">
+              You can also build visuals manually with shapes and text — the canvas label updates
+              based on your aspect ratio (logo, banner, product image, or story).
+            </p>
+          </div>
+        ) : null}
+
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Canvas format
+          </p>
+          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+            Choose a frame that matches your creative intent before generating.
+          </p>
+          <div className="mt-3 rounded-xl border border-border/30 bg-gradient-to-b from-muted/25 via-background/40 to-transparent p-2.5">
+            <AspectRatioPicker value={aspectRatio} onChange={setAspectRatio} variant="premium" />
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Style preset
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {stylePresets.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => setStylePreset(preset.id)}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors",
+                  stylePreset === preset.id
+                    ? "bg-cyan-500/15 text-cyan-800 ring-1 ring-cyan-500/25 dark:text-cyan-300"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                <Palette className="h-3 w-3" />
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="shrink-0 border-t border-border/30 p-3">
+        <button
+          type="button"
+          onClick={() => void handleGenerate()}
+          disabled={!prompt.trim() || isGenerating}
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {isGenerating ? "Generating…" : creationType === "logo" && logoTransparentBackground ? "Generate logo" : "Generate image"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderChatPanel = () => (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Chat</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            Ask questions about your canvas, layout, colors, or next steps.
+          </p>
+        </div>
+        {chatMessages.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/40 bg-muted/15 px-3 py-6 text-center">
+            <MessageCircle className="mx-auto h-5 w-5 text-muted-foreground" />
+            <p className="mt-2 text-xs font-semibold text-foreground">Start a conversation</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              Try “How can I improve this logo?” or “Suggest a background for this banner.”
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {chatMessages.map((message) => (
+              <div
+                key={message.id}
+                className={cn(
+                  "rounded-xl px-3 py-2 text-xs leading-relaxed",
+                  message.role === "user"
+                    ? "ml-4 bg-primary/10 text-foreground"
+                    : "mr-4 border border-border/30 bg-background/80 text-foreground",
+                )}
+              >
+                {message.content}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="shrink-0 border-t border-border/30 p-3">
+        <textarea
+          value={chatDraft}
+          onChange={(event) => setChatDraft(event.target.value)}
+          rows={3}
+          placeholder="Ask about your canvas…"
+          className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const trimmed = chatDraft.trim();
+            if (!trimmed) return;
+            const userMessage = {
+              id: `chat-${Date.now()}-user`,
+              role: "user" as const,
+              content: trimmed,
+            };
+            setChatMessages((current) => [
+              ...current,
+              userMessage,
+              {
+                id: `chat-${Date.now()}-assistant`,
+                role: "assistant" as const,
+                content:
+                  "Chat responses will connect to your assistant soon. For now, use Prompt to generate new visuals or Select to edit layers on the canvas.",
+              },
+            ]);
+            setChatDraft("");
+          }}
+          disabled={!chatDraft.trim()}
+          className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Send
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderToolsPanel = () => (
+    <div
+      className="relative hidden min-h-0 shrink-0 lg:flex"
+      style={{ width: rightToolbarExpanded ? rightSidebarWidth : RIGHT_SIDEBAR_COLLAPSED_WIDTH }}
+    >
+      {rightToolbarExpanded ? (
+        <SidebarResizeHandle onDrag={handleRightSidebarResize} onDragEnd={handleRightSidebarResizeEnd} />
+      ) : null}
+      <aside className="flex min-h-0 w-full flex-col overflow-hidden border-l border-border/30 bg-white dark:bg-background">
+        <div
+          className={cn(
+            "shrink-0 border-b border-border/30",
+            rightToolbarExpanded ? "px-3 py-2.5" : "px-2 py-2",
+          )}
+        >
+          {rightToolbarExpanded ? (
+            <div className="flex items-center justify-between gap-2">
+              {activeAssistPanel === "prompt" ? (
+                <button
+                  type="button"
+                  onClick={closeAssistPanel}
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
+                  aria-label="Back to tools"
+                >
+                  <ChevronLeft className="h-4 w-4 shrink-0" />
+                  <span>Prompt</span>
+                </button>
+              ) : activeAssistPanel === "chat" ? (
+                <button
+                  type="button"
+                  onClick={closeAssistPanel}
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
+                  aria-label="Back to tools"
+                >
+                  <ChevronLeft className="h-4 w-4 shrink-0" />
+                  <span>Ask</span>
+                </button>
+              ) : editToolSubPanel === "shape" ? (
+                <button
+                  type="button"
+                  onClick={closeEditToolSubPanel}
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
+                  aria-label="Back to tools"
+                >
+                  <ChevronLeft className="h-4 w-4 shrink-0" />
+                  <span>Shape</span>
+                </button>
+              ) : editToolSubPanel === "text" ? (
+                <button
+                  type="button"
+                  onClick={closeEditToolSubPanel}
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
+                  aria-label="Back to tools"
+                >
+                  <ChevronLeft className="h-4 w-4 shrink-0" />
+                  <span>Text</span>
+                </button>
+              ) : (
+                <p className="text-xs font-semibold text-foreground">Tools</p>
+              )}
+              <button
+                type="button"
+                onClick={toggleRightToolbar}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+                aria-label="Collapse tools"
+              >
+                <PanelRightClose className="h-4 w-4" strokeWidth={2} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              {activeAssistPanel === "prompt" || activeAssistPanel === "chat" || editToolSubPanel === "shape" || editToolSubPanel === "text" ? (
+                <button
+                  type="button"
+                  onClick={activeAssistPanel ? closeAssistPanel : closeEditToolSubPanel}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+                  aria-label="Back to tools"
+                >
+                  <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={toggleRightToolbar}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+                aria-label="Expand tools"
+              >
+                <PanelRight className="h-4 w-4" strokeWidth={2} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {rightToolbarExpanded && activeAssistPanel === "prompt" ? (
+          renderPromptPanel()
+        ) : rightToolbarExpanded && activeAssistPanel === "chat" ? (
+          renderChatPanel()
+        ) : (
+          <>
+            <div className={cn("min-h-0 flex-1 overflow-y-auto", rightToolbarExpanded ? "p-3" : "p-2")}>
+              <section className="space-y-2">
+                {editToolSubPanel === "shape" ? (
+                  <>
+                    {rightToolbarExpanded ? (
+                      <div>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                          Drag a shape onto the canvas.
+                        </p>
+                      </div>
+                    ) : null}
+                    <div
+                      className={cn(
+                        "grid gap-1.5",
+                        rightToolbarExpanded ? "grid-cols-3" : "grid-cols-1",
+                      )}
+                    >
+                      {shapeTypes.map((shape) => {
+                        const ShapeIcon = shape.icon;
+                        const selected = activeShapeType === shape.id;
+                        return (
+                          <WorkspaceTooltip
+                            key={shape.id}
+                            label={shape.label}
+                            enabled={!rightToolbarExpanded}
+                          >
+                            <button
+                              type="button"
+                              draggable
+                              onDragStart={(event) => handleShapeDragStart(event, shape.id)}
+                              onDragEnd={handleShapeDragEnd}
+                              onClick={() => setActiveShapeType(shape.id)}
+                              className={cn(
+                                "flex w-full rounded-lg border transition-all duration-200",
+                                rightToolbarExpanded
+                                  ? "flex-col items-center justify-center gap-1 px-1 py-2 text-center"
+                                  : "items-center justify-center p-2.5",
+                                selected
+                                  ? "border-primary/25 bg-primary/10 text-primary ring-2 ring-primary/10"
+                                  : "border-border/30 bg-background/55 text-foreground hover:bg-background",
+                                "cursor-grab active:cursor-grabbing",
+                              )}
+                              aria-label={`${shape.label} — drag to canvas`}
+                              aria-pressed={selected}
+                            >
+                              <span
+                                className={cn(
+                                  "flex shrink-0 items-center justify-center rounded-md",
+                                  rightToolbarExpanded ? "h-7 w-7" : "h-8 w-8",
+                                  selected
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted/60 text-muted-foreground",
+                                )}
+                              >
+                                <ShapeIcon
+                                  className={cn(
+                                    rightToolbarExpanded ? "h-3.5 w-3.5" : "h-4 w-4",
+                                    shape.id === "ellipse" && "scale-x-125",
+                                    shape.id === "line" && "rotate-[-35deg]",
+                                  )}
+                                />
+                              </span>
+                              {rightToolbarExpanded ? (
+                                <span className="block w-full truncate text-[10px] font-semibold leading-tight">
+                                  {shape.label}
+                                </span>
+                              ) : null}
+                            </button>
+                          </WorkspaceTooltip>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : editToolSubPanel === "text" ? (
+                  <>
+                    {rightToolbarExpanded ? (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          Typography
+                        </p>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                          Select a typeface, then double-click the canvas to place text.
+                        </p>
+                      </div>
+                    ) : null}
+                    <FontStyleList
+                      expanded={rightToolbarExpanded}
+                      activeFontStyleId={activeFontStyleId}
+                      onSelect={setActiveFontStyleId}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {rightToolbarExpanded ? (
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          Edit
+                        </p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                          Select, transform, paint, mask, and refine elements on the canvas.
+                        </p>
+                      </div>
+                    ) : null}
+                    <div
+                      className={cn(
+                        "grid gap-1.5",
+                        rightToolbarExpanded ? "grid-cols-3" : "grid-cols-1",
+                      )}
+                    >
+                      {workspaceTools.map((tool) => {
+                        const Icon = tool.icon;
+                        const active = activeTool === tool.id;
+                        return (
+                          <WorkspaceTooltip
+                            key={tool.id}
+                            label={tool.label}
+                            hint={`Shortcut ${tool.shortcut}`}
+                            enabled={!rightToolbarExpanded}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => selectWorkspaceTool(tool.id)}
+                              className={cn(
+                                "flex w-full rounded-lg border transition-all duration-200",
+                                rightToolbarExpanded
+                                  ? "flex-col items-center justify-center gap-1 px-1 py-2 text-center"
+                                  : "items-center justify-center p-2.5",
+                                active
+                                  ? "border-primary/25 bg-primary/10 text-primary ring-2 ring-primary/10"
+                                  : "border-border/30 bg-background/55 text-foreground hover:bg-background",
+                              )}
+                              aria-label={tool.label}
+                            >
+                              <span
+                                className={cn(
+                                  "flex shrink-0 items-center justify-center rounded-md",
+                                  rightToolbarExpanded ? "h-7 w-7" : "h-8 w-8",
+                                  active
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted/60 text-muted-foreground",
+                                )}
+                              >
+                                <Icon className={cn(rightToolbarExpanded ? "h-3.5 w-3.5" : "h-4 w-4")} />
+                              </span>
+                              {rightToolbarExpanded ? (
+                                <span className="block w-full truncate text-[10px] font-semibold leading-tight">
+                                  {tool.label}
+                                </span>
+                              ) : null}
+                            </button>
+                          </WorkspaceTooltip>
+                        );
+                      })}
+                    </div>
+
+                    {rightToolbarExpanded && canSelectShapes && !selectedShape && !selectedText && isGenerationMaterialized ? (
+                      <div className="mt-3 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Generated layers
+                        </p>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                          Click a shape or text block on the canvas to edit its color, size, and style.
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {rightToolbarExpanded && canSelectShapes && selectedShape ? (
+                      <div className="mt-3 space-y-3 rounded-xl border border-border/30 bg-background/55 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Shape style
+                        </p>
+
+                        {shapeSupportsFill(selectedShape.shapeType) ? (
+                          <p className="text-[10px] leading-relaxed text-muted-foreground">
+                            Double-click the shape to add or edit text.
+                          </p>
+                        ) : null}
+
+                        <ShapeColorInput
+                          label="Color"
+                          value={selectedShape.strokeColor}
+                          onChange={(strokeColor) =>
+                            updateShapeColors(selectedShape.id, { strokeColor })
+                          }
+                        />
+
+                        {shapeSupportsFill(selectedShape.shapeType) ? (
+                          <>
+                            <ShapeColorInput
+                              label="Background"
+                              value={selectedShape.fillColor}
+                              onChange={(fillColor) =>
+                                updateShapeColors(selectedShape.id, { fillColor })
+                              }
+                            />
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[11px] font-medium text-foreground">Background opacity</p>
+                                <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                                  {Math.round(selectedShape.fillOpacity * 100)}%
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={5}
+                                value={Math.round(selectedShape.fillOpacity * 100)}
+                                onChange={(event) =>
+                                  updateShapeColors(selectedShape.id, {
+                                    fillOpacity: Number(event.target.value) / 100,
+                                  })
+                                }
+                                aria-label="Background opacity"
+                                className="h-1.5 w-full cursor-pointer accent-violet-600"
+                              />
+                            </div>
+                          </>
+                        ) : null}
+
+                        {shapeSupportsCornerRadius(selectedShape.shapeType) ? (
+                          <div className="space-y-2 border-t border-border/30 pt-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-medium text-foreground">Corner radius</p>
+                              <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                                {selectedShape.cornerRadius}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={MIN_SHAPE_CORNER_RADIUS}
+                              max={getMaxCornerRadius(selectedShape.shapeType)}
+                              step={1}
+                              value={selectedShape.cornerRadius}
+                              onChange={(event) =>
+                                updateShapeCornerRadius(selectedShape.id, Number(event.target.value))
+                              }
+                              aria-label="Corner radius"
+                              className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            />
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>Sharp</span>
+                              <span>Rounded</span>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="space-y-2 border-t border-border/30 pt-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-medium text-foreground">Thickness</p>
+                            <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {selectedShape.strokeWidth}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_SHAPE_STROKE_WIDTH}
+                            max={MAX_SHAPE_STROKE_WIDTH}
+                            step={1}
+                            value={selectedShape.strokeWidth}
+                            onChange={(event) =>
+                              updateShapeStrokeWidth(selectedShape.id, Number(event.target.value))
+                            }
+                            aria-label="Shape thickness"
+                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>Thin</span>
+                            <span>Thick</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteCanvasShape(selectedShape.id)}
+                          className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/15"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete shape
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {rightToolbarExpanded && canSelectTexts && selectedText ? (
+                      <div className="mt-3 space-y-3 rounded-xl border border-border/30 bg-background/55 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Text style
+                        </p>
+                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                          Double-click text to edit. Drag the handle to resize width.
+                        </p>
+
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-medium text-foreground">Typeface</p>
+                          <FontStyleList
+                            embedded
+                            expanded={rightToolbarExpanded}
+                            activeFontStyleId={selectedText.fontStyleId}
+                            onSelect={(fontStyleId) => updateTextFontStyle(selectedText.id, fontStyleId)}
+                          />
+                        </div>
+
+                        <ShapeColorInput
+                          label="Color"
+                          value={selectedText.color}
+                          onChange={(color) => updateTextColor(selectedText.id, color)}
+                        />
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-medium text-foreground">Size</p>
+                            <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {selectedText.fontSize}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_TEXT_FONT_SIZE}
+                            max={MAX_TEXT_FONT_SIZE}
+                            step={1}
+                            value={selectedText.fontSize}
+                            onChange={(event) =>
+                              updateTextFontSize(selectedText.id, Number(event.target.value))
+                            }
+                            aria-label="Text size"
+                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>Small</span>
+                            <span>Large</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteCanvasText(selectedText.id)}
+                          className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/15"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete text
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {rightToolbarExpanded && isBrushToolActive ? (
+                      <div className="mt-3 space-y-3 rounded-xl border border-border/30 bg-background/55 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Brush style
+                        </p>
+                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                          Click and drag on the canvas to paint.
+                        </p>
+
+                        <ShapeColorInput
+                          label="Color"
+                          value={brushSettings.color}
+                          onChange={(color) => setBrushSettings((current) => ({ ...current, color }))}
+                          density="minimal"
+                        />
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-medium text-foreground">Thickness</p>
+                            <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {brushSettings.size}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_BRUSH_SIZE}
+                            max={MAX_BRUSH_SIZE}
+                            step={1}
+                            value={brushSettings.size}
+                            onChange={(event) =>
+                              setBrushSettings((current) => ({
+                                ...current,
+                                size: Number(event.target.value),
+                              }))
+                            }
+                            aria-label="Brush thickness"
+                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>Thin</span>
+                            <span>Thick</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-medium text-foreground">Opacity</p>
+                            <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {Math.round(brushSettings.opacity * 100)}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={5}
+                            max={100}
+                            step={5}
+                            value={Math.round(brushSettings.opacity * 100)}
+                            onChange={(event) =>
+                              setBrushSettings((current) => ({
+                                ...current,
+                                opacity: Number(event.target.value) / 100,
+                              }))
+                            }
+                            aria-label="Brush opacity"
+                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                          />
+                        </div>
+
+                        {canvasHasEdits ? (
+                          <button
+                            type="button"
+                            onClick={clearPaintCanvas}
+                            className="h-8 w-full rounded-lg border border-border/30 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
+                          >
+                            Clear paint layer
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {rightToolbarExpanded && isEraserToolActive ? (
+                      <div className="mt-3 space-y-3 rounded-xl border border-border/30 bg-background/55 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Eraser
+                        </p>
+                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                          Drag over brush strokes or shapes to erase them.
+                        </p>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-medium text-foreground">Size</p>
+                            <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                              {eraserSettings.size}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_BRUSH_SIZE}
+                            max={MAX_BRUSH_SIZE}
+                            step={1}
+                            value={eraserSettings.size}
+                            onChange={(event) =>
+                              setEraserSettings({ size: Number(event.target.value) })
+                            }
+                            aria-label="Eraser size"
+                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>Small</span>
+                            <span>Large</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </section>
+
+              <section className="mt-5 space-y-2 border-t border-border/30 pt-4">
+                {rightToolbarExpanded ? (
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    AI assist
+                  </p>
+                ) : null}
+                {assistTools.map((item) => {
+                  const Icon = item.icon;
+                  const active = activeAssistPanel === item.id;
+                  return (
+                    <WorkspaceTooltip
+                      key={item.id}
+                      label={item.label}
+                      hint={item.description}
+                      enabled={!rightToolbarExpanded}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => openAssistPanel(item.id)}
+                        className={cn(
+                          "flex w-full items-center rounded-xl border text-left transition-all duration-200",
+                          rightToolbarExpanded ? "gap-3 px-3 py-2.5" : "justify-center p-2.5",
+                          active
+                            ? "border-primary/25 bg-primary/10 text-primary ring-2 ring-primary/10"
+                            : "border-border/30 bg-background/55 text-foreground hover:bg-background",
+                        )}
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        {rightToolbarExpanded ? (
+                          <span className="min-w-0">
+                            <span className="block text-xs font-semibold text-foreground">{item.label}</span>
+                            <span className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+                              {item.description}
+                            </span>
+                          </span>
+                        ) : null}
+                      </button>
+                    </WorkspaceTooltip>
+                  );
+                })}
+              </section>
+            </div>
+
+            <div className={cn(rightToolbarExpanded ? "p-3" : "p-2")}>
+              <div className={cn("grid gap-2", rightToolbarExpanded ? "grid-cols-2" : "grid-cols-1")}>
+                <WorkspaceTooltip label="Export" hint="Export canvas" enabled={!rightToolbarExpanded}>
+                  <button
+                    type="button"
+                    onClick={() => void handleExportCanvas("composite")}
+                    disabled={isExporting}
+                    className={cn(
+                      "inline-flex h-10 w-full items-center justify-center rounded-xl border border-border/30 bg-background/70 text-xs font-semibold transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50",
+                      rightToolbarExpanded && "gap-2",
+                    )}
+                  >
+                    {isExporting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    {rightToolbarExpanded ? <span>Export</span> : null}
+                  </button>
+                </WorkspaceTooltip>
+                <WorkspaceTooltip label="Generate" hint="Open prompt panel" enabled={!rightToolbarExpanded}>
+                  <button
+                    type="button"
+                    onClick={() => openAssistPanel("prompt")}
+                    className={cn(
+                      "inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-xs font-semibold text-white transition-opacity hover:opacity-95",
+                      rightToolbarExpanded && "gap-2",
+                    )}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {rightToolbarExpanded ? <span>Generate</span> : null}
+                  </button>
+                </WorkspaceTooltip>
+              </div>
+            </div>
+          </>
+        )}
+      </aside>
+    </div>
+  );
+
+  return (
+    <div className={cn("grid min-h-0 flex-1 grid-cols-1", workspaceGridColumns)}>
+      {!leftSidebarCollapsed ? (
+        <aside className="hidden min-h-0 min-w-0 overflow-hidden border-r border-border/30 bg-white lg:flex lg:flex-col dark:bg-background">
+          <nav
+            className="flex shrink-0 items-stretch border-b border-border/40 bg-gradient-to-b from-muted/25 to-transparent"
+            aria-label="Workspace panels"
+          >
+            <div className="flex min-w-0 flex-1" role="tablist">
+              {leftSidebarTabs.map((tab) => {
+                const Icon = tab.icon;
+                const selected = leftPanelTab === tab.id;
+                const badgeCount =
+                  tab.id === "designs"
+                    ? savedDesigns.filter((design) => design.source === "system").length
+                    : tab.id === "generations"
+                      ? generatedItems.length
+                      : 0;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-label={tab.label}
+                    title={tab.hint}
+                    onClick={() => setLeftPanelTab(tab.id)}
+                    className={cn(
+                      "group relative flex min-w-0 flex-1 flex-col items-center gap-1 border-b-2 px-1 py-2.5 transition-all duration-200",
+                      selected
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/20 hover:text-foreground",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "relative flex h-7 w-7 items-center justify-center rounded-lg transition-colors duration-200",
+                        selected
+                          ? "bg-primary/12 ring-1 ring-primary/15"
+                          : "bg-transparent group-hover:bg-muted/50",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" strokeWidth={selected ? 2.25 : 2} />
+                      {badgeCount > 0 ? (
+                        <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-primary-foreground shadow-sm">
+                          {badgeCount > 9 ? "9+" : badgeCount}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="max-w-full truncate text-[10px] font-semibold tracking-wide">
+                      {tab.shortLabel}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setLeftSidebarCollapsed(true)}
+              className="flex w-9 shrink-0 items-center justify-center border-l border-border/30 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </nav>
+
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
+              {leftPanelTab === "assets" ? (
+                <>
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5">
+                    <div className="shrink-0 space-y-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Project
+                      </p>
+                      <input
+                        type="text"
+                        value={projectName}
+                        onChange={(event) => setProjectName(event.target.value)}
+                        placeholder="Untitled project"
+                        aria-label="Project name"
+                        className="h-9 w-full rounded-xl border border-border/40 bg-background/60 px-3 text-sm font-semibold tracking-tight text-foreground outline-none transition-all placeholder:font-normal placeholder:text-muted-foreground hover:border-border/55 hover:bg-background/80 focus:border-violet-400/45 focus:bg-background focus:ring-4 focus:ring-violet-500/10"
+                      />
+                    </div>
+
+                    <div className="shrink-0 space-y-3 rounded-xl border border-border/30 bg-gradient-to-b from-muted/20 via-background/50 to-transparent p-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Canvas format
+                        </p>
+                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                          {canvasDesign.title}. Select a ratio that fits your layout before you design or generate.
+                        </p>
+                      </div>
+                      <AspectRatioPicker value={aspectRatio} onChange={setAspectRatio} variant="premium" />
+                    </div>
+
+                    {hasAsset ? (
+                      <div className="shrink-0 pb-1">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Reference
+                        </p>
+                        <div className="overflow-hidden rounded-lg border border-violet-200/60 bg-gradient-to-br from-violet-50/80 to-cyan-50/50 p-2 dark:border-violet-500/20">
+                          <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md bg-muted/40">
+                            {assetImageUrl ? (
+                              <img
+                                src={assetImageUrl}
+                                alt={assetName?.trim() || workspaceTitle}
+                                className="h-full w-full object-contain"
+                              />
+                            ) : (
+                              <ImageIcon className="h-6 w-6 text-violet-500" />
+                            )}
+                          </div>
+                          <p className="mt-1.5 truncate text-[10px] font-semibold text-foreground">
+                            {assetName?.trim() || workspaceTitle}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="shrink-0 space-y-3 border-t border-border/30 pt-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Preview background
+                        </p>
+                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                          {hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border/35 bg-gradient-to-br from-muted/20 via-background to-violet-500/[0.03] p-2.5">
+                        <div className="grid grid-cols-4 gap-2">
+                          {canvasBackgroundPresets.map((preset) => {
+                            const selected = canvasBackgroundId === preset.id;
+                            const customEnd = customCanvasGradientEnabled
+                              ? customCanvasGradientEnd
+                              : undefined;
+                            return (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => setCanvasBackgroundId(preset.id)}
+                                title={preset.label}
+                                aria-label={preset.label}
+                                aria-pressed={selected}
+                                className={cn(
+                                  "group relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-200",
+                                  selected
+                                    ? "border-violet-500/55 shadow-[0_0_0_3px_rgba(124,58,237,0.14)]"
+                                    : "border-border/30 hover:border-border/55 hover:shadow-md",
+                                )}
+                              >
+                                {preset.id === "custom" ? (
+                                  <span
+                                    className="absolute inset-0"
+                                    style={resolveCanvasBackgroundStyle(
+                                      "custom",
+                                      customCanvasBackgroundColor,
+                                      customEnd,
+                                    )}
+                                  />
+                                ) : preset.checkerboard ? (
+                                  <span
+                                    className="absolute inset-0"
+                                    style={checkerboardBackgroundStyle}
+                                  />
+                                ) : (
+                                  <span
+                                    className={cn("absolute inset-0 bg-gradient-to-br", preset.tailwind)}
+                                  />
+                                )}
+                                <span className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/10 opacity-80" />
+                                {preset.id === "custom" ? (
+                                  <span className="absolute inset-0 flex items-center justify-center">
+                                    <Palette className="h-4 w-4 text-white drop-shadow-md" />
+                                  </span>
+                                ) : null}
+                                {selected ? (
+                                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-white shadow-sm">
+                                    <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                                  </span>
+                                ) : null}
+                                <span className="absolute inset-x-0 bottom-0 px-1 pb-1 pt-4 text-center">
+                                  <span className="block truncate text-[8px] font-semibold leading-none text-white drop-shadow">
+                                    {preset.label}
+                                  </span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {canvasBackgroundId === "custom" ? (
+                        <div className="space-y-3 rounded-xl border border-border/30 bg-background/55 p-3">
+                          <OptionSegmentedControl
+                            label="Fill style"
+                            value={customCanvasGradientEnabled ? "gradient" : "solid"}
+                            options={[
+                              { id: "solid", label: "Solid" },
+                              { id: "gradient", label: "Gradient" },
+                            ]}
+                            onChange={(id) => setCustomCanvasGradientEnabled(id === "gradient")}
+                          />
+
+                          <div
+                            className="relative h-10 w-full overflow-hidden rounded-xl shadow-inner ring-1 ring-border/30"
+                            style={resolveCanvasBackgroundStyle(
+                              "custom",
+                              customCanvasBackgroundColor,
+                              customCanvasGradientEnabled ? customCanvasGradientEnd : undefined,
+                            )}
+                            aria-hidden
+                          >
+                            <span className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10" />
+                          </div>
+
+                          {customCanvasGradientEnabled ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              <CompactColorInput
+                                label="Start"
+                                value={customCanvasBackgroundColor}
+                                onChange={setCustomCanvasBackgroundColor}
+                              />
+                              <CompactColorInput
+                                label="End"
+                                value={customCanvasGradientEnd}
+                                onChange={setCustomCanvasGradientEnd}
+                              />
+                            </div>
+                          ) : (
+                            <CompactColorInput
+                              label="Color"
+                              value={customCanvasBackgroundColor}
+                              onChange={setCustomCanvasBackgroundColor}
+                            />
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 shrink-0 space-y-2 border-t border-border/30 pt-3">
+                    {onOpenLibrary ? (
+                      <button
+                        type="button"
+                        onClick={onOpenLibrary}
+                        className="h-9 w-full rounded-lg border border-border/30 bg-background/80 text-xs font-semibold transition-colors hover:bg-muted/50"
+                      >
+                        Open from library
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={onUploadAsset}
+                      disabled={!onUploadAsset || assetUploading}
+                      className="h-9 w-full rounded-lg border border-primary/20 bg-primary/10 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {assetUploading ? "Uploading…" : hasAsset ? "Replace image" : "Upload image"}
+                    </button>
+                  </div>
+                </>
+              ) : leftPanelTab === "designs" ? (
+                <>
+                  <div className="relative mb-3 shrink-0">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      role="searchbox"
+                      value={designSearchQuery}
+                      onChange={(event) => setDesignSearchQuery(event.target.value)}
+                      placeholder="Search templates…"
+                      aria-label="Search templates"
+                      className="h-9 w-full rounded-lg border border-border/60 bg-background/80 pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+                    />
+                    {designSearchQuery ? (
+                      <button
+                        type="button"
+                        onClick={() => setDesignSearchQuery("")}
+                        aria-label="Clear search"
+                        className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+                    <OwnDesignsGrid
+                      items={savedDesigns.filter((design) => design.source === "system")}
+                      searchQuery={designSearchQuery}
+                      filterAspectRatio={aspectRatio}
+                      activeId={activeSavedDesignId}
+                      onSelect={loadSavedDesign}
+                      onDelete={deleteSavedDesign}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        AI generations
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {generatedItems.length} variant{generatedItems.length === 1 ? "" : "s"} from Prompt
+                      </p>
+                    </div>
+                    {generatedItems.length > 0 ? (
+                      <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-700 dark:text-violet-300">
+                        {generatedItems.length}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+                    {isGenerating ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {Array.from({ length: GENERATION_BATCH_SIZE }).map((_, index) => (
+                          <div
+                            key={index}
+                            className="aspect-square animate-pulse rounded-xl bg-gradient-to-br from-violet-200/60 to-fuchsia-200/40 dark:from-violet-900/30 dark:to-fuchsia-900/20"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <GeneratedItemsGrid
+                        items={generatedItems}
+                        selectedId={selectedGenerationId}
+                        materializedId={materializedGenerationId}
+                        onSelect={applyGenerationToCanvas}
+                      />
+                    )}
+                  </div>
+                  {isGenerationMaterialized ? (
+                    <p className="mt-2 shrink-0 text-[10px] leading-relaxed text-muted-foreground">
+                      Layers are on the canvas. Select shapes and text to edit colors, corner radius, and
+                      typography. Change the preview background in Assets.
+                    </p>
+                  ) : null}
+                </>
+              )}
+          </div>
+        </aside>
+      ) : null}
+
+      <div className="relative flex min-h-0 min-w-0 flex-col overflow-hidden bg-background">
+        {leftSidebarCollapsed ? (
+          <WorkspaceSidebarExpandButton onClick={() => setLeftSidebarCollapsed(false)} />
+        ) : null}
+
+        <div className="shrink-0 border-b border-border/30 bg-white/95 px-4 py-2 backdrop-blur-xl dark:bg-background md:px-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm">
+              <Layers className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold tracking-tight text-foreground">{workspaceTitle}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {canvasAspectRatio} ·{" "}
+                {isGenerationMaterialized
+                  ? "Editable layers"
+                  : hasCanvasEdits
+                    ? canvasDesign.navbarEditingStatus
+                    : showAiGeneratedLogo
+                      ? "Transparent logo"
+                      : selectedGeneration
+                        ? selectedGeneration.label
+                        : canvasDesign.navbarStatus}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleExportCanvas("transparent")}
+                disabled={isExporting || !hasExportableCanvasContent}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border/30 bg-background px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3"
+                aria-label={`Export ${canvasDesign.exportTransparentLabel.toLowerCase()}`}
+                title={
+                  hasExportableCanvasContent
+                    ? "Export shapes, text, and strokes without background"
+                    : "Add content to the canvas first"
+                }
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span className="hidden md:inline">{canvasDesign.exportTransparentLabel}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportCanvas("composite")}
+                disabled={isExporting || !hasExportableCanvasContent}
+                className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-border/30 bg-background px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Export canvas with background"
+                title={
+                  !hasExportableCanvasContent ? "Add content to the canvas first" : undefined
+                }
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">Export mockup</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div className={cn("relative min-h-0 min-w-0 flex-1 overflow-auto", canvasWorkspaceClasses)}>
+            <CanvasZoomControls
+              zoom={canvasZoom}
+              onZoomIn={handleCanvasZoomIn}
+              onZoomOut={handleCanvasZoomOut}
+              onReset={handleCanvasZoomReset}
+            />
+            <div className="flex min-h-full w-full items-center justify-center p-6 md:p-10 lg:p-12">
+              <div
+                className="flex w-full max-w-5xl flex-col items-center gap-3 transition-transform duration-200 ease-out"
+                style={{
+                  transform: `scale(${canvasZoom})`,
+                  transformOrigin: "center center",
+                }}
+              >
+                <div className="flex flex-wrap items-center justify-center gap-2 px-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-background/95 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-foreground shadow-sm backdrop-blur-sm">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.55)]" />
+                    {canvasAspectRatio}
+                  </span>
+                  <span className="rounded-md border border-border/40 bg-background/80 px-2.5 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
+                    {canvasDesign.navbarStatus}
+                  </span>
+                </div>
+
+                <div
+                  className={cn(
+                    "relative w-full transition-all duration-200",
+                    canvasAspectRatio === "1:1" && "max-w-[min(100%,520px)]",
+                    canvasAspectRatio === "4:5" && "max-w-[min(100%,420px)]",
+                    canvasAspectRatio === "16:9" && "max-w-full",
+                    canvasAspectRatio === "9:16" && "max-w-[min(100%,320px)]",
+                    canvasDragOver &&
+                      "ring-2 ring-violet-500/45 ring-offset-4 ring-offset-[#e8e9ec] dark:ring-offset-[#121214]",
+                  )}
+                >
+                  <div className="overflow-hidden rounded-[3px] shadow-[0_0_0_1px_rgba(15,23,42,0.1),0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_-4px_rgba(15,23,42,0.12),0_20px_48px_-12px_rgba(15,23,42,0.14)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_12px_40px_rgba(0,0,0,0.55)]">
+                    <div
+                      ref={canvasRef}
+                      onDragOver={handleCanvasDragOver}
+                      onDragLeave={handleCanvasDragLeave}
+                      onDrop={handleCanvasDrop}
+                      className={cn(
+                        "relative w-full overflow-hidden bg-white dark:bg-[#1c1c1e] [container-type:inline-size]",
+                        canvasAspectRatio === "1:1" && "aspect-square",
+                        canvasAspectRatio === "4:5" && "aspect-[4/5]",
+                        canvasAspectRatio === "16:9" && "aspect-video",
+                        canvasAspectRatio === "9:16" && "aspect-[9/16]",
+                      )}
+                      style={canvasSurfaceStyle}
+                    >
+                {isGenerating ? (
+                  <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 p-6 text-center dark:bg-background/80">
+                    <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
+                    <p className="mt-4 text-sm font-semibold text-foreground">Generating visuals…</p>
+                    <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                      {creationType === "logo" && logoTransparentBackground
+                        ? "Creating transparent logo variants for your canvas."
+                        : "New variants will appear in the Assets panel when ready."}
+                    </p>
+                  </div>
+                ) : showAiGeneratedLogo && selectedGeneration ? (
+                  <GeneratedLogoPreview
+                    prompt={selectedGeneration.prompt}
+                    variantIndex={selectedGeneration.variantIndex ?? 0}
+                  />
+                ) : showStandardGenerationPreview && selectedGeneration ? (
+                  <div
+                    className={cn(
+                      "pointer-events-none absolute inset-0 z-0 flex flex-col justify-end bg-gradient-to-br p-6",
+                      selectedGeneration.previewGradient,
+                    )}
+                  >
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.28),transparent_42%)]" />
+                    <div className="relative rounded-xl bg-black/35 p-4 text-white backdrop-blur-sm">
+                      <p className="text-sm font-semibold">{selectedGeneration.label}</p>
+                      <p className="mt-1 line-clamp-2 text-xs text-white/85">{selectedGeneration.prompt}</p>
+                    </div>
+                  </div>
+                ) : showEmptyCanvasOverlay ? (
+                  <div className="pointer-events-none absolute inset-0 z-0 flex flex-col items-center justify-center p-6 text-center">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-foreground/15 bg-background/60 text-muted-foreground shadow-sm backdrop-blur-sm">
+                      <Sparkles className="h-5 w-5" />
+                    </span>
+                    <p className="mt-4 text-sm font-semibold text-foreground">{canvasDesign.title}</p>
+                    <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                      {canvasDesign.emptyDescription}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div
+                  className={cn(
+                    "absolute inset-0 z-10",
+                    isCanvasElementToolActive && "pointer-events-none",
+                  )}
+                  onPointerDown={(event) => {
+                    if (canSelectShapes && event.target === event.currentTarget) {
+                      setSelectedShapeId(null);
+                      setEditingShapeTextId(null);
+                    }
+                    if (canSelectTexts && event.target === event.currentTarget) {
+                      setSelectedTextId(null);
+                      setEditingTextId(null);
+                    }
+                  }}
+                >
+                  {canvasShapes.map((shape) => (
+                    <CanvasShapeItem
+                      key={shape.id}
+                      shape={shape}
+                      selected={selectedShapeId === shape.id}
+                      selectable={canSelectShapes}
+                      movable={canDragShapes}
+                      resizable={canResizeShapes}
+                      textEditable={canEditShapeText}
+                      isEditingText={editingShapeTextId === shape.id}
+                      canvasRef={canvasRef}
+                      onSelect={() => {
+                        setSelectedShapeId(shape.id);
+                        setSelectedTextId(null);
+                        setEditingShapeTextId(null);
+                        setEditingTextId(null);
+                        focusSelectionToolbar();
+                      }}
+                      onMove={moveCanvasShape}
+                      onResize={resizeCanvasShape}
+                      onStartEditText={() => setEditingShapeTextId(shape.id)}
+                      onEndEditText={() => setEditingShapeTextId(null)}
+                      onUpdateLabel={updateShapeLabel}
+                    />
+                  ))}
+
+                  {canvasTexts.map((text) => (
+                    <CanvasTextItem
+                      key={text.id}
+                      text={text}
+                      fontStyle={getFontStyleById(text.fontStyleId)}
+                      selected={selectedTextId === text.id}
+                      selectable={canSelectTexts}
+                      movable={canDragTexts}
+                      resizable={canResizeTexts}
+                      editable={canEditCanvasText}
+                      isEditing={editingTextId === text.id}
+                      canvasRef={canvasRef}
+                      onSelect={() => {
+                        setSelectedTextId(text.id);
+                        setSelectedShapeId(null);
+                        setEditingShapeTextId(null);
+                        setEditingTextId(null);
+                        focusSelectionToolbar();
+                      }}
+                      onMove={moveCanvasText}
+                      onResize={resizeCanvasText}
+                      onStartEdit={() => setEditingTextId(text.id)}
+                      onEndEdit={() => setEditingTextId(null)}
+                      onUpdateContent={updateTextContent}
+                    />
+                  ))}
+                </div>
+
+                {isTextToolActive ? (
+                  <div
+                    className="absolute inset-0 z-[11] cursor-text"
+                    onDoubleClick={handleCanvasTextDoubleClick}
+                    aria-label="Double-click to add text"
+                  />
+                ) : null}
+
+                <CanvasPaintLayer
+                  paintCanvasRef={paintCanvasRef}
+                  mode={drawingToolMode}
+                  eraserPreviewPoint={eraserPreviewPoint}
+                  eraserSize={eraserSettings.size}
+                  onPointerDown={handlePaintPointerDown}
+                  onPointerMove={handlePaintPointerMove}
+                  onPointerUp={handlePaintPointerUp}
+                />
+                    </div>
+                  </div>
+                </div>
+
+                <p className="max-w-sm px-4 text-center text-[10px] leading-relaxed text-muted-foreground/75">
+                  {hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {renderToolsPanel()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PhotoStudioApp({
+  assetId,
+  assetName,
+  assetImageUrl,
+  initialView = "overview",
+  recentProjects = [],
+  onOpenRecentProject,
+  formatRecentTime,
+  onOpenLibrary,
+  onUploadAsset,
+  onOpenEmptyWorkspace,
+  onNewWorkspace,
+  onGenerate,
+  generating = false,
+  assetUploading = false,
+  assetUploadProgress,
+  assetUploadError,
+}: PhotoStudioAppProps) {
+  const hasAsset = Boolean(assetId);
+  const [activeView, setActiveView] = useState<PhotoStudioView>(
+    initialView === "workspace" || hasAsset ? "workspace" : "overview",
+  );
+
+  useEffect(() => {
+    if (hasAsset || initialView === "workspace") {
+      setActiveView("workspace");
+      return;
+    }
+    if (initialView === "overview") {
+      setActiveView("overview");
+    }
+  }, [assetId, hasAsset, initialView]);
+
+  const defaultFormatRecentTime =
+    formatRecentTime ??
+    ((openedAt: number) =>
+      new Date(openedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+
+  const openEmptyWorkspace = () => {
+    onOpenEmptyWorkspace?.();
+    setActiveView("workspace");
+  };
+
+  const resetToOverview = () => {
+    onNewWorkspace?.();
+    setActiveView("overview");
+  };
+
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <header className="relative z-[110] flex shrink-0 items-stretch border-b border-border/40 bg-gradient-to-b from-muted/25 to-transparent backdrop-blur-xl">
+        <nav className="flex min-w-0 flex-1" role="tablist" aria-label="Photo Studio views">
+          {(
+            [
+              {
+                id: "overview" as const,
+                label: "Overview",
+                hint: "Recent projects and ways to get started",
+                icon: LayoutGrid,
+              },
+              {
+                id: "workspace" as const,
+                label: "Workspace",
+                hint: "Design canvas, tools, and exports",
+                icon: Layers,
+              },
+            ] as const
+          ).map((view) => {
+            const Icon = view.icon;
+            const selected = activeView === view.id;
+            return (
+              <button
+                key={view.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-label={view.label}
+                title={view.hint}
+                onClick={() => {
+                  if (view.id === "overview") {
+                    setActiveView("overview");
+                    return;
+                  }
+                  if (onOpenEmptyWorkspace && !hasAsset) {
+                    onOpenEmptyWorkspace();
+                  }
+                  setActiveView("workspace");
+                }}
+                className={cn(
+                  "group relative flex min-w-0 items-center gap-2 border-b-2 px-4 py-3 transition-all duration-200 sm:px-5",
+                  selected
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/20 hover:text-foreground",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-200",
+                    selected
+                      ? "bg-primary/12 ring-1 ring-primary/15"
+                      : "bg-transparent group-hover:bg-muted/50",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={selected ? 2.25 : 2} />
+                </span>
+                <span className="truncate text-xs font-semibold tracking-wide">{view.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <button
+          type="button"
+          onClick={resetToOverview}
+          title="Start a new project"
+          className="flex shrink-0 items-center gap-1.5 border-l border-border/30 px-4 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/20 hover:text-foreground sm:px-5"
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.25} />
+          <span className="hidden sm:inline">New</span>
+        </button>
+      </header>
+
+      {activeView === "overview" ? (
+        <PhotoStudioLauncher
+          recentProjects={recentProjects}
+          onOpenRecentProject={onOpenRecentProject}
+          formatRecentTime={defaultFormatRecentTime}
+          onOpenLibrary={onOpenLibrary}
+          onUploadAsset={onUploadAsset}
+          assetUploading={assetUploading}
+          assetUploadProgress={assetUploadProgress}
+          assetUploadError={assetUploadError}
+        />
+      ) : (
+        <PhotoStudioWorkspace
+          assetId={assetId}
+          assetName={assetName}
+          assetImageUrl={assetImageUrl}
+          onOpenLibrary={onOpenLibrary}
+          onUploadAsset={onUploadAsset}
+          onGenerate={onGenerate}
+          generating={generating}
+          assetUploading={assetUploading}
+        />
+      )}
+    </div>
+  );
+}

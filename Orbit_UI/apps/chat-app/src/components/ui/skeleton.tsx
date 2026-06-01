@@ -93,6 +93,32 @@ export function ChatSideRailShimmer() {
   );
 }
 
+export function PhotoStudioLaunchShimmer() {
+  return (
+    <div
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      aria-busy="true"
+      aria-label="Opening Photo Studio"
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-violet-400/15 blur-3xl" />
+        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-fuchsia-400/10 blur-3xl" />
+      </div>
+      <div className="relative min-h-0 flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+          <Skeleton className="h-44 w-full rounded-[2rem] bg-gradient-to-br from-violet-200/40 via-fuchsia-200/30 to-cyan-200/40 md:h-52 dark:from-violet-900/30 dark:via-fuchsia-900/20 dark:to-cyan-900/25" />
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Skeleton className="h-28 w-full rounded-[1.25rem] bg-violet-100/50 dark:bg-violet-950/20" />
+            <Skeleton className="h-28 w-full rounded-[1.25rem] bg-cyan-100/50 dark:bg-cyan-950/20" />
+          </div>
+          <Skeleton className="h-36 w-full rounded-[1.35rem]" />
+        </div>
+      </div>
+      <p className="relative pb-4 text-center text-xs font-medium text-muted-foreground">Opening Photo Studio…</p>
+    </div>
+  );
+}
+
 export function ResearchCompanionWorkspaceShimmer() {
   return (
     <div
@@ -100,27 +126,15 @@ export function ResearchCompanionWorkspaceShimmer() {
       aria-busy="true"
       aria-label="Opening workspace"
     >
-      <div className="flex items-center gap-3 border-b border-border/50 px-4 py-3">
-        <Skeleton className="h-8 w-8 shrink-0 rounded-lg" />
-        <Skeleton className="h-4 w-40 rounded-full" />
-        <div className="ml-auto flex gap-2">
-          <Skeleton className="h-8 w-16 rounded-lg" />
-          <Skeleton className="h-8 w-16 rounded-lg" />
-          <Skeleton className="h-8 w-8 rounded-lg" />
-        </div>
-      </div>
-      <div className="flex min-h-0 flex-1 gap-3 p-3">
-        <div className="hidden w-44 shrink-0 space-y-2 md:block">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Skeleton key={index} className="h-[4.75rem] w-full rounded-lg" />
-          ))}
-        </div>
-        <Skeleton className="min-h-0 flex-1 rounded-xl" />
-        <div className="hidden w-64 shrink-0 space-y-2 lg:block">
-          <Skeleton className="h-9 w-full rounded-lg" />
-          <Skeleton className="h-28 w-full rounded-xl" />
-          <Skeleton className="h-16 w-full rounded-xl" />
-          <Skeleton className="h-16 w-full rounded-xl" />
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+          <Skeleton className="h-44 w-full rounded-[2rem] md:h-52" />
+          <Skeleton className="h-36 w-full rounded-2xl" />
+          <div className="grid gap-3 lg:grid-cols-3">
+            <Skeleton className="h-28 w-full rounded-2xl" />
+            <Skeleton className="h-28 w-full rounded-2xl" />
+            <Skeleton className="h-28 w-full rounded-2xl" />
+          </div>
         </div>
       </div>
       <p className="pb-4 text-center text-xs font-medium text-muted-foreground">Opening workspace…</p>

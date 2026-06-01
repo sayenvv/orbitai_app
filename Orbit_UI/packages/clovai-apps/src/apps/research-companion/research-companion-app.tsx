@@ -15,6 +15,8 @@ import {
   FileText,
   FolderOpen,
   Highlighter,
+  LayoutGrid,
+  LayoutTemplate,
   Lock,
   MessageCircleQuestion,
   MousePointer2,
@@ -84,6 +86,30 @@ export type ResearchCompanionAppProps = {
 type WorkspaceTab = "overview" | "workspace";
 type WorkspaceTool = "select" | "pencil" | "highlight" | "note" | "comment";
 type LeftPanelTab = "file" | "insights";
+
+const leftSidebarTabs: Array<{
+  id: LeftPanelTab;
+  label: string;
+  shortLabel: string;
+  hint: string;
+  icon: LucideIcon;
+}> = [
+  {
+    id: "file",
+    label: "File",
+    shortLabel: "File",
+    hint: "Source document and page thumbnails",
+    icon: FileText,
+  },
+  {
+    id: "insights",
+    label: "Insights",
+    shortLabel: "Insights",
+    hint: "AI-generated research insights",
+    icon: Sparkles,
+  },
+];
+
 type InsightTab = "keywords" | "concepts" | "summary" | "evidence" | "questions" | "notes";
 type AssistPanel = "chat" | "summary" | "flashcards" | "note";
 
@@ -298,6 +324,9 @@ function WorkspaceStageEmptyState({
   actionLabel,
   onAction,
   actionDisabled,
+  secondaryActionLabel,
+  onSecondaryAction,
+  secondaryActionDisabled,
 }: {
   icon: LucideIcon;
   title: string;
@@ -305,7 +334,14 @@ function WorkspaceStageEmptyState({
   actionLabel?: string;
   onAction?: () => void;
   actionDisabled?: boolean;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  secondaryActionDisabled?: boolean;
 }) {
+  const hasActions = Boolean(
+    (actionLabel && onAction) || (secondaryActionLabel && onSecondaryAction),
+  );
+
   return (
     <div className="flex min-h-full items-center justify-center">
       <div className="w-full max-w-md rounded-sm bg-white p-8 text-center shadow-sm ring-1 ring-border/20 dark:bg-background md:p-10">
@@ -314,16 +350,31 @@ function WorkspaceStageEmptyState({
         </span>
         <p className="mt-4 text-base font-semibold text-foreground">{title}</p>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
-        {actionLabel && onAction && (
-          <button
-            type="button"
-            onClick={onAction}
-            disabled={actionDisabled}
-            className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Upload className="h-4 w-4" />
-            {actionLabel}
-          </button>
+        {hasActions && (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            {actionLabel && onAction && (
+              <button
+                type="button"
+                onClick={onAction}
+                disabled={actionDisabled}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4" />
+                {actionLabel}
+              </button>
+            )}
+            {secondaryActionLabel && onSecondaryAction && (
+              <button
+                type="button"
+                onClick={onSecondaryAction}
+                disabled={secondaryActionDisabled}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FolderOpen className="h-4 w-4" />
+                {secondaryActionLabel}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -562,6 +613,29 @@ function WorkspaceTooltip({
   );
 }
 
+function computeToolbarMenuPosition(
+  trigger: HTMLElement,
+  panel: HTMLElement | null,
+  align: "start" | "end" = "end",
+) {
+  const rect = trigger.getBoundingClientRect();
+  const gap = 6;
+  const viewportPadding = 8;
+  const menuWidth = panel?.offsetWidth ?? 224;
+  const menuHeight = panel?.offsetHeight ?? 200;
+
+  let left = align === "end" ? rect.right - menuWidth : rect.left;
+  let top = rect.bottom + gap;
+
+  left = Math.max(viewportPadding, Math.min(left, window.innerWidth - menuWidth - viewportPadding));
+
+  if (top + menuHeight > window.innerHeight - viewportPadding) {
+    top = Math.max(viewportPadding, rect.top - menuHeight - gap);
+  }
+
+  return { top, left };
+}
+
 function ToolbarNewMenu({
   onNewWorkspace,
   onNewFile,
@@ -577,11 +651,7 @@ function ToolbarNewMenu({
   const updateMenuPosition = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    setMenuPosition({
-      top: rect.bottom + 6,
-      left: rect.left,
-    });
+    setMenuPosition(computeToolbarMenuPosition(trigger, menuPanelRef.current, "end"));
   }, []);
 
   useEffect(() => {
@@ -591,6 +661,7 @@ function ToolbarNewMenu({
     }
 
     updateMenuPosition();
+    const frame = requestAnimationFrame(updateMenuPosition);
 
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -612,6 +683,7 @@ function ToolbarNewMenu({
     window.addEventListener("scroll", handleReposition, true);
 
     return () => {
+      cancelAnimationFrame(frame);
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
       window.removeEventListener("resize", handleReposition);
@@ -625,14 +697,14 @@ function ToolbarNewMenu({
   ] as const;
 
   return (
-    <div className="relative z-[120]">
+    <div className="relative">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold transition-colors",
-          open ? "bg-muted/70 text-foreground" : "text-foreground hover:bg-muted/60",
+          "inline-flex items-center gap-1.5 px-4 py-3 text-xs font-semibold transition-colors sm:px-5",
+          open ? "bg-muted/20 text-foreground" : "text-muted-foreground hover:bg-muted/20 hover:text-foreground",
         )}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -648,7 +720,7 @@ function ToolbarNewMenu({
             ref={menuPanelRef}
             role="menu"
             style={{ top: menuPosition.top, left: menuPosition.left }}
-            className="fixed z-[120] min-w-[11rem] overflow-hidden rounded-xl border border-border/30 bg-white p-1 shadow-lg dark:bg-background"
+            className="fixed z-[200] min-w-[11rem] overflow-hidden rounded-xl border border-border/30 bg-popover p-1 text-popover-foreground shadow-lg"
           >
             {items.map((item) => (
               <button
@@ -695,11 +767,7 @@ function ToolbarRecentMenu({
   const updateMenuPosition = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    setMenuPosition({
-      top: rect.bottom + 6,
-      left: rect.left,
-    });
+    setMenuPosition(computeToolbarMenuPosition(trigger, menuPanelRef.current, "end"));
   }, []);
 
   useEffect(() => {
@@ -709,6 +777,7 @@ function ToolbarRecentMenu({
     }
 
     updateMenuPosition();
+    const frame = requestAnimationFrame(updateMenuPosition);
 
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -730,6 +799,7 @@ function ToolbarRecentMenu({
     window.addEventListener("scroll", handleReposition, true);
 
     return () => {
+      cancelAnimationFrame(frame);
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
       window.removeEventListener("resize", handleReposition);
@@ -738,14 +808,14 @@ function ToolbarRecentMenu({
   }, [open, updateMenuPosition]);
 
   return (
-    <div className="relative z-[120]">
+    <div className="relative">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold transition-colors",
-          open ? "bg-muted/70 text-foreground" : "text-foreground hover:bg-muted/60",
+          "inline-flex items-center gap-1.5 px-4 py-3 text-xs font-semibold transition-colors sm:px-5",
+          open ? "bg-muted/20 text-foreground" : "text-muted-foreground hover:bg-muted/20 hover:text-foreground",
         )}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -761,7 +831,7 @@ function ToolbarRecentMenu({
             ref={menuPanelRef}
             role="menu"
             style={{ top: menuPosition.top, left: menuPosition.left }}
-            className="fixed z-[120] min-w-[14rem] max-w-[18rem] overflow-hidden rounded-xl border border-border/30 bg-white p-1 shadow-lg dark:bg-background"
+            className="fixed z-[200] min-w-[14rem] max-w-[18rem] overflow-hidden rounded-xl border border-border/30 bg-popover p-1 text-popover-foreground shadow-lg"
           >
             {workspaces.length === 0 ? (
               <div className="px-3 py-3">
@@ -853,12 +923,6 @@ export function ResearchCompanionApp({
     setRightToolbarExpanded(true);
   }, [initialAssistPanel]);
 
-  useEffect(() => {
-    if (!insightId && activeTab === "workspace" && !sourceId) {
-      setActiveTab("overview");
-    }
-  }, [activeTab, insightId, sourceId]);
-
   const handleRightSidebarResize = useCallback((deltaX: number) => {
     setRightSidebarWidth((current) =>
       Math.min(RIGHT_SIDEBAR_MAX_WIDTH, Math.max(RIGHT_SIDEBAR_MIN_WIDTH, current + deltaX)),
@@ -913,6 +977,10 @@ export function ResearchCompanionApp({
         count: isEmptyWorkspace || !isInsightTabAvailable(tab.id) ? 0 : tab.count,
       })),
     [isEmptyWorkspace, isInsightTabAvailable],
+  );
+  const availableInsightCount = useMemo(
+    () => visibleInsightTabs.filter((tab) => tab.available).length,
+    [visibleInsightTabs],
   );
 
   const workspaceGridColumns = useMemo(() => {
@@ -1168,6 +1236,15 @@ export function ResearchCompanionApp({
     onNewWorkspace?.();
   };
 
+  const openEmptyWorkspace = () => {
+    setActiveTab("workspace");
+    setLeftPanelTab("file");
+    setLeftSidebarCollapsed(false);
+    setActiveAssistPanel(null);
+    setActivePage(1);
+    setActiveInsightTab("summary");
+  };
+
   const activeInsight =
     visibleInsightTabs.find((tab) => tab.id === activeInsightTab) ?? visibleInsightTabs[0];
 
@@ -1198,10 +1275,13 @@ export function ResearchCompanionApp({
         <WorkspaceStageEmptyState
           icon={Upload}
           title="No file uploaded"
-          description="Upload a PDF from your device or choose one from your Library to open it in this workspace."
+          description="Upload a PDF from your device or choose one from your library to open it in this workspace."
           actionLabel="Upload file"
           onAction={uploadFile}
           actionDisabled={!uploadFile || fileUploading}
+          secondaryActionLabel="Open from library"
+          onSecondaryAction={openLibrary}
+          secondaryActionDisabled={!openLibrary}
         />
       </div>
     </ResearchCompanionWorkspaceShell>
@@ -1399,38 +1479,75 @@ export function ResearchCompanionApp({
   const openLibrary = onOpenLibrary ?? onOpenFile;
   const uploadFile = onUploadFile ?? onOpenFile;
   const isPreparingWorkspace = Boolean(sourceId && !hasInsights);
-  const workspaceTabs: WorkspaceTab[] = hasInsights ? ["overview", "workspace"] : ["overview"];
+  const workspaceTabs: WorkspaceTab[] = isPreparingWorkspace ? ["overview"] : ["overview", "workspace"];
+
+  const topNavTabs = [
+    {
+      id: "overview" as const,
+      label: "Overview",
+      hint: "Recent workspaces and ways to get started",
+      icon: LayoutGrid,
+    },
+    {
+      id: "workspace" as const,
+      label: "Workspace",
+      hint: "Document review, insights, and AI tools",
+      icon: FileText,
+    },
+  ] as const;
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="relative z-[110] shrink-0 bg-background/90 px-4 py-2.5 backdrop-blur-xl md:px-6">
-        <div className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-border/30 bg-white p-1 dark:bg-background">
-          {workspaceTabs.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "h-8 rounded-lg px-3 text-xs font-semibold capitalize transition-colors",
-                activeTab === tab
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-              )}
-            >
-              {tab}
-            </button>
-          ))}
+      <header className="relative z-[110] flex shrink-0 items-stretch border-b border-border/40 bg-gradient-to-b from-muted/25 to-transparent backdrop-blur-xl">
+        <nav className="flex min-w-0 flex-1" role="tablist" aria-label="Research Companion views">
+          {topNavTabs
+            .filter((tab) => workspaceTabs.includes(tab.id))
+            .map((tab) => {
+              const Icon = tab.icon;
+              const selected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  aria-label={tab.label}
+                  title={tab.hint}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "group relative flex min-w-0 items-center gap-2 border-b-2 px-4 py-3 transition-all duration-200 sm:px-5",
+                    selected
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/20 hover:text-foreground",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-200",
+                      selected
+                        ? "bg-primary/12 ring-1 ring-primary/15"
+                        : "bg-transparent group-hover:bg-muted/50",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" strokeWidth={selected ? 2.25 : 2} />
+                  </span>
+                  <span className="truncate text-xs font-semibold tracking-wide">{tab.label}</span>
+                </button>
+              );
+            })}
+        </nav>
 
-          <span className="mx-0.5 hidden h-5 w-px shrink-0 bg-border/40 sm:block" aria-hidden="true" />
-
+        <div className="flex shrink-0 items-stretch border-l border-border/30">
           <ToolbarNewMenu onNewWorkspace={createWorkspace} onNewFile={uploadFile ?? onOpenFile} />
-          <ToolbarRecentMenu
-            workspaces={recentWorkspaces}
-            onOpenWorkspace={onOpenRecentWorkspace}
-            formatOpenedAt={formatRecentWorkspaceTime}
-          />
+          <div className="border-l border-border/30">
+            <ToolbarRecentMenu
+              workspaces={recentWorkspaces}
+              onOpenWorkspace={onOpenRecentWorkspace}
+              formatOpenedAt={formatRecentWorkspaceTime}
+            />
+          </div>
         </div>
-      </div>
+      </header>
 
       {activeTab === "overview" || isPreparingWorkspace ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -1443,7 +1560,7 @@ export function ResearchCompanionApp({
                 </p>
                 <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
                   {isEmptyWorkspace
-                    ? "Create a research workspace"
+                    ? "Start your research"
                     : isPreparingWorkspace
                       ? "Setting up your workspace"
                       : workspaceTitle}
@@ -1455,67 +1572,83 @@ export function ResearchCompanionApp({
                       : "Your document is attached. Generate AI insights to continue."
                     : hasInsights
                       ? "Insights are ready. Open the workspace to review findings, annotate, and collaborate with AI tools."
-                      : "For case studies, research papers, reports, and document review — attach a source, generate insights, and work in one place."}
+                      : isEmptyWorkspace
+                        ? "Resume recent work, open a document from your library, or jump into an empty workspace."
+                        : "For case studies, research papers, reports, and document review — attach a source, generate insights, and work in one place."}
                 </p>
               </div>
             </section>
 
             {!sourceId && (
-              <OverviewPanel label="Get started" title="Add a source document">
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <OverviewOptionCard
-                    icon={FolderOpen}
-                    badge="Library"
-                    title="Choose from library"
-                    description="Browse PDFs already in your library and attach one to this workspace."
-                    onClick={openLibrary}
-                    disabled={!openLibrary}
-                  />
-                  <OverviewOptionCard
-                    icon={Upload}
-                    badge="Local file"
-                    title="Upload from device"
-                    description="Open your file picker and attach a PDF directly — no extra dialog."
-                    onClick={uploadFile}
-                    disabled={!uploadFile}
-                    loading={fileUploading}
-                    loadingLabel={fileUploadProgress || "Uploading…"}
-                  />
-                </div>
-                {fileUploadError && (
-                  <p className="mt-3 text-sm text-destructive">{fileUploadError}</p>
-                )}
-              </OverviewPanel>
-            )}
+              <>
+                <OverviewPanel label="Recent" title="Continue where you left off">
+                  {recentWorkspaces.length > 0 ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {recentWorkspaces.slice(0, 6).map((workspace) => (
+                        <button
+                          key={workspace.key}
+                          type="button"
+                          onClick={() => onOpenRecentWorkspace?.(workspace)}
+                          disabled={!onOpenRecentWorkspace}
+                          className="group relative flex items-start gap-3 overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card to-card/80 px-4 py-4 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+                            <FileText className="h-4 w-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-foreground">
+                              {workspace.title}
+                            </span>
+                            <span className="mt-1 block text-[11px] text-muted-foreground">
+                              {formatRecentTime(workspace.openedAt)}
+                              {workspace.insightId ? " · Insights ready" : " · Document only"}
+                            </span>
+                          </span>
+                          <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      Your recently opened documents will appear here once you open a file from your library or
+                      upload one.
+                    </p>
+                  )}
+                </OverviewPanel>
 
-            {recentWorkspaces.length > 0 && (
-              <OverviewPanel label="Recent" title="Continue where you left off">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {recentWorkspaces.slice(0, 6).map((workspace) => (
-                    <button
-                      key={workspace.key}
-                      type="button"
-                      onClick={() => onOpenRecentWorkspace?.(workspace)}
-                      disabled={!onOpenRecentWorkspace}
-                      className="group relative flex items-start gap-3 overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card to-card/80 px-4 py-4 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                        <FileText className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-foreground">
-                          {workspace.title}
-                        </span>
-                        <span className="mt-1 block text-[11px] text-muted-foreground">
-                          {formatRecentTime(workspace.openedAt)}
-                          {workspace.insightId ? " · Insights ready" : " · Document only"}
-                        </span>
-                      </span>
-                      <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              </OverviewPanel>
+                <OverviewPanel label="Get started" title="Choose how to begin">
+                  <div className="grid gap-3 lg:grid-cols-3">
+                    <OverviewOptionCard
+                      icon={FolderOpen}
+                      badge="Library"
+                      title="Open from library"
+                      description="Browse PDFs already in your library and attach one to this workspace."
+                      onClick={openLibrary}
+                      disabled={!openLibrary}
+                    />
+                    <OverviewOptionCard
+                      icon={Upload}
+                      badge="Local file"
+                      title="Upload from device"
+                      description="Open your file picker and attach a PDF directly — no extra dialog."
+                      onClick={uploadFile}
+                      disabled={!uploadFile}
+                      loading={fileUploading}
+                      loadingLabel={fileUploadProgress || "Uploading…"}
+                    />
+                    <OverviewOptionCard
+                      icon={LayoutTemplate}
+                      badge="Blank"
+                      title="Open empty workspace"
+                      description="Jump into the workspace now and add a document whenever you are ready."
+                      onClick={openEmptyWorkspace}
+                    />
+                  </div>
+                  {fileUploadError && (
+                    <p className="mt-3 text-sm text-destructive">{fileUploadError}</p>
+                  )}
+                </OverviewPanel>
+              </>
             )}
 
             {isPreparingWorkspace && (
@@ -1573,38 +1706,71 @@ export function ResearchCompanionApp({
           )}
         >
           {!leftSidebarCollapsed && (
-          <aside className="hidden min-h-0 min-w-0 overflow-hidden bg-white lg:flex lg:flex-col dark:bg-background">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
-              <div className="shrink-0 flex items-center gap-2">
-                <div className="grid flex-1 grid-cols-2 gap-0.5 rounded-lg bg-muted/35 p-0.5">
-                {(["file", "insights"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setLeftPanelTab(tab)}
-                    className={cn(
-                      "h-8 rounded-md border border-transparent text-xs font-semibold capitalize transition-all duration-200",
-                      leftPanelTab === tab
-                        ? "border-primary/30 bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:border-border/30 hover:bg-background/60 hover:text-foreground",
-                    )}
-                  >
-                    {tab}
-                  </button>
-                ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setLeftSidebarCollapsed(true)}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-                  aria-label="Collapse file sidebar"
-                  title="Collapse file sidebar"
-                >
-                  <PanelLeftClose className="h-4 w-4" strokeWidth={2} />
-                </button>
+          <aside className="hidden min-h-0 min-w-0 overflow-hidden border-r border-border/30 bg-white lg:flex lg:flex-col dark:bg-background">
+            <nav
+              className="flex shrink-0 items-stretch border-b border-border/40 bg-gradient-to-b from-muted/25 to-transparent"
+              aria-label="Workspace panels"
+            >
+              <div className="flex min-w-0 flex-1" role="tablist">
+                {leftSidebarTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const selected = leftPanelTab === tab.id;
+                  const badgeCount =
+                    tab.id === "file"
+                      ? sourcePages.length
+                      : tab.id === "insights"
+                        ? availableInsightCount
+                        : 0;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      aria-label={tab.label}
+                      title={tab.hint}
+                      onClick={() => setLeftPanelTab(tab.id)}
+                      className={cn(
+                        "group relative flex min-w-0 flex-1 flex-col items-center gap-1 border-b-2 px-1 py-2.5 transition-all duration-200",
+                        selected
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/20 hover:text-foreground",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "relative flex h-7 w-7 items-center justify-center rounded-lg transition-colors duration-200",
+                          selected
+                            ? "bg-primary/12 ring-1 ring-primary/15"
+                            : "bg-transparent group-hover:bg-muted/50",
+                        )}
+                      >
+                        <Icon className="h-3.5 w-3.5" strokeWidth={selected ? 2.25 : 2} />
+                        {badgeCount > 0 ? (
+                          <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-primary-foreground shadow-sm">
+                            {badgeCount > 9 ? "9+" : badgeCount}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="max-w-full truncate text-[10px] font-semibold tracking-wide">
+                        {tab.shortLabel}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+              <button
+                type="button"
+                onClick={() => setLeftSidebarCollapsed(true)}
+                className="flex w-9 shrink-0 items-center justify-center border-l border-border/30 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+              >
+                <PanelLeftClose className="h-4 w-4" strokeWidth={2} />
+              </button>
+            </nav>
 
-              <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
               {leftPanelTab === "file" ? (
                 <>
                   <div className="shrink-0 min-w-0 pb-3">
@@ -1749,7 +1915,6 @@ export function ResearchCompanionApp({
                   )}
                 </>
               )}
-              </div>
             </div>
           </aside>
           )}

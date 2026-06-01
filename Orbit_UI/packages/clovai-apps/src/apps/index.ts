@@ -2,7 +2,21 @@ export { appSlug as assetRemixSlug } from "./asset-remix";
 export { appSlug as careerCoachSlug } from "./career-coach";
 export { appSlug as creativeEditorSlug } from "./creative-editor";
 export { appSlug as logoStudioSlug } from "./logo-studio";
-export { appSlug as photoGeneratorSlug } from "./photo-generator";
+export { appSlug as photoStudioSlug, PhotoStudioApp } from "./photo-studio";
+export {
+  PHOTO_STUDIO_IMAGE_ACCEPT,
+  PHOTO_STUDIO_IMAGE_FORMATS_LABEL,
+  isPhotoStudioSupportedImageFile,
+  isPhotoStudioSupportedImageFilename,
+  isPhotoStudioSupportedImageMime,
+} from "./photo-studio";
+export type {
+  PhotoStudioAppProps,
+  PhotoStudioCreationType,
+  PhotoStudioGeneratedItem,
+  PhotoStudioView,
+  RecentPhotoProject,
+} from "./photo-studio";
 export {
   appSlug as researchCompanionSlug,
   ResearchCompanionApp,

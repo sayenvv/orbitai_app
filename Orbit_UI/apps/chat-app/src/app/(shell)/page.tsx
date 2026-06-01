@@ -3,10 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, FolderOpen, Loader2, Paperclip, Search, X } from "lucide-react";
-import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
-import { navigateToAgentChat, navigateToChatLaunch } from "@/lib/chat-navigation";
+import { navigateToChatLaunch } from "@/lib/chat-navigation";
 import { libraryItems } from "@/lib/home-data";
-import { useAgents } from "@/hooks/use-agents";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { uploadPdfAndWait, validatePdfFile, PdfUploadCancelledError } from "@/lib/rag-upload";
@@ -15,10 +13,9 @@ import { LibraryPicker } from "@/components/home/library-picker";
 import { randomId } from "@/lib/utils";
 
 export default function HomePage() {
-  const { agents } = useAgents();
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const { setSection, setHeader, openAuthPrompt } = useAppShell();
+  const { setHeader, openAuthPrompt } = useAppShell();
 
   const [chatInput, setChatInput] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -100,7 +97,7 @@ export default function HomePage() {
               What can I help you with?
             </h1>
             <p className="mx-auto max-w-lg text-base leading-relaxed text-muted-foreground">
-              Choose a specialized AI assistant or ask anything directly.
+              Ask anything directly or attach a document to get started.
             </p>
           </div>
 
@@ -224,53 +221,6 @@ export default function HomePage() {
             )}
           </div>
 
-          <div className="space-y-2 sm:space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Popular agents
-              </h2>
-              <button
-                type="button"
-                onClick={() => {
-                  setSection("agents");
-                  router.push("/?section=agents");
-                }}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                View all
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-              {agents.slice(0, 3).map((agent) => (
-                <button
-                  key={agent.id}
-                  type="button"
-                  onClick={() => navigateToAgentChat(router, agent.id)}
-                  className="w-full text-left"
-                >
-                  <AgentCardTint
-                    colorKey={agent.colorKey}
-                    className="group relative flex w-full items-start gap-3 p-3 transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99] sm:gap-4 sm:p-4"
-                  >
-                    <AgentListingIcon
-                      iconKey={agent.iconKey}
-                      colorKey={agent.colorKey}
-                      className="shrink-0 transition-transform group-hover:scale-105"
-                    />
-                    <div className="min-w-0 space-y-1">
-                      <h3 className="text-sm font-semibold transition-colors group-hover:text-primary">
-                        {agent.name}
-                      </h3>
-                      <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                        {agent.description}
-                      </p>
-                    </div>
-                  </AgentCardTint>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {isAuthenticated && (
             <div className="space-y-3">
               <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -279,8 +229,8 @@ export default function HomePage() {
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {[
                   {
-                    title: "Trip Adviser Agent",
-                    description: "Plan vacations with AI-powered itineraries and hotel picks.",
+                    title: "Research Companion",
+                    description: "Upload papers and reports for structured summaries and insights.",
                     tag: "New",
                     tagColor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                   },
@@ -292,7 +242,7 @@ export default function HomePage() {
                   },
                   {
                     title: "40% Faster Responses",
-                    description: "Near-instant responses across all agents.",
+                    description: "Near-instant responses across chat and apps.",
                     tag: "Speed",
                     tagColor: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
                   },

@@ -6,7 +6,6 @@ import { Menu } from "lucide-react";
 import { PdfPageLimitDialogHost } from "@/components/rag/pdf-page-limit-dialog";
 import { NavbarUpgradeLink } from "@/components/plans/upgrade-cta";
 import {
-  MainAgentsPanel,
   MainLibraryPanel,
 } from "@/components/home/app-sidebar-panels";
 import { LoginModal } from "@/components/login-modal";
@@ -20,7 +19,6 @@ import { ChatHistoryRail } from "@/components/chat/chat-history-rail";
 import { NavbarBrand } from "@/components/layout/navbar-brand";
 import { MobileAppDrawer } from "@/components/layout/mobile-app-drawer";
 import { useChatSideRail } from "@/hooks/use-chat-side-rail";
-import { useAgents } from "@/hooks/use-agents";
 import { useLibrary } from "@/hooks/use-library";
 import { useLogout } from "@/hooks/use-auth";
 import {
@@ -43,7 +41,7 @@ function ShellSectionSync() {
 
   useEffect(() => {
     const section = searchParams.get("section");
-    if (section === "library" || section === "agents" || section === "apps") {
+    if (section === "library" || section === "apps") {
       setSection(section);
     }
   }, [pathname, searchParams, setSection]);
@@ -59,7 +57,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   const handleLogout = useLogout();
   const invalidChatNoticeOpen = useChatSessionStore((s) => s.invalidChatNoticeOpen);
   const dismissInvalidChatNotice = useChatSessionStore((s) => s.dismissInvalidChatNotice);
-  const { agents, loading: agentsLoading } = useAgents();
   const { uploads, generated, loading: libraryLoading, refresh: refreshLibrary } = useLibrary();
 
   const {
@@ -112,8 +109,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
     useChatStore.setState({ conversationsHydrated: true });
   }, [isAuthenticated]);
 
-  const showSectionPanel =
-    pathname === "/" && (section === "library" || section === "agents");
+  const showSectionPanel = pathname === "/" && section === "library";
 
   const { open: sidebarOpen, hydrated: sidebarHydrated } = useChatSideRail("left");
   const sidebarWidth =
@@ -212,8 +208,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
             <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden">
               {showSectionPanel ? (
                 <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6 md:py-8">
-                  {section === "library" ? (
-                    <MainLibraryPanel
+                  <MainLibraryPanel
                       uploads={uploads}
                       generated={generated}
                       loading={libraryLoading}
@@ -267,13 +262,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                           : undefined
                       }
                     />
-                  ) : (
-                    <MainAgentsPanel
-                      agents={agents}
-                      loading={agentsLoading}
-                      onSelect={(agentId) => navigateToAgentChat(router, agentId)}
-                    />
-                  )}
                 </div>
               ) : (
                 <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">{children}</div>

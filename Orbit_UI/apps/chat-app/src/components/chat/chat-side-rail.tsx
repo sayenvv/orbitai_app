@@ -9,7 +9,6 @@ import {
   Check,
   ChevronRight,
   Crown,
-  LayoutGrid,
   PanelLeft,
   PanelLeftClose,
   PanelRight,
@@ -322,13 +321,6 @@ export function ChatSideRail({
                 <Crown className="h-4 w-4" />
               </Link>
             )}
-            <Link
-              href="/?section=agents"
-              title="Browse agents"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Link>
           </div>
         </div>
       )}

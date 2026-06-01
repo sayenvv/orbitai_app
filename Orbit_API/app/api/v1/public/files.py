@@ -24,6 +24,16 @@ from app.services.rag.pdf_extract import count_pdf_pages
 router = APIRouter(prefix="/files", tags=["files"])
 
 PDF_MIME_TYPES = frozenset({"application/pdf", "application/x-pdf"})
+IMAGE_MIME_TYPES = frozenset({"image/jpeg", "image/png"})
+IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")
+
+
+def _is_image_upload(upload: UploadFile) -> bool:
+    content_type = (upload.content_type or "").lower()
+    filename = (upload.filename or "").lower()
+    if content_type in IMAGE_MIME_TYPES:
+        return True
+    return any(filename.endswith(ext) for ext in IMAGE_EXTENSIONS)
 
 
 def _validate_pdf(upload: UploadFile) -> None:
@@ -55,7 +65,20 @@ def _inspect_pdf_bytes(data: bytes, plan: str) -> PdfInspectResponse:
         pages_indexed=pages_indexed,
         will_truncate=will_truncate,
         plan=plan.strip().lower(),
-    )
+        )
+
+
+def _validate_upload(upload: UploadFile) -> str:
+    content_type = (upload.content_type or "").lower()
+    if _is_image_upload(upload):
+        return "image"
+    if content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only JPG, JPEG, and PNG images are supported.",
+        )
+    _validate_pdf(upload)
+    return "pdf"
 
 
 @router.post("/inspect", response_model=PdfInspectResponse)
@@ -126,7 +149,7 @@ async def upload_file(
     user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
-    _validate_pdf(file)
+    upload_kind = _validate_upload(file)
 
     data = await file.read()
     if not data:
@@ -147,13 +170,37 @@ async def upload_file(
             raise HTTPException(status_code=404, detail="Conversation not found")
 
     document_id = uuid.uuid4()
-    filename = Path(file.filename or "document.pdf").name
+    default_filename = "reference.png" if upload_kind == "image" else "document.pdf"
+    filename = Path(file.filename or default_filename).name
     storage_path = save_upload_file(
         user_id=user.id,
         document_id=document_id,
         filename=filename,
         data=data,
     )
+
+    if upload_kind == "image":
+        document = RagDocument(
+            id=document_id,
+            user_id=user.id,
+            conversation_id=conversation_id,
+            original_filename=filename,
+            mime_type=file.content_type or "image/jpeg",
+            storage_path=str(storage_path),
+            file_size_bytes=len(data),
+            status="ready",
+            page_count=1,
+            pages_processed=0,
+            chunk_count=0,
+            doc_metadata={
+                "asset_kind": "image",
+                "photo_studio_reference": True,
+            },
+        )
+        db.add(document)
+        db.commit()
+        db.refresh(document)
+        return RagDocumentResponse(**serialize_document(document))
 
     inspection = _inspect_pdf_bytes(data, user.plan)
 

@@ -99,39 +99,39 @@ export const appsCatalog: CatalogApp[] = [
   },
   {
     id: catalogAppIds.photoGenerator,
-    slug: "photo-generator",
-    name: "Photo Generator",
+    slug: "photo-studio",
+    name: "Photo Studio",
     iconKey: "camera",
     category: "Image",
     tag: "Visuals",
     tier: "starter",
-    tagline: "Studio-grade product and campaign photos, on demand.",
+    tagline: "Logos, product shots, and campaign visuals from a single studio.",
     heroGradient: "from-sky-600 via-cyan-600 to-blue-700",
     featured: true,
-    shortDescription: "Create campaign photos and product visuals from text prompts.",
+    shortDescription: "Create logos, product photos, lifestyle scenes, and ad visuals from text prompts.",
     description:
-      "Photo Generator is optimized for social and e-commerce assets. Generate clean product scenes, lifestyle mockups, and ad visuals with consistent style controls and aspect presets.",
+      "Photo Studio covers the full creative stack — brand logos and marks, e-commerce product shots, lifestyle mockups, social assets, and campaign visuals. Use style presets and aspect controls to keep outputs consistent across channels.",
     monthlyUsers: "31.2k monthly users",
     usageCount: "2.1M images rendered",
     rating: 4.7,
     installs: "97k installs",
     modelAccess: "Starter model access",
-    badges: ["Prompt templates", "Style lock", "Batch output"],
+    badges: ["Logo concepts", "Product shots", "Style lock"],
     screenshots: [
       {
+        title: "Logo workspace",
+        caption: "Generate brand marks, icon lockups, and logo variants from a prompt.",
+        gradientClass: "from-violet-500/35 via-fuchsia-500/25 to-indigo-500/25",
+      },
+      {
         title: "Style presets",
-        caption: "Pick cinematic, editorial, or studio lighting styles.",
+        caption: "Pick cinematic, editorial, or studio lighting for any shot type.",
         gradientClass: "from-sky-500/35 via-cyan-500/20 to-blue-500/30",
       },
       {
         title: "Campaign board",
-        caption: "Generate multiple ad-ready outputs for one product.",
+        caption: "Batch product, lifestyle, and ad-ready outputs for one brief.",
         gradientClass: "from-blue-500/35 via-indigo-500/20 to-cyan-500/25",
-      },
-      {
-        title: "Refine controls",
-        caption: "Tune color tone, composition, and shot distance.",
-        gradientClass: "from-cyan-500/35 via-sky-500/25 to-emerald-500/20",
       },
     ],
   },
@@ -394,6 +394,7 @@ export const appsCatalog: CatalogApp[] = [
 
 /** Apps kept in catalog data but hidden from store listings until implemented. */
 export const hiddenAppSlugs = new Set<string>([
+  "logo-studio",
   "career-coach",
   "asset-remix",
   "voice-maker",
@@ -429,7 +430,11 @@ export function findCatalogApp(slug: string): CatalogApp | undefined {
 }
 
 export function findCatalogAppById(idOrSlug: string): CatalogApp | undefined {
-  return appsCatalog.find((app) => app.id === idOrSlug || app.slug === idOrSlug);
+  const byId = appsCatalog.find((app) => app.id === idOrSlug);
+  if (byId) return byId;
+
+  const normalizedSlug = normalizeCatalogAppSlug(idOrSlug);
+  return appsCatalog.find((app) => app.slug === idOrSlug || app.slug === normalizedSlug);
 }
 
 export function findCatalogSubApp(
@@ -449,10 +454,32 @@ export function getAppWorkspaceHref(appOrId: CatalogApp | string): string {
 }
 
 /** Apps with a live workspace route (not the marketing detail page). */
-const workspaceAppSlugs = new Set<string>(["research-companion"]);
+export type LaunchAppKey = "research-companion" | "photo-studio";
+
+const launchAppIdByKey: Record<LaunchAppKey, CatalogAppId> = {
+  "research-companion": catalogAppIds.researchCompanion,
+  "photo-studio": catalogAppIds.photoGenerator,
+};
+
+/** Canonical slug for launch routing (handles legacy aliases). */
+export function normalizeCatalogAppSlug(slug: string): string {
+  if (slug === "photo-generator") return "photo-studio";
+  return slug;
+}
+
+/** Resolve launch UI from stable catalog id (preferred over slug). */
+export function getLaunchAppKey(app: CatalogApp): LaunchAppKey | null {
+  if (app.id === launchAppIdByKey["research-companion"]) return "research-companion";
+  if (app.id === launchAppIdByKey["photo-studio"]) return "photo-studio";
+  return null;
+}
+
+export function isLaunchApp(app: CatalogApp): boolean {
+  return getLaunchAppKey(app) !== null;
+}
 
 export function getAppLaunchHref(app: CatalogApp): string | null {
-  if (!workspaceAppSlugs.has(app.slug)) return null;
+  if (!isLaunchApp(app)) return null;
   return getAppWorkspaceHref(app);
 }
 

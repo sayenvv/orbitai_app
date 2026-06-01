@@ -22,7 +22,6 @@ import {
   Trash2,
   Upload,
   X,
-  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
@@ -71,7 +70,6 @@ const navIconTones = {
   chat: "from-blue-500/20 to-cyan-500/10 text-blue-500",
   library: "from-amber-500/20 to-orange-500/10 text-amber-500",
   apps: "from-emerald-500/20 to-teal-500/10 text-emerald-500",
-  agents: "from-sky-500/20 to-indigo-500/10 text-sky-500",
   plans: "from-rose-500/20 to-pink-500/10 text-rose-500",
   search: "from-slate-500/20 to-slate-500/10 text-sidebar-foreground/70",
 } as const;
@@ -80,7 +78,6 @@ type SidebarCollapsedNavProps = {
   section: SidebarSection;
   onNewChat: () => void;
   onLibrary: () => void;
-  onAgents: () => void;
   onApps: () => void;
   onPlans: () => void;
   onSearch: () => void;
@@ -91,7 +88,6 @@ export function SidebarCollapsedNav({
   section,
   onNewChat,
   onLibrary,
-  onAgents,
   onApps,
   onPlans,
   onSearch,
@@ -101,14 +97,12 @@ export function SidebarCollapsedNav({
     { key: "new-chat", label: "New chat", icon: SquarePen, active: false, onClick: onNewChat, tone: navIconTones.chat },
     { key: "library", label: "Library", icon: LibraryBig, active: section === "library", onClick: onLibrary, tone: navIconTones.library },
     { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps, tone: navIconTones.apps },
-    { key: "agents", label: "Agents", icon: Bot, active: section === "agents", onClick: onAgents, tone: navIconTones.agents },
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch, tone: navIconTones.search },
   ];
   const guestItems: PremiumNavItem[] = [
     { key: "new-chat", label: "New chat", icon: SquarePen, active: false, onClick: onNewChat, tone: navIconTones.chat },
     { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps, tone: navIconTones.apps },
     { key: "plans", label: "Plans", icon: Crown, active: section === "plans", onClick: onPlans, tone: navIconTones.plans },
-    { key: "agents", label: "Agents", icon: Bot, active: section === "agents", onClick: onAgents, tone: navIconTones.agents },
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch, tone: navIconTones.search },
   ];
   const items = isAuthenticated ? authenticatedItems : guestItems;
@@ -157,28 +151,17 @@ export function SidebarSectionNav({
   isAuthenticated = true,
   labelClassName = "",
 }: SidebarSectionNavProps) {
-  const [moreOpen, setMoreOpen] = useState(false);
   const authenticatedTabs: { id: SidebarSection; label: string; icon: LucideIcon; tone: string }[] = [
     { id: "library", label: "Library", icon: LibraryBig, tone: navIconTones.library },
     { id: "apps", label: "Apps", icon: Store, tone: navIconTones.apps },
-    { id: "agents", label: "Agents", icon: Bot, tone: navIconTones.agents },
   ];
 
   const guestTabs: { id: SidebarSection; label: string; icon: LucideIcon; tone: string }[] = [
     { id: "apps", label: "Apps", icon: Store, tone: navIconTones.apps },
     { id: "plans", label: "Plans", icon: Crown, tone: navIconTones.plans },
-    { id: "agents", label: "Agents", icon: Bot, tone: navIconTones.agents },
   ];
 
   const tabs = isAuthenticated ? authenticatedTabs : guestTabs;
-  const primaryTabs = tabs.slice(0, 2);
-  const moreTabs = tabs.slice(2);
-  const moreActive = moreTabs.some((tab) => tab.id === section);
-
-  const handleSelect = (id: SidebarSection) => {
-    setMoreOpen(false);
-    onSectionChange(id);
-  };
 
   return (
     <div className="flex flex-col gap-1">
@@ -201,11 +184,11 @@ export function SidebarSectionNav({
         )}
       </button>
 
-      {primaryTabs.map(({ id, label, icon: Icon, tone }) => (
+      {tabs.map(({ id, label, icon: Icon, tone }) => (
         <button
           key={id}
           type="button"
-          onClick={() => handleSelect(id)}
+          onClick={() => onSectionChange(id)}
           className={cn(
             "group relative flex h-9 items-center rounded-xl transition-colors duration-200",
             expanded ? "gap-2.5 px-2.5 justify-start" : "justify-center",
@@ -230,70 +213,6 @@ export function SidebarSectionNav({
           )}
         </button>
       ))}
-
-      {moreTabs.length > 0 && (
-        <div className="relative">
-          {!moreOpen && (
-            <button
-              type="button"
-              onClick={() => setMoreOpen(true)}
-              className={cn(
-                "group flex h-9 w-full items-center rounded-xl transition-colors duration-200",
-                expanded ? "gap-2.5 px-2.5 justify-start" : "justify-center",
-                moreActive
-                  ? "bg-sidebar-accent/85 text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
-              )}
-              title="More"
-              aria-label="More"
-              aria-expanded={moreOpen}
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-500/20 to-slate-500/10 text-sidebar-foreground/75">
-                <MoreHorizontal className="h-3.5 w-3.5 shrink-0" />
-              </span>
-              {expanded && (
-                <span className={cn("truncate text-sm font-medium", labelClassName)}>More</span>
-              )}
-            </button>
-          )}
-
-          {expanded && moreOpen && (
-            <div className="absolute left-0 top-0 z-20 w-full rounded-2xl bg-background/95 p-1.5 ring-1 ring-border/50 backdrop-blur-xl">
-              <div className="mb-1 flex items-center justify-between px-2 py-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  More
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label="Close more menu"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-              {moreTabs.map(({ id, label, icon: Icon, tone }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => handleSelect(id)}
-                  className={cn(
-                    "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-xs transition-colors",
-                    section === id
-                      ? "bg-sidebar-accent/80 text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                  )}
-                >
-                  <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br", tone)}>
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="truncate font-medium">{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
