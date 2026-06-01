@@ -1,24 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Brain, FileText, Layers, Loader2, Sparkles } from "lucide-react";
+import {
+  RESEARCH_COMPANION_INSIGHT_OPTIONS,
+  type ResearchCompanionGeneratableInsightType,
+} from "@orbit/clovai-apps";
 import { StudySectionLabel } from "@/components/insights/insights-shell";
 
 const STEPS = [
   { icon: FileText, label: "Reading your document" },
   { icon: Sparkles, label: "Extracting key insights" },
-  { icon: Layers, label: "Building flashcards & Q&A" },
-  { icon: Brain, label: "Preparing study view" },
+  { icon: Layers, label: "Organizing findings and evidence" },
+  { icon: Brain, label: "Preparing your workspace" },
 ] as const;
 
 type InsightGeneratingOverlayProps = {
   sourceName?: string | null;
+  insightTypes?: ResearchCompanionGeneratableInsightType[];
 };
 
-export function InsightGeneratingOverlay({ sourceName }: InsightGeneratingOverlayProps) {
+export function InsightGeneratingOverlay({
+  sourceName,
+  insightTypes = [],
+}: InsightGeneratingOverlayProps) {
   const [mounted, setMounted] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+
+  const selectedLabels = useMemo(
+    () =>
+      RESEARCH_COMPANION_INSIGHT_OPTIONS.filter((option) => insightTypes.includes(option.id)).map(
+        (option) => option.label,
+      ),
+    [insightTypes],
+  );
 
   useEffect(() => setMounted(true), []);
 
@@ -55,6 +71,17 @@ export function InsightGeneratingOverlay({ sourceName }: InsightGeneratingOverla
             <p className="mt-1.5 truncate text-center text-xs text-muted-foreground">
               {sourceName}
             </p>
+          )}
+
+          {selectedLabels.length > 0 && (
+            <div className="mt-4 rounded-xl border border-border/30 bg-muted/20 px-3.5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Generating
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-foreground">
+                {selectedLabels.join(" · ")}
+              </p>
+            </div>
           )}
 
           <div className="mt-8 space-y-2">

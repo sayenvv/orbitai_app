@@ -108,6 +108,10 @@ class Conversation(Base):
         UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
     )
     title: Mapped[str] = mapped_column(String(512), default="New conversation")
+    app_slug: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rag_documents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -118,7 +122,14 @@ class Conversation(Base):
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation", order_by="Message.created_at"
     )
-    rag_documents: Mapped[list["RagDocument"]] = relationship(back_populates="conversation")
+    rag_documents: Mapped[list["RagDocument"]] = relationship(
+        back_populates="conversation",
+        foreign_keys="RagDocument.conversation_id",
+    )
+    source_document: Mapped["RagDocument | None"] = relationship(
+        foreign_keys=[source_id],
+        uselist=False,
+    )
 
 
 class Message(Base):
@@ -177,7 +188,10 @@ class RagDocument(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="rag_documents")
-    conversation: Mapped["Conversation | None"] = relationship(back_populates="rag_documents")
+    conversation: Mapped["Conversation | None"] = relationship(
+        back_populates="rag_documents",
+        foreign_keys=[conversation_id],
+    )
     chunks: Mapped[list["RagChunk"]] = relationship(
         back_populates="document", cascade="all, delete-orphan", order_by="RagChunk.chunk_index"
     )

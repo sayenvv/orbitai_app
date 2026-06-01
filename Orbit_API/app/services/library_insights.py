@@ -17,13 +17,35 @@ _INSIGHTS_QUERY = (
     "and actionable insights from this document."
 )
 
-_INSIGHTS_USER_MESSAGE = """Analyze the document excerpts below and write clear AI insights.
+_ALLOWED_INSIGHT_TYPES = frozenset({"summary", "keywords", "concepts", "evidence", "questions"})
+
+_DEFAULT_INSIGHT_TYPES = ("summary", "keywords", "concepts", "evidence", "questions")
+
+_INSIGHT_SECTIONS: dict[str, str] = {
+    "summary": "**Summary** — 2–4 sentences capturing what the document is about",
+    "keywords": "**Keyword themes** — bullet list of important terms and repeated topics",
+    "concepts": "**Concept summary** — bullet list of main concepts grouped by theme",
+    "evidence": "**Evidence map** — bullet list of claims, methods, data points, and citations",
+    "questions": "**Discussion questions** — 3–5 follow-up questions the reader might ask",
+}
+
+
+def _normalize_insight_types(insight_types: list[str] | None) -> list[str]:
+    if not insight_types:
+        return list(_DEFAULT_INSIGHT_TYPES)
+    normalized = [item for item in insight_types if item in _ALLOWED_INSIGHT_TYPES]
+    return normalized or list(_DEFAULT_INSIGHT_TYPES)
+
+
+def _build_insights_user_message(context: str, insight_types: list[str]) -> str:
+    sections = "\n".join(
+        f"{index + 1}. {_INSIGHT_SECTIONS[item]}"
+        for index, item in enumerate(insight_types)
+    )
+    return f"""Analyze the document excerpts below and write clear AI insights.
 
 Structure your response with these sections:
-1. **Summary** — 2–4 sentences capturing what the document is about
-2. **Key themes** — bullet list of main topics
-3. **Important details** — bullet list of notable facts, figures, or claims
-4. **Suggested questions** — 3 follow-up questions the reader might ask
+{sections}
 
 {context}"""
 
@@ -33,7 +55,10 @@ async def generate_upload_insights(
     *,
     user: User,
     document_id: uuid.UUID,
+    insight_types: list[str] | None = None,
 ) -> dict:
+    selected_types = _normalize_insight_types(insight_types)
+
     document = get_user_document(db, user.id, document_id)
     if not document:
         raise LookupError("Document not found")
@@ -57,7 +82,7 @@ async def generate_upload_insights(
     if not agent_config:
         raise RuntimeError("No active agent is configured.")
 
-    user_message = _INSIGHTS_USER_MESSAGE.format(context=context)
+    user_message = _build_insights_user_message(context, selected_types)
 
     parts: list[str] = []
     async for token in stream_agent_response(

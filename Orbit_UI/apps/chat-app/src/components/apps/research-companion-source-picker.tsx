@@ -4,21 +4,32 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { BookOpen, Loader2, Search, Upload, X } from "lucide-react";
-import { getApiErrorMessage, publicApi, type ApiRagDocument } from "@/lib/orbit-api";
+import { getApiErrorMessage, publicApi, type ApiLibraryGenerated, type ApiRagDocument } from "@/lib/orbit-api";
+import { findExistingInsightForDocument } from "@/lib/research-companion-insights";
 import { mapRagDocumentToSource, PdfUploadCancelledError, uploadPdfAndWait } from "@/lib/rag-upload";
+import { catalogAppIds, getAppWorkspaceHref } from "@orbit/clovai-apps";
 
 type ResearchCompanionSourcePickerProps = {
   open: boolean;
   onClose: () => void;
+  autoUpload?: boolean;
 };
 
-function navigateToWorkspace(router: ReturnType<typeof useRouter>, id: string, name: string) {
+function navigateToWorkspace(
+  router: ReturnType<typeof useRouter>,
+  id: string,
+  name: string,
+  insightId?: string | null,
+) {
   const params = new URLSearchParams({
     sourceId: id,
     sourceName: name,
     sourceType: "uploaded-file",
   });
-  router.push(`/apps/research-companion/workspace?${params.toString()}`);
+  if (insightId) {
+    params.set("insightId", insightId);
+  }
+  router.push(`${getAppWorkspaceHref(catalogAppIds.researchCompanion)}?${params.toString()}`);
 }
 
 function SourceRow({
@@ -50,11 +61,16 @@ function SourceRow({
   );
 }
 
-export function ResearchCompanionSourcePicker({ open, onClose }: ResearchCompanionSourcePickerProps) {
+export function ResearchCompanionSourcePicker({
+  open,
+  onClose,
+  autoUpload = false,
+}: ResearchCompanionSourcePickerProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState("");
   const [files, setFiles] = useState<ApiRagDocument[]>([]);
+  const [generatedInsights, setGeneratedInsights] = useState<ApiLibraryGenerated[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -75,11 +91,20 @@ export function ResearchCompanionSourcePicker({ open, onClose }: ResearchCompani
     setLoading(true);
     setLoadError("");
     publicApi
-      .files()
-      .then((data) => setFiles(data.data || []))
+      .library()
+      .then((data) => {
+        setFiles(data.uploads || []);
+        setGeneratedInsights(data.generated || []);
+      })
       .catch((err) => setLoadError(getApiErrorMessage(err, "Failed to load files")))
       .finally(() => setLoading(false));
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !autoUpload || uploading) return;
+    const timer = window.setTimeout(() => fileInputRef.current?.click(), 0);
+    return () => window.clearTimeout(timer);
+  }, [open, autoUpload, uploading]);
 
   useEffect(() => {
     if (!open) return;
@@ -94,10 +119,14 @@ export function ResearchCompanionSourcePicker({ open, onClose }: ResearchCompani
     (doc: ApiRagDocument) => {
       if (doc.status !== "ready") return;
       const source = mapRagDocumentToSource(doc);
-      navigateToWorkspace(router, source.id, source.name);
+      const existing = findExistingInsightForDocument(source.id, source.name, {
+        uploads: files,
+        generated: generatedInsights,
+      });
+      navigateToWorkspace(router, source.id, source.name, existing?.id);
       onClose();
     },
-    [onClose, router],
+    [files, generatedInsights, onClose, router],
   );
 
   const handleUpload = useCallback(
@@ -243,11 +272,28 @@ export function ResearchCompanionSourcePicker({ open, onClose }: ResearchCompani
 
 export function useResearchCompanionSourcePicker() {
   const [open, setOpen] = useState(false);
+  const [autoUpload, setAutoUpload] = useState(false);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setAutoUpload(false);
+  }, []);
 
   return {
-    openFile: () => setOpen(true),
+    openFile: () => {
+      setAutoUpload(false);
+      setOpen(true);
+    },
+    openLibrary: () => {
+      setAutoUpload(false);
+      setOpen(true);
+    },
+    openUpload: () => {
+      setAutoUpload(true);
+      setOpen(true);
+    },
     picker: (
-      <ResearchCompanionSourcePicker open={open} onClose={() => setOpen(false)} />
+      <ResearchCompanionSourcePicker open={open} autoUpload={autoUpload} onClose={close} />
     ),
   };
 }

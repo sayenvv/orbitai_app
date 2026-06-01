@@ -68,6 +68,8 @@ export type ApiConversationSummary = {
   agent_short_name?: string | null;
   icon_key?: string | null;
   color_key?: string | null;
+  app_slug?: string | null;
+  source_id?: string | null;
 };
 
 export type GeneratedMaterial = {
@@ -218,19 +220,21 @@ export function mapApiUser(raw: ApiUser): User {
 async function request<T>(
   baseUrl: string,
   path: string,
-  options: RequestInit = {},
+  options: RequestInit & { timeoutMs?: number } = {},
 ): Promise<T> {
+  const { timeoutMs, ...fetchOptions } = options;
   const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string> | undefined),
+    ...(fetchOptions.headers as Record<string, string> | undefined),
   };
-  if (options.body && !headers["Content-Type"]) {
+  if (fetchOptions.body && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
+    ...fetchOptions,
     credentials: "include",
     headers,
+    signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : fetchOptions.signal,
   });
 
   if (!response.ok) {
@@ -348,11 +352,20 @@ export const publicApi = {
       ),
     ),
 
-  generateUploadInsights: (documentId: string) =>
+  generateUploadInsights: (
+    documentId: string,
+    insightTypes?: string[],
+  ) =>
     request<ApiLibraryGenerated>(
       getApiBaseUrl(),
       `/library/uploads/${documentId}/insights`,
-      { method: "POST" },
+      {
+        method: "POST",
+        timeoutMs: 5 * 60 * 1000,
+        body: JSON.stringify({
+          insight_types: insightTypes?.length ? insightTypes : undefined,
+        }),
+      },
     ),
 
   uploadFile: (file: File, conversationId?: string | null) => {
@@ -435,6 +448,7 @@ export const chatApi = {
       message: string;
       conversation_id?: string | null;
       agent_id?: string | null;
+      app_slug?: string | null;
       source_id?: string | null;
       source_type?: string | null;
       history?: { role: string; content: string }[];
@@ -498,6 +512,8 @@ export function mapConversationSummary(raw: ApiConversationSummary): Conversatio
     agentShortName: raw.agent_short_name ?? null,
     iconKey: raw.icon_key ?? null,
     colorKey: raw.color_key ?? null,
+    appSlug: raw.app_slug ?? null,
+    sourceId: raw.source_id ?? null,
   };
 }
 

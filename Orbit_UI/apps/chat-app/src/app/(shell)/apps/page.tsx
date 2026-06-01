@@ -25,9 +25,11 @@ import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
 import {
   appCategories,
-  appsCatalog,
+  visibleAppsCatalog,
   featuredApps,
   sponsoredApps,
+  sortAppsByAvailability,
+  getAppDetailHref,
 } from "@orbit/clovai-apps";
 import { AppStoreCard } from "@/components/apps/app-store-card";
 import { cn } from "@/lib/utils";
@@ -53,7 +55,7 @@ export default function AppsPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const slideCount = featuredApps.length;
-  const proApps = appsCatalog.filter((app) => app.tier === "pro").length;
+  const proApps = visibleAppsCatalog.filter((app) => app.tier === "pro").length;
   const totalInstalls = "346k+ installs";
 
   const goTo = useCallback(
@@ -75,7 +77,7 @@ export default function AppsPage() {
 
   const filteredApps = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return appsCatalog.filter((app) => {
+    const matches = visibleAppsCatalog.filter((app) => {
       const matchesCategory = category === "All" || app.category === category;
       const matchesTerm =
         !term ||
@@ -84,7 +86,8 @@ export default function AppsPage() {
         app.shortDescription.toLowerCase().includes(term);
       return matchesCategory && matchesTerm;
     });
-  }, [query, category]);
+    return sortAppsByAvailability(matches, isAuthenticated);
+  }, [query, category, isAuthenticated]);
 
   useEffect(() => {
     setHeader({
@@ -130,7 +133,7 @@ export default function AppsPage() {
 
             <div className="grid grid-cols-3 gap-2 pt-1 sm:max-w-xl sm:gap-3 sm:pt-2">
               <div className="rounded-xl border border-border/60 bg-card/60 p-2.5 backdrop-blur-sm sm:rounded-2xl sm:p-3">
-                <p className="text-base font-semibold tracking-tight sm:text-lg">{appsCatalog.length}</p>
+                <p className="text-base font-semibold tracking-tight sm:text-lg">{visibleAppsCatalog.length}</p>
                 <p className="text-[11px] text-muted-foreground">AI apps</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-card/60 p-2.5 backdrop-blur-sm sm:rounded-2xl sm:p-3">
@@ -158,7 +161,7 @@ export default function AppsPage() {
                   return (
                     <Link
                       key={app.slug}
-                      href={`/apps/${app.slug}`}
+                      href={getAppDetailHref(app)}
                       className="group relative w-full shrink-0"
                     >
                       <div
@@ -361,7 +364,14 @@ export default function AppsPage() {
             <div className="grid grid-cols-2 items-stretch gap-3.5 sm:gap-5 xl:grid-cols-3">
               {filteredApps.map((app) => {
                 const locked = app.tier === "pro" && !isAuthenticated;
-                return <AppStoreCard key={app.slug} app={app} locked={locked} />;
+                return (
+                  <AppStoreCard
+                    key={app.slug}
+                    app={app}
+                    locked={locked}
+                    onUpgrade={openUpgrade}
+                  />
+                );
               })}
             </div>
 

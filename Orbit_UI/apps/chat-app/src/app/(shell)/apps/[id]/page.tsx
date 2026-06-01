@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -24,7 +24,12 @@ import {
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
 import { AppStoreCard } from "@/components/apps/app-store-card";
-import { appsCatalog, findCatalogApp } from "@orbit/clovai-apps";
+import {
+  visibleAppsCatalog,
+  findCatalogAppById,
+  getAppLaunchHref,
+  sortAppsByAvailability,
+} from "@orbit/clovai-apps";
 import { cn } from "@/lib/utils";
 
 const iconMap = {
@@ -40,15 +45,22 @@ const iconMap = {
 } as const;
 
 export default function AppDetailPage() {
-  const params = useParams<{ slug: string }>();
+  const params = useParams<{ id: string }>();
   const router = useRouter();
   const { setHeader, openUpgrade } = useAppShell();
   const { isAuthenticated } = useAuthStore();
 
-  const app = useMemo(() => findCatalogApp(params.slug), [params.slug]);
+  const app = useMemo(() => findCatalogAppById(params.id), [params.id]);
+  const launchHref = app ? getAppLaunchHref(app) : null;
+  const locked = Boolean(app?.tier === "pro" && !isAuthenticated);
+  const canLaunch = Boolean(launchHref) && !locked;
   const related = useMemo(
-    () => appsCatalog.filter((candidate) => candidate.slug !== params.slug).slice(0, 3),
-    [params.slug],
+    () =>
+      sortAppsByAvailability(
+        visibleAppsCatalog.filter((candidate) => candidate.id !== params.id),
+        isAuthenticated,
+      ).slice(0, 3),
+    [params.id, isAuthenticated],
   );
 
   useEffect(() => {
@@ -65,6 +77,17 @@ export default function AppDetailPage() {
     });
     return () => setHeader(null);
   }, [app, setHeader]);
+
+  const handlePrimaryAction = () => {
+    if (locked) {
+      openUpgrade();
+      return;
+    }
+
+    if (launchHref) {
+      router.push(launchHref);
+    }
+  };
 
   if (!app) {
     return (
@@ -87,6 +110,7 @@ export default function AppDetailPage() {
   }
 
   const Icon = iconMap[app.iconKey] ?? Sparkles;
+  const primaryActionLabel = locked ? "Unlock with Pro" : canLaunch ? "Use app" : "Coming soon";
 
   return (
     <div className="relative min-h-0 flex-1 overflow-y-auto">
@@ -139,11 +163,19 @@ export default function AppDetailPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={openUpgrade}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:translate-x-0.5"
+                  onClick={handlePrimaryAction}
+                  disabled={!locked && !canLaunch}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition",
+                    locked
+                      ? "bg-white text-slate-950 hover:translate-x-0.5"
+                      : canLaunch
+                        ? "bg-white text-slate-950 hover:translate-x-0.5"
+                        : "cursor-not-allowed bg-white/40 text-white/70",
+                  )}
                 >
-                  <Sparkles className="h-4 w-4" />
-                  Unlock with subscription
+                  {locked ? <Sparkles className="h-4 w-4" /> : canLaunch ? <ArrowRight className="h-4 w-4" /> : null}
+                  {primaryActionLabel}
                 </button>
               </div>
 
@@ -262,7 +294,14 @@ export default function AppDetailPage() {
             <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {related.map((candidate) => {
                 const locked = candidate.tier === "pro" && !isAuthenticated;
-                return <AppStoreCard key={candidate.slug} app={candidate} locked={locked} />;
+                return (
+                  <AppStoreCard
+                    key={candidate.slug}
+                    app={candidate}
+                    locked={locked}
+                    onUpgrade={openUpgrade}
+                  />
+                );
               })}
             </div>
           </section>

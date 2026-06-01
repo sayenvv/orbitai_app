@@ -13,6 +13,7 @@ type ChatInputProps = {
   selectedSource: StudySource | null;
   onSelectSource: (source: StudySource | null) => void;
   showContextSelector?: boolean;
+  contextLocked?: boolean;
   conversationId?: string | null;
   columnClassName?: string;
   mobileBottom?: boolean;
@@ -29,6 +30,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     selectedSource,
     onSelectSource,
     showContextSelector = true,
+    contextLocked = false,
     columnClassName,
     conversationId,
     mobileBottom = false,
@@ -115,6 +117,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
               selectedSource={selectedSource}
               onSelect={onSelectSource}
               conversationId={conversationId}
+              locked={contextLocked}
             />
           </div>
         )}
@@ -132,7 +135,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={pdfUploading}
+                disabled={pdfUploading || contextLocked}
                 className="press mb-1 ml-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 sm:inline-flex"
                 title="Upload PDF"
               >

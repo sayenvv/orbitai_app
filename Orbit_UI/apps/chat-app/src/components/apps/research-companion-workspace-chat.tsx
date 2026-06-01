@@ -9,11 +9,13 @@ import { buildAgentGreeting } from "@/lib/agent-greeting";
 import { getAgentSuggestions } from "@/lib/agent-suggestions";
 import { ApiError, chatApi, mapMessage, publicApi } from "@/lib/orbit-api";
 import { isSourceProcessing, mapRagDocumentToSource } from "@/lib/rag-upload";
+import { useChatStore } from "@/store/chat-store";
 import { randomId } from "@/lib/utils";
 import type { Message, StudySource } from "@/types";
 
 const AGENT_SLUG = "study-helper";
 const AGENT_NAME = "Study Helper";
+const APP_SLUG = "research-companion";
 
 function workspaceChatStorageKey(sourceId: string): string {
   return `rc-workspace-chat:${sourceId}`;
@@ -38,6 +40,7 @@ type ResearchCompanionWorkspaceChatProps = {
   sourceId: string;
   sourceName?: string | null;
   activePage: number;
+  initialConversationId?: string | null;
   onClose: () => void;
 };
 
@@ -45,6 +48,7 @@ export function ResearchCompanionWorkspaceChat({
   sourceId,
   sourceName,
   activePage,
+  initialConversationId = null,
   onClose,
 }: ResearchCompanionWorkspaceChatProps) {
   const { openAuthPrompt } = useAppShell();
@@ -133,19 +137,22 @@ export function ResearchCompanionWorkspaceChat({
       return;
     }
 
-    const storedConversationId = readStoredConversationId(sourceId);
-    if (!storedConversationId) {
+    const resolvedConversationId =
+      initialConversationId?.trim() || readStoredConversationId(sourceId);
+    if (!resolvedConversationId) {
       setConversationId(null);
       setMessages([]);
       return;
     }
 
+    writeStoredConversationId(sourceId, resolvedConversationId);
+
     let active = true;
     setHistoryLoading(true);
-    setConversationId(storedConversationId);
+    setConversationId(resolvedConversationId);
 
     chatApi
-      .getConversation(storedConversationId)
+      .getConversation(resolvedConversationId)
       .then((data) => {
         if (!active) return;
         setMessages(data.messages.map(mapMessage));
@@ -165,7 +172,7 @@ export function ResearchCompanionWorkspaceChat({
     return () => {
       active = false;
     };
-  }, [isAuthenticated, sourceId]);
+  }, [initialConversationId, isAuthenticated, sourceId]);
 
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -225,11 +232,13 @@ export function ResearchCompanionWorkspaceChat({
           source_id: selectedSource?.id ?? sourceId,
           source_type: selectedSource?.type ?? "uploaded-file",
           agent_id: AGENT_SLUG,
+          app_slug: APP_SLUG,
         })) {
           if (event.type === "start" && event.conversation_id) {
             streamConversationId = event.conversation_id;
             setConversationId(event.conversation_id);
             writeStoredConversationId(sourceId, event.conversation_id);
+            void useChatStore.getState().refreshConversationsList();
           } else if (event.type === "token") {
             streamBufferRef.current += event.content;
           }

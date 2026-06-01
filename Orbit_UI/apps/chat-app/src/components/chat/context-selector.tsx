@@ -20,6 +20,7 @@ type ContextSelectorProps = {
   selectedSource: StudySource | null;
   onSelect: (source: StudySource | null) => void;
   conversationId?: string | null;
+  locked?: boolean;
 };
 
 function SourceListModal({
@@ -164,6 +165,7 @@ export function ContextSelector({
   selectedSource,
   onSelect,
   conversationId,
+  locked = false,
 }: ContextSelectorProps) {
   const [openTab, setOpenTab] = useState<"materials" | "files" | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -248,23 +250,41 @@ export function ContextSelector({
       selectedSource.status === "processing" || selectedSource.status === "pending";
     return (
       <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => onSelect(null)}
-          className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-md bg-foreground/[0.03] border border-foreground/10 hover:border-destructive/40 hover:bg-destructive/5 transition-all group"
-        >
-          {selectedSource.type === "study-material" ? (
-            <BookOpen className="h-2.5 w-2.5 text-indigo-500" />
-          ) : (
-            <FileUp className="h-2.5 w-2.5 text-orange-500" />
-          )}
-          <span className="text-[10px] font-medium text-foreground/80 max-w-[150px] truncate">
-            {selectedSource.name}
+        {locked ? (
+          <span className="inline-flex items-center gap-1 border border-foreground/10 bg-foreground/[0.03] py-1 pl-2 pr-2 rounded-md">
+            {selectedSource.type === "study-material" ? (
+              <BookOpen className="h-2.5 w-2.5 text-indigo-500" />
+            ) : (
+              <FileUp className="h-2.5 w-2.5 text-orange-500" />
+            )}
+            <span className="text-[10px] font-medium text-foreground/80 max-w-[150px] truncate">
+              {selectedSource.name}
+            </span>
+            {processing && <Loader2 className="h-2.5 w-2.5 animate-spin text-orange-500" />}
           </span>
-          {processing && <Loader2 className="h-2.5 w-2.5 animate-spin text-orange-500" />}
-          <X className="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive ml-0.5 transition-colors" />
-        </button>
+        ) : (
+          <button
+            onClick={() => onSelect(null)}
+            className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-md bg-foreground/[0.03] border border-foreground/10 hover:border-destructive/40 hover:bg-destructive/5 transition-all group"
+          >
+            {selectedSource.type === "study-material" ? (
+              <BookOpen className="h-2.5 w-2.5 text-indigo-500" />
+            ) : (
+              <FileUp className="h-2.5 w-2.5 text-orange-500" />
+            )}
+            <span className="text-[10px] font-medium text-foreground/80 max-w-[150px] truncate">
+              {selectedSource.name}
+            </span>
+            {processing && <Loader2 className="h-2.5 w-2.5 animate-spin text-orange-500" />}
+            <X className="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive ml-0.5 transition-colors" />
+          </button>
+        )}
       </div>
     );
+  }
+
+  if (locked) {
+    return null;
   }
 
   return (

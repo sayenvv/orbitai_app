@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LogIn } from "lucide-react";
 
 import {
@@ -13,10 +13,15 @@ import {
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
 import { useSidebarChats } from "@/hooks/use-sidebar-chats";
 import { navigateToNewChat } from "@/lib/chat-navigation";
+import {
+  buildAppChatHref,
+  isSameWorkspaceAppChat,
+} from "@/lib/app-chat";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
 import { cn } from "@/lib/utils";
+import type { Conversation } from "@/types";
 
 type AppSidebarContentProps = {
   expanded: boolean;
@@ -35,6 +40,8 @@ export function AppSidebarContent({
   className,
 }: AppSidebarContentProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { isAuthenticated } = useAuthStore();
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const { section, setSection, openLogin, openSupport } = useAppShell();
@@ -80,7 +87,26 @@ export function AppSidebarContent({
     onNavigate?.();
   };
 
+  const workspaceSourceId = /^\/apps\/[^/]+\/workspace/.test(pathname)
+    ? searchParams.get("sourceId")
+    : null;
+
+  const openWorkspaceChat = (conversation: Conversation) => {
+    const appHref = buildAppChatHref(conversation);
+    if (!appHref) return;
+
+    useChatStore.getState().setActiveConversation(conversation.id);
+
+    if (isSameWorkspaceAppChat(conversation, workspaceSourceId)) {
+      router.replace(appHref);
+    } else {
+      router.push(appHref);
+    }
+    onNavigate?.();
+  };
+
   const openChat = (id: string) => {
+    useChatStore.getState().setActiveConversation(id);
     router.push(`/c/${encodeURIComponent(id)}`);
     onNavigate?.();
   };
@@ -163,6 +189,8 @@ export function AppSidebarContent({
             onLoadMore={() => void loadMore()}
             activeId={activeConversationId}
             onSelect={openChat}
+            onOpenWorkspaceChat={openWorkspaceChat}
+            workspaceSourceId={workspaceSourceId}
             onDelete={(id) => void removeConversation(id)}
             autoFocusSearch={focusSearch}
             onSearchFocused={() => setFocusSearch(false)}

@@ -92,3 +92,38 @@ export function ChatSideRailShimmer() {
     </div>
   );
 }
+
+export function ResearchCompanionWorkspaceShimmer() {
+  return (
+    <div
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      aria-busy="true"
+      aria-label="Opening workspace"
+    >
+      <div className="flex items-center gap-3 border-b border-border/50 px-4 py-3">
+        <Skeleton className="h-8 w-8 shrink-0 rounded-lg" />
+        <Skeleton className="h-4 w-40 rounded-full" />
+        <div className="ml-auto flex gap-2">
+          <Skeleton className="h-8 w-16 rounded-lg" />
+          <Skeleton className="h-8 w-16 rounded-lg" />
+          <Skeleton className="h-8 w-8 rounded-lg" />
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-1 gap-3 p-3">
+        <div className="hidden w-44 shrink-0 space-y-2 md:block">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-[4.75rem] w-full rounded-lg" />
+          ))}
+        </div>
+        <Skeleton className="min-h-0 flex-1 rounded-xl" />
+        <div className="hidden w-64 shrink-0 space-y-2 lg:block">
+          <Skeleton className="h-9 w-full rounded-lg" />
+          <Skeleton className="h-28 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+        </div>
+      </div>
+      <p className="pb-4 text-center text-xs font-medium text-muted-foreground">Opening workspace…</p>
+    </div>
+  );
+}

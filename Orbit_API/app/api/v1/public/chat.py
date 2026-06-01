@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -56,6 +57,8 @@ def _conversation_summary(conv: Conversation) -> ConversationSummary:
         agent_short_name=agent.short_name if agent else None,
         icon_key=agent.icon_key if agent else None,
         color_key=agent.color_key if agent else None,
+        app_slug=conv.app_slug,
+        source_id=conv.source_id,
     )
 
 
@@ -198,7 +201,20 @@ async def stream_message(
             user_id=user.id,
             agent_id=agent_uuid,
             title=(body.message[:50] if body.message else "New conversation"),
+            app_slug=body.app_slug,
+            source_id=body.source_id if body.app_slug else None,
         )
+    elif body.app_slug or body.source_id:
+        changed = False
+        if body.app_slug and not conv.app_slug:
+            conv.app_slug = body.app_slug
+            changed = True
+        if body.source_id and not conv.source_id:
+            conv.source_id = body.source_id
+            changed = True
+        if changed:
+            db.commit()
+            db.refresh(conv)
 
     assert conv is not None
 
@@ -211,6 +227,8 @@ async def stream_message(
         )
 
     save_message(db, conv.id, "user", body.message)
+    conv.updated_at = datetime.now(timezone.utc)
+    db.commit()
 
     async def event_generator():
         conv_id = str(conv.id)
@@ -230,6 +248,8 @@ async def stream_message(
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
         save_message(db, conv.id, "assistant", full)
+        conv.updated_at = datetime.now(timezone.utc)
+        db.commit()
 
         turn_tokens = estimate_turn_tokens(user_message=body.message, assistant_message=full)
         snapshot = record_usage(db, user, turn_tokens)

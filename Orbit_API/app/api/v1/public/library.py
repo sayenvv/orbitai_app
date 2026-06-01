@@ -1,13 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from app.api.v1.public.auth import require_chat_user
 from app.db.session import get_db
 from app.models import User
-from app.schemas import LibraryGeneratedFileResponse
+from app.schemas import CreateUploadInsightsRequest, LibraryGeneratedFileResponse
 from app.services.library_insights import generate_upload_insights
 from app.services.library_store import (
     _serialize_generated,
@@ -22,11 +22,17 @@ router = APIRouter(prefix="/library", tags=["library"])
 @router.post("/uploads/{document_id}/insights", response_model=LibraryGeneratedFileResponse)
 async def create_upload_insights(
     document_id: uuid.UUID,
+    payload: CreateUploadInsightsRequest = Body(default_factory=CreateUploadInsightsRequest),
     user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
     try:
-        payload = await generate_upload_insights(db, user=user, document_id=document_id)
+        result = await generate_upload_insights(
+            db,
+            user=user,
+            document_id=document_id,
+            insight_types=payload.insight_types,
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -34,7 +40,7 @@ async def create_upload_insights(
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    return LibraryGeneratedFileResponse(**payload)
+    return LibraryGeneratedFileResponse(**result)
 
 
 @router.get("/generated", response_model=list[LibraryGeneratedFileResponse])

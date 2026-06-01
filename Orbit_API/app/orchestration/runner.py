@@ -253,13 +253,21 @@ def get_or_create_conversation(
     user_id,
     agent_id,
     title: str,
+    app_slug: str | None = None,
+    source_id=None,
 ) -> Conversation:
     if conversation_id:
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
         if conv:
             return conv
 
-    conv = Conversation(user_id=user_id, agent_id=agent_id, title=title[:512])
+    conv = Conversation(
+        user_id=user_id,
+        agent_id=agent_id,
+        title=title[:512],
+        app_slug=app_slug,
+        source_id=source_id if app_slug else None,
+    )
     db.add(conv)
     db.commit()
     db.refresh(conv)

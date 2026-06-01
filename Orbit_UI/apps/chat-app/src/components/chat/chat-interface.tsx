@@ -8,7 +8,7 @@ import { ChatSideRail } from "./chat-side-rail";
 import { ChatActionsMenu } from "./chat-actions-menu";
 import { ChatThreadShimmer } from "@/components/ui/skeleton";
 import { ChatInput, type ChatInputHandle } from "./chat-input";
-import { Message, StudySource } from "@/types";
+import { Message, StudySource, type Conversation } from "@/types";
 import { ApiError, chatApi, mapMessage, publicApi } from "@/lib/orbit-api";
 import { chatContentClass } from "@/lib/chat-layout";
 import { randomId } from "@/lib/utils";
@@ -70,6 +70,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   const agentGreetingRef = useRef<Message | null>(null);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
+  const isFileContextLocked = Boolean(activeConversation?.appSlug && activeConversation?.sourceId);
   const effectiveAgentSlug =
     activeConversation?.agentSlug ?? draftAgentSlug ?? null;
   const activeAgent = agents.find((agent) => agent.id === effectiveAgentSlug);
@@ -214,6 +215,39 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     };
   }, [selectedSource?.id, selectedSource?.status, selectedSource?.type]);
 
+  const hydrateSourceForConversation = useCallback(async (conv: Conversation) => {
+    if (!conv.sourceId) {
+      setSelectedSource(null);
+      return;
+    }
+
+    try {
+      const doc = await publicApi.getFile(conv.sourceId);
+      setSelectedSource(mapRagDocumentToSource(doc));
+    } catch {
+      setSelectedSource({
+        id: conv.sourceId,
+        name: conv.title || "Document",
+        type: "uploaded-file",
+        createdAt: new Date(),
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!conversationId || !activeConversation) return;
+    if (activeConversation.sourceId) {
+      void hydrateSourceForConversation(activeConversation);
+      return;
+    }
+    setSelectedSource(null);
+  }, [
+    conversationId,
+    activeConversation?.id,
+    activeConversation?.sourceId,
+    hydrateSourceForConversation,
+  ]);
+
   const loadConversationMessages = useCallback(
     async (id: string) => {
       if (streamingConversationRef.current) return;
@@ -222,6 +256,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       if (conv && conv.messages.length > 0) {
         setActiveConversation(id);
         if (conv.agentSlug) setDraftAgentSlug(conv.agentSlug);
+        if (conv.sourceId) void hydrateSourceForConversation(conv);
+        else setSelectedSource(null);
         return;
       }
 
@@ -252,6 +288,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
             agentShortName: summary?.agentShortName ?? null,
             iconKey: summary?.iconKey ?? null,
             colorKey: summary?.colorKey ?? null,
+            appSlug: summary?.appSlug ?? null,
+            sourceId: summary?.sourceId ?? null,
           });
         } else {
           const existingIds = new Set(latest.messages.map((m) => m.id));
@@ -262,6 +300,9 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
 
         if (summary?.agentSlug) setDraftAgentSlug(summary.agentSlug);
         else setDraftAgentSlug(null);
+
+        if (summary?.sourceId) void hydrateSourceForConversation(summary as Conversation);
+        else setSelectedSource(null);
       } catch (err) {
         const isMissing =
           err instanceof ApiError && (err.status === 404 || err.status === 422 || err.status === 403);
@@ -274,7 +315,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         setLoadingMessages(false);
       }
     },
-    [setActiveConversation, addConversation, addMessage, setDraftAgentSlug, refreshConversationsList, deleteConversation],
+    [setActiveConversation, addConversation, addMessage, setDraftAgentSlug, refreshConversationsList, deleteConversation, hydrateSourceForConversation],
   );
 
   useEffect(() => {
@@ -332,6 +373,23 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       }
 
       let activeSource = selectedSource;
+
+      if (!activeSource?.id && activeConversation?.sourceId) {
+        try {
+          const doc = await publicApi.getFile(activeConversation.sourceId);
+          activeSource = mapRagDocumentToSource(doc);
+          setSelectedSource(activeSource);
+        } catch {
+          activeSource = {
+            id: activeConversation.sourceId,
+            name: activeConversation.title || "Document",
+            type: "uploaded-file",
+            createdAt: new Date(),
+          };
+          setSelectedSource(activeSource);
+        }
+      }
+
       if (activeSource && !isSourceReady(activeSource)) {
         setLoading(true);
         try {
@@ -431,6 +489,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           source_id: activeSource?.id || null,
           source_type: activeSource?.type || null,
           agent_id: effectiveAgentSlug,
+          app_slug: activeConversation?.appSlug ?? null,
         })) {
           if (event.type === "start" && event.conversation_id) {
             if (isNewConversation) {
@@ -479,6 +538,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       }
     },
     [
+      activeConversation,
       activeConversationId,
       addConversation,
       addMessage,
@@ -656,6 +716,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           selectedSource={isAuthenticated ? selectedSource : null}
           onSelectSource={isAuthenticated ? setSelectedSource : () => {}}
           showContextSelector={isAuthenticated}
+          contextLocked={isFileContextLocked}
           conversationId={activeConversationId}
           mobileBottom
         />

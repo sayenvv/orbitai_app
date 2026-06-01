@@ -73,6 +73,7 @@ class StreamMessageRequest(BaseModel):
     message: str
     conversation_id: UUID | None = None
     agent_id: str | None = None
+    app_slug: str | None = None
     source_id: UUID | None = None
     source_type: str | None = None
     history: list[StreamHistoryItem] = Field(default_factory=list)
@@ -94,6 +95,8 @@ class ConversationSummary(BaseModel):
     agent_short_name: str | None = None
     icon_key: str | None = None
     color_key: str | None = None
+    app_slug: str | None = None
+    source_id: UUID | None = None
 
     model_config = {"from_attributes": True}
 
@@ -222,6 +225,10 @@ class PdfInspectResponse(BaseModel):
     pages_indexed: int
     will_truncate: bool
     plan: str
+
+
+class CreateUploadInsightsRequest(BaseModel):
+    insight_types: list[str] | None = None
 
 
 class LibraryGeneratedFileResponse(BaseModel):

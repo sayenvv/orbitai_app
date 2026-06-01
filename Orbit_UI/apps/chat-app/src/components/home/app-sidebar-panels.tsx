@@ -18,6 +18,7 @@ import {
   Sparkles,
   SquarePen,
   Store,
+  MessageSquare,
   Trash2,
   Upload,
   X,
@@ -28,6 +29,7 @@ import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
 import { SidebarRecentsRowsShimmer } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { chatApi, mapConversationSummary } from "@/lib/orbit-api";
+import { getAppChatLabel, isAppChatConversation, isSameWorkspaceAppChat, partitionConversations } from "@/lib/app-chat";
 import { formatFileSize, formatRelativeDate } from "@/lib/format-library";
 import { LibraryDeleteDialog } from "@/components/library/library-delete-dialog";
 import { InsightGeneratingOverlay } from "@/components/insights/insight-generating-overlay";
@@ -39,7 +41,7 @@ import { useRagUpload } from "@/hooks/use-rag-upload";
 import type { LibraryGeneratedFile, LibraryUpload } from "@/hooks/use-library";
 import type { Conversation } from "@/types";
 import type { HomeAgent } from "@/lib/home-data";
-import { appsCatalog, type CatalogApp } from "@orbit/clovai-apps";
+import { catalogAppIds, getAppWorkspaceHref, visibleAppsCatalog, type CatalogApp } from "@orbit/clovai-apps";
 
 export type SidebarSection = "home" | "library" | "agents" | "apps" | "plans";
 
@@ -300,6 +302,11 @@ export function SidebarSectionNav({
 
 type RecentGroup = { label: string; items: Conversation[] };
 
+type HistorySection = {
+  categoryLabel: string;
+  groups: RecentGroup[];
+};
+
 function groupRecents(conversations: Conversation[]): RecentGroup[] {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -329,6 +336,23 @@ function groupRecents(conversations: Conversation[]): RecentGroup[] {
   return groups;
 }
 
+function buildHistorySections(conversations: Conversation[]): HistorySection[] {
+  const { appChats, chats } = partitionConversations(conversations);
+  const sections: HistorySection[] = [];
+
+  const appGroups = groupRecents(appChats);
+  if (appGroups.length > 0) {
+    sections.push({ categoryLabel: "App chats", groups: appGroups });
+  }
+
+  const chatGroups = groupRecents(chats);
+  if (chatGroups.length > 0) {
+    sections.push({ categoryLabel: "Chats", groups: chatGroups });
+  }
+
+  return sections;
+}
+
 type SidebarRecentsListProps = {
   conversations: Conversation[];
   loading: boolean;
@@ -338,6 +362,8 @@ type SidebarRecentsListProps = {
   activeId?: string | null;
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
+  onOpenWorkspaceChat?: (conversation: Conversation) => void;
+  workspaceSourceId?: string | null;
   compact?: boolean;
   autoFocusSearch?: boolean;
   onSearchFocused?: () => void;
@@ -355,6 +381,8 @@ export function SidebarRecentsList({
   activeId,
   onSelect,
   onDelete,
+  onOpenWorkspaceChat,
+  workspaceSourceId = null,
   compact = false,
   autoFocusSearch = false,
   onSearchFocused,
@@ -427,7 +455,11 @@ export function SidebarRecentsList({
   const showListShimmer =
     showHistoryShimmer || (trimmedSearch.length > 0 && isSearching && searchLoading);
 
-  const groups = useMemo(() => groupRecents(displayConversations), [displayConversations]);
+  const historySections = useMemo(
+    () => buildHistorySections(displayConversations),
+    [displayConversations],
+  );
+  const hasHistoryItems = historySections.some((section) => section.groups.length > 0);
 
   useEffect(() => {
     if (!onLoadMore || !hasMore || loading || loadingMore || trimmedSearch.length > 0) return;
@@ -446,7 +478,7 @@ export function SidebarRecentsList({
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [onLoadMore, hasMore, loading, loadingMore, trimmedSearch, groups.length, useOuterScroll]);
+  }, [onLoadMore, hasMore, loading, loadingMore, trimmedSearch, historySections.length, useOuterScroll]);
 
   useEffect(() => {
     if (!autoFocusSearch) return;
@@ -504,25 +536,34 @@ export function SidebarRecentsList({
       >
         {showListShimmer ? (
           <SidebarRecentsRowsShimmer />
-        ) : groups.length === 0 ? (
+        ) : !hasHistoryItems ? (
           <p className="px-1 py-6 text-center text-[11px] text-muted-foreground">
             {trimmedSearch.length > 0 ? "No matching chats" : "No recent chats"}
           </p>
         ) : (
           <>
-            {groups.map((group) => (
-              <div key={group.label} className="mb-3">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-                  {group.label}
+            {historySections.map((section) => (
+              <div key={section.categoryLabel} className="mb-4">
+                <p className="mb-2 px-2 text-[11px] font-semibold text-foreground/90">
+                  {section.categoryLabel}
                 </p>
-                {group.items.map((conv) => (
-                  <RecentChatItem
-                    key={conv.id}
-                    conversation={conv}
-                    isActive={activeId === conv.id}
-                    onSelect={onSelect}
-                    onDelete={onDelete}
-                  />
+                {section.groups.map((group) => (
+                  <div key={`${section.categoryLabel}-${group.label}`} className="mb-3">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
+                      {group.label}
+                    </p>
+                    {group.items.map((conv) => (
+                      <RecentChatItem
+                        key={conv.id}
+                        conversation={conv}
+                        isActive={activeId === conv.id}
+                        onSelect={onSelect}
+                        onDelete={onDelete}
+                        onOpenWorkspaceChat={onOpenWorkspaceChat}
+                        workspaceSourceId={workspaceSourceId}
+                      />
+                    ))}
+                  </div>
                 ))}
               </div>
             ))}
@@ -545,37 +586,71 @@ function RecentChatItem({
   isActive,
   onSelect,
   onDelete,
+  onOpenWorkspaceChat,
+  workspaceSourceId = null,
 }: {
   conversation: Conversation;
   isActive: boolean;
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
+  onOpenWorkspaceChat?: (conversation: Conversation) => void;
+  workspaceSourceId?: string | null;
 }) {
-  const agentLabel = conversation.agentShortName ?? conversation.agentName;
+  const appLabel = getAppChatLabel(conversation);
+  const agentLabel = appLabel ?? conversation.agentShortName ?? conversation.agentName;
+  const isAppChat = isAppChatConversation(conversation);
+  const isCurrentWorkspaceChat = isSameWorkspaceAppChat(conversation, workspaceSourceId);
+  const showWorkspaceChatAction = Boolean(isAppChat && onOpenWorkspaceChat);
+  const workspaceActionLabel =
+    workspaceSourceId && isCurrentWorkspaceChat ? "Open in app" : "Open workspace";
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(conversation.id)}
+    <div
       className={cn(
-        "group mb-0.5 flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm transition-colors",
-        isActive
-          ? "bg-sidebar-accent/80 text-sidebar-accent-foreground"
-          : "text-foreground/80 hover:bg-muted/70",
+        "group mb-0.5 flex w-full items-center gap-1 rounded-2xl pr-1 transition-colors",
+        isActive ? "bg-sidebar-accent/80" : "hover:bg-muted/70",
       )}
     >
-      <span className="min-w-0 flex-1 truncate text-[13px] leading-snug">
-        {conversation.title || "Untitled chat"}
-      </span>
-      {agentLabel && (
-        <span
+      <button
+        type="button"
+        onClick={() => onSelect(conversation.id)}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm transition-colors",
+          isActive
+            ? "text-sidebar-accent-foreground"
+            : "text-foreground/80",
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate text-[13px] leading-snug">
+          {conversation.title || "Untitled chat"}
+        </span>
+        {agentLabel && !showWorkspaceChatAction && (
+          <span
+            className={cn(
+              "hidden shrink-0 truncate text-[10px] group-hover:inline",
+              isActive ? "text-accent-foreground/70" : "text-muted-foreground",
+            )}
+          >
+            {agentLabel}
+          </span>
+        )}
+      </button>
+      {showWorkspaceChatAction && (
+        <button
+          type="button"
+          title={workspaceActionLabel}
+          aria-label={workspaceActionLabel}
+          onClick={() => onOpenWorkspaceChat?.(conversation)}
           className={cn(
-            "hidden shrink-0 truncate text-[10px] group-hover:inline",
-            isActive ? "text-accent-foreground/70" : "text-muted-foreground",
+            "inline-flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors",
+            isActive
+              ? "bg-background/70 text-foreground hover:bg-background"
+              : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
-          {agentLabel}
-        </span>
+          <MessageSquare className="h-3.5 w-3.5" />
+          <span className="max-w-[5.5rem] truncate">{workspaceActionLabel}</span>
+        </button>
       )}
       {onDelete && (
         <span
@@ -597,7 +672,7 @@ function RecentChatItem({
           <Trash2 className="h-3 w-3 text-muted-foreground" />
         </span>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -661,9 +736,9 @@ type OpenInTarget = {
   insight?: LibraryGeneratedFile;
 };
 
-const LIBRARY_OPEN_IN_APP_SLUGS = ["research-companion", "career-coach"] as const;
-const libraryOpenInApps = appsCatalog.filter((app) =>
-  LIBRARY_OPEN_IN_APP_SLUGS.includes(app.slug as (typeof LIBRARY_OPEN_IN_APP_SLUGS)[number]),
+const LIBRARY_OPEN_IN_APP_IDS = [catalogAppIds.researchCompanion] as const;
+const libraryOpenInApps = visibleAppsCatalog.filter((app) =>
+  LIBRARY_OPEN_IN_APP_IDS.includes(app.id as (typeof LIBRARY_OPEN_IN_APP_IDS)[number]),
 );
 
 function OpenInAppPicker({
@@ -711,10 +786,10 @@ function OpenInAppPicker({
 
         <div className="mt-4 space-y-2">
           {libraryOpenInApps.map((app) => {
-            const compatible = app.slug === "research-companion";
+            const compatible = app.id === catalogAppIds.researchCompanion;
             return (
               <button
-                key={app.slug}
+                key={app.id}
                 type="button"
                 onClick={() => compatible && onSelect(app)}
                 disabled={!compatible}
@@ -1085,7 +1160,7 @@ export function MainLibraryPanel({
     if (target.insight?.id) {
       params.set("insightId", target.insight.id);
     }
-    router.push(`/apps/${app.slug}/workspace?${params.toString()}`);
+    router.push(`${getAppWorkspaceHref(app)}?${params.toString()}`);
   };
 
   const handleConfirmDelete = async () => {

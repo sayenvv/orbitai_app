@@ -18,6 +18,8 @@ export type Conversation = {
   agentShortName?: string | null;
   iconKey?: string | null;
   colorKey?: string | null;
+  appSlug?: string | null;
+  sourceId?: string | null;
 };
 
 export type ChatRequest = {

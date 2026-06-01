@@ -1,3 +1,7 @@
+import { catalogAppIds, type CatalogAppId } from "./app-ids";
+
+export { catalogAppIds, type CatalogAppId } from "./app-ids";
+
 export type AppTier = "starter" | "pro";
 
 export type AppScreenshot = {
@@ -15,6 +19,7 @@ export type CatalogSubApp = {
 };
 
 export type CatalogApp = {
+  id: string;
   slug: string;
   name: string;
   iconKey:
@@ -55,6 +60,7 @@ export type SponsoredApp = {
 
 export const appsCatalog: CatalogApp[] = [
   {
+    id: catalogAppIds.logoStudio,
     slug: "logo-studio",
     name: "Logo Studio",
     iconKey: "wand",
@@ -92,6 +98,7 @@ export const appsCatalog: CatalogApp[] = [
     ],
   },
   {
+    id: catalogAppIds.photoGenerator,
     slug: "photo-generator",
     name: "Photo Generator",
     iconKey: "camera",
@@ -129,6 +136,7 @@ export const appsCatalog: CatalogApp[] = [
     ],
   },
   {
+    id: catalogAppIds.creativeEditor,
     slug: "creative-editor",
     name: "Creative Editor",
     iconKey: "brush",
@@ -166,6 +174,7 @@ export const appsCatalog: CatalogApp[] = [
     ],
   },
   {
+    id: catalogAppIds.videoSnippets,
     slug: "video-snippets",
     name: "Video Snippets",
     iconKey: "film",
@@ -202,6 +211,7 @@ export const appsCatalog: CatalogApp[] = [
     ],
   },
   {
+    id: catalogAppIds.voiceMaker,
     slug: "voice-maker",
     name: "Voice Maker",
     iconKey: "mic",
@@ -238,6 +248,7 @@ export const appsCatalog: CatalogApp[] = [
     ],
   },
   {
+    id: catalogAppIds.assetRemix,
     slug: "asset-remix",
     name: "Asset Remix",
     iconKey: "image",
@@ -274,6 +285,7 @@ export const appsCatalog: CatalogApp[] = [
     ],
   },
   {
+    id: catalogAppIds.careerCoach,
     slug: "career-coach",
     name: "Career Coach",
     iconKey: "briefcase",
@@ -326,23 +338,24 @@ export const appsCatalog: CatalogApp[] = [
     ],
   },
   {
+    id: catalogAppIds.researchCompanion,
     slug: "research-companion",
     name: "Research Companion",
     iconKey: "book",
     category: "Research",
-    tag: "Study",
+    tag: "Research",
     tier: "pro",
-    tagline: "Read papers, organize evidence, and build study notes faster.",
+    tagline: "Analyze documents, organize evidence, and build structured research notes.",
     heroGradient: "from-teal-600 via-emerald-600 to-lime-700",
-    shortDescription: "Academic research assistant for papers, citations, summaries, and study plans.",
+    shortDescription: "Multipurpose research assistant for papers, case studies, reports, and document review.",
     description:
-      "Research Companion supports students, researchers, and analysts with literature review workflows. Summarize papers, extract methods and findings, compare sources, build citation-ready notes, and turn dense academic material into structured study plans.",
+      "Research Companion supports case studies, academic papers, business reports, and analyst workflows. Summarize sources, extract methods and findings, compare evidence, build citation-ready notes, and turn dense material into structured insights.",
     monthlyUsers: "11.7k monthly users",
     usageCount: "360k papers reviewed",
     rating: 4.9,
     installs: "33k installs",
     modelAccess: "Pro model access",
-    badges: ["Paper summaries", "Citation notes", "Study planner"],
+    badges: ["Document summaries", "Evidence mapping", "Insight workspace"],
     subApps: [
       {
         slug: "paper-summarizer",
@@ -371,13 +384,28 @@ export const appsCatalog: CatalogApp[] = [
         gradientClass: "from-emerald-500/35 via-teal-500/20 to-cyan-500/25",
       },
       {
-        title: "Study notes",
-        caption: "Convert academic material into revision notes and flashcard prompts.",
+        title: "Research notes",
+        caption: "Convert source material into structured notes and discussion prompts.",
         gradientClass: "from-lime-500/30 via-emerald-500/20 to-teal-500/25",
       },
     ],
   },
 ];
+
+/** Apps kept in catalog data but hidden from store listings until implemented. */
+export const hiddenAppSlugs = new Set<string>([
+  "career-coach",
+  "asset-remix",
+  "voice-maker",
+  "video-snippets",
+  "creative-editor",
+]);
+
+export function isAppVisible(app: CatalogApp): boolean {
+  return !hiddenAppSlugs.has(app.slug);
+}
+
+export const visibleAppsCatalog: CatalogApp[] = appsCatalog.filter(isAppVisible);
 
 export const sponsoredApps: SponsoredApp[] = [
   {
@@ -400,6 +428,10 @@ export function findCatalogApp(slug: string): CatalogApp | undefined {
   return appsCatalog.find((app) => app.slug === slug);
 }
 
+export function findCatalogAppById(idOrSlug: string): CatalogApp | undefined {
+  return appsCatalog.find((app) => app.id === idOrSlug || app.slug === idOrSlug);
+}
+
 export function findCatalogSubApp(
   appSlug: string,
   subAppSlug: string,
@@ -407,9 +439,50 @@ export function findCatalogSubApp(
   return findCatalogApp(appSlug)?.subApps?.find((subApp) => subApp.slug === subAppSlug);
 }
 
-export const featuredApps: CatalogApp[] = appsCatalog.filter((app) => app.featured);
+export function getAppDetailHref(app: CatalogApp): string {
+  return `/apps/${app.id}`;
+}
+
+export function getAppWorkspaceHref(appOrId: CatalogApp | string): string {
+  const id = typeof appOrId === "string" ? appOrId : appOrId.id;
+  return `/apps/${id}/workspace`;
+}
+
+/** Apps with a live workspace route (not the marketing detail page). */
+const workspaceAppSlugs = new Set<string>(["research-companion"]);
+
+export function getAppLaunchHref(app: CatalogApp): string | null {
+  if (!workspaceAppSlugs.has(app.slug)) return null;
+  return getAppWorkspaceHref(app);
+}
+
+export function isAppLaunchAvailable(app: CatalogApp, isAuthenticated: boolean): boolean {
+  if (!getAppLaunchHref(app)) return false;
+  if (app.tier === "pro" && !isAuthenticated) return false;
+  return true;
+}
+
+export function getAppAvailabilityRank(app: CatalogApp, isAuthenticated: boolean): number {
+  if (isAppLaunchAvailable(app, isAuthenticated)) return 0;
+  if (getAppLaunchHref(app)) return 1;
+  return 2;
+}
+
+export function sortAppsByAvailability(
+  apps: CatalogApp[],
+  isAuthenticated: boolean,
+): CatalogApp[] {
+  return [...apps].sort((a, b) => {
+    const rankDiff =
+      getAppAvailabilityRank(a, isAuthenticated) - getAppAvailabilityRank(b, isAuthenticated);
+    if (rankDiff !== 0) return rankDiff;
+    return 0;
+  });
+}
+
+export const featuredApps: CatalogApp[] = visibleAppsCatalog.filter((app) => app.featured);
 
 export const appCategories: string[] = [
   "All",
-  ...Array.from(new Set(appsCatalog.map((app) => app.category))),
+  ...Array.from(new Set(visibleAppsCatalog.map((app) => app.category))),
 ];
