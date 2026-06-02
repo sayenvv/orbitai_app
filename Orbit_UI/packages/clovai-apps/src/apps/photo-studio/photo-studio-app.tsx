@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import {
   Brush,
@@ -50,7 +50,24 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { HexColorPicker } from "react-colorful";
+
 import { PHOTO_STUDIO_IMAGE_FORMATS_LABEL } from "./image-formats";
+import type Konva from "konva";
+import type { CanvasShapeElement, PhotoStudioShapeType } from "./photo-studio-canvas-types";
+import { snapShapeCenterPercents } from "./photo-studio-alignment-guides";
+import { PhotoStudioColorPaletteGrid } from "./photo-studio-color-palette-grid";
+import {
+  normalizeHexColor,
+  photoStudioColorPaletteGroups,
+  photoStudioQuickColorSwatches,
+  getReadableColorInputValue,
+  hexColorsMatch,
+  isLightHexColor,
+} from "./photo-studio-color-palette";
+import { drawPhotoStudioShapeStageToContext, PhotoStudioShapeStage } from "./photo-studio-shape-stage";
+
+export type { PhotoStudioShapeType } from "./photo-studio-canvas-types";
 
 export type PhotoStudioCreationType = "logo" | "product" | "lifestyle" | "campaign";
 
@@ -72,7 +89,22 @@ export type CanvasBackgroundId =
   | "emerald-fresh"
   | "midnight"
   | "custom"
-  | "checkerboard";
+  | "checkerboard"
+  | "white"
+  | "black"
+  | "light-gray"
+  | "gray"
+  | "slate"
+  | "red"
+  | "orange"
+  | "amber"
+  | "green"
+  | "teal"
+  | "blue"
+  | "indigo"
+  | "violet"
+  | "pink"
+  | "rose";
 
 export type PhotoStudioGeneratedItem = {
   id: string;
@@ -422,6 +454,7 @@ const canvasBackgroundPresets: Array<{
   label: string;
   css?: string;
   tailwind?: string;
+  solidColor?: string;
   checkerboard?: boolean;
   exportStops?: Array<{ offset: number; color: string }>;
 }> = [
@@ -501,6 +534,31 @@ const canvasBackgroundPresets: Array<{
     checkerboard: true,
   },
 ];
+
+const legacyCanvasSolidColors: Partial<Record<CanvasBackgroundId, string>> = {
+  white: "#ffffff",
+  black: "#0a0a0a",
+  "light-gray": "#f1f5f9",
+  gray: "#94a3b8",
+  slate: "#475569",
+  red: "#ef4444",
+  orange: "#f97316",
+  amber: "#fbbf24",
+  green: "#22c55e",
+  teal: "#14b8a6",
+  blue: "#3b82f6",
+  indigo: "#6366f1",
+  violet: "#8b5cf6",
+  pink: "#ec4899",
+  rose: "#f43f5e",
+};
+
+const canvasGradientBackgroundPresets = canvasBackgroundPresets.filter(
+  (preset) => preset.exportStops && !preset.checkerboard,
+);
+const canvasSpecialBackgroundPresets = canvasBackgroundPresets.filter(
+  (preset) => preset.id === "custom" || preset.checkerboard,
+);
 
 const DEFAULT_CUSTOM_CANVAS_BACKGROUND = "#6366f1";
 
@@ -589,7 +647,20 @@ function CanvasZoomControls({
 }
 
 function getCanvasBackgroundPreset(id: CanvasBackgroundId) {
-  return canvasBackgroundPresets.find((preset) => preset.id === id) ?? canvasBackgroundPresets[0];
+  const legacyColor = legacyCanvasSolidColors[id];
+  if (legacyColor) {
+    return {
+      id,
+      label: id.replace(/-/g, " "),
+      solidColor: legacyColor,
+    };
+  }
+
+  return (
+    canvasBackgroundPresets.find((preset) => preset.id === id) ??
+    canvasBackgroundPresets.find((preset) => preset.id === "violet-sunset") ??
+    canvasBackgroundPresets[0]
+  );
 }
 
 function resolveCanvasBackgroundStyle(
@@ -599,6 +670,7 @@ function resolveCanvasBackgroundStyle(
 ): CSSProperties | undefined {
   const preset = getCanvasBackgroundPreset(backgroundId);
   if (preset.checkerboard) return checkerboardBackgroundStyle;
+  if (preset.solidColor) return { background: preset.solidColor };
   if (backgroundId === "custom") {
     if (customGradientEnd && customGradientEnd !== customColor) {
       return {
@@ -608,6 +680,80 @@ function resolveCanvasBackgroundStyle(
     return { background: customColor };
   }
   return preset.css ? { background: preset.css } : undefined;
+}
+
+function CanvasBackgroundPresetButton({
+  preset,
+  selected,
+  onSelect,
+  previewStyle,
+  variant = "labeled",
+}: {
+  preset: (typeof canvasBackgroundPresets)[number];
+  selected: boolean;
+  onSelect: () => void;
+  previewStyle?: CSSProperties;
+  variant?: "solid" | "labeled";
+}) {
+  const isSolid = Boolean(preset.solidColor);
+  const isLight = preset.solidColor ? isLightHexColor(preset.solidColor) : false;
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      title={preset.label}
+      aria-label={preset.label}
+      aria-pressed={selected}
+      className={cn(
+        "group relative overflow-hidden rounded-xl border-2 transition-all duration-200",
+        variant === "solid" ? "aspect-square" : "aspect-square",
+        selected
+          ? "border-violet-500/55 shadow-[0_0_0_3px_rgba(124,58,237,0.14)]"
+          : "border-border/30 hover:border-border/55 hover:shadow-md",
+        isSolid && isLight && !selected && "border-border/45",
+      )}
+    >
+      {preset.id === "custom" ? (
+        <span className="absolute inset-0" style={previewStyle} />
+      ) : preset.checkerboard ? (
+        <span className="absolute inset-0" style={checkerboardBackgroundStyle} />
+      ) : preset.solidColor ? (
+        <span className="absolute inset-0" style={{ background: preset.solidColor }} />
+      ) : (
+        <span className={cn("absolute inset-0 bg-gradient-to-br", preset.tailwind)} />
+      )}
+
+      {!isSolid ? (
+        <span className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/10 opacity-80" />
+      ) : null}
+
+      {preset.id === "custom" ? (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <Palette className="h-4 w-4 text-white drop-shadow-md" />
+        </span>
+      ) : null}
+
+      {selected ? (
+        <span
+          className={cn(
+            "absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full shadow-sm",
+            isSolid && isLight ? "bg-violet-600 text-white" : "bg-violet-600 text-white",
+          )}
+        >
+          <Check className="h-2.5 w-2.5" strokeWidth={3} />
+        </span>
+      ) : null}
+
+      {variant === "labeled" && !isSolid ? (
+        <span className="absolute inset-x-0 bottom-0 px-1 pb-1 pt-4 text-center">
+          <span className="block truncate text-[8px] font-semibold leading-none text-white drop-shadow">
+            {preset.label}
+          </span>
+        </span>
+      ) : null}
+    </button>
+  );
 }
 
 function getLogoInitials(prompt: string): string {
@@ -635,6 +781,11 @@ function drawCanvasBackgroundToContext(
   const preset = getCanvasBackgroundPreset(backgroundId);
   if (preset.checkerboard) {
     drawCheckerboardBackground(ctx, width, height);
+    return;
+  }
+  if (preset.solidColor) {
+    ctx.fillStyle = preset.solidColor;
+    ctx.fillRect(0, 0, width, height);
     return;
   }
   if (backgroundId === "custom") {
@@ -907,9 +1058,10 @@ function GeneratedItemsGrid({
               {item.transparentBackground ? (
                 <>
                   <div
-                    className={cn(
-                      "absolute inset-0 bg-gradient-to-br",
-                      getCanvasBackgroundPreset(item.canvasBackgroundId ?? "violet-sunset").tailwind,
+                    className="absolute inset-0"
+                    style={resolveCanvasBackgroundStyle(
+                      item.canvasBackgroundId ?? "violet-sunset",
+                      DEFAULT_CUSTOM_CANVAS_BACKGROUND,
                     )}
                   />
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2">
@@ -1232,17 +1384,7 @@ type WorkspaceTool =
   | "layers";
 type AssistPanel = "prompt" | "chat";
 
-export type PhotoStudioShapeType =
-  | "rectangle"
-  | "square"
-  | "circle"
-  | "ellipse"
-  | "triangle"
-  | "line"
-  | "arrow"
-  | "star"
-  | "hexagon"
-  | "diamond";
+type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
 const shapeTypes: Array<{ id: PhotoStudioShapeType; label: string; icon: LucideIcon }> = [
   { id: "rectangle", label: "Rectangle", icon: Square },
@@ -1259,6 +1401,8 @@ const shapeTypes: Array<{ id: PhotoStudioShapeType; label: string; icon: LucideI
 
 const SHAPE_DRAG_MIME = "application/x-photo-studio-shape";
 const MIN_SHAPE_SIZE = 4;
+const SHAPE_VIEWBOX_INSET = 4;
+const SHAPE_VIEWBOX_SIZE = 100 - SHAPE_VIEWBOX_INSET * 2;
 const DEFAULT_SHAPE_STROKE_WIDTH = 5;
 const MIN_SHAPE_STROKE_WIDTH = 1;
 const MAX_SHAPE_STROKE_WIDTH = 16;
@@ -1621,21 +1765,6 @@ function drawEraserSegment(ctx: CanvasRenderingContext2D, from: PaintPoint, to: 
   ctx.restore();
 }
 
-type CanvasShapeElement = {
-  id: string;
-  shapeType: PhotoStudioShapeType;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  strokeWidth: number;
-  strokeColor: string;
-  fillColor: string;
-  fillOpacity: number;
-  cornerRadius: number;
-  label: string;
-};
-
 function distancePointToSegment(
   px: number,
   py: number,
@@ -1705,16 +1834,16 @@ function shapeHitByEraser(
   const touchRadius = radius + shapeStrokePaddingPx(shape, bounds);
 
   if (shape.shapeType === "line") {
-    const start = viewBoxPointToPixels(10, 82, bounds);
-    const end = viewBoxPointToPixels(90, 18, bounds);
+    const start = viewBoxPointToPixels(SHAPE_VIEWBOX_INSET, 100 - SHAPE_VIEWBOX_INSET, bounds);
+    const end = viewBoxPointToPixels(100 - SHAPE_VIEWBOX_INSET, SHAPE_VIEWBOX_INSET, bounds);
     return (
       distancePointToSegment(center.x, center.y, start.x, start.y, end.x, end.y) <= touchRadius
     );
   }
 
   if (shape.shapeType === "arrow") {
-    const start = viewBoxPointToPixels(12, 78, bounds);
-    const end = viewBoxPointToPixels(72, 28, bounds);
+    const start = viewBoxPointToPixels(SHAPE_VIEWBOX_INSET, 82, bounds);
+    const end = viewBoxPointToPixels(78, 22, bounds);
     if (distancePointToSegment(center.x, center.y, start.x, start.y, end.x, end.y) <= touchRadius) {
       return true;
     }
@@ -1784,9 +1913,13 @@ function getShapeViewBoxRect(
 ): { x: number; y: number; width: number; height: number } | null {
   switch (shapeType) {
     case "rectangle":
-      return { x: 8, y: 18, width: 84, height: 64 };
     case "square":
-      return { x: 15, y: 15, width: 70, height: 70 };
+      return {
+        x: SHAPE_VIEWBOX_INSET,
+        y: SHAPE_VIEWBOX_INSET,
+        width: SHAPE_VIEWBOX_SIZE,
+        height: SHAPE_VIEWBOX_SIZE,
+      };
     default:
       return null;
   }
@@ -1980,32 +2113,8 @@ function createHardcodedSavedDesigns(): SavedCanvasDesign[] {
 
 const HARDCODED_SAVED_DESIGNS = createHardcodedSavedDesigns();
 
-const colorPaletteGroups: Array<{ name: string; swatches: string[] }> = [
-  {
-    name: "Studio violet",
-    swatches: ["#7c3aed", "#8b5cf6", "#a855f7", "#d946ef", "#6366f1", "#4f46e5"],
-  },
-  {
-    name: "Ocean & sky",
-    swatches: ["#0891b2", "#0ea5e9", "#2563eb", "#06b6d4", "#0284c7", "#14b8a6"],
-  },
-  {
-    name: "Warm glow",
-    swatches: ["#d97706", "#f59e0b", "#f97316", "#ef4444", "#f43f5e", "#ec4899"],
-  },
-  {
-    name: "Earth & slate",
-    swatches: ["#059669", "#10b981", "#1e293b", "#334155", "#ffffff", "#0f172a"],
-  },
-];
-
-const quickColorSwatches = colorPaletteGroups.flatMap((group) => group.swatches);
-
-function normalizeHexColor(input: string): string | null {
-  const cleaned = input.trim().replace(/^#/, "");
-  if (!/^[0-9a-fA-F]{6}$/.test(cleaned)) return null;
-  return `#${cleaned.toLowerCase()}`;
-}
+const colorPaletteGroups = photoStudioColorPaletteGroups;
+const quickColorSwatches = photoStudioQuickColorSwatches;
 
 function PremiumColorPicker({
   label,
@@ -2036,12 +2145,13 @@ function PremiumColorPicker({
   };
 
   const swatchButton = (color: string, size: "sm" | "md" = "md") => {
-    const selected = value.toLowerCase() === color.toLowerCase();
+    const selected = hexColorsMatch(value, color);
+    const checkOnDark = !isLightHexColor(color);
     return (
       <button
         key={color}
         type="button"
-        onClick={() => onChange(color)}
+        onClick={() => onChange(getReadableColorInputValue(color))}
         aria-label={`Select color ${color}`}
         aria-pressed={selected}
         className={cn(
@@ -2052,20 +2162,34 @@ function PremiumColorPicker({
         style={{ background: color }}
       >
         {selected ? (
-          <span className="absolute inset-0 flex items-center justify-center bg-black/15">
-            <Check className={cn("text-white drop-shadow", size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3")} strokeWidth={3} />
+          <span
+            className={cn(
+              "absolute inset-0 flex items-center justify-center",
+              checkOnDark ? "bg-white/10" : "bg-black/15",
+            )}
+          >
+            <Check
+              className={cn(
+                "drop-shadow",
+                checkOnDark ? "text-white" : "text-foreground",
+                size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3",
+              )}
+              strokeWidth={3}
+            />
           </span>
         ) : null}
       </button>
     );
   };
 
+  const colorInputValue = getReadableColorInputValue(value);
+
   const hiddenColorInput = (
     <input
       ref={colorInputRef}
       type="color"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
+      value={colorInputValue}
+      onChange={(event) => onChange(getReadableColorInputValue(event.target.value))}
       className="sr-only"
       aria-label={`${label} custom picker`}
     />
@@ -2081,7 +2205,7 @@ function PremiumColorPicker({
             type="button"
             onClick={() => colorInputRef.current?.click()}
             className="relative h-7 w-7 overflow-hidden rounded-lg ring-1 ring-border/40 transition-transform hover:scale-105"
-            style={{ background: value }}
+            style={{ background: colorInputValue }}
             aria-label={`${label} custom color`}
           >
             <span className="absolute inset-0 ring-1 ring-inset ring-black/10" />
@@ -2104,7 +2228,7 @@ function PremiumColorPicker({
               type="button"
               onClick={() => colorInputRef.current?.click()}
               className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg shadow-md ring-1 ring-black/10 transition-transform hover:scale-105"
-              style={{ background: value }}
+              style={{ background: colorInputValue }}
               aria-label={`${label} custom color`}
             />
             <input
@@ -2141,7 +2265,7 @@ function PremiumColorPicker({
             type="button"
             onClick={() => colorInputRef.current?.click()}
             className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-xl shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-black/10 transition-transform hover:scale-[1.03]"
-            style={{ background: value }}
+            style={{ background: colorInputValue }}
             aria-label={`${label} custom color`}
           >
             <span className="absolute inset-0 bg-gradient-to-br from-white/25 via-transparent to-black/10 opacity-80" />
@@ -2168,6 +2292,14 @@ function PremiumColorPicker({
             />
           </div>
           {hiddenColorInput}
+        </div>
+
+        <div className="mt-3 overflow-hidden rounded-lg border border-border/30 bg-background/80 p-2">
+          <HexColorPicker
+            color={colorInputValue}
+            onChange={(next) => onChange(getReadableColorInputValue(next))}
+            style={{ width: "100%", height: "128px" }}
+          />
         </div>
 
         <div className="mt-3 space-y-2.5 border-t border-border/25 pt-3">
@@ -2264,6 +2396,55 @@ function OptionSegmentedControl<T extends string>({
   );
 }
 
+function useElementPixelSize(ref: RefObject<HTMLElement | null>) {
+  const [size, setSize] = useState({ width: 100, height: 100 });
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const update = () => {
+      const rect = node.getBoundingClientRect();
+      setSize({
+        width: Math.max(1, rect.width),
+        height: Math.max(1, rect.height),
+      });
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return size;
+}
+
+function getUniformShapeStrokeWidth(
+  strokeWidth: number,
+  pixelWidth: number,
+  pixelHeight: number,
+): number {
+  const minDimension = Math.min(pixelWidth, pixelHeight);
+  return Math.max(0.75, strokeWidth * (minDimension / 100));
+}
+
+function getUniformShapeCornerRadii(
+  cornerRadius: number,
+  maxCornerRadius: number,
+  pixelWidth: number,
+  pixelHeight: number,
+): { rx: number; ry: number } {
+  const minDimension = Math.min(pixelWidth, pixelHeight);
+  const clamped = Math.min(maxCornerRadius, Math.max(MIN_SHAPE_CORNER_RADIUS, cornerRadius));
+  const cornerPx = clamped * (minDimension / 100);
+  const maxRx = SHAPE_VIEWBOX_SIZE / 2;
+  return {
+    rx: Math.min(maxRx, (cornerPx / pixelWidth) * 100),
+    ry: Math.min(maxRx, (cornerPx / pixelHeight) * 100),
+  };
+}
+
 function CanvasShapePaths({
   shapeType,
   strokeWidth,
@@ -2271,6 +2452,8 @@ function CanvasShapePaths({
   fillColor,
   fillOpacity,
   cornerRadius = DEFAULT_SHAPE_CORNER_RADIUS,
+  pixelWidth = 100,
+  pixelHeight = 100,
 }: {
   shapeType: PhotoStudioShapeType;
   strokeWidth: number;
@@ -2278,101 +2461,142 @@ function CanvasShapePaths({
   fillColor: string;
   fillOpacity: number;
   cornerRadius?: number;
+  pixelWidth?: number;
+  pixelHeight?: number;
 }) {
   const stroke = strokeColor;
   const fill = fillColor;
-  const lineStrokeWidth = strokeWidth * 1.25;
+  const renderedStrokeWidth = getUniformShapeStrokeWidth(strokeWidth, pixelWidth, pixelHeight);
+  const lineStrokeWidth = renderedStrokeWidth * 1.25;
+  const uniformStroke = { vectorEffect: "nonScalingStroke" as const };
   const maxCornerRadius = getMaxCornerRadius(shapeType);
   const rx = shapeSupportsCornerRadius(shapeType)
     ? Math.min(maxCornerRadius, Math.max(MIN_SHAPE_CORNER_RADIUS, cornerRadius))
     : 0;
+  const cornerRadii = shapeSupportsCornerRadius(shapeType)
+    ? getUniformShapeCornerRadii(cornerRadius, maxCornerRadius, pixelWidth, pixelHeight)
+    : { rx, ry: rx };
 
   switch (shapeType) {
     case "rectangle":
-      return (
-        <rect
-          x="8"
-          y="18"
-          width="84"
-          height="64"
-          rx={rx}
-          ry={rx}
-          fill={fill}
-          fillOpacity={fillOpacity}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-        />
-      );
     case "square":
       return (
         <rect
-          x="15"
-          y="15"
-          width="70"
-          height="70"
-          rx={rx}
-          ry={rx}
+          x={SHAPE_VIEWBOX_INSET}
+          y={SHAPE_VIEWBOX_INSET}
+          width={SHAPE_VIEWBOX_SIZE}
+          height={SHAPE_VIEWBOX_SIZE}
+          rx={cornerRadii.rx}
+          ry={cornerRadii.ry}
           fill={fill}
           fillOpacity={fillOpacity}
           stroke={stroke}
-          strokeWidth={strokeWidth}
+          strokeWidth={renderedStrokeWidth}
+          {...uniformStroke}
         />
       );
     case "circle":
-      return <circle cx="50" cy="50" r="38" fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={strokeWidth} />;
-    case "ellipse":
-      return <ellipse cx="50" cy="50" rx="42" ry="28" fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={strokeWidth} />;
-    case "triangle":
       return (
-        <polygon
-          points="50,12 88,88 12,88"
+        <circle
+          cx="50"
+          cy="50"
+          r={SHAPE_VIEWBOX_SIZE / 2}
           fill={fill}
           fillOpacity={fillOpacity}
           stroke={stroke}
-          strokeWidth={strokeWidth}
+          strokeWidth={renderedStrokeWidth}
+          {...uniformStroke}
+        />
+      );
+    case "ellipse":
+      return (
+        <ellipse
+          cx="50"
+          cy="50"
+          rx={SHAPE_VIEWBOX_SIZE / 2}
+          ry={SHAPE_VIEWBOX_SIZE / 2}
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={renderedStrokeWidth}
+          {...uniformStroke}
+        />
+      );
+    case "triangle":
+      return (
+        <polygon
+          points={`50,${SHAPE_VIEWBOX_INSET} ${100 - SHAPE_VIEWBOX_INSET},${100 - SHAPE_VIEWBOX_INSET} ${SHAPE_VIEWBOX_INSET},${100 - SHAPE_VIEWBOX_INSET}`}
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={renderedStrokeWidth}
           strokeLinejoin="round"
+          {...uniformStroke}
         />
       );
     case "line":
-      return <line x1="10" y1="82" x2="90" y2="18" stroke={stroke} strokeWidth={lineStrokeWidth} strokeLinecap="round" />;
+      return (
+        <line
+          x1={SHAPE_VIEWBOX_INSET}
+          y1={100 - SHAPE_VIEWBOX_INSET}
+          x2={100 - SHAPE_VIEWBOX_INSET}
+          y2={SHAPE_VIEWBOX_INSET}
+          stroke={stroke}
+          strokeWidth={lineStrokeWidth}
+          strokeLinecap="round"
+          {...uniformStroke}
+        />
+      );
     case "arrow":
       return (
         <>
-          <line x1="12" y1="78" x2="72" y2="28" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" />
-          <polygon points="72,28 58,32 64,46" fill={stroke} />
+          <line
+            x1={SHAPE_VIEWBOX_INSET}
+            y1={82}
+            x2={78}
+            y2={22}
+            stroke={stroke}
+            strokeWidth={renderedStrokeWidth}
+            strokeLinecap="round"
+            {...uniformStroke}
+          />
+          <polygon points="78,22 66,26 70,38" fill={stroke} />
         </>
       );
     case "star":
       return (
         <polygon
-          points="50,8 61,36 92,36 67,54 76,84 50,66 24,84 33,54 8,36 39,36"
+          points={`50,${SHAPE_VIEWBOX_INSET} 61,36 92,36 67,54 76,${100 - SHAPE_VIEWBOX_INSET} 50,66 24,${100 - SHAPE_VIEWBOX_INSET} 33,54 8,36 39,36`}
           fill={fill}
           fillOpacity={fillOpacity}
           stroke={stroke}
-          strokeWidth={strokeWidth}
+          strokeWidth={renderedStrokeWidth}
           strokeLinejoin="round"
+          {...uniformStroke}
         />
       );
     case "hexagon":
       return (
         <polygon
-          points="50,8 86,28 86,72 50,92 14,72 14,28"
+          points={`50,${SHAPE_VIEWBOX_INSET} ${100 - SHAPE_VIEWBOX_INSET},28 ${100 - SHAPE_VIEWBOX_INSET},72 50,${100 - SHAPE_VIEWBOX_INSET} ${SHAPE_VIEWBOX_INSET},72 ${SHAPE_VIEWBOX_INSET},28`}
           fill={fill}
           fillOpacity={fillOpacity}
           stroke={stroke}
-          strokeWidth={strokeWidth}
+          strokeWidth={renderedStrokeWidth}
           strokeLinejoin="round"
+          {...uniformStroke}
         />
       );
     case "diamond":
       return (
         <polygon
-          points="50,8 88,50 50,92 12,50"
+          points={`50,${SHAPE_VIEWBOX_INSET} ${100 - SHAPE_VIEWBOX_INSET},50 50,${100 - SHAPE_VIEWBOX_INSET} ${SHAPE_VIEWBOX_INSET},50`}
           fill={fill}
           fillOpacity={fillOpacity}
           stroke={stroke}
-          strokeWidth={strokeWidth}
+          strokeWidth={renderedStrokeWidth}
           strokeLinejoin="round"
+          {...uniformStroke}
         />
       );
     default:
@@ -2467,6 +2691,8 @@ function CanvasShapeItem({
 }) {
   const [draftLabel, setDraftLabel] = useState(shape.label);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
+  const shapeRef = useRef<HTMLDivElement>(null);
+  const pixelSize = useElementPixelSize(shapeRef);
   const canHaveText = shapeSupportsFill(shape.shapeType);
 
   useEffect(() => {
@@ -2534,7 +2760,7 @@ function CanvasShapeItem({
     target.addEventListener("pointercancel", handlePointerUp);
   };
 
-  const startResize = (handle: "nw" | "ne" | "sw" | "se", event: PointerEvent<HTMLButtonElement>) => {
+  const startResize = (handle: ResizeHandle, event: PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
     const target = event.currentTarget;
@@ -2600,15 +2826,20 @@ function CanvasShapeItem({
     target.addEventListener("pointercancel", handlePointerUp);
   };
 
-  const resizeHandles: Array<{ id: "nw" | "ne" | "sw" | "se"; className: string }> = [
+  const resizeHandles: Array<{ id: ResizeHandle; className: string }> = [
     { id: "nw", className: "left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize" },
+    { id: "n", className: "left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize" },
     { id: "ne", className: "right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize" },
+    { id: "e", className: "right-0 top-1/2 translate-x-1/2 -translate-y-1/2 cursor-ew-resize" },
+    { id: "se", className: "right-0 bottom-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize" },
+    { id: "s", className: "left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 cursor-ns-resize" },
     { id: "sw", className: "bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize" },
-    { id: "se", className: "bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize" },
+    { id: "w", className: "left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize" },
   ];
 
   return (
     <div
+      ref={shapeRef}
       role="img"
       data-canvas-shape=""
       aria-label={shape.label || shape.shapeType}
@@ -2629,7 +2860,12 @@ function CanvasShapeItem({
         transform: "translate(-50%, -50%)",
       }}
     >
-      <svg viewBox="0 0 100 100" className="h-full w-full overflow-visible pointer-events-none" aria-hidden>
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="h-full w-full overflow-visible pointer-events-none"
+        aria-hidden
+      >
         <CanvasShapePaths
           shapeType={shape.shapeType}
           strokeWidth={shape.strokeWidth}
@@ -2637,6 +2873,8 @@ function CanvasShapeItem({
           fillColor={shape.fillColor}
           fillOpacity={shape.fillOpacity}
           cornerRadius={shape.cornerRadius}
+          pixelWidth={pixelSize.width}
+          pixelHeight={pixelSize.height}
         />
       </svg>
 
@@ -3469,6 +3707,8 @@ function PhotoStudioWorkspace({
   const [canvasDragOver, setCanvasDragOver] = useState(false);
   const [shapeDragActive, setShapeDragActive] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const shapeStageRef = useRef<Konva.Stage | null>(null);
+  const canvasPixelSize = useElementPixelSize(canvasRef);
   const [canvasZoom, setCanvasZoom] = useState(CANVAS_ZOOM_DEFAULT);
   const [rightToolbarExpanded, setRightToolbarExpanded] = useState(true);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(RIGHT_SIDEBAR_DEFAULT_WIDTH);
@@ -3814,8 +4054,9 @@ function PhotoStudioWorkspace({
     if (!shapeTypes.some((shape) => shape.id === shapeType) || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    const dropX = ((event.clientX - rect.left) / rect.width) * 100;
+    const dropY = ((event.clientY - rect.top) / rect.height) * 100;
+    const { x, y } = snapShapeCenterPercents(dropX, dropY);
     const newShape = createCanvasShape(shapeType, x, y);
     setCanvasShapes((current) => [...current, newShape]);
     setSelectedShapeId(newShape.id);
@@ -3860,7 +4101,21 @@ function PhotoStudioWorkspace({
     next: Partial<Pick<CanvasShapeElement, "strokeColor" | "fillColor" | "fillOpacity">>,
   ) => {
     setCanvasShapes((current) =>
-      current.map((shape) => (shape.id === id ? { ...shape, ...next } : shape)),
+      current.map((shape) => {
+        if (shape.id !== id) return shape;
+        const strokeColor = next.strokeColor
+          ? normalizeHexColor(next.strokeColor) ?? next.strokeColor
+          : shape.strokeColor;
+        const fillColor = next.fillColor
+          ? normalizeHexColor(next.fillColor) ?? next.fillColor
+          : shape.fillColor;
+        return {
+          ...shape,
+          ...next,
+          strokeColor,
+          fillColor,
+        };
+      }),
     );
   };
 
@@ -4195,35 +4450,7 @@ function PhotoStudioWorkspace({
           ctx.drawImage(paintCanvas, 0, 0, width, height);
         }
 
-        const shapeNodes = container.querySelectorAll<HTMLElement>("[data-canvas-shape]");
-        for (const node of shapeNodes) {
-          const svg = node.querySelector("svg");
-          if (!svg) continue;
-          const nodeRect = node.getBoundingClientRect();
-          await drawSvgElementToContext(
-            ctx,
-            svg,
-            nodeRect.left - rect.left,
-            nodeRect.top - rect.top,
-            nodeRect.width,
-            nodeRect.height,
-          );
-          const label = node.querySelector("p");
-          if (label?.textContent?.trim()) {
-            ctx.save();
-            ctx.fillStyle = label.style.color || DEFAULT_SHAPE_STROKE_COLOR;
-            ctx.font = `600 ${Math.max(10, nodeRect.height * 0.14)}px ui-sans-serif, system-ui, sans-serif`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(
-              label.textContent.trim(),
-              nodeRect.left - rect.left + nodeRect.width / 2,
-              nodeRect.top - rect.top + nodeRect.height / 2,
-              nodeRect.width * 0.76,
-            );
-            ctx.restore();
-          }
-        }
+        drawPhotoStudioShapeStageToContext(shapeStageRef.current, ctx, width, height);
 
         for (const text of canvasTexts) {
           const fontStyle = getFontStyleById(text.fontStyleId);
@@ -4282,15 +4509,26 @@ function PhotoStudioWorkspace({
     ],
   );
 
+  const activeCanvasFillColor =
+    canvasBackgroundId === "custom" && !customCanvasGradientEnabled
+      ? customCanvasBackgroundColor
+      : legacyCanvasSolidColors[canvasBackgroundId] ?? null;
+
+  const handleCanvasFillColorSelect = (color: string) => {
+    setCanvasBackgroundId("custom");
+    setCustomCanvasGradientEnabled(false);
+    setCustomCanvasBackgroundColor(color);
+  };
+
   const canSelectShapes = activeTool === "select" || activeTool === "shape";
   const canSelectTexts = activeTool === "select";
   const canMoveShapes = activeTool === "move";
   const canMoveTexts = activeTool === "move";
   const canDragShapes = canMoveShapes || canSelectShapes;
   const canDragTexts = canMoveTexts || canSelectTexts;
-  const canResizeShapes = activeTool === "select";
+  const canResizeShapes = activeTool === "select" || activeTool === "shape";
   const canResizeTexts = activeTool === "select";
-  const canEditShapeText = activeTool === "select";
+  const canEditShapeText = activeTool === "select" || activeTool === "shape";
   const canEditCanvasText = activeTool === "select";
   const isTextToolActive = activeTool === "text";
   const isBrushToolActive = activeTool === "brush";
@@ -4824,13 +5062,22 @@ function PhotoStudioWorkspace({
                         </p>
 
                         {shapeSupportsFill(selectedShape.shapeType) ? (
-                          <p className="text-[10px] leading-relaxed text-muted-foreground">
-                            Double-click the shape to add or edit text.
-                          </p>
+                          <div className="space-y-2">
+                            <p className="text-[10px] leading-relaxed text-muted-foreground">
+                              Double-click the shape to add or edit text (Select or Shape tool).
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setEditingShapeTextId(selectedShape.id)}
+                              className="h-8 w-full rounded-lg border border-border/35 bg-background/80 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted/50"
+                            >
+                              {selectedShape.label ? "Edit label" : "Add label"}
+                            </button>
+                          </div>
                         ) : null}
 
                         <ShapeColorInput
-                          label="Color"
+                          label="Border color"
                           value={selectedShape.strokeColor}
                           onChange={(strokeColor) =>
                             updateShapeColors(selectedShape.id, { strokeColor })
@@ -5330,66 +5577,58 @@ function PhotoStudioWorkspace({
                           {hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-border/35 bg-gradient-to-br from-muted/20 via-background to-violet-500/[0.03] p-2.5">
-                        <div className="grid grid-cols-4 gap-2">
-                          {canvasBackgroundPresets.map((preset) => {
-                            const selected = canvasBackgroundId === preset.id;
-                            const customEnd = customCanvasGradientEnabled
-                              ? customCanvasGradientEnd
-                              : undefined;
-                            return (
-                              <button
+                      <div className="space-y-3 rounded-xl border border-border/35 bg-gradient-to-br from-muted/20 via-background to-violet-500/[0.03] p-2.5">
+                        <div>
+                          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Solid colors
+                          </p>
+                          <PhotoStudioColorPaletteGrid
+                            value={activeCanvasFillColor}
+                            onSelect={handleCanvasFillColorSelect}
+                            swatchSize="sm"
+                          />
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Gradients
+                          </p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {canvasGradientBackgroundPresets.map((preset) => (
+                              <CanvasBackgroundPresetButton
                                 key={preset.id}
-                                type="button"
-                                onClick={() => setCanvasBackgroundId(preset.id)}
-                                title={preset.label}
-                                aria-label={preset.label}
-                                aria-pressed={selected}
-                                className={cn(
-                                  "group relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-200",
-                                  selected
-                                    ? "border-violet-500/55 shadow-[0_0_0_3px_rgba(124,58,237,0.14)]"
-                                    : "border-border/30 hover:border-border/55 hover:shadow-md",
-                                )}
-                              >
-                                {preset.id === "custom" ? (
-                                  <span
-                                    className="absolute inset-0"
-                                    style={resolveCanvasBackgroundStyle(
-                                      "custom",
-                                      customCanvasBackgroundColor,
-                                      customEnd,
-                                    )}
-                                  />
-                                ) : preset.checkerboard ? (
-                                  <span
-                                    className="absolute inset-0"
-                                    style={checkerboardBackgroundStyle}
-                                  />
-                                ) : (
-                                  <span
-                                    className={cn("absolute inset-0 bg-gradient-to-br", preset.tailwind)}
-                                  />
-                                )}
-                                <span className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/10 opacity-80" />
-                                {preset.id === "custom" ? (
-                                  <span className="absolute inset-0 flex items-center justify-center">
-                                    <Palette className="h-4 w-4 text-white drop-shadow-md" />
-                                  </span>
-                                ) : null}
-                                {selected ? (
-                                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-white shadow-sm">
-                                    <Check className="h-2.5 w-2.5" strokeWidth={3} />
-                                  </span>
-                                ) : null}
-                                <span className="absolute inset-x-0 bottom-0 px-1 pb-1 pt-4 text-center">
-                                  <span className="block truncate text-[8px] font-semibold leading-none text-white drop-shadow">
-                                    {preset.label}
-                                  </span>
-                                </span>
-                              </button>
-                            );
-                          })}
+                                preset={preset}
+                                selected={canvasBackgroundId === preset.id}
+                                onSelect={() => setCanvasBackgroundId(preset.id)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            More
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {canvasSpecialBackgroundPresets.map((preset) => {
+                              const customEnd = customCanvasGradientEnabled
+                                ? customCanvasGradientEnd
+                                : undefined;
+                              return (
+                                <CanvasBackgroundPresetButton
+                                  key={preset.id}
+                                  preset={preset}
+                                  selected={canvasBackgroundId === preset.id}
+                                  onSelect={() => setCanvasBackgroundId(preset.id)}
+                                  previewStyle={resolveCanvasBackgroundStyle(
+                                    "custom",
+                                    customCanvasBackgroundColor,
+                                    customEnd,
+                                  )}
+                                />
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
@@ -5704,48 +5943,72 @@ function PhotoStudioWorkspace({
                   </div>
                 ) : null}
 
+                {canvasShapes.length > 0 ? (
+                  <div
+                    className={cn(
+                      "absolute inset-0 z-20",
+                      isCanvasElementToolActive && "pointer-events-none",
+                    )}
+                  >
+                    <PhotoStudioShapeStage
+                      shapes={canvasShapes}
+                      canvasSize={canvasPixelSize}
+                      selectedId={selectedShapeId}
+                      selectable={canSelectShapes}
+                      movable={canDragShapes}
+                      resizable={canResizeShapes}
+                      textEditable={canEditShapeText}
+                      editingTextId={editingShapeTextId}
+                      stageRef={shapeStageRef}
+                      onSelect={(id) => {
+                        setSelectedShapeId(id);
+                        setSelectedTextId(null);
+                        setEditingTextId(null);
+                        setEditingShapeTextId((current) =>
+                          current !== null && current !== id ? null : current,
+                        );
+                        focusSelectionToolbar();
+                      }}
+                      onClearSelection={() => {
+                        if (canSelectShapes) {
+                          setSelectedShapeId(null);
+                          setEditingShapeTextId(null);
+                        }
+                        if (canSelectTexts) {
+                          setSelectedTextId(null);
+                          setEditingTextId(null);
+                        }
+                      }}
+                      onMove={moveCanvasShape}
+                      onResize={resizeCanvasShape}
+                      onStartEditText={(id) => {
+                        setSelectedShapeId(id);
+                        setSelectedTextId(null);
+                        setEditingTextId(null);
+                        setEditingShapeTextId(id);
+                        focusSelectionToolbar();
+                      }}
+                      onCommitLabel={(id, label) => {
+                        updateShapeLabel(id, label);
+                        setEditingShapeTextId(null);
+                      }}
+                      onCancelEditText={() => setEditingShapeTextId(null)}
+                    />
+                  </div>
+                ) : null}
+
                 <div
                   className={cn(
                     "absolute inset-0 z-10",
                     isCanvasElementToolActive && "pointer-events-none",
                   )}
                   onPointerDown={(event) => {
-                    if (canSelectShapes && event.target === event.currentTarget) {
-                      setSelectedShapeId(null);
-                      setEditingShapeTextId(null);
-                    }
                     if (canSelectTexts && event.target === event.currentTarget) {
                       setSelectedTextId(null);
                       setEditingTextId(null);
                     }
                   }}
                 >
-                  {canvasShapes.map((shape) => (
-                    <CanvasShapeItem
-                      key={shape.id}
-                      shape={shape}
-                      selected={selectedShapeId === shape.id}
-                      selectable={canSelectShapes}
-                      movable={canDragShapes}
-                      resizable={canResizeShapes}
-                      textEditable={canEditShapeText}
-                      isEditingText={editingShapeTextId === shape.id}
-                      canvasRef={canvasRef}
-                      onSelect={() => {
-                        setSelectedShapeId(shape.id);
-                        setSelectedTextId(null);
-                        setEditingShapeTextId(null);
-                        setEditingTextId(null);
-                        focusSelectionToolbar();
-                      }}
-                      onMove={moveCanvasShape}
-                      onResize={resizeCanvasShape}
-                      onStartEditText={() => setEditingShapeTextId(shape.id)}
-                      onEndEditText={() => setEditingShapeTextId(null)}
-                      onUpdateLabel={updateShapeLabel}
-                    />
-                  ))}
-
                   {canvasTexts.map((text) => (
                     <CanvasTextItem
                       key={text.id}
