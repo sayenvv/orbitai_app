@@ -26,9 +26,10 @@ import {
 } from "lucide-react";
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
 import { SidebarRecentsRowsShimmer } from "@/components/ui/skeleton";
+import { SidebarTooltip } from "@/components/layout/sidebar-tooltip";
 import { cn } from "@/lib/utils";
 import { chatApi, mapConversationSummary } from "@/lib/orbit-api";
-import { getAppChatLabel, isAppChatConversation, isSameWorkspaceAppChat, partitionConversations } from "@/lib/app-chat";
+import { getAppChatLabel, isAppChatConversation, isSameWorkspaceAppChat } from "@/lib/app-chat";
 import { formatFileSize, formatRelativeDate } from "@/lib/format-library";
 import { LibraryDeleteDialog } from "@/components/library/library-delete-dialog";
 import { InsightGeneratingOverlay } from "@/components/insights/insight-generating-overlay";
@@ -54,25 +55,24 @@ type SidebarSectionNavProps = {
 };
 
 const collapsedNavBtnClass =
-  "group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sidebar-foreground/70 transition-colors duration-200 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground";
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground";
 
-type PremiumNavItem = {
-  id?: SidebarSection;
+function sidebarNavItemClass(active: boolean) {
+  return cn(
+    "flex w-full items-center gap-2.5 rounded-lg px-2 py-[7px] text-[13px] transition-colors",
+    active
+      ? "bg-sidebar-accent font-medium text-foreground"
+      : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
+  );
+}
+
+type SidebarNavItem = {
   key: string;
   label: string;
   icon: LucideIcon;
   active?: boolean;
   onClick?: () => void;
-  tone: string;
 };
-
-const navIconTones = {
-  chat: "from-blue-500/20 to-cyan-500/10 text-blue-500",
-  library: "from-amber-500/20 to-orange-500/10 text-amber-500",
-  apps: "from-emerald-500/20 to-teal-500/10 text-emerald-500",
-  plans: "from-rose-500/20 to-pink-500/10 text-rose-500",
-  search: "from-slate-500/20 to-slate-500/10 text-sidebar-foreground/70",
-} as const;
 
 type SidebarCollapsedNavProps = {
   section: SidebarSection;
@@ -93,52 +93,46 @@ export function SidebarCollapsedNav({
   onSearch,
   isAuthenticated = true,
 }: SidebarCollapsedNavProps) {
-  const authenticatedItems: PremiumNavItem[] = [
-    { key: "new-chat", label: "New chat", icon: SquarePen, active: false, onClick: onNewChat, tone: navIconTones.chat },
-    { key: "library", label: "Library", icon: LibraryBig, active: section === "library", onClick: onLibrary, tone: navIconTones.library },
-    { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps, tone: navIconTones.apps },
-    { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch, tone: navIconTones.search },
+  const authenticatedItems: SidebarNavItem[] = [
+    { key: "library", label: "Library", icon: LibraryBig, active: section === "library", onClick: onLibrary },
+    { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps },
+    { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];
-  const guestItems: PremiumNavItem[] = [
-    { key: "new-chat", label: "New chat", icon: SquarePen, active: false, onClick: onNewChat, tone: navIconTones.chat },
-    { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps, tone: navIconTones.apps },
-    { key: "plans", label: "Plans", icon: Crown, active: section === "plans", onClick: onPlans, tone: navIconTones.plans },
-    { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch, tone: navIconTones.search },
+  const guestItems: SidebarNavItem[] = [
+    { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps },
+    { key: "plans", label: "Plans", icon: Crown, active: section === "plans", onClick: onPlans },
+    { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];
   const items = isAuthenticated ? authenticatedItems : guestItems;
 
   return (
-    <div className="relative flex w-full flex-col items-center gap-1.5">
-      {items.map(({ key, label, icon: Icon, active, onClick, tone }) => (
-        <div key={key} className="group/collapsed-nav relative">
+    <div className="flex w-full flex-col items-center gap-1 py-1">
+      <SidebarTooltip label="New chat" side="right">
+        <button
+          type="button"
+          onClick={onNewChat}
+          aria-label="New chat"
+          className={collapsedNavBtnClass}
+        >
+          <Plus className="h-4 w-4 shrink-0" strokeWidth={2} />
+        </button>
+      </SidebarTooltip>
+
+      {items.map(({ key, label, icon: Icon, active, onClick }) => (
+        <SidebarTooltip key={key} label={label} side="right">
           <button
             type="button"
             onClick={onClick}
             aria-label={label}
             className={cn(
               collapsedNavBtnClass,
-              active && "bg-sidebar-accent text-sidebar-accent-foreground",
+              active && "bg-sidebar-accent font-medium text-foreground",
             )}
           >
-            <span
-              className={cn(
-                "absolute inset-1 rounded-[0.9rem] bg-gradient-to-br opacity-0 transition-opacity duration-200 group-hover/collapsed-nav:opacity-100",
-                tone,
-                active && "opacity-100",
-              )}
-              aria-hidden
-            />
-            <Icon className="relative h-4.5 w-4.5 shrink-0" />
+            <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           </button>
-          <span
-            role="tooltip"
-            className="pointer-events-none absolute left-[calc(100%+0.5rem)] top-1/2 z-[100] -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-lg bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 backdrop-blur-sm transition-all duration-150 group-hover/collapsed-nav:translate-x-0 group-hover/collapsed-nav:opacity-100 group-focus-within/collapsed-nav:translate-x-0 group-focus-within/collapsed-nav:opacity-100"
-          >
-            {label}
-          </span>
-        </div>
+        </SidebarTooltip>
       ))}
-
     </div>
   );
 }
@@ -151,80 +145,65 @@ export function SidebarSectionNav({
   isAuthenticated = true,
   labelClassName = "",
 }: SidebarSectionNavProps) {
-  const authenticatedTabs: { id: SidebarSection; label: string; icon: LucideIcon; tone: string }[] = [
-    { id: "library", label: "Library", icon: LibraryBig, tone: navIconTones.library },
-    { id: "apps", label: "Apps", icon: Store, tone: navIconTones.apps },
+  const authenticatedTabs: { id: SidebarSection; label: string; icon: LucideIcon }[] = [
+    { id: "library", label: "Library", icon: LibraryBig },
+    { id: "apps", label: "Apps", icon: Store },
   ];
 
-  const guestTabs: { id: SidebarSection; label: string; icon: LucideIcon; tone: string }[] = [
-    { id: "apps", label: "Apps", icon: Store, tone: navIconTones.apps },
-    { id: "plans", label: "Plans", icon: Crown, tone: navIconTones.plans },
+  const guestTabs: { id: SidebarSection; label: string; icon: LucideIcon }[] = [
+    { id: "apps", label: "Apps", icon: Store },
+    { id: "plans", label: "Plans", icon: Crown },
   ];
 
   const tabs = isAuthenticated ? authenticatedTabs : guestTabs;
 
   return (
-    <div className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-0.5">
       <button
         type="button"
         onClick={onNewChat}
-        className={cn(
-          "group flex h-9 items-center rounded-xl transition-colors duration-200",
-          expanded ? "gap-2.5 px-2.5 justify-start" : "justify-center",
-          "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
-        )}
+        className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground"
         title="New chat"
         aria-label="New chat"
       >
-        <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br", navIconTones.chat)}>
-          <SquarePen className="h-3.5 w-3.5 shrink-0" />
-        </span>
-        {expanded && (
-          <span className={cn("truncate text-sm font-medium", labelClassName)}>New chat</span>
-        )}
+        <Plus className="h-4 w-4 shrink-0" strokeWidth={2} />
+        {expanded && <span className={cn("truncate", labelClassName)}>New chat</span>}
       </button>
 
-      {tabs.map(({ id, label, icon: Icon, tone }) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => onSectionChange(id)}
-          className={cn(
-            "group relative flex h-9 items-center rounded-xl transition-colors duration-200",
-            expanded ? "gap-2.5 px-2.5 justify-start" : "justify-center",
-            section === id
-              ? "bg-sidebar-accent/85 text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
-          )}
-          title={label}
-          aria-label={label}
-        >
-          <span
-            className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br transition-transform duration-200 group-hover:scale-105",
-              tone,
-              section === id && "ring-1 ring-primary/20",
-            )}
-          >
-            <Icon className="h-3.5 w-3.5 shrink-0" />
-          </span>
-          {expanded && (
-            <span className={cn("truncate text-sm font-medium", labelClassName)}>{label}</span>
-          )}
-        </button>
-      ))}
-    </div>
+      <div className="mt-1 flex flex-col gap-0.5">
+        {tabs.map(({ id, label, icon: Icon }) => {
+          const isActive = section === id;
+
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onSectionChange(id)}
+              className={sidebarNavItemClass(isActive)}
+              title={label}
+              aria-label={label}
+            >
+              <Icon
+                className={cn(
+                  "h-4 w-4 shrink-0",
+                  isActive ? "text-foreground" : "text-muted-foreground",
+                )}
+                strokeWidth={1.75}
+              />
+              {expanded && (
+                <span className={cn("truncate", labelClassName)}>{label}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
 // ─── Gemini-style recents ────────────────────────────────────────────────────
 
 type RecentGroup = { label: string; items: Conversation[] };
-
-type HistorySection = {
-  categoryLabel: string;
-  groups: RecentGroup[];
-};
 
 function groupRecents(conversations: Conversation[]): RecentGroup[] {
   const now = new Date();
@@ -255,21 +234,13 @@ function groupRecents(conversations: Conversation[]): RecentGroup[] {
   return groups;
 }
 
-function buildHistorySections(conversations: Conversation[]): HistorySection[] {
-  const { appChats, chats } = partitionConversations(conversations);
-  const sections: HistorySection[] = [];
-
-  const appGroups = groupRecents(appChats);
-  if (appGroups.length > 0) {
-    sections.push({ categoryLabel: "App chats", groups: appGroups });
-  }
-
-  const chatGroups = groupRecents(chats);
-  if (chatGroups.length > 0) {
-    sections.push({ categoryLabel: "Chats", groups: chatGroups });
-  }
-
-  return sections;
+function buildFlatRecentGroups(conversations: Conversation[]): RecentGroup[] {
+  const sorted = [...conversations].sort(
+    (a, b) =>
+      new Date(b.updatedAt ?? b.createdAt).getTime() -
+      new Date(a.updatedAt ?? a.createdAt).getTime(),
+  );
+  return groupRecents(sorted);
 }
 
 type SidebarRecentsListProps = {
@@ -374,11 +345,11 @@ export function SidebarRecentsList({
   const showListShimmer =
     showHistoryShimmer || (trimmedSearch.length > 0 && isSearching && searchLoading);
 
-  const historySections = useMemo(
-    () => buildHistorySections(displayConversations),
+  const recentGroups = useMemo(
+    () => buildFlatRecentGroups(displayConversations),
     [displayConversations],
   );
-  const hasHistoryItems = historySections.some((section) => section.groups.length > 0);
+  const hasHistoryItems = recentGroups.some((group) => group.items.length > 0);
 
   useEffect(() => {
     if (!onLoadMore || !hasMore || loading || loadingMore || trimmedSearch.length > 0) return;
@@ -397,7 +368,7 @@ export function SidebarRecentsList({
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [onLoadMore, hasMore, loading, loadingMore, trimmedSearch, historySections.length, useOuterScroll]);
+  }, [onLoadMore, hasMore, loading, loadingMore, trimmedSearch, recentGroups.length, useOuterScroll]);
 
   useEffect(() => {
     if (!autoFocusSearch) return;
@@ -414,38 +385,35 @@ export function SidebarRecentsList({
         <div
           className={cn(
             "relative mb-2 w-full shrink-0",
-            useOuterScroll && "sticky top-0 z-10 -mx-0.5 bg-sidebar px-0.5 pb-2",
+            useOuterScroll && "sticky top-0 z-10 bg-sidebar pb-2",
           )}
         >
-          <div className="group relative">
-            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/10 via-transparent to-primary/5 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100" />
-            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/75 transition-colors group-focus-within:text-primary" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              enterKeyHint="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search recent chats"
-              className="relative h-9 w-full rounded-xl border border-sidebar-border/70 bg-background/75 pl-8 pr-14 text-xs font-medium outline-none placeholder:text-muted-foreground/65 backdrop-blur-md transition focus:border-primary/30 focus:bg-background/95 focus:ring-2 focus:ring-primary/15"
-            />
-            {awaitingSearch || searchLoading ? (
-              <Loader2 className="absolute right-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
-            ) : trimmedSearch ? (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 z-10 flex h-5.5 w-5.5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Clear recents search"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            ) : (
-              <span className="pointer-events-none absolute right-2.5 top-1/2 z-10 -translate-y-1/2 rounded border border-border/50 bg-muted/70 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-muted-foreground">
-                ⌘K
-              </span>
-            )}
-          </div>
+          <Search
+            className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/45"
+            strokeWidth={1.75}
+          />
+          <input
+            ref={searchInputRef}
+            type="search"
+            enterKeyHint="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search"
+            className="h-8 w-full rounded-lg border-0 bg-transparent pl-7 pr-7 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/50 transition-colors hover:bg-sidebar-accent/50 focus:bg-sidebar-accent/70 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+          />
+          {(awaitingSearch || searchLoading) && (
+            <Loader2 className="absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-muted-foreground/60" />
+          )}
+          {!awaitingSearch && !searchLoading && trimmedSearch && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-3 w-3" strokeWidth={2} />
+            </button>
+          )}
         </div>
       )}
 
@@ -456,33 +424,26 @@ export function SidebarRecentsList({
         {showListShimmer ? (
           <SidebarRecentsRowsShimmer />
         ) : !hasHistoryItems ? (
-          <p className="px-1 py-6 text-center text-[11px] text-muted-foreground">
-            {trimmedSearch.length > 0 ? "No matching chats" : "No recent chats"}
+          <p className="px-2 py-8 text-center text-xs text-muted-foreground">
+            {trimmedSearch.length > 0 ? "No matching chats" : "No conversations yet"}
           </p>
         ) : (
           <>
-            {historySections.map((section) => (
-              <div key={section.categoryLabel} className="mb-4">
-                <p className="mb-2 px-2 text-[11px] font-semibold text-foreground/90">
-                  {section.categoryLabel}
+            {recentGroups.map((group) => (
+              <div key={group.label} className="mb-3">
+                <p className="mb-1 px-2 text-[11px] font-medium text-muted-foreground">
+                  {group.label}
                 </p>
-                {section.groups.map((group) => (
-                  <div key={`${section.categoryLabel}-${group.label}`} className="mb-3">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-                      {group.label}
-                    </p>
-                    {group.items.map((conv) => (
-                      <RecentChatItem
-                        key={conv.id}
-                        conversation={conv}
-                        isActive={activeId === conv.id}
-                        onSelect={onSelect}
-                        onDelete={onDelete}
-                        onOpenWorkspaceChat={onOpenWorkspaceChat}
-                        workspaceSourceId={workspaceSourceId}
-                      />
-                    ))}
-                  </div>
+                {group.items.map((conv) => (
+                  <RecentChatItem
+                    key={conv.id}
+                    conversation={conv}
+                    isActive={activeId === conv.id}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                    onOpenWorkspaceChat={onOpenWorkspaceChat}
+                    workspaceSourceId={workspaceSourceId}
+                  />
                 ))}
               </div>
             ))}
@@ -526,30 +487,23 @@ function RecentChatItem({
   return (
     <div
       className={cn(
-        "group mb-0.5 flex w-full items-center gap-1 rounded-2xl pr-1 transition-colors",
-        isActive ? "bg-sidebar-accent/80" : "hover:bg-muted/70",
+        "group flex w-full items-center gap-0.5 rounded-lg pr-1 transition-colors",
+        isActive ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/50",
       )}
     >
       <button
         type="button"
         onClick={() => onSelect(conversation.id)}
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm transition-colors",
-          isActive
-            ? "text-sidebar-accent-foreground"
-            : "text-foreground/80",
+          "flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left",
+          isActive ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
         )}
       >
         <span className="min-w-0 flex-1 truncate text-[13px] leading-snug">
           {conversation.title || "Untitled chat"}
         </span>
         {agentLabel && !showWorkspaceChatAction && (
-          <span
-            className={cn(
-              "hidden shrink-0 truncate text-[10px] group-hover:inline",
-              isActive ? "text-accent-foreground/70" : "text-muted-foreground",
-            )}
-          >
+          <span className="hidden max-w-[5rem] shrink-0 truncate text-[10px] text-muted-foreground group-hover:inline">
             {agentLabel}
           </span>
         )}

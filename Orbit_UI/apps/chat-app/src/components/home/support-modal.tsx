@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { ThemeSelect } from "@/components/theme-toggle";
+import { SidebarTooltip } from "@/components/layout/sidebar-tooltip";
 import { cn } from "@/lib/utils";
 
 export type SupportTab = "settings" | "help";
@@ -228,30 +229,32 @@ export function SettingsHelpFooterTab({
   return (
     <div
       className={cn(
-        "mt-auto w-full",
+        "mt-auto w-full shrink-0",
         collapsed && "flex justify-center",
-        showTopBorder && "border-t border-sidebar-border/60 pt-3",
+        showTopBorder && "px-2 py-2.5",
+        !collapsed && !showTopBorder && "px-2 pb-2",
       )}
     >
-      <button
-        type="button"
-        onClick={onOpen}
-        title="Settings & Help"
-        aria-label="Settings & Help"
-        className={cn(
-          "flex items-center text-sidebar-foreground/70 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-          collapsed
-            ? "h-9 w-9 shrink-0 justify-center rounded-xl"
-            : "h-11 w-full gap-3 rounded-2xl px-3 justify-start",
-        )}
-      >
-        <Settings className="h-4 w-4 shrink-0" strokeWidth={2} />
-        {!collapsed && (
-          <span className={cn("truncate text-sm font-medium", labelClassName)}>
-            Settings & Help
-          </span>
-        )}
-      </button>
+      <SidebarTooltip label="Settings & Help" side={collapsed ? "right" : "top"}>
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label="Settings & Help"
+          className={cn(
+            "flex items-center text-muted-foreground transition-all hover:bg-gradient-to-r hover:from-primary/10 hover:to-violet-500/10 hover:text-primary",
+            collapsed
+              ? "h-9 w-9 shrink-0 justify-center rounded-xl bg-gradient-to-br from-slate-500/15 to-slate-500/5"
+              : "h-9 w-full gap-2.5 rounded-xl px-2.5 justify-start",
+          )}
+        >
+          <Settings className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+          {!collapsed && (
+            <span className={cn("truncate text-[13px] font-medium", labelClassName)}>
+              Settings & Help
+            </span>
+          )}
+        </button>
+      </SidebarTooltip>
     </div>
   );
 }

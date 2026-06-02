@@ -5,10 +5,10 @@ import { PanelLeftClose, PanelRightClose } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export const COLLAPSIBLE_RAIL_EXPANDED_WIDTH = "w-[260px]";
+export const COLLAPSIBLE_RAIL_EXPANDED_WIDTH = "w-[280px]";
 export const COLLAPSIBLE_RAIL_COLLAPSED_WIDTH = "w-[3.25rem]";
-export const COLLAPSIBLE_RAIL_INNER_WIDTH = "w-[260px]";
-export const COLLAPSIBLE_RAIL_EXPANDED_WIDTH_PX = "260px";
+export const COLLAPSIBLE_RAIL_INNER_WIDTH = "w-[280px]";
+export const COLLAPSIBLE_RAIL_EXPANDED_WIDTH_PX = "280px";
 export const COLLAPSIBLE_RAIL_COLLAPSED_WIDTH_PX = "3.25rem";
 
 type CollapsibleRailSide = "left" | "right";
@@ -61,7 +61,7 @@ export function CollapsibleRail({
   return (
     <aside
       className={cn(
-        "flex h-full min-h-0 w-full flex-col bg-sidebar/95 backdrop-blur-xl will-change-transform",
+        "sidebar-edge-shadow flex h-full min-h-0 w-full flex-col bg-sidebar will-change-transform",
         showExpanded ? "overflow-hidden" : "overflow-visible",
         className,
       )}
@@ -70,8 +70,8 @@ export function CollapsibleRail({
     >
       <div
         className={cn(
-          "flex shrink-0 overflow-hidden py-3 transition-[padding,gap] duration-200 ease-out",
-          showExpanded ? "items-center gap-1 px-2" : "justify-center gap-0 px-0",
+          "flex h-[3.25rem] shrink-0 overflow-hidden transition-[padding,gap] duration-200 ease-out",
+          showExpanded ? "items-center gap-1 px-4" : "justify-center gap-0 px-0",
         )}
       >
         <div
@@ -86,7 +86,7 @@ export function CollapsibleRail({
           <button
             type="button"
             onClick={onToggle}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             title={collapseLabel}
             aria-label={collapseLabel}
           >
@@ -105,7 +105,7 @@ export function CollapsibleRail({
           className={cn(
             "flex min-h-0 flex-1 flex-col transition-[width] duration-200 ease-out [scrollbar-width:thin]",
             showExpanded
-              ? `${COLLAPSIBLE_RAIL_INNER_WIDTH} overflow-y-auto overflow-x-hidden`
+              ? `${COLLAPSIBLE_RAIL_INNER_WIDTH} overflow-hidden`
               : "w-full overflow-visible",
           )}
         >

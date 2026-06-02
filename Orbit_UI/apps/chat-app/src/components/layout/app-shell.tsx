@@ -53,7 +53,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const handleLogout = useLogout();
   const invalidChatNoticeOpen = useChatSessionStore((s) => s.invalidChatNoticeOpen);
   const dismissInvalidChatNotice = useChatSessionStore((s) => s.dismissInvalidChatNotice);
@@ -79,16 +79,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
     authPromptOpen,
     header,
   } = useAppShell();
-
-  const initials = user?.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "?";
-
 
   useEffect(() => {
     if (pathname === "/plans") {
@@ -148,17 +138,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
         <div className="flex shrink-0 items-center gap-1.5">
           {header?.actions}
           {isAuthenticated ? (
-            <>
-              <NavbarUpgradeLink />
-              <button
-                type="button"
-                onClick={() => setProfileOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20"
-                aria-label="Profile"
-              >
-                <span className="text-[10px] font-bold text-primary">{initials}</span>
-              </button>
-            </>
+            <NavbarUpgradeLink />
           ) : (
             <div className="flex items-center gap-2">
               <button

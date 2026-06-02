@@ -11,6 +11,7 @@ import {
   type SidebarSection,
 } from "@/components/home/app-sidebar-panels";
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
+import { SidebarUserFooter } from "@/components/layout/sidebar-user-footer";
 import { useSidebarChats } from "@/hooks/use-sidebar-chats";
 import { navigateToNewChat } from "@/lib/chat-navigation";
 import {
@@ -42,9 +43,9 @@ export function AppSidebarContent({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const activeConversationId = useChatStore((s) => s.activeConversationId);
-  const { section, setSection, openLogin, openSupport } = useAppShell();
+  const { section, setSection, openLogin, openSupport, setProfileOpen } = useAppShell();
   const [focusSearch, setFocusSearch] = useState(false);
   const {
     conversations,
@@ -66,6 +67,15 @@ export function AppSidebarContent({
     "whitespace-nowrap transition-[opacity,transform,max-width] duration-200 ease-out",
     expanded ? "max-w-[12rem] translate-x-0 opacity-100" : "max-w-0 -translate-x-1 opacity-0",
   );
+
+  const initials = user?.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "?";
 
   const handleSectionChange = (next: SidebarSection) => {
     setSection(next);
@@ -132,47 +142,46 @@ export function AppSidebarContent({
   return (
     <div
       className={cn(
-        "flex flex-col",
-        !isDrawer && "min-h-0 flex-1 will-change-transform",
-        expanded
-          ? isDrawer
-            ? "py-3"
-            : "px-2 py-3"
-          : "items-center px-0 pb-3 pt-1",
+        "flex h-full flex-col",
+        !isDrawer && "min-h-0 flex-1",
         className,
       )}
     >
-      {expanded ? (
-        <SidebarSectionNav
-          expanded
-          section={section}
-          onSectionChange={handleSectionChange}
-          onNewChat={handleNewChat}
-          isAuthenticated={isAuthenticated}
-          labelClassName={labelClassName}
-        />
-      ) : (
-        <SidebarCollapsedNav
-          section={section}
-          onNewChat={handleNewChat}
-          onLibrary={handleLibrary}
-          onApps={handleApps}
-          onPlans={handlePlans}
-          onSearch={handleSearch}
-          isAuthenticated={isAuthenticated}
-        />
-      )}
+      <div
+        className={cn(
+          "shrink-0",
+          expanded ? "px-3 py-3" : "flex justify-center px-1 py-2",
+        )}
+      >
+        {expanded ? (
+          <SidebarSectionNav
+            expanded
+            section={section}
+            onSectionChange={handleSectionChange}
+            onNewChat={handleNewChat}
+            isAuthenticated={isAuthenticated}
+            labelClassName={labelClassName}
+          />
+        ) : (
+          <SidebarCollapsedNav
+            section={section}
+            onNewChat={handleNewChat}
+            onLibrary={handleLibrary}
+            onApps={handleApps}
+            onPlans={handlePlans}
+            onSearch={handleSearch}
+            isAuthenticated={isAuthenticated}
+          />
+        )}
+      </div>
 
       {expanded && isAuthenticated && (
         <div
           className={cn(
-            "mt-2 border-t border-sidebar-border/50 pt-2",
-            !isDrawer && "flex min-h-0 flex-1 flex-col",
+            "flex min-h-0 flex-1 flex-col px-3 pt-3",
+            !isDrawer && "overflow-hidden",
           )}
         >
-          <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Recents
-          </p>
           <SidebarRecentsList
             conversations={conversations}
             loading={chatsLoading}
@@ -193,37 +202,55 @@ export function AppSidebarContent({
       )}
 
       {expanded && !isAuthenticated && (
-        <div className="mt-3 space-y-3 border-t border-sidebar-border/60 pt-3">
+        <div className="mt-auto px-3 py-3">
           <button
             type="button"
             onClick={() => {
               openLogin("login");
               onNavigate?.();
             }}
-            className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/90 p-3 text-left text-sm font-medium shadow-sm transition-all hover:border-primary/30 hover:bg-card"
+            className="flex w-full items-center gap-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-violet-500/5 to-pink-500/10 px-3 py-2.5 text-left transition-all hover:from-primary/15 hover:via-violet-500/10 hover:to-pink-500/15"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <LogIn className="h-4 w-4" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+              <LogIn className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
             </span>
             <span>
-              <span className="block">Sign in / Join</span>
+              <span className="block text-[13px] font-medium">Sign in</span>
               <span className="text-[11px] text-muted-foreground">
-                Save chats and library items
+                Save chats and library
               </span>
             </span>
           </button>
         </div>
       )}
 
-      <SettingsHelpFooterTab
-        collapsed={!expanded}
-        showTopBorder={expanded}
-        labelClassName={labelClassName}
-        onOpen={() => {
-          openSupport("settings");
-          onNavigate?.();
-        }}
-      />
+      {isAuthenticated ? (
+        <SidebarUserFooter
+          expanded={expanded}
+          name={user?.name ?? "Account"}
+          initials={initials}
+          subtitle={user?.email}
+          labelClassName={labelClassName}
+          onProfile={() => {
+            setProfileOpen(true);
+            onNavigate?.();
+          }}
+          onSettings={() => {
+            openSupport("settings");
+            onNavigate?.();
+          }}
+        />
+      ) : (
+        <SettingsHelpFooterTab
+          collapsed={!expanded}
+          showTopBorder={expanded}
+          labelClassName={labelClassName}
+          onOpen={() => {
+            openSupport("settings");
+            onNavigate?.();
+          }}
+        />
+      )}
     </div>
   );
 }

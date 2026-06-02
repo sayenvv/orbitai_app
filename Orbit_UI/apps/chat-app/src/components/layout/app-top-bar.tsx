@@ -5,18 +5,8 @@ import { useAuthStore } from "@/store/auth-store";
 import { useAppShell } from "@/components/layout/app-shell-context";
 
 export function AppTopBar() {
-  const { user, isAuthenticated } = useAuthStore();
-  const { header, setProfileOpen, openLogin } = useAppShell();
-
-  const initials = user?.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "?";
-  const displayName = user?.name || "User";
+  const { isAuthenticated } = useAuthStore();
+  const { header, openLogin } = useAppShell();
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between bg-background/80 px-4 backdrop-blur-sm md:px-6">
@@ -35,20 +25,7 @@ export function AppTopBar() {
       <div className="flex shrink-0 items-center gap-2">
         {header?.actions}
         {isAuthenticated ? (
-          <>
-            <NavbarUpgradeLink />
-            <button
-            type="button"
-            onClick={() => setProfileOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/80"
-            title="Profile"
-          >
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
-              <span className="text-[10px] font-bold text-primary">{initials}</span>
-            </div>
-            <span className="hidden max-w-[8rem] truncate sm:inline">{displayName}</span>
-          </button>
-          </>
+          <NavbarUpgradeLink />
         ) : (
           <div className="flex items-center gap-2">
             <button

@@ -20,7 +20,7 @@ export function ChatHistoryRail({ className }: ChatHistoryRailProps) {
       hydrated={hydrated}
       onToggle={toggle}
       ariaLabel="App sidebar"
-      className={cn("h-full min-h-0 w-full bg-sidebar", className)}
+      className={cn("h-full min-h-0 w-full", className)}
       renderBrand={(expanded, onExpand) => (
         <SidebarBrand showText={expanded} onExpand={expanded ? undefined : onExpand} />
       )}

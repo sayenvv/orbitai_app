@@ -67,11 +67,11 @@ export function MobileAppDrawer() {
         aria-modal="true"
         aria-label="Navigation menu"
         className={cn(
-          "absolute inset-y-0 left-0 flex w-[min(20rem,88vw)] flex-col bg-sidebar shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] safe-top safe-bottom",
+          "sidebar-edge-shadow absolute inset-y-0 left-0 flex w-[min(280px,88vw)] flex-col bg-sidebar transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] safe-top safe-bottom",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex shrink-0 items-center justify-between px-4 py-3.5">
+        <div className="flex h-[3.25rem] shrink-0 items-center justify-between px-4">
           <div className="min-w-0">
             <BrandMark size="sm" />
           </div>
