@@ -3708,6 +3708,8 @@ function PhotoStudioWorkspace({
   const [shapeDragActive, setShapeDragActive] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const shapeStageRef = useRef<Konva.Stage | null>(null);
+  const canvasZoomContentRef = useRef<HTMLDivElement>(null);
+  const [canvasZoomContentSize, setCanvasZoomContentSize] = useState({ width: 0, height: 0 });
   const canvasPixelSize = useElementPixelSize(canvasRef);
   const [canvasZoom, setCanvasZoom] = useState(CANVAS_ZOOM_DEFAULT);
   const [rightToolbarExpanded, setRightToolbarExpanded] = useState(true);
@@ -3767,6 +3769,23 @@ function PhotoStudioWorkspace({
   const manualLayerCount = manualCanvasLayers.length;
   const canvasAspectRatio = aspectRatio;
   const canvasDesign = getCanvasDesignByAspectRatio(canvasAspectRatio);
+
+  useLayoutEffect(() => {
+    const node = canvasZoomContentRef.current;
+    if (!node) return;
+
+    const update = () => {
+      setCanvasZoomContentSize({
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+      });
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [canvasAspectRatio]);
 
   const applyGenerationToCanvas = useCallback((item: PhotoStudioGeneratedItem) => {
     setSelectedGenerationId(item.id);
@@ -5861,12 +5880,29 @@ function PhotoStudioWorkspace({
             />
             <div className="flex min-h-full w-full items-center justify-center p-6 md:p-10 lg:p-12">
               <div
-                className="flex w-full max-w-5xl flex-col items-center gap-3 transition-transform duration-200 ease-out"
-                style={{
-                  transform: `scale(${canvasZoom})`,
-                  transformOrigin: "center center",
-                }}
+                className="relative shrink-0"
+                style={
+                  canvasZoomContentSize.width > 0 && canvasZoomContentSize.height > 0
+                    ? {
+                        width: canvasZoomContentSize.width * canvasZoom,
+                        height: canvasZoomContentSize.height * canvasZoom,
+                      }
+                    : undefined
+                }
               >
+                <div
+                  ref={canvasZoomContentRef}
+                  className={cn(
+                    "flex max-w-5xl flex-col items-center gap-3",
+                    canvasZoomContentSize.width <= 0 && "w-full",
+                  )}
+                  style={{
+                    width:
+                      canvasZoomContentSize.width > 0 ? canvasZoomContentSize.width : undefined,
+                    transform: `scale(${canvasZoom})`,
+                    transformOrigin: "top left",
+                  }}
+                >
                 <div className="flex flex-wrap items-center justify-center gap-2 px-2">
                   <span className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-background/95 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-foreground shadow-sm backdrop-blur-sm">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.55)]" />
@@ -6061,6 +6097,7 @@ function PhotoStudioWorkspace({
                 <p className="max-w-sm px-4 text-center text-[10px] leading-relaxed text-muted-foreground/75">
                   {hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle}
                 </p>
+                </div>
               </div>
             </div>
           </div>
