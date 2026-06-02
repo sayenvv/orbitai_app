@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     rate_limit_auth_per_minute: int = 20
     rate_limit_register_per_minute: int = 5
     rate_limit_upload_per_minute: int = 15
+    rate_limit_crawl_per_minute: int = 10
+    crawl_max_pages: int = 500
+    crawl_fetch_retries: int = 3
+    crawl_fetch_retry_delay_seconds: float = 1.0
     rate_limit_chat_stream_per_minute: int = 40
     control_center_data_dir: str = "../Orbit_UI/apps/control_center_app/src/data"
     local_llm_base_url: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_BASE_URL")

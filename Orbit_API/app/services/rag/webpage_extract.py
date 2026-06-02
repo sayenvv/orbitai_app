@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import re
+from dataclasses import dataclass
 from html.parser import HTMLParser
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -14,6 +16,15 @@ USER_AGENT = "OrbitBot/1.0 (compatible; +https://clovai.app)"
 
 class WebpageExtractError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class FetchedWebpage:
+    final_url: str
+    title: str
+    text: str
+    html: str
+    content_type: str
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -95,14 +106,62 @@ def _extract_title(html: str) -> str | None:
     return title or None
 
 
+def extract_main_content_html(html: str) -> str:
+    """Prefer article/main regions so nav chrome is not scraped as body text."""
+    for pattern in (
+        r"<main[^>]*>(.*?)</main>",
+        r"<article[^>]*>(.*?)</article>",
+        r'<div[^>]+id=["\']main["\'][^>]*>(.*?)</div>',
+    ):
+        match = re.search(pattern, html, flags=re.IGNORECASE | re.DOTALL)
+        if match and len(match.group(1)) > 200:
+            return match.group(1)
+    return html
+
+
 def html_to_text(html: str) -> str:
     parser = _HTMLTextExtractor()
-    parser.feed(html)
+    parser.feed(extract_main_content_html(html))
     return parser.get_text()
 
 
-async def fetch_webpage_text(url: str) -> tuple[str, str, str]:
-    """Return (normalized_url, display_title, plain_text)."""
+class _LinkExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        attr_map = {key.lower(): value.strip() for key, value in attrs if value}
+        tag_lower = tag.lower()
+
+        if tag_lower == "a":
+            href = attr_map.get("href") or attr_map.get("data-href") or attr_map.get("data-url")
+            if href:
+                self.links.append(href)
+            return
+
+        if tag_lower == "link" and attr_map.get("rel", "").lower() == "next":
+            href = attr_map.get("href")
+            if href:
+                self.links.append(href)
+
+
+def extract_links_from_html(html: str, base_url: str) -> list[str]:
+    parser = _LinkExtractor()
+    try:
+        parser.feed(html)
+    except Exception:
+        return []
+    resolved: list[str] = []
+    for href in parser.links:
+        if href.startswith("#") or href.lower().startswith(("javascript:", "mailto:", "tel:")):
+            continue
+        resolved.append(urljoin(base_url, href))
+    return resolved
+
+
+async def fetch_webpage(url: str) -> FetchedWebpage:
+    """Fetch a public webpage and return structured content (SSRF-safe)."""
     normalized = normalize_public_http_url(url)
 
     async with httpx.AsyncClient(follow_redirects=True, timeout=FETCH_TIMEOUT_SECONDS) as client:
@@ -135,4 +194,69 @@ async def fetch_webpage_text(url: str) -> tuple[str, str, str]:
     if not text:
         raise WebpageExtractError("No readable text found on this page.")
 
-    return final_url, title[:512], text
+    return FetchedWebpage(
+        final_url=final_url,
+        title=title[:512],
+        text=text,
+        html=html,
+        content_type=content_type,
+    )
+
+
+def _is_retryable_http_status(status_code: int) -> bool:
+    if status_code in {400, 401, 403, 404, 410}:
+        return False
+    return status_code in {408, 429} or status_code >= 500
+
+
+def _is_retryable_webpage_error(exc: WebpageExtractError) -> bool:
+    message = str(exc).lower()
+    permanent_markers = (
+        "not allowed",
+        "not supported",
+        "too large",
+        "no readable text",
+        "redirect target",
+        "credentials",
+        "valid webpage url",
+    )
+    return not any(marker in message for marker in permanent_markers)
+
+
+async def fetch_webpage_with_retries(
+    url: str,
+    *,
+    max_attempts: int = 3,
+    retry_delay_seconds: float = 1.0,
+) -> FetchedWebpage:
+    """Fetch a page with retries on transient network/server errors."""
+    attempts = max(1, max_attempts)
+    last_error: Exception | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            return await fetch_webpage(url)
+        except WebpageExtractError as exc:
+            last_error = exc
+            if not _is_retryable_webpage_error(exc):
+                raise
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            if not _is_retryable_http_status(exc.response.status_code):
+                raise WebpageExtractError(
+                    f"HTTP {exc.response.status_code} for {url}"
+                ) from exc
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.ConnectError) as exc:
+            last_error = exc
+
+        if attempt < attempts:
+            await asyncio.sleep(retry_delay_seconds * attempt)
+
+    detail = str(last_error) if last_error else "unknown error"
+    raise WebpageExtractError(f"Failed to fetch page after {attempts} attempts: {detail}") from last_error
+
+
+async def fetch_webpage_text(url: str) -> tuple[str, str, str]:
+    """Return (normalized_url, display_title, plain_text)."""
+    page = await fetch_webpage(url)
+    return page.final_url, page.title, page.text

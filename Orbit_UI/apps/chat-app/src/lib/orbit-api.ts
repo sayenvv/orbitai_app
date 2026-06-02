@@ -114,6 +114,39 @@ export type ApiPdfInspect = {
   plan: string;
 };
 
+export type ApiCrawledPage = {
+  url: string;
+  title: string;
+  text: string;
+  depth: number;
+  links: string[];
+};
+
+export type ApiCrawlResponse = {
+  start_url: string;
+  pages: ApiCrawledPage[];
+  page_count: number;
+  truncated: boolean;
+  failed_urls: string[];
+  combined_text: string;
+  pending_urls: number;
+  pending_url_list: string[];
+  max_pages_limit: number;
+};
+
+export type ApiCrawlRequest = {
+  url: string;
+  follow_links?: boolean;
+  /** Scrape until queue empty (default true, up to server crawl_max_pages). */
+  complete?: boolean;
+  max_depth?: number;
+  max_pages?: number;
+  same_origin_only?: boolean;
+  path_prefix_scope?: boolean;
+  auto_doc_scope?: boolean;
+  include_links?: boolean;
+};
+
 export type ApiMessage = {
   id: string;
   role: string;
@@ -384,6 +417,13 @@ export const publicApi = {
         url,
         conversation_id: conversationId ?? undefined,
       }),
+    }),
+
+  /** Fetch and extract text from one or more pages (does not ingest into library). */
+  crawlWeb: (body: ApiCrawlRequest) =>
+    request<ApiCrawlResponse>(getApiBaseUrl(), "/crawl", {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
 
   waitForFileReady: async (

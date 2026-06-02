@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 # --- Auth ---
@@ -230,6 +230,74 @@ class PdfInspectResponse(BaseModel):
 class ImportWebpageRequest(BaseModel):
     url: str = Field(min_length=4, max_length=2048)
     conversation_id: UUID | None = None
+
+
+class CrawlRequest(BaseModel):
+    url: str = Field(min_length=4, max_length=2048)
+    follow_links: bool = Field(
+        default=True,
+        description="Recursively fetch every discovered link (one page at a time).",
+    )
+    complete: bool = Field(
+        default=True,
+        description="Scrape until no links remain (up to crawl_max_pages, default 500).",
+    )
+    max_depth: int | None = Field(
+        default=None,
+        ge=0,
+        le=20,
+        description="Optional link-depth cap. Omit for full recursive crawl.",
+    )
+    max_pages: int | None = Field(
+        default=None,
+        ge=1,
+        le=1000,
+        description="Page cap. Omit with complete=true to drain the whole queue (up to 500).",
+    )
+    same_origin_only: bool = True
+    path_prefix_scope: bool = Field(
+        default=False,
+        description="When true, only follow links under the start page's directory.",
+    )
+    auto_doc_scope: bool = Field(
+        default=True,
+        description="Auto-limit follow to the doc section (e.g. /en-us/agent-framework on Learn).",
+    )
+    include_links: bool = True
+    fetch_retries: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+        description="Per-page fetch attempts before marking URL failed (default 3).",
+    )
+
+    @model_validator(mode="after")
+    def apply_nested_defaults(self) -> "CrawlRequest":
+        if not self.follow_links:
+            self.max_depth = 0
+            self.max_pages = 1
+            self.complete = False
+        return self
+
+
+class CrawledPageResponse(BaseModel):
+    url: str
+    title: str
+    text: str
+    depth: int
+    links: list[str] = Field(default_factory=list)
+
+
+class CrawlResponse(BaseModel):
+    start_url: str
+    pages: list[CrawledPageResponse]
+    page_count: int
+    truncated: bool = False
+    failed_urls: list[str] = Field(default_factory=list)
+    combined_text: str = ""
+    pending_urls: int = 0
+    pending_url_list: list[str] = Field(default_factory=list)
+    max_pages_limit: int = 0
 
 
 class CreateUploadInsightsRequest(BaseModel):
