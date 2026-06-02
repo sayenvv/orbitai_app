@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.control.agent_resources import router as control_agent_resources_router
 from app.api.v1.control.agents import router as control_agents_router
 from app.api.v1.control.plan_limits import router as control_plan_limits_router
 from app.api.v1.platform.dashboard import router as platform_router
@@ -23,5 +24,6 @@ api_router.include_router(files_router)
 api_router.include_router(library_router)
 api_router.include_router(llm_router)
 api_router.include_router(control_agents_router)
+api_router.include_router(control_agent_resources_router)
 api_router.include_router(control_plan_limits_router)
 api_router.include_router(platform_router)

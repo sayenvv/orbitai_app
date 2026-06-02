@@ -4,9 +4,25 @@ import { cookies } from "next/headers";
 import {
   ApiError,
   mapControlAgent,
+  mapControlAdaptiveCard,
+  mapControlPersonalization,
+  mapControlTool,
+  mapControlWidget,
+  type ApiControlAdaptiveCard,
   type ApiControlAgent,
+  type ApiControlPersonalization,
+  type ApiControlTheme,
+  type ApiControlTool,
+  type ApiControlWidgetsResponse,
 } from "@/lib/orbit-api";
-import type { Agent } from "@/lib/data";
+import type {
+  AdaptiveCardDefinition,
+  Agent,
+  Personalization,
+  ToolDefinition,
+  Widget,
+} from "@/lib/data";
+import { hydrateWidget } from "@/lib/data";
 
 function getServerApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -65,6 +81,21 @@ export const serverControlApi = {
 
   getAgent: (agentId: string) =>
     serverRequest<ApiControlAgent>(`/control/agents/${agentId}`),
+
+  getAgentTools: (agentId: string) =>
+    serverRequest<ApiControlTool[]>(`/control/agents/${agentId}/tools`),
+
+  getAgentWidgets: (agentId: string) =>
+    serverRequest<ApiControlWidgetsResponse>(`/control/agents/${agentId}/widgets`),
+
+  getAgentAdaptiveCards: (agentId: string) =>
+    serverRequest<ApiControlAdaptiveCard[]>(`/control/agents/${agentId}/adaptive-cards`),
+
+  getAgentPersonalization: (agentId: string) =>
+    serverRequest<ApiControlPersonalization>(`/control/agents/${agentId}/personalization`),
+
+  getAgentTheme: (agentId: string) =>
+    serverRequest<ApiControlTheme>(`/control/agents/${agentId}/theme`),
 };
 
 export async function fetchAgent(agentId: string): Promise<Agent> {
@@ -85,4 +116,34 @@ export async function fetchDefaultAgentId(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export async function fetchAgentTools(agentId: string): Promise<ToolDefinition[]> {
+  const rows = await serverControlApi.getAgentTools(agentId);
+  return rows.map(mapControlTool);
+}
+
+export async function fetchAgentWidgets(agentId: string): Promise<{
+  widgets: Widget[];
+  enabledWidgetIds: string[];
+}> {
+  const data = await serverControlApi.getAgentWidgets(agentId);
+  return {
+    widgets: data.widgets.map((w) => hydrateWidget(mapControlWidget(w))),
+    enabledWidgetIds: data.enabled_widget_ids,
+  };
+}
+
+export async function fetchAgentAdaptiveCards(agentId: string): Promise<AdaptiveCardDefinition[]> {
+  const rows = await serverControlApi.getAgentAdaptiveCards(agentId);
+  return rows.map(mapControlAdaptiveCard);
+}
+
+export async function fetchAgentPersonalization(agentId: string): Promise<Personalization> {
+  const row = await serverControlApi.getAgentPersonalization(agentId);
+  return mapControlPersonalization(row);
+}
+
+export async function fetchAgentTheme(agentId: string) {
+  return serverControlApi.getAgentTheme(agentId);
 }

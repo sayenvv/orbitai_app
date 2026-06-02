@@ -2,13 +2,13 @@ import { PageHeader, PageBody } from "@/components/page-shell";
 import { AgentHeader } from "@/components/agent-header";
 import { AdaptiveCardEditor } from "@/components/adaptive-card-editor";
 import { loadAgent } from "@/lib/agent-page";
-import { getAdaptiveCardsForAgent } from "@/lib/data";
+import { fetchAgentAdaptiveCards } from "@/lib/control-api-server";
 
 type Params = Promise<{ agentId: string }>;
 
 export default async function AgentAdaptiveCardsPage({ params }: { params: Params }) {
   const agent = await loadAgent(params);
-  const cards = getAdaptiveCardsForAgent(agent.id);
+  const cards = await fetchAgentAdaptiveCards(agent.id);
 
   return (
     <>
@@ -23,7 +23,7 @@ export default async function AgentAdaptiveCardsPage({ params }: { params: Param
           name={agent.name}
           subtitle={`${cards.length} card${cards.length === 1 ? "" : "s"} configured`}
         />
-        <AdaptiveCardEditor agentName={agent.name} initialCards={cards} />
+        <AdaptiveCardEditor agentId={agent.id} agentName={agent.name} initialCards={cards} />
       </PageBody>
     </>
   );

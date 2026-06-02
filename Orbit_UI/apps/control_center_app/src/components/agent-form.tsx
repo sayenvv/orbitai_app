@@ -80,6 +80,7 @@ export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
   const [fieldErrors, setFieldErrors] = useState<AgentFieldErrors>({});
   const [touched, setTouched] = useState<TouchedFields>({});
   const [submitted, setSubmitted] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -199,6 +200,23 @@ export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!agent?.id || deleting) return;
+    if (!window.confirm(`Delete "${agent.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await controlApi.deleteAgent(agent.id);
+      await queryClient.invalidateQueries({ queryKey: ["control", "agents"] });
+      router.push("/agents");
+    } catch (err) {
+      setFieldErrors({
+        form: err instanceof ApiError ? err.message : "Delete failed. Try again.",
+      });
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -444,10 +462,15 @@ export function AgentForm({ mode, agent, flashSuccess }: AgentFormProps) {
           {mode === "edit" && (
             <button
               type="button"
-              onClick={() => router.push("/agents")}
-              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
+              onClick={() => void handleDelete()}
+              disabled={deleting}
+              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors disabled:opacity-50"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              {deleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
               Delete agent
             </button>
           )}

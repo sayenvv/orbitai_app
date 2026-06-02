@@ -1,11 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, AlertCircle, LayoutTemplate, Plus } from "lucide-react";
+import { Check, AlertCircle, LayoutTemplate, Plus, Loader2 } from "lucide-react";
 import type { AdaptiveCardDefinition } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import {
+  controlApi,
+  getApiErrorMessage,
+  mapControlAdaptiveCard,
+  toAdaptiveCardApiBody,
+} from "@/lib/orbit-api";
 
 type Props = {
+  agentId: string;
   agentName: string;
   initialCards: AdaptiveCardDefinition[];
 };
@@ -62,21 +69,36 @@ function validate(text: string): ParseResult {
   return { ok: true, value: value as AdaptiveCardDefinition[] };
 }
 
-export function AdaptiveCardEditor({ agentName, initialCards }: Props) {
+export function AdaptiveCardEditor({ agentId, agentName, initialCards }: Props) {
   const initialText = useMemo(() => JSON.stringify(initialCards, null, 2), [initialCards]);
   const [text, setText] = useState(initialText);
   const [savedText, setSavedText] = useState(initialText);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const parsed = useMemo(() => validate(text), [text]);
   const dirty = text !== savedText;
 
-  const handleSave = () => {
-    if (!parsed.ok) return;
-    const pretty = JSON.stringify(parsed.value, null, 2);
-    setText(pretty);
-    setSavedText(pretty);
-    setSavedAt(new Date());
+  const handleSave = async () => {
+    if (!parsed.ok || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const saved = await controlApi.updateAgentAdaptiveCards(
+        agentId,
+        toAdaptiveCardApiBody(parsed.value),
+      );
+      const mapped = saved.map(mapControlAdaptiveCard);
+      const pretty = JSON.stringify(mapped, null, 2);
+      setText(pretty);
+      setSavedText(pretty);
+      setSavedAt(new Date());
+    } catch (err) {
+      setSaveError(getApiErrorMessage(err, "Could not save adaptive cards."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleFormat = () => {
@@ -124,10 +146,11 @@ export function AdaptiveCardEditor({ agentName, initialCards }: Props) {
               Reset
             </button>
             <button
-              onClick={handleSave}
-              disabled={!parsed.ok || !dirty}
-              className="rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[10px] font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              onClick={() => void handleSave()}
+              disabled={!parsed.ok || !dirty || saving}
+              className="inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[10px] font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
+              {saving && <Loader2 className="h-3 w-3 animate-spin" />}
               Save
             </button>
           </div>
@@ -143,12 +166,19 @@ export function AdaptiveCardEditor({ agentName, initialCards }: Props) {
         <div
           className={cn(
             "flex items-center gap-2 border-t px-3 py-2 text-[11px]",
-            parsed.ok
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-destructive bg-destructive/5"
+            saveError
+              ? "text-destructive bg-destructive/5"
+              : parsed.ok
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-destructive bg-destructive/5"
           )}
         >
-          {parsed.ok ? (
+          {saveError ? (
+            <>
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              <span>{saveError}</span>
+            </>
+          ) : parsed.ok ? (
             <>
               <Check className="h-3.5 w-3.5" />
               <span>Valid JSON · {parsed.value.length} cards</span>

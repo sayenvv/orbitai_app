@@ -1,13 +1,8 @@
 /**
  * Data access layer for the control center app.
  *
- * Agents are loaded from the Orbit API (`controlApi` / `serverControlApi`).
- * Other entities still read from local JSON under `src/data/` until wired to API.
- *
- * Conventions:
- *  - Every entity has a UUID `id`.
- *  - Agents also carry a human-readable `slug` for URL routing.
- *  - Cross-entity references use the UUID `agentId`.
+ * Agents and agent resources are loaded from the Orbit API.
+ * Local JSON under `src/data/` remains as seed/reference data only.
  */
 
 import { type LucideIcon } from "lucide-react";
@@ -88,6 +83,7 @@ export type Personalization = {
   quickPrompts: string[];
   tone: string;
   responseLength: string;
+  language?: string;
 };
 
 /** Adaptive Card definition — a named Microsoft Adaptive Card JSON payload. */
@@ -123,8 +119,14 @@ export function hydrateAgentRecord(record: AgentRecord): Agent {
   return hydrateAgent(record);
 }
 
-function hydrateWidget(def: WidgetDefinition): Widget {
+/** Hydrate a widget definition with its icon component. */
+export function hydrateWidget(def: WidgetDefinition): Widget {
   return { ...def, icon: resolveIcon(def.iconKey) };
+}
+
+/** Hydrate widget definitions (e.g. from API) with icon components. */
+export function hydrateWidgets(defs: WidgetDefinition[]): Widget[] {
+  return defs.map(hydrateWidget);
 }
 
 // ---------- Tools ----------

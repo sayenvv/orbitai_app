@@ -55,7 +55,21 @@ class Agent(Base):
     configuration: Mapped["AgentConfiguration | None"] = relationship(
         back_populates="agent", uselist=False
     )
-    agent_tools: Mapped[list["AgentTool"]] = relationship(back_populates="agent")
+    agent_tools: Mapped[list["AgentTool"]] = relationship(
+        back_populates="agent", cascade="all, delete-orphan"
+    )
+    agent_widgets: Mapped[list["AgentWidget"]] = relationship(
+        back_populates="agent", cascade="all, delete-orphan"
+    )
+    agent_adaptive_cards: Mapped[list["AgentAdaptiveCard"]] = relationship(
+        back_populates="agent", cascade="all, delete-orphan"
+    )
+    personalization: Mapped["AgentPersonalization | None"] = relationship(
+        back_populates="agent", uselist=False, cascade="all, delete-orphan"
+    )
+    theme: Mapped["AgentTheme | None"] = relationship(
+        back_populates="agent", uselist=False, cascade="all, delete-orphan"
+    )
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent")
 
 
@@ -101,6 +115,89 @@ class AgentTool(Base):
 
     agent: Mapped["Agent"] = relationship(back_populates="agent_tools")
     tool: Mapped["Tool"] = relationship(back_populates="agent_tools")
+
+
+class Widget(Base):
+    __tablename__ = "widgets"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    key: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text, default="")
+    icon_key: Mapped[str] = mapped_column(String(64), default="Sparkles")
+
+    agent_widgets: Mapped[list["AgentWidget"]] = relationship(back_populates="widget")
+
+
+class AgentWidget(Base):
+    __tablename__ = "agent_widgets"
+
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), primary_key=True
+    )
+    widget_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("widgets.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    agent: Mapped["Agent"] = relationship(back_populates="agent_widgets")
+    widget: Mapped["Widget"] = relationship(back_populates="agent_widgets")
+
+
+class AdaptiveCard(Base):
+    __tablename__ = "adaptive_cards"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text, default="")
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    agent_adaptive_cards: Mapped[list["AgentAdaptiveCard"]] = relationship(back_populates="card")
+
+
+class AgentAdaptiveCard(Base):
+    __tablename__ = "agent_adaptive_cards"
+
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), primary_key=True
+    )
+    card_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("adaptive_cards.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    agent: Mapped["Agent"] = relationship(back_populates="agent_adaptive_cards")
+    card: Mapped["AdaptiveCard"] = relationship(back_populates="agent_adaptive_cards")
+
+
+class AgentPersonalization(Base):
+    __tablename__ = "agent_personalizations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), unique=True
+    )
+    greeting: Mapped[str] = mapped_column(Text, default="")
+    avatar_emoji: Mapped[str] = mapped_column(String(16), default="🤖")
+    quick_prompts: Mapped[list] = mapped_column(JSONB, default=list)
+    tone: Mapped[str] = mapped_column(String(32), default="Friendly")
+    response_length: Mapped[str] = mapped_column(String(32), default="Medium")
+    language: Mapped[str] = mapped_column(String(32), default="English")
+
+    agent: Mapped["Agent"] = relationship(back_populates="personalization")
+
+
+class AgentTheme(Base):
+    __tablename__ = "agent_themes"
+
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), primary_key=True
+    )
+    border_radius: Mapped[str] = mapped_column(String(32), default="0.625rem")
+    density: Mapped[str] = mapped_column(String(32), default="comfortable")
+    font_sans: Mapped[str] = mapped_column(String(64), default="Inter")
+    bubble_style: Mapped[str] = mapped_column(String(32), default="rounded")
+    dark_mode: Mapped[str] = mapped_column(String(32), default="follow system")
+
+    agent: Mapped["Agent"] = relationship(back_populates="theme")
 
 
 class Conversation(Base):

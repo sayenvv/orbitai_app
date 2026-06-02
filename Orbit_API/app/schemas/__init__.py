@@ -330,3 +330,77 @@ class ControlConfigurationUpdate(BaseModel):
     temperature: float | None = None
     max_tokens: int | None = None
     system_prompt: str | None = None
+
+
+class ControlToolItem(BaseModel):
+    id: UUID | None = None
+    name: str
+    description: str = ""
+    parameters: dict = Field(default_factory=dict)
+    enabled: bool = True
+
+
+class ControlWidgetItem(BaseModel):
+    id: UUID
+    key: str
+    name: str
+    description: str
+    icon_key: str
+
+    model_config = {"from_attributes": True}
+
+
+class ControlAgentWidgetsResponse(BaseModel):
+    widgets: list[ControlWidgetItem]
+    enabled_widget_ids: list[UUID]
+
+
+class ControlAgentWidgetsUpdate(BaseModel):
+    enabled_widget_ids: list[UUID]
+
+
+class ControlAdaptiveCardItem(BaseModel):
+    id: UUID | None = None
+    name: str
+    description: str = ""
+    payload: dict = Field(default_factory=dict)
+
+
+class ControlPersonalizationResponse(BaseModel):
+    id: UUID
+    agent_id: UUID
+    greeting: str
+    avatar_emoji: str
+    quick_prompts: list[str]
+    tone: str
+    response_length: str
+    language: str
+
+    model_config = {"from_attributes": True}
+
+
+class ControlPersonalizationUpdate(BaseModel):
+    greeting: str
+    avatar_emoji: str
+    quick_prompts: list[str]
+    tone: str
+    response_length: str
+    language: str = "English"
+
+
+class ControlThemeResponse(BaseModel):
+    color_key: str
+    border_radius: str
+    density: str
+    font_sans: str
+    bubble_style: str
+    dark_mode: str
+
+
+class ControlThemeUpdate(BaseModel):
+    color_key: str | None = None
+    border_radius: str | None = None
+    density: str | None = None
+    font_sans: str | None = None
+    bubble_style: str | None = None
+    dark_mode: str | None = None

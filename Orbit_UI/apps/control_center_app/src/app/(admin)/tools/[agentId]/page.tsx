@@ -2,13 +2,13 @@ import { PageHeader, PageBody } from "@/components/page-shell";
 import { AgentHeader } from "@/components/agent-header";
 import { ToolCatalogEditor } from "@/components/tool-catalog-editor";
 import { loadAgent } from "@/lib/agent-page";
-import { getToolsForAgent } from "@/lib/data";
+import { fetchAgentTools } from "@/lib/control-api-server";
 
 type Params = Promise<{ agentId: string }>;
 
 export default async function AgentToolsPage({ params }: { params: Params }) {
   const agent = await loadAgent(params);
-  const tools = getToolsForAgent(agent.id);
+  const tools = await fetchAgentTools(agent.id);
 
   return (
     <>
@@ -23,7 +23,7 @@ export default async function AgentToolsPage({ params }: { params: Params }) {
           name={agent.name}
           subtitle={`${tools.length} tools available`}
         />
-        <ToolCatalogEditor agentName={agent.name} initialTools={tools} />
+        <ToolCatalogEditor agentId={agent.id} agentName={agent.name} initialTools={tools} />
       </PageBody>
     </>
   );

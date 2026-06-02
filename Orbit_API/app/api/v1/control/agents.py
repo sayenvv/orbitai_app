@@ -1,9 +1,9 @@
-from uuid import UUID
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.v1.public.auth import require_control_user
+from app.api.v1.control._helpers import require_agent, require_operator
 from app.db.session import get_db
 from app.models import Agent, AgentConfiguration, User
 from app.schemas import (
@@ -15,30 +15,6 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/control", tags=["control"])
-
-
-def require_operator(user: User = Depends(require_control_user)) -> User:
-    if user.role not in ("operator", "admin", "superadmin"):
-        raise HTTPException(status_code=403, detail="Operator access required")
-    return user
-
-
-def _resolve_agent(db: Session, agent_id: str) -> Agent | None:
-    try:
-        uid = UUID(agent_id)
-        agent = db.query(Agent).filter(Agent.id == uid).first()
-        if agent:
-            return agent
-    except ValueError:
-        pass
-    return db.query(Agent).filter(Agent.slug == agent_id).first()
-
-
-def _require_agent(db: Session, agent_id: str) -> Agent:
-    agent = _resolve_agent(db, agent_id)
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    return agent
 
 
 @router.get("/agents", response_model=list[ControlAgentResponse])
@@ -54,7 +30,6 @@ def create_agent(
 ):
     if db.query(Agent).filter(Agent.slug == body.slug).first():
         raise HTTPException(status_code=400, detail="Slug already exists")
-    import uuid
 
     agent = Agent(
         id=uuid.uuid4(),
@@ -87,7 +62,7 @@ def get_agent(
     db: Session = Depends(get_db),
     _: User = Depends(require_operator),
 ):
-    return _require_agent(db, agent_id)
+    return require_agent(db, agent_id)
 
 
 @router.patch("/agents/{agent_id}", response_model=ControlAgentResponse)
@@ -97,12 +72,23 @@ def update_agent(
     db: Session = Depends(get_db),
     _: User = Depends(require_operator),
 ):
-    agent = _require_agent(db, agent_id)
+    agent = require_agent(db, agent_id)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(agent, field, value)
     db.commit()
     db.refresh(agent)
     return agent
+
+
+@router.delete("/agents/{agent_id}", status_code=204)
+def delete_agent(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_operator),
+):
+    agent = require_agent(db, agent_id)
+    db.delete(agent)
+    db.commit()
 
 
 @router.post("/agents/{agent_id}/publish", response_model=ControlAgentResponse)
@@ -111,7 +97,7 @@ def publish_agent(
     db: Session = Depends(get_db),
     _: User = Depends(require_operator),
 ):
-    agent = _require_agent(db, agent_id)
+    agent = require_agent(db, agent_id)
     agent.status = "active"
     db.commit()
     db.refresh(agent)
@@ -140,7 +126,7 @@ def get_configuration(
     db: Session = Depends(get_db),
     _: User = Depends(require_operator),
 ):
-    agent = _require_agent(db, agent_id)
+    agent = require_agent(db, agent_id)
     cfg = _get_or_create_configuration(db, agent)
     db.commit()
     return ControlConfigurationResponse(
@@ -158,7 +144,7 @@ def update_configuration(
     db: Session = Depends(get_db),
     _: User = Depends(require_operator),
 ):
-    agent = _require_agent(db, agent_id)
+    agent = require_agent(db, agent_id)
     cfg = _get_or_create_configuration(db, agent)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(cfg, field, value)

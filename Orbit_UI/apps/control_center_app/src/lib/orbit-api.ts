@@ -1,4 +1,11 @@
-import { hydrateAgentRecord, type Agent } from "@/lib/data";
+import {
+  hydrateAgentRecord,
+  type Agent,
+  type AdaptiveCardDefinition,
+  type Personalization,
+  type ToolDefinition,
+  type WidgetDefinition,
+} from "@/lib/data";
 
 function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -137,6 +144,54 @@ export type ApiPlanLimitsResponse = {
   data: ApiPlanLimit[];
 };
 
+export type ApiControlTool = {
+  id?: string;
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  enabled?: boolean;
+};
+
+export type ApiControlWidget = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  icon_key: string;
+};
+
+export type ApiControlWidgetsResponse = {
+  widgets: ApiControlWidget[];
+  enabled_widget_ids: string[];
+};
+
+export type ApiControlAdaptiveCard = {
+  id?: string;
+  name: string;
+  description: string;
+  payload: Record<string, unknown>;
+};
+
+export type ApiControlPersonalization = {
+  id: string;
+  agent_id: string;
+  greeting: string;
+  avatar_emoji: string;
+  quick_prompts: string[];
+  tone: string;
+  response_length: string;
+  language: string;
+};
+
+export type ApiControlTheme = {
+  color_key: string;
+  border_radius: string;
+  density: string;
+  font_sans: string;
+  bubble_style: string;
+  dark_mode: string;
+};
+
 export function mapControlAgent(raw: ApiControlAgent): Agent {
   return hydrateAgentRecord({
     id: raw.id,
@@ -148,6 +203,85 @@ export function mapControlAgent(raw: ApiControlAgent): Agent {
     iconKey: raw.icon_key,
     colorKey: raw.color_key,
   });
+}
+
+export function mapControlTool(raw: ApiControlTool): ToolDefinition {
+  return {
+    ...(raw.id ? { id: raw.id } : {}),
+    name: raw.name,
+    description: raw.description,
+    parameters: raw.parameters as ToolDefinition["parameters"],
+    enabled: raw.enabled ?? true,
+  };
+}
+
+export function mapControlWidget(raw: ApiControlWidget): WidgetDefinition {
+  return {
+    id: raw.id,
+    key: raw.key,
+    name: raw.name,
+    description: raw.description,
+    iconKey: raw.icon_key,
+  };
+}
+
+export function mapControlAdaptiveCard(raw: ApiControlAdaptiveCard): AdaptiveCardDefinition {
+  return {
+    ...(raw.id ? { id: raw.id } : {}),
+    name: raw.name,
+    description: raw.description,
+    payload: raw.payload,
+  };
+}
+
+export function mapControlPersonalization(raw: ApiControlPersonalization): Personalization {
+  return {
+    id: raw.id,
+    agentId: raw.agent_id,
+    greeting: raw.greeting,
+    avatarEmoji: raw.avatar_emoji,
+    quickPrompts: raw.quick_prompts,
+    tone: raw.tone,
+    responseLength: raw.response_length,
+    language: raw.language,
+  };
+}
+
+export function toToolApiBody(tools: ToolDefinition[]): ApiControlTool[] {
+  return tools.map((tool) => ({
+    ...(tool.id ? { id: tool.id } : {}),
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+    enabled: tool.enabled ?? true,
+  }));
+}
+
+export function toAdaptiveCardApiBody(cards: AdaptiveCardDefinition[]): ApiControlAdaptiveCard[] {
+  return cards.map((card) => ({
+    ...(card.id ? { id: card.id } : {}),
+    name: card.name,
+    description: card.description,
+    payload: card.payload,
+  }));
+}
+
+export function toPersonalizationApiBody(data: {
+  greeting: string;
+  avatarEmoji: string;
+  quickPrompts: string[];
+  tone: string;
+  responseLength: string;
+  language: string;
+}) {
+  return {
+    greeting: data.greeting,
+    avatar_emoji: data.avatarEmoji,
+    quick_prompts: data.quickPrompts,
+    tone: data.tone,
+    response_length: data.responseLength,
+    language: data.language,
+  };
 }
 
 export function toAgentCreateBody(data: {
@@ -218,6 +352,11 @@ export const controlApi = {
       body: JSON.stringify(body),
     }),
 
+  deleteAgent: (agentId: string) =>
+    request<void>(`/control/agents/${agentId}`, {
+      method: "DELETE",
+    }),
+
   publishAgent: (agentId: string) =>
     request<ApiControlAgent>(`/control/agents/${agentId}/publish`, {
       method: "POST",
@@ -241,5 +380,53 @@ export const controlApi = {
     request<ApiPlanLimitsResponse>("/control/plan-limits", {
       method: "PATCH",
       body: JSON.stringify({ plans }),
+    }),
+
+  getAgentTools: (agentId: string) =>
+    request<ApiControlTool[]>(`/control/agents/${agentId}/tools`),
+
+  updateAgentTools: (agentId: string, tools: ApiControlTool[]) =>
+    request<ApiControlTool[]>(`/control/agents/${agentId}/tools`, {
+      method: "PUT",
+      body: JSON.stringify(tools),
+    }),
+
+  getAgentWidgets: (agentId: string) =>
+    request<ApiControlWidgetsResponse>(`/control/agents/${agentId}/widgets`),
+
+  updateAgentWidgets: (agentId: string, enabledWidgetIds: string[]) =>
+    request<ApiControlWidgetsResponse>(`/control/agents/${agentId}/widgets`, {
+      method: "PUT",
+      body: JSON.stringify({ enabled_widget_ids: enabledWidgetIds }),
+    }),
+
+  getAgentAdaptiveCards: (agentId: string) =>
+    request<ApiControlAdaptiveCard[]>(`/control/agents/${agentId}/adaptive-cards`),
+
+  updateAgentAdaptiveCards: (agentId: string, cards: ApiControlAdaptiveCard[]) =>
+    request<ApiControlAdaptiveCard[]>(`/control/agents/${agentId}/adaptive-cards`, {
+      method: "PUT",
+      body: JSON.stringify(cards),
+    }),
+
+  getAgentPersonalization: (agentId: string) =>
+    request<ApiControlPersonalization>(`/control/agents/${agentId}/personalization`),
+
+  updateAgentPersonalization: (
+    agentId: string,
+    body: ReturnType<typeof toPersonalizationApiBody>,
+  ) =>
+    request<ApiControlPersonalization>(`/control/agents/${agentId}/personalization`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  getAgentTheme: (agentId: string) =>
+    request<ApiControlTheme>(`/control/agents/${agentId}/theme`),
+
+  updateAgentTheme: (agentId: string, body: Partial<ApiControlTheme>) =>
+    request<ApiControlTheme>(`/control/agents/${agentId}/theme`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
     }),
 };

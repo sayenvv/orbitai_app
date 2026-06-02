@@ -2,10 +2,17 @@
 
 import { useMemo, useState } from "react";
 import type { ToolDefinition } from "@/lib/tool-catalog";
-import { Check, AlertCircle, Wrench, Plus } from "lucide-react";
+import { Check, AlertCircle, Wrench, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  controlApi,
+  getApiErrorMessage,
+  mapControlTool,
+  toToolApiBody,
+} from "@/lib/orbit-api";
 
 type Props = {
+  agentId: string;
   agentName: string;
   initialTools: ToolDefinition[];
 };
@@ -23,11 +30,13 @@ const STARTER_TOOL: ToolDefinition = {
   enabled: true,
 };
 
-export function ToolCatalogEditor({ agentName, initialTools }: Props) {
+export function ToolCatalogEditor({ agentId, agentName, initialTools }: Props) {
   const initialText = useMemo(() => JSON.stringify(initialTools, null, 2), [initialTools]);
   const [text, setText] = useState(initialText);
   const [savedText, setSavedText] = useState(initialText);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const parsed = useMemo(() => {
     try {
@@ -56,13 +65,22 @@ export function ToolCatalogEditor({ agentName, initialTools }: Props) {
 
   const dirty = text !== savedText;
 
-  const handleSave = () => {
-    if (!parsed.ok) return;
-    // In a real app, POST to the backend here.
-    const pretty = JSON.stringify(parsed.value, null, 2);
-    setText(pretty);
-    setSavedText(pretty);
-    setSavedAt(new Date());
+  const handleSave = async () => {
+    if (!parsed.ok || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const saved = await controlApi.updateAgentTools(agentId, toToolApiBody(parsed.value));
+      const mapped = saved.map(mapControlTool);
+      const pretty = JSON.stringify(mapped, null, 2);
+      setText(pretty);
+      setSavedText(pretty);
+      setSavedAt(new Date());
+    } catch (err) {
+      setSaveError(getApiErrorMessage(err, "Could not save tools."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleFormat = () => {
@@ -112,10 +130,11 @@ export function ToolCatalogEditor({ agentName, initialTools }: Props) {
               Reset
             </button>
             <button
-              onClick={handleSave}
-              disabled={!parsed.ok || !dirty}
-              className="rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[10px] font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              onClick={() => void handleSave()}
+              disabled={!parsed.ok || !dirty || saving}
+              className="inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[10px] font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
+              {saving && <Loader2 className="h-3 w-3 animate-spin" />}
               Save
             </button>
           </div>
@@ -131,12 +150,19 @@ export function ToolCatalogEditor({ agentName, initialTools }: Props) {
         <div
           className={cn(
             "flex items-center gap-2 border-t px-3 py-2 text-[11px]",
-            parsed.ok
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-destructive bg-destructive/5"
+            saveError
+              ? "text-destructive bg-destructive/5"
+              : parsed.ok
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-destructive bg-destructive/5"
           )}
         >
-          {parsed.ok ? (
+          {saveError ? (
+            <>
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              <span>{saveError}</span>
+            </>
+          ) : parsed.ok ? (
             <>
               <Check className="h-3.5 w-3.5" />
               <span>Valid JSON · {parsed.value.length} tools</span>
