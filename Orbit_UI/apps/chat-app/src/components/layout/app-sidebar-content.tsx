@@ -13,7 +13,8 @@ import {
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
 import { SidebarUserFooter } from "@/components/layout/sidebar-user-footer";
 import { useSidebarChats } from "@/hooks/use-sidebar-chats";
-import { navigateToNewChat } from "@/lib/chat-navigation";
+import { navigateToNewChat, conversationPath } from "@/lib/chat-navigation";
+import { routes, homeWithSection } from "@/lib/routes";
 import {
   buildAppChatHref,
   isSameWorkspaceAppChat,
@@ -80,11 +81,11 @@ export function AppSidebarContent({
   const handleSectionChange = (next: SidebarSection) => {
     setSection(next);
     if (next === "plans") {
-      router.push("/plans");
+      router.push(routes.plans);
     } else if (next === "apps") {
-      router.push("/apps");
+      router.push(routes.apps.store);
     } else if (next === "library") {
-      router.push("/?section=library");
+      router.push(homeWithSection("library"));
     }
     onNavigate?.();
   };
@@ -115,7 +116,7 @@ export function AppSidebarContent({
 
   const openChat = (id: string) => {
     useChatStore.getState().setActiveConversation(id);
-    router.push(`/c/${encodeURIComponent(id)}`);
+    router.push(conversationPath(id));
     onNavigate?.();
   };
 

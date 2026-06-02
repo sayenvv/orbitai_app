@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { conversationPath } from "@/lib/chat-navigation";
+import { routes } from "@/lib/routes";
 import { useChatSessionStore } from "@/store/chat-session-store";
 
 /** One-time migration from legacy `/c?agent=…&conversation=…` URLs. */
@@ -54,7 +55,7 @@ export function LegacyChatQueryRedirect() {
       source,
     });
 
-    router.replace("/c");
+    router.replace(routes.chat.root);
   }, [router, searchParams]);
 
   return null;

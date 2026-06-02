@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BookOpenCheck,
@@ -57,7 +57,6 @@ function MetadataField({ label, value }: { label: string; value: string }) {
 }
 
 export function AppHelpPage({ app }: { app: CatalogApp }) {
-  const router = useRouter();
   const { setHeader } = useAppShell();
   const help = getAppHelpContent(app);
   const backHref = getAppLaunchHref(app) ?? getAppWorkspaceHref(app);
@@ -78,14 +77,13 @@ export function AppHelpPage({ app }: { app: CatalogApp }) {
 
       <div className="relative px-4 py-6 md:px-8 md:py-8">
         <div className="mx-auto w-full max-w-6xl space-y-6">
-          <button
-            type="button"
-            onClick={() => router.push(backHref)}
+          <Link
+            href={backHref}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to {app.name}
-          </button>
+          </Link>
 
           <section
             className={cn(

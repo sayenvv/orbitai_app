@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BookOpenCheck,
@@ -42,7 +41,6 @@ type AppStoreCardProps = {
 };
 
 export function AppStoreCard({ app, locked = false, onUpgrade }: AppStoreCardProps) {
-  const router = useRouter();
   const Icon = iconMap[app.iconKey] ?? Sparkles;
   const primaryShot = app.screenshots[0];
   const secondaryShots = app.screenshots.slice(1, 3);
@@ -50,18 +48,10 @@ export function AppStoreCard({ app, locked = false, onUpgrade }: AppStoreCardPro
   const canLaunch = Boolean(launchHref) && !locked;
   const actionLabel = locked ? "Pro" : canLaunch ? "Use" : "Soon";
 
-  const handleUseClick = (event: React.MouseEvent) => {
+  const handleUpgradeClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-
-    if (locked) {
-      onUpgrade?.();
-      return;
-    }
-
-    if (launchHref) {
-      router.push(launchHref);
-    }
+    onUpgrade?.();
   };
 
   return (
@@ -181,24 +171,38 @@ export function AppStoreCard({ app, locked = false, onUpgrade }: AppStoreCardPro
           <Download className="h-3 w-3 text-primary sm:h-3.5 sm:w-3.5" />
           {app.installs}
         </span>
-        <button
-          type="button"
-          onClick={handleUseClick}
-          disabled={!locked && !canLaunch}
-          className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px]",
-            locked
-              ? "bg-primary/10 text-primary hover:bg-primary/15"
-              : canLaunch
-                ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                : "cursor-not-allowed bg-muted text-muted-foreground",
-          )}
-        >
-          {actionLabel}
-          {!locked && canLaunch && (
+        {locked ? (
+          <button
+            type="button"
+            onClick={handleUpgradeClick}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px]",
+              "bg-primary/10 text-primary hover:bg-primary/15",
+            )}
+          >
+            {actionLabel}
+          </button>
+        ) : canLaunch && launchHref ? (
+          <Link
+            href={launchHref}
+            onClick={(event) => event.stopPropagation()}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px]",
+              "bg-primary text-primary-foreground hover:bg-primary/90",
+            )}
+          >
+            {actionLabel}
             <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 sm:h-3.5 sm:w-3.5" />
-          )}
-        </button>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="inline-flex cursor-not-allowed items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground sm:px-3 sm:text-[11px]"
+          >
+            {actionLabel}
+          </button>
+        )}
       </div>
     </article>
   );

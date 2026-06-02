@@ -19,6 +19,7 @@ import {
 } from "@/lib/rag-upload";
 import { buildAgentGreeting } from "@/lib/agent-greeting";
 import { conversationPath, navigateToNewChat } from "@/lib/chat-navigation";
+import { routes } from "@/lib/routes";
 import { expandChatSideRail } from "@/store/chat-side-rail-store";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useUsageStore } from "@/store/usage-store";
@@ -107,7 +108,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     if (!conversationError || !conversationId) return;
     showInvalidChatNotice();
     setConversationError(false);
-    router.replace("/");
+    router.replace(routes.home);
   }, [conversationError, conversationId, router, showInvalidChatNotice]);
 
   useEffect(() => {

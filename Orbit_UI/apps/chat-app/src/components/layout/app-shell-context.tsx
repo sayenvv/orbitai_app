@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { SidebarSection } from "@/components/home/app-sidebar-panels";
 import type { SupportTab } from "@/components/home/support-modal";
+import { routes } from "@/lib/routes";
 
 export type AppHeaderState = {
   title?: string;
@@ -66,7 +67,7 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   const closeSupport = useCallback(() => setSupportOpen(false), []);
 
   const openUpgrade = useCallback(() => {
-    router.push("/plans");
+    router.push(routes.plans);
   }, [router]);
 
   const openLogin = useCallback((mode: "login" | "register" = "login") => {

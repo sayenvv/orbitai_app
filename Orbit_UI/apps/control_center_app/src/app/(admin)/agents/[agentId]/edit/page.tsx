@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import { AgentEditor } from "@/components/agent-editor";
 
-export default function EditAgentPage({
-  params,
-}: {
-  params: Promise<{ agentId: string }>;
-}) {
-  return <AgentEditor params={params} />;
+type Params = Promise<{ agentId: string }>;
+
+export default function EditAgentPage({ params }: { params: Params }) {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading editor…</div>}>
+      <AgentEditor params={params} />
+    </Suspense>
+  );
 }

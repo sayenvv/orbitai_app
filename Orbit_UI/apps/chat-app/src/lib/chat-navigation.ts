@@ -1,5 +1,6 @@
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
+import { routes } from "@/lib/routes";
 import {
   useChatSessionStore,
   type PendingChatLaunch,
@@ -7,31 +8,24 @@ import {
 import { expandChatSideRail } from "@/store/chat-side-rail-store";
 import { useChatStore } from "@/store/chat-store";
 
+export { parseConversationIdFromPath, isChatPath as isChatRoute } from "@/lib/routes";
+
 export function conversationPath(conversationId: string): string {
-  return `/c/${conversationId}`;
-}
-
-export function parseConversationIdFromPath(pathname: string): string | null {
-  const match = /^\/c\/([^/?#]+)$/.exec(pathname);
-  return match?.[1] ?? null;
-}
-
-export function isChatRoute(pathname: string): boolean {
-  return pathname === "/c" || pathname.startsWith("/c/");
+  return routes.chat.conversation(conversationId);
 }
 
 export function navigateToNewChat(router: AppRouterInstance) {
   useChatSessionStore.getState().clearPending();
   useChatStore.getState().setActiveConversation(null);
   expandChatSideRail();
-  router.push("/");
+  router.push(routes.home);
 }
 
 export function navigateToAgentChat(router: AppRouterInstance, agentSlug: string) {
   useChatSessionStore.getState().setPendingAgent(agentSlug);
   useChatStore.getState().setActiveConversation(null);
   expandChatSideRail();
-  router.push("/c");
+  router.push(routes.chat.root);
 }
 
 export function navigateToConversation(router: AppRouterInstance, conversationId: string) {
@@ -43,5 +37,5 @@ export function navigateToChatLaunch(router: AppRouterInstance, launch: PendingC
   useChatSessionStore.getState().setPendingLaunch(launch);
   useChatStore.getState().setActiveConversation(null);
   expandChatSideRail();
-  router.push("/c");
+  router.push(routes.chat.root);
 }

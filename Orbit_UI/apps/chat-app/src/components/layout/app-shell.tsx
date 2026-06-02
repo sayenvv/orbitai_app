@@ -23,6 +23,7 @@ import { useLibrary } from "@/hooks/use-library";
 import { useLogout } from "@/hooks/use-auth";
 import {
   navigateToAgentChat,
+  navigateToChatLaunch,
   navigateToConversation,
 } from "@/lib/chat-navigation";
 import { publicApi } from "@/lib/orbit-api";
@@ -33,6 +34,7 @@ import {
   COLLAPSIBLE_RAIL_COLLAPSED_WIDTH_PX,
   COLLAPSIBLE_RAIL_EXPANDED_WIDTH_PX,
 } from "@/components/layout/collapsible-rail";
+import { routes } from "@/lib/routes";
 
 function ShellSectionSync() {
   const pathname = usePathname();
@@ -81,11 +83,11 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   } = useAppShell();
 
   useEffect(() => {
-    if (pathname === "/plans") {
+    if (pathname === routes.plans) {
       setSection("plans");
     } else if (pathname.startsWith("/apps")) {
       setSection("apps");
-    } else if (pathname !== "/") {
+    } else if (pathname !== routes.home) {
       setSection("home");
     }
   }, [pathname, setSection]);
@@ -99,7 +101,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
     useChatStore.setState({ conversationsHydrated: true });
   }, [isAuthenticated]);
 
-  const showSectionPanel = pathname === "/" && section === "library";
+  const showSectionPanel = pathname === routes.home && section === "library";
 
   const { open: sidebarOpen, hydrated: sidebarHydrated } = useChatSideRail("left");
   const sidebarWidth =
@@ -196,12 +198,14 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                       onRefresh={refreshLibrary}
                       onRequireAuth={() => openLogin("login")}
                       onSelectUpload={(upload) => {
-                        const params = new URLSearchParams({
-                          sourceId: upload.id,
-                          sourceName: upload.title,
-                          sourceType: "uploaded-file",
+                        navigateToChatLaunch(router, {
+                          source: {
+                            id: upload.id,
+                            name: upload.title,
+                            type: "uploaded-file",
+                            createdAt: new Date(),
+                          },
                         });
-                        router.push(`/c?${params.toString()}`);
                       }}
                       onSelectGenerated={(file) => {
                         if (file.conversationId) {
