@@ -74,6 +74,12 @@ pnpm dev:chat
 
 Open http://localhost:3001 — sign in with `demo@orbit.ai` / `demo1234`.
 
+**Phone / tablet on the same Wi‑Fi:** when you run `pnpm dev:chat`, use the **“On phone / tablet”** line (e.g. `http://192.168.1.4:3001`). Do **not** use `http://0.0.0.0:3001`.
+
+**If the phone cannot open the page at all:** both devices must be on the same Wi‑Fi (not guest/isolated). Allow **Node** through macOS Firewall. When you load the URL on the phone, you should see a new `GET /` line in the dev terminal — if nothing appears, the phone is not reaching your Mac.
+
+**If the page opens but login fails:** the API must run with `DEBUG=true` (default) so session cookies work over `http://192.168.x.x` (browsers only treat `localhost` as secure for HTTP cookies).
+
 **Control Center** (configure agents, plans, AI stack):
 
 ```bash

@@ -467,11 +467,12 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         addMessage(existingId, assistantMessage);
       }
 
-      setLoading(true);
       setStreamingMsgId(assistantMsgId);
       setUpgradeMessageId(null);
       streamingConversationRef.current = true;
       streamBufferRef.current = "";
+
+      setLoading(true);
 
       let lastFlushed = "";
       const flushBuffer = () => {

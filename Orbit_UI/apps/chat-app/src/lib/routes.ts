@@ -31,7 +31,7 @@ export function parseConversationIdFromPath(pathname: string): string | null {
   return id ? decodeURIComponent(id) : null;
 }
 
-/** Paths allowed for post-login redirects (keep in sync with middleware protected routes). */
+/** Paths allowed for post-login redirects (keep in sync with proxy protected routes). */
 export const ALLOWED_INTERNAL_REDIRECT_PREFIXES = [
   routes.home,
   routes.plans,

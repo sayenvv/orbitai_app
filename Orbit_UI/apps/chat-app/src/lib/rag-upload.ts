@@ -1,6 +1,7 @@
 import type { ApiRagDocument } from "@/lib/orbit-api";
 import { publicApi } from "@/lib/orbit-api";
 import { confirmPdfPageLimit } from "@/lib/pdf-page-limit";
+import { mapWebpageDocumentToSource } from "@/lib/web-url-import";
 import type { StudySource } from "@/types";
 
 export type RagDocumentStatus = ApiRagDocument["status"];
@@ -13,6 +14,10 @@ export class PdfUploadCancelledError extends Error {
 }
 
 export function mapRagDocumentToSource(doc: ApiRagDocument): StudySource {
+  if (doc.metadata?.source_kind === "webpage" || doc.mime_type === "text/html") {
+    return mapWebpageDocumentToSource(doc);
+  }
+
   const status = doc.status;
   const subject =
     status === "processing" || status === "pending"

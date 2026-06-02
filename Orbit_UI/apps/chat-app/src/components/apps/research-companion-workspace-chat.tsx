@@ -205,8 +205,8 @@ export function ResearchCompanionWorkspaceChat({
       };
 
       setMessages((current) => [...current, userMessage, assistantMessage]);
-      setIsLoading(true);
       setStreamingMsgId(assistantMsgId);
+      setIsLoading(true);
       streamBufferRef.current = "";
 
       let streamConversationId = conversationId;

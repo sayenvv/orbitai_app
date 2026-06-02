@@ -377,6 +377,15 @@ export const publicApi = {
     return uploadRequest<ApiRagDocument>(getApiBaseUrl(), "/files/upload", formData);
   },
 
+  importWebpageUrl: (url: string, conversationId?: string | null) =>
+    request<ApiRagDocument>(getApiBaseUrl(), "/files/import-url", {
+      method: "POST",
+      body: JSON.stringify({
+        url,
+        conversation_id: conversationId ?? undefined,
+      }),
+    }),
+
   waitForFileReady: async (
     id: string,
     options?: { intervalMs?: number; timeoutMs?: number; onProgress?: (doc: ApiRagDocument) => void },

@@ -41,7 +41,7 @@ export function LegacyChatQueryRedirect() {
       source = {
         id: sourceId,
         name: sourceName,
-        type: sourceType as "study-material" | "uploaded-file",
+        type: sourceType as "study-material" | "uploaded-file" | "webpage",
         subject: sourceSubject ?? undefined,
         status: sourceStatus as "ready" | "processing" | "failed" | undefined,
         createdAt: new Date(),

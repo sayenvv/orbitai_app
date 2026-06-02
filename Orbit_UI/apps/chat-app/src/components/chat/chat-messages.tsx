@@ -1,7 +1,7 @@
 "use client";
 
 import { Message } from "@/types";
-import { AssistantReplyShimmer, AssistantTextShimmer } from "@/components/ui/skeleton";
+import { AssistantReplyShimmer } from "@/components/ui/skeleton";
 import { UpgradeCtaButton } from "@/components/plans/upgrade-cta";
 import { cn } from "@/lib/utils";
 import type { CSSProperties, ReactNode } from "react";
@@ -28,6 +28,15 @@ type ChatMessagesProps = {
   style?: CSSProperties;
   footer?: ReactNode;
 };
+
+function hasStreamPlaceholder(messages: Message[], streamingMsgId?: string | null) {
+  if (streamingMsgId) {
+    return messages.some((message) => message.id === streamingMsgId);
+  }
+  return messages.some(
+    (message) => message.role === "assistant" && !message.content.trim(),
+  );
+}
 
 export function ChatMessages({
   messages,
@@ -76,7 +85,9 @@ export function ChatMessages({
             </div>
           );
         })}
-        {isLoading && !streamingMsgId && <AssistantReplyShimmer />}
+        {isLoading && !hasStreamPlaceholder(messages, streamingMsgId) ? (
+          <AssistantReplyShimmer />
+        ) : null}
         {footer}
         <div ref={bottomRef} />
       </div>
@@ -125,7 +136,9 @@ function MessageBubble({
         {message.content ? (
           <MarkdownContent content={message.content} isStreaming={isStreaming} />
         ) : isStreaming ? (
-          <AssistantTextShimmer />
+          <span className="inline-flex items-center py-0.5" aria-hidden>
+            <span className="animate-cursor inline-block h-4 w-0.5 bg-primary/70" />
+          </span>
         ) : null}
         {showUpgrade && onUpgrade && (
           <div className="mt-3">
@@ -219,7 +232,12 @@ const MarkdownContent = memo(function MarkdownContent({
   isStreaming?: boolean;
 }) {
   return (
-    <div className="animate-in fade-in-0 duration-150 text-[15px] text-foreground">
+    <div
+      className={cn(
+        "text-[15px] text-foreground",
+        !isStreaming && "animate-in fade-in-0 duration-150",
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

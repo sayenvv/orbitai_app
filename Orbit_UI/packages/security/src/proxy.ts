@@ -6,7 +6,7 @@ import {
 } from "./headers";
 import { sanitizeInternalRedirect } from "./redirect";
 
-export type CreateSecurityMiddlewareOptions = {
+export type CreateSecurityProxyOptions = {
   realm?: SessionCookieRealm;
   /** Paths that require a session cookie (exact or prefix match). */
   protectedPaths?: string[];
@@ -15,12 +15,18 @@ export type CreateSecurityMiddlewareOptions = {
   extraImgSrc?: string[];
 };
 
+/** @deprecated Use `CreateSecurityProxyOptions`. */
+export type CreateSecurityMiddlewareOptions = CreateSecurityProxyOptions;
+
 /**
- * Use this pattern inline in each app's middleware.ts `config.matcher`.
+ * Use this pattern inline in each app's proxy.ts `config.matcher`.
  * Next.js cannot parse imported matcher values at compile time.
  */
-export const MIDDLEWARE_MATCHER_PATTERN =
+export const PROXY_MATCHER_PATTERN =
   "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)";
+
+/** @deprecated Use `PROXY_MATCHER_PATTERN`. */
+export const MIDDLEWARE_MATCHER_PATTERN = PROXY_MATCHER_PATTERN;
 
 function pathRequiresAuth(pathname: string, protectedPaths: string[]): boolean {
   return protectedPaths.some(
@@ -28,13 +34,13 @@ function pathRequiresAuth(pathname: string, protectedPaths: string[]): boolean {
   );
 }
 
-export function createSecurityMiddleware(options: CreateSecurityMiddlewareOptions = {}) {
+export function createSecurityProxy(options: CreateSecurityProxyOptions = {}) {
   const isProd = process.env.NODE_ENV === "production";
   const protectedPaths = options.protectedPaths ?? [];
   const loginPath = options.loginPath ?? "/";
   const sessionCookieName = options.realm ? SESSION_COOKIE_NAMES[options.realm] : null;
 
-  return function securityMiddleware(request: NextRequest) {
+  return function securityProxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     if (sessionCookieName && protectedPaths.length > 0) {
@@ -53,3 +59,6 @@ export function createSecurityMiddleware(options: CreateSecurityMiddlewareOption
     return applySecurityHeaders(response, { isProd, extraImgSrc: options.extraImgSrc });
   };
 }
+
+/** @deprecated Use `createSecurityProxy`. */
+export const createSecurityMiddleware = createSecurityProxy;

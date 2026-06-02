@@ -10,17 +10,19 @@ from app.core.config import settings
 from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.models import Conversation, RagDocument, User
-from app.schemas import PdfInspectResponse, RagDocumentListResponse, RagDocumentResponse
+from app.schemas import PdfInspectResponse, RagDocumentListResponse, RagDocumentResponse, ImportWebpageRequest
 from app.services.rag.document_store import (
     delete_user_document,
     get_user_document,
     list_user_documents,
     serialize_document,
 )
+from app.services.rag.ingest_webpage import ingest_webpage_document
 from app.services.rag.ingest import save_upload_file
 from app.services.rag.ingest_dispatch import dispatch_document_ingest
 from app.services.rag.limits import max_pages_for_plan
 from app.services.rag.pdf_extract import count_pdf_pages
+from app.services.rag.webpage_extract import WebpageExtractError, fetch_webpage_text
 from clovai_apps.shared.assets import build_image_document_metadata, default_image_filename, detect_upload_kind
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -240,6 +242,59 @@ async def upload_file(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=document.error_message or "Ingest failed",
+        )
+
+    return RagDocumentResponse(**serialize_document(document))
+
+
+@router.post("/import-url", response_model=RagDocumentResponse, status_code=status.HTTP_201_CREATED)
+async def import_webpage(
+    request: Request,
+    body: ImportWebpageRequest,
+    user: User = Depends(require_chat_user),
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        request,
+        scope="file-upload",
+        limit=settings.rate_limit_upload_per_minute,
+    )
+
+    if body.conversation_id:
+        conv = (
+            db.query(Conversation)
+            .filter(Conversation.id == body.conversation_id, Conversation.user_id == user.id)
+            .first()
+        )
+        if not conv:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+    try:
+        final_url, title, text = await fetch_webpage_text(body.url)
+    except WebpageExtractError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Could not fetch webpage content.") from exc
+
+    try:
+        document = ingest_webpage_document(
+            db,
+            user=user,
+            url=final_url,
+            title=title,
+            text=text,
+            conversation_id=body.conversation_id,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    if document.status == "failed":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=document.error_message or "Webpage import failed",
         )
 
     return RagDocumentResponse(**serialize_document(document))

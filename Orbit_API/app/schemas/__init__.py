@@ -227,6 +227,11 @@ class PdfInspectResponse(BaseModel):
     plan: str
 
 
+class ImportWebpageRequest(BaseModel):
+    url: str = Field(min_length=4, max_length=2048)
+    conversation_id: UUID | None = None
+
+
 class CreateUploadInsightsRequest(BaseModel):
     insight_types: list[str] | None = None
 

@@ -1,6 +1,6 @@
-import { createSecurityMiddleware } from "@orbit/security";
+import { createSecurityProxy } from "@orbit/security";
 
-export const middleware = createSecurityMiddleware({
+export const proxy = createSecurityProxy({
   extraImgSrc: ["https://images.unsplash.com"],
 });
 

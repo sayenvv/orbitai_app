@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Clovai API"
-    debug: bool = False
+    # True by default for local dev (HTTP cookies + LAN IP testing). Set DEBUG=false in production.
+    debug: bool = True
     secret_key: str = "change-me"
     database_url: str = "postgresql+psycopg://orbit:orbit@localhost:5432/orbit"
     cors_origins: str = (

@@ -27,7 +27,7 @@ export type ChatRequest = {
   conversationId?: string;
   context?: string;
   sourceId?: string;
-  sourceType?: "study-material" | "uploaded-file";
+  sourceType?: "study-material" | "uploaded-file" | "webpage";
 };
 
 export type ChatResponse = {
@@ -38,8 +38,9 @@ export type ChatResponse = {
 export type StudySource = {
   id: string;
   name: string;
-  type: "study-material" | "uploaded-file";
+  type: "study-material" | "uploaded-file" | "webpage";
   subject?: string;
+  url?: string;
   status?: "pending" | "processing" | "ready" | "failed";
   createdAt: Date;
 };

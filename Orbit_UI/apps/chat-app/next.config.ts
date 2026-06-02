@@ -1,12 +1,13 @@
 import type { NextConfig } from "next";
 import path from "path";
 import { withSecurityHeaders } from "@orbit/security/next-config";
+import { buildAllowedDevOrigins } from "../../scripts/allowed-dev-origins";
 
 const apiProxy = process.env.API_PROXY_URL ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = withSecurityHeaders({
   devIndicators: false,
-  allowedDevOrigins: ["192.168.1.4", "192.168.1.16", "172.20.10.2"],
+  allowedDevOrigins: buildAllowedDevOrigins(),
   images: {
     remotePatterns: [
       {

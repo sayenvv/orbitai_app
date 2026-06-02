@@ -1,6 +1,6 @@
-import { createSecurityMiddleware } from "@orbit/security";
+import { createSecurityProxy } from "@orbit/security";
 
-export const middleware = createSecurityMiddleware({
+export const proxy = createSecurityProxy({
   realm: "admin",
   protectedPaths: ["/dashboard", "/users", "/conversations", "/subscriptions", "/payments", "/settings", "/reports", "/logs", "/notifications", "/activity", "/user-health", "/access", "/profile"],
   loginPath: "/",
