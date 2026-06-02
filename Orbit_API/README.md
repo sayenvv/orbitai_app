@@ -6,7 +6,7 @@ Python backend for the Orbit AI platform — chat streaming, multi-agent orchest
 
 | Frontend app | Port | Main API routes |
 |--------------|------|-----------------|
-| **chat-app** | 3001 | `/api/auth`, `/api/chat`, `/api/agents`, `/api/apps`, `/api/files`, `/api/library`, `/api/plans` |
+| **chat-app** | 3001 | `/api/auth`, `/api/chat`, `/api/agents`, `/api/apps`, `/api/files`, `/api/library`, `/api/plans`, `/api/multi-agent` |
 | **control_center_app** | 3003 | `/api/control/*` |
 | **admin-app** | 3004 | `/api/platform/*` |
 
@@ -69,8 +69,10 @@ DATABASE_URL=postgresql+psycopg://orbit:orbit@localhost:5432/orbit
 cd Orbit_API
 python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements-local.txt
+python -m pip install -r requirements-local.txt
 ```
+
+If you see `ModuleNotFoundError: No module named 'orbit_orchestration'`, re-run `python -m pip install -r requirements-local.txt` (the `orbit-orchestration` path package was added after an older install).
 
 ### 3. Migrate & seed
 
@@ -89,7 +91,35 @@ Seed creates demo users and loads agents/tools from Control Center JSON.
 
 Each app uses its **own session cookie** (`orbit_chat_session`, `orbit_control_session`, `orbit_admin_session`). Signing into one app does not sign you into the others.
 
-### 4. Configure `.env` for local LLM
+### 4. Multi-agent orchestration (AutoGen + LangChain)
+
+Package: `packages/orbit_orchestration/` — summarizer + image generator in a **SelectorGroupChat** with **human-in-the-loop** via API.
+
+Uses the same LLM provider as chat (`LLM_PROVIDER` in `.env`). **Ollama** is the default for local dev; set `LLM_PROVIDER=openai` and `OPENAI_API_KEY` for cloud models. Reinstall deps after pulling: `python -m pip install -r requirements-local.txt`.
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/multi-agent/runs` | Start group chat on a `task` |
+| `GET /api/multi-agent/runs/{session_id}` | Poll session state |
+| `POST /api/multi-agent/runs/{session_id}/human-input` | Resume after `status=awaiting_human` |
+
+Example:
+
+```bash
+# 1) Start
+curl -X POST http://localhost:8000/api/multi-agent/runs \
+  -H "Content-Type: application/json" -b "orbit_chat_session=..." \
+  -d '{"task": "Summarize the Agent Framework overview, then propose a cover image."}'
+
+# 2) If awaiting_human, approve image prompt
+curl -X POST http://localhost:8000/api/multi-agent/runs/{session_id}/human-input \
+  -H "Content-Type: application/json" -b "orbit_chat_session=..." \
+  -d '{"human_input": "Approve — use a minimal flat illustration style."}'
+```
+
+See `packages/orbit_orchestration/README.md` for package layout.
+
+### 5. Configure `.env` for local LLM
 
 Minimal local setup with Ollama:
 
@@ -108,7 +138,7 @@ ollama pull llama3.2
 
 First PDF upload downloads the embedding model (`BAAI/bge-small-en-v1.5` via fastembed) automatically.
 
-### 5. Start the API
+### 6. Start the API
 
 ```bash
 cd Orbit_API
@@ -118,7 +148,7 @@ uvicorn app.main:app --reload --port 8000
 
 Verify: http://localhost:8000/docs
 
-### 6. Start frontends
+### 7. Start frontends
 
 In a **separate** terminal:
 

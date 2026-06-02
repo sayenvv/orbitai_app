@@ -300,6 +300,40 @@ class CrawlResponse(BaseModel):
     max_pages_limit: int = 0
 
 
+class MultiAgentStartRequest(BaseModel):
+    task: str = Field(min_length=1, max_length=16_000)
+
+
+class MultiAgentHumanInputRequest(BaseModel):
+    human_input: str = Field(min_length=1, max_length=8_000)
+
+
+class MultiAgentMessageResponse(BaseModel):
+    source: str
+    content: str
+
+
+class MultiAgentRoutingResponse(BaseModel):
+    """Pre-run analysis of the user prompt: which agents to use and what it is about."""
+
+    primary_agent: str
+    selected_agents: list[str]
+    intent: str
+    topics: list[str] = Field(default_factory=list)
+    reasoning: str = ""
+
+
+class MultiAgentRunResponse(BaseModel):
+    session_id: str
+    status: str
+    task: str
+    routing: MultiAgentRoutingResponse | None = None
+    messages: list[MultiAgentMessageResponse]
+    human_prompt: str | None = None
+    result: str | None = None
+    error: str | None = None
+
+
 class CreateUploadInsightsRequest(BaseModel):
     insight_types: list[str] | None = None
 

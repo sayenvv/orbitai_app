@@ -10,6 +10,7 @@ from app.api.v1.public.crawl import router as crawl_router
 from app.api.v1.public.chat import router as chat_router
 from app.api.v1.public.files import router as files_router
 from app.api.v1.public.library import router as library_router
+from app.api.v1.public.multi_agent import router as multi_agent_router
 from app.api.v1.public.misc import router as misc_router
 from app.api.v1.public.llm import router as llm_router
 from app.api.v1.public.photo_studio import router as photo_studio_router
@@ -25,6 +26,7 @@ api_router.include_router(misc_router)
 api_router.include_router(files_router)
 api_router.include_router(library_router)
 api_router.include_router(llm_router)
+api_router.include_router(multi_agent_router)
 api_router.include_router(control_agents_router)
 api_router.include_router(control_agent_resources_router)
 api_router.include_router(control_plan_limits_router)
