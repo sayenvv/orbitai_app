@@ -26,6 +26,8 @@ import { AppStoreCard } from "@/components/apps/app-store-card";
 import {
   visibleAppsCatalog,
   getAppLaunchHref,
+  getAppLaunchBlockReason,
+  isAppLaunchAvailable,
   sortAppsByAvailability,
   type CatalogApp,
 } from "@orbit/clovai-apps";
@@ -45,12 +47,12 @@ const iconMap = {
 } as const;
 
 export function AppDetailView({ app }: { app: CatalogApp }) {
-  const { setHeader, openUpgrade } = useAppShell();
+  const { setHeader, openUpgrade, openLogin } = useAppShell();
   const { isAuthenticated } = useAuthStore();
 
   const launchHref = getAppLaunchHref(app);
-  const locked = Boolean(app.tier === "pro" && !isAuthenticated);
-  const canLaunch = Boolean(launchHref) && !locked;
+  const blockReason = getAppLaunchBlockReason(app, isAuthenticated);
+  const canLaunch = isAppLaunchAvailable(app, isAuthenticated);
   const related = useMemo(
     () =>
       sortAppsByAvailability(
@@ -69,14 +71,16 @@ export function AppDetailView({ app }: { app: CatalogApp }) {
   }, [app, setHeader]);
 
   const Icon = iconMap[app.iconKey] ?? Sparkles;
-  const primaryActionLabel = locked ? "Unlock with Pro" : canLaunch ? "Use app" : "Coming soon";
+  const primaryActionLabel = blockReason
+    ? "Sign in to use"
+    : canLaunch
+      ? "Use app"
+      : "Coming soon";
   const primaryActionClassName = cn(
     "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition",
-    locked
+    blockReason || canLaunch
       ? "bg-white text-slate-950 hover:translate-x-0.5"
-      : canLaunch
-        ? "bg-white text-slate-950 hover:translate-x-0.5"
-        : "cursor-not-allowed bg-white/40 text-white/70",
+      : "cursor-not-allowed bg-white/40 text-white/70",
   );
 
   return (
@@ -127,9 +131,9 @@ export function AppDetailView({ app }: { app: CatalogApp }) {
                     {app.installs}
                   </span>
                 </div>
-                {locked ? (
-                  <button type="button" onClick={openUpgrade} className={primaryActionClassName}>
-                    <Sparkles className="h-4 w-4" />
+                {blockReason ? (
+                  <button type="button" onClick={() => openLogin("login")} className={primaryActionClassName}>
+                    <ArrowRight className="h-4 w-4" />
                     {primaryActionLabel}
                   </button>
                 ) : canLaunch && launchHref ? (
@@ -258,13 +262,15 @@ export function AppDetailView({ app }: { app: CatalogApp }) {
             <h2 className="text-base font-semibold tracking-tight">Related apps</h2>
             <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {related.map((candidate) => {
-                const locked = candidate.tier === "pro" && !isAuthenticated;
+                const relatedBlockReason = getAppLaunchBlockReason(candidate, isAuthenticated);
                 return (
                   <AppStoreCard
                     key={candidate.slug}
                     app={candidate}
-                    locked={locked}
+                    locked={Boolean(relatedBlockReason)}
+                    lockReason={relatedBlockReason ?? undefined}
                     onUpgrade={openUpgrade}
+                    onSignIn={() => openLogin("login")}
                   />
                 );
               })}

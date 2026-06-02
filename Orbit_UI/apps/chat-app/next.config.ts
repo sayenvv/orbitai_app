@@ -19,6 +19,9 @@ const nextConfig: NextConfig = withSecurityHeaders({
   },
   turbopack: {
     root: path.resolve(__dirname, "../.."),
+    resolveAlias: {
+      konva: "./apps/chat-app/node_modules/konva",
+    },
   },
   transpilePackages: ["@orbit/ui", "@orbit/types", "@orbit/clovai-apps", "@orbit/security"],
   async rewrites() {

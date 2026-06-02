@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { findCatalogAppById } from "@orbit/clovai-apps";
-import { AppLaunchPage } from "@/components/apps/app-launch-page";
+import { AppLaunchAuthGate } from "@/components/apps/app-launch-auth-gate";
 
 type Params = Promise<{ id: string }>;
 
@@ -12,5 +12,5 @@ export default async function AppLaunchRoutePage({ params }: { params: Params })
     notFound();
   }
 
-  return <AppLaunchPage key={app.id} app={app} />;
+  return <AppLaunchAuthGate key={app.id} app={app} />;
 }

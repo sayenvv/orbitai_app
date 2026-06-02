@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PanelLeftClose, PanelRightClose } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { SIDEBAR_PADDING_X } from "@/components/layout/sidebar-layout";
 
 export const COLLAPSIBLE_RAIL_EXPANDED_WIDTH = "w-[280px]";
 export const COLLAPSIBLE_RAIL_COLLAPSED_WIDTH = "w-[3.25rem]";
@@ -71,7 +72,7 @@ export function CollapsibleRail({
       <div
         className={cn(
           "flex h-[3.25rem] shrink-0 overflow-hidden transition-[padding,gap] duration-200 ease-out",
-          showExpanded ? "items-center gap-1 px-4" : "justify-center gap-0 px-0",
+          showExpanded ? cn("items-center gap-1", SIDEBAR_PADDING_X) : "items-center justify-center px-0",
         )}
       >
         <div

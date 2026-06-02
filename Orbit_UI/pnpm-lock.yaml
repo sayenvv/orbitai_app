@@ -123,6 +123,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      konva:
+        specifier: ^10.3.0
+        version: 10.3.0
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.4)
@@ -141,6 +144,12 @@ importers:
       react-dom:
         specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
+      react-konva:
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.15)(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-konva-utils:
+        specifier: ^2.0.0
+        version: 2.0.0(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react-konva@19.2.4(@types/react@19.2.15)(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.2.15)(react@19.2.4)
@@ -275,9 +284,6 @@ importers:
 
   packages/clovai-apps:
     dependencies:
-      konva:
-        specifier: ^10.3.0
-        version: 10.3.0
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.4)
@@ -287,12 +293,9 @@ importers:
       react-colorful:
         specifier: ^5.7.0
         version: 5.7.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react-konva:
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.15)(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react-konva-utils:
-        specifier: ^2.0.0
-        version: 2.0.0(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react-konva@19.2.4(@types/react@19.2.15)(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
     devDependencies:
       '@orbit/tsconfig':
         specifier: workspace:*
@@ -303,6 +306,15 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.3(@types/react@19.2.15)
+      konva:
+        specifier: ^10.3.0
+        version: 10.3.0
+      react-konva:
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.15)(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-konva-utils:
+        specifier: ^2.0.0
+        version: 2.0.0(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react-konva@19.2.4(@types/react@19.2.15)(konva@10.3.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
       typescript:
         specifier: ^5
         version: 5.9.3

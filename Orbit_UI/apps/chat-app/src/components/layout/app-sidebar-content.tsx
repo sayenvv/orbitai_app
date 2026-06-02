@@ -23,6 +23,10 @@ import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
 import { cn } from "@/lib/utils";
+import {
+  SIDEBAR_COLLAPSED_COLUMN_CLASS,
+  SIDEBAR_PADDING_X,
+} from "@/components/layout/sidebar-layout";
 import type { Conversation } from "@/types";
 
 type AppSidebarContentProps = {
@@ -151,7 +155,7 @@ export function AppSidebarContent({
       <div
         className={cn(
           "shrink-0",
-          expanded ? "px-3 py-3" : "flex justify-center px-1 py-2",
+          expanded ? cn(SIDEBAR_PADDING_X, "py-3") : cn(SIDEBAR_COLLAPSED_COLUMN_CLASS, "py-3"),
         )}
       >
         {expanded ? (

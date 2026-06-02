@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Arrow, Ellipse, Group, Layer, Line, Rect, RegularPolygon, Stage, Star, Text, Transformer } from "react-konva";
 import { Html } from "react-konva-utils";
 import type Konva from "konva";
-import type { KonvaEventObject } from "konva/lib/Node";
 
 import {
   ALIGNMENT_SNAP_THRESHOLD_PX,

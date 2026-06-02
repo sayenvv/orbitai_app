@@ -37,21 +37,39 @@ const iconMap = {
 type AppStoreCardProps = {
   app: CatalogApp;
   locked?: boolean;
+  lockReason?: "sign-in" | "pro";
   onUpgrade?: () => void;
+  onSignIn?: () => void;
 };
 
-export function AppStoreCard({ app, locked = false, onUpgrade }: AppStoreCardProps) {
+export function AppStoreCard({
+  app,
+  locked = false,
+  lockReason = "sign-in",
+  onUpgrade,
+  onSignIn,
+}: AppStoreCardProps) {
   const Icon = iconMap[app.iconKey] ?? Sparkles;
   const primaryShot = app.screenshots[0];
   const secondaryShots = app.screenshots.slice(1, 3);
   const launchHref = getAppLaunchHref(app);
   const canLaunch = Boolean(launchHref) && !locked;
-  const actionLabel = locked ? "Pro" : canLaunch ? "Use" : "Soon";
+  const actionLabel = locked
+    ? lockReason === "pro"
+      ? "Pro"
+      : "Sign in"
+    : canLaunch
+      ? "Use"
+      : "Soon";
 
-  const handleUpgradeClick = (event: React.MouseEvent) => {
+  const handleLockedClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    onUpgrade?.();
+    if (lockReason === "pro") {
+      onUpgrade?.();
+      return;
+    }
+    onSignIn?.();
   };
 
   return (
@@ -174,7 +192,7 @@ export function AppStoreCard({ app, locked = false, onUpgrade }: AppStoreCardPro
         {locked ? (
           <button
             type="button"
-            onClick={handleUpgradeClick}
+            onClick={handleLockedClick}
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors sm:px-3 sm:text-[11px]",
               "bg-primary/10 text-primary hover:bg-primary/15",

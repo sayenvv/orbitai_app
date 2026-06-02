@@ -6,6 +6,7 @@ export {
   BRAND_NAME,
   BRAND_WORDMARK,
   BRAND_ICON,
+  BrandLogo,
   BrandMark,
   type BrandMarkSize,
 } from "./brand-logo";

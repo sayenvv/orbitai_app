@@ -23,7 +23,9 @@ import {
   fetchRecentPhotoProjects,
   formatRecentPhotoProjectTime,
   mapApiWorkspaceToSnapshot,
+  recordRecentPhotoProject,
 } from "@/lib/photo-studio-recent-projects";
+import { LIBRARY_OPEN_ORIGIN } from "@/lib/library-open-in-app";
 import { PhotoStudioLaunchShimmer } from "@/components/ui/skeleton";
 
 const APP_OPEN_DELAY_MS = 750;
@@ -203,6 +205,7 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
   const assetIdParam = searchParams.get("assetId");
   const assetNameParam = searchParams.get("assetName");
   const viewParam = searchParams.get("view");
+  const resumedFromLibrary = searchParams.get("origin") === LIBRARY_OPEN_ORIGIN;
   const normalizedView =
     viewParam === "overview" ? "home" : viewParam === "open" || viewParam === "home" ? viewParam : null;
   const initialView: PhotoStudioView =
@@ -285,6 +288,36 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
       setResolvedAssetName(assetNameParam);
     }
   }, [assetIdParam, assetNameParam, workspaceIdParam]);
+
+  useEffect(() => {
+    if (!resumedFromLibrary) return;
+    if (workspaceIdParam) {
+      setRecentProjects(
+        recordRecentPhotoProject({
+          workspaceId: workspaceIdParam,
+          title: workspaceSnapshot?.projectName ?? assetNameParam,
+          assetId: assetIdParam,
+          assetName: assetNameParam,
+        }),
+      );
+      return;
+    }
+    if (assetIdParam) {
+      setRecentProjects(
+        recordRecentPhotoProject({
+          assetId: assetIdParam,
+          assetName: assetNameParam,
+          title: assetNameParam,
+        }),
+      );
+    }
+  }, [
+    assetIdParam,
+    assetNameParam,
+    resumedFromLibrary,
+    workspaceIdParam,
+    workspaceSnapshot?.projectName,
+  ]);
 
   useEffect(() => {
     const workspaceIdToLoad = workspaceIdParam;
@@ -614,6 +647,7 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         onDeleteGeneration={handleDeleteGeneration}
         onFetchGeneration={handleFetchGeneration}
         onOpenHelp={handleOpenHelp}
+        resumedFromLibrary={resumedFromLibrary}
       />
       <PhotoStudioAssetPicker
         open={pickerOpen}

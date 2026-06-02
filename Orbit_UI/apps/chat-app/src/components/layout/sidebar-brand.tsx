@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { BrandMark, BRAND_NAME, BRAND_WORDMARK } from "@orbit/ui";
+import { BRAND_NAME, BRAND_WORDMARK, BrandLogo } from "@orbit/ui";
 
+import {
+  SIDEBAR_BRAND_LOGO_SIZE,
+  SIDEBAR_ICON_SLOT_CLASS,
+  sidebarRowClassName,
+} from "@/components/layout/sidebar-layout";
 import { cn } from "@/lib/utils";
 
 type SidebarBrandProps = {
@@ -13,23 +18,22 @@ type SidebarBrandProps = {
 };
 
 export function SidebarBrand({ showText = true, className, onExpand }: SidebarBrandProps) {
-  const content = (
-    <>
-      <BrandMark
-        size="sm"
-        showText={false}
-        className={cn("shrink-0", showText && "ml-2")}
-      />
-      <span
-        className={cn(
-          "overflow-hidden whitespace-nowrap bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-[15px] font-semibold leading-none tracking-tight text-transparent transition-[max-width,opacity,margin-left] duration-150 ease-out",
-          showText ? "ml-2 max-w-[8rem] opacity-100" : "ml-0 max-w-0 opacity-0",
-        )}
-        aria-hidden={!showText}
-      >
-        {BRAND_WORDMARK}
-      </span>
-    </>
+  const logo = (
+    <span className={SIDEBAR_ICON_SLOT_CLASS}>
+      <BrandLogo size={SIDEBAR_BRAND_LOGO_SIZE} />
+    </span>
+  );
+
+  const wordmark = (
+    <span
+      className={cn(
+        "overflow-hidden whitespace-nowrap bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-[15px] font-semibold leading-none tracking-tight text-transparent transition-[max-width,opacity] duration-150 ease-out",
+        showText ? "max-w-[8rem] opacity-100" : "max-w-0 opacity-0",
+      )}
+      aria-hidden={!showText}
+    >
+      {BRAND_WORDMARK}
+    </span>
   );
 
   if (!showText && onExpand) {
@@ -38,12 +42,13 @@ export function SidebarBrand({ showText = true, className, onExpand }: SidebarBr
         type="button"
         onClick={onExpand}
         className={cn(
-          "flex min-w-0 items-center overflow-hidden rounded-lg px-1 py-1 transition-colors hover:bg-sidebar-accent/60",
+          SIDEBAR_ICON_SLOT_CLASS,
+          "rounded-lg transition-colors hover:bg-sidebar-accent/60",
           className,
         )}
         aria-label={`Expand ${BRAND_NAME} sidebar`}
       >
-        {content}
+        <BrandLogo size={SIDEBAR_BRAND_LOGO_SIZE} />
       </button>
     );
   }
@@ -51,10 +56,11 @@ export function SidebarBrand({ showText = true, className, onExpand }: SidebarBr
   return (
     <Link
       href="/"
-      className={cn("flex min-w-0 items-center overflow-hidden rounded-lg px-1 py-1", className)}
+      className={cn(sidebarRowClassName(), className)}
       aria-label={`${BRAND_NAME} home`}
     >
-      {content}
+      {logo}
+      {wordmark}
     </Link>
   );
 }

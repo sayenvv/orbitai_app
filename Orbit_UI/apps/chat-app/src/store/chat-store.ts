@@ -55,7 +55,8 @@ type ChatState = {
   conversationsHydrated: boolean;
   setActiveConversation: (id: string | null) => void;
   addConversation: (conversation: Conversation) => void;
-  addMessage: (conversationId: string, message: Message) => void;
+  addMessage: (conversationId: string, message: Message, options?: { touchUpdatedAt?: boolean }) => void;
+  setConversationMessages: (conversationId: string, messages: Message[]) => void;
   updateMessage: (conversationId: string, messageId: string, content: string) => void;
   updateConversationId: (oldId: string, newId: string) => void;
   setConversations: (conversations: Conversation[]) => void;
@@ -89,13 +90,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
       activeConversationId: conversation.id,
     })),
 
-  addMessage: (conversationId, message) =>
+  addMessage: (conversationId, message, options) =>
     set((state) => ({
       conversations: state.conversations.map((conv) => {
         if (conv.id !== conversationId) return conv;
         const next = dedupeMessages([...conv.messages, message]);
-        return { ...conv, messages: next, updatedAt: new Date() };
+        const touchUpdatedAt = options?.touchUpdatedAt !== false;
+        return {
+          ...conv,
+          messages: next,
+          ...(touchUpdatedAt ? { updatedAt: new Date() } : {}),
+        };
       }),
+    })),
+
+  setConversationMessages: (conversationId, messages) =>
+    set((state) => ({
+      conversations: state.conversations.map((conv) =>
+        conv.id === conversationId
+          ? { ...conv, messages: dedupeMessages(messages) }
+          : conv,
+      ),
     })),
 
   updateMessage: (conversationId, messageId, content) =>
@@ -132,7 +147,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           return {
             ...apiConv,
             messages: dedupeMessages(existing.messages),
-            updatedAt: existing.updatedAt,
+            updatedAt: apiConv.updatedAt,
           };
         }
         return apiConv;

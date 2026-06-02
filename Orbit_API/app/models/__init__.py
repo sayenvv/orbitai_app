@@ -126,7 +126,9 @@ class Conversation(Base):
     user: Mapped["User | None"] = relationship(back_populates="conversations")
     agent: Mapped["Agent | None"] = relationship(back_populates="conversations")
     messages: Mapped[list["Message"]] = relationship(
-        back_populates="conversation", order_by="Message.created_at"
+        back_populates="conversation",
+        order_by="Message.created_at",
+        cascade="all, delete-orphan",
     )
     rag_documents: Mapped[list["RagDocument"]] = relationship(
         back_populates="conversation",

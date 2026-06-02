@@ -208,6 +208,8 @@ export type PhotoStudioAppProps = {
   assetUploadProgress?: string | null;
   assetUploadError?: string | null;
   onOpenHelp?: () => void;
+  /** When true, header highlights Open while an existing workspace session is shown. */
+  resumedFromLibrary?: boolean;
 };
 
 const creationTypes: Array<{
@@ -6447,8 +6449,10 @@ export function PhotoStudioApp({
   assetUploadProgress,
   assetUploadError,
   onOpenHelp,
+  resumedFromLibrary: initialResumedFromLibrary = false,
 }: PhotoStudioAppProps) {
   const hasAsset = Boolean(assetId);
+  const [resumedFromLibrary, setResumedFromLibrary] = useState(initialResumedFromLibrary);
   const [activeView, setActiveView] = useState<PhotoStudioView>(
     initialView === "workspace" || hasAsset ? "workspace" : initialView === "open" ? "open" : "home",
   );
@@ -6481,6 +6485,10 @@ export function PhotoStudioApp({
     }
   }, [assetId, hasAsset, initialView]);
 
+  useEffect(() => {
+    setResumedFromLibrary(initialResumedFromLibrary);
+  }, [initialResumedFromLibrary]);
+
   const defaultFormatRecentTime =
     formatRecentTime ??
     ((openedAt: number) =>
@@ -6497,6 +6505,7 @@ export function PhotoStudioApp({
 
     if (draftSessionActive && !workspacePersisted && activeView !== "workspace") {
       setActiveView("workspace");
+      setResumedFromLibrary(false);
       return;
     }
 
@@ -6519,6 +6528,7 @@ export function PhotoStudioApp({
         await Promise.resolve(resetDraft?.());
       }
 
+      setResumedFromLibrary(false);
       setDraftSessionActive(true);
       setActiveView("workspace");
     } finally {
@@ -6555,8 +6565,9 @@ export function PhotoStudioApp({
             const Icon = view.icon;
             const isNewTab = view.id === "new";
             const selected = isNewTab
-              ? activeView === "workspace"
-              : activeView === view.id;
+              ? activeView === "workspace" && !resumedFromLibrary
+              : activeView === view.id ||
+                (resumedFromLibrary && view.id === "open" && activeView === "workspace");
             return (
               <button
                 key={view.id}
@@ -6568,6 +6579,7 @@ export function PhotoStudioApp({
                 disabled={isNewTab && isPreparingWorkspace}
                 onClick={() => {
                   if (view.id === "home") {
+                    setResumedFromLibrary(false);
                     setActiveView("home");
                     return;
                   }

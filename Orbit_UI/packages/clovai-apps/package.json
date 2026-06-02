@@ -8,19 +8,23 @@
     "lint": "echo \"no lint\""
   },
   "peerDependencies": {
+    "konva": "^10.3.0",
     "lucide-react": "^1.16.0",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-konva": "^19.2.4",
+    "react-konva-utils": "^2.0.0"
   },
   "devDependencies": {
     "@orbit/tsconfig": "workspace:*",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "konva": "^10.3.0",
+    "react-konva": "^19.2.4",
+    "react-konva-utils": "^2.0.0",
     "typescript": "^5"
   },
   "dependencies": {
-    "konva": "^10.3.0",
-    "react-colorful": "^5.7.0",
-    "react-konva": "^19.2.4",
-    "react-konva-utils": "^2.0.0"
+    "react-colorful": "^5.7.0"
   }
 }

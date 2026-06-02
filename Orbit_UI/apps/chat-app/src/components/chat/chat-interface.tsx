@@ -49,6 +49,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     setActiveConversation,
     addConversation,
     addMessage,
+    setConversationMessages,
     updateMessage,
     updateConversationId,
     refreshConversationsList,
@@ -278,12 +279,16 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         }
 
         if (!latest) {
+          const lastMessageAt =
+            messages.length > 0
+              ? new Date(messages[messages.length - 1].timestamp)
+              : null;
           addConversation({
             id,
             title: summary?.title ?? "Chat",
             messages,
-            createdAt: summary?.createdAt ?? new Date(),
-            updatedAt: summary?.updatedAt ?? new Date(),
+            createdAt: summary?.createdAt ?? lastMessageAt ?? new Date(),
+            updatedAt: summary?.updatedAt ?? lastMessageAt ?? new Date(),
             agentSlug: summary?.agentSlug ?? null,
             agentName: summary?.agentName ?? null,
             agentShortName: summary?.agentShortName ?? null,
@@ -293,10 +298,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
             sourceId: summary?.sourceId ?? null,
           });
         } else {
-          const existingIds = new Set(latest.messages.map((m) => m.id));
-          for (const msg of messages) {
-            if (!existingIds.has(msg.id)) addMessage(id, msg);
-          }
+          setConversationMessages(id, messages);
         }
 
         if (summary?.agentSlug) setDraftAgentSlug(summary.agentSlug);
@@ -316,7 +318,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         setLoadingMessages(false);
       }
     },
-    [setActiveConversation, addConversation, addMessage, setDraftAgentSlug, refreshConversationsList, deleteConversation, hydrateSourceForConversation],
+    [setActiveConversation, addConversation, setConversationMessages, setDraftAgentSlug, refreshConversationsList, deleteConversation, hydrateSourceForConversation],
   );
 
   useEffect(() => {

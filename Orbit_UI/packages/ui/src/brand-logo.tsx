@@ -33,7 +33,7 @@ type BrandLogoProps = {
   alt?: string;
 };
 
-function BrandLogo({ size = 30, className, alt = BRAND_NAME }: BrandLogoProps) {
+export function BrandLogo({ size = 30, className, alt = BRAND_NAME }: BrandLogoProps) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img

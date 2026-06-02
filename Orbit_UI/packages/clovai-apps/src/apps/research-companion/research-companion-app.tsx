@@ -91,6 +91,8 @@ export type ResearchCompanionAppProps = {
     onClose: () => void;
   }) => ReactNode;
   initialAssistPanel?: AssistPanel | null;
+  /** When true, header highlights Open while an existing workspace session is shown. */
+  resumedFromLibrary?: boolean;
 };
 
 type WorkspaceTool = "select" | "pencil" | "highlight" | "note" | "comment";
@@ -904,11 +906,13 @@ export function ResearchCompanionApp({
   renderPageThumbnail,
   renderAssistPanel,
   initialAssistPanel = null,
+  resumedFromLibrary: initialResumedFromLibrary = false,
 }: ResearchCompanionAppProps) {
   const isEmptyWorkspace = !sourceId;
   const workspaceTitle = sourceName?.trim() || (isEmptyWorkspace ? NEW_WORKSPACE_TITLE : "Selected document");
   const hasInsights = Boolean(insightId);
   const isPreparingWorkspace = Boolean(sourceId && !hasInsights);
+  const [resumedFromLibrary, setResumedFromLibrary] = useState(initialResumedFromLibrary);
   const [activeView, setActiveView] = useState<ResearchCompanionView>(
     initialTab === "workspace" || insightId
       ? "workspace"
@@ -946,6 +950,10 @@ export function ResearchCompanionApp({
       setActiveView("workspace");
     }
   }, [insightId]);
+
+  useEffect(() => {
+    setResumedFromLibrary(initialResumedFromLibrary);
+  }, [initialResumedFromLibrary]);
 
   useEffect(() => {
     if (isPreparingWorkspace && activeView === "workspace") {
@@ -1272,6 +1280,7 @@ export function ResearchCompanionApp({
 
     if (draftSessionActive && isEmptyWorkspace && activeView !== "workspace") {
       setActiveView("workspace");
+      setResumedFromLibrary(false);
       return;
     }
 
@@ -1294,6 +1303,7 @@ export function ResearchCompanionApp({
         await Promise.resolve(typeof resetDraft === "function" ? resetDraft() : undefined);
       }
 
+      setResumedFromLibrary(false);
       setDraftSessionActive(true);
       resetWorkspacePanels();
       setActiveView("workspace");
@@ -1601,7 +1611,10 @@ export function ResearchCompanionApp({
           {navTabs.map((tab) => {
             const Icon = tab.icon;
             const isNewTab = tab.id === "new";
-            const selected = isNewTab ? activeView === "workspace" : activeView === tab.id;
+            const selected = isNewTab
+              ? activeView === "workspace" && !resumedFromLibrary
+              : activeView === tab.id ||
+                (resumedFromLibrary && tab.id === "open" && activeView === "workspace");
             return (
               <button
                 key={tab.id}
@@ -1613,6 +1626,7 @@ export function ResearchCompanionApp({
                 disabled={isNewTab && isPreparingNewWorkspace}
                 onClick={() => {
                   if (tab.id === "home") {
+                    setResumedFromLibrary(false);
                     setActiveView("home");
                     return;
                   }

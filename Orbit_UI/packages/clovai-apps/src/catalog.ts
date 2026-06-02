@@ -497,8 +497,16 @@ export function getAppLaunchHref(app: CatalogApp): string | null {
 
 export function isAppLaunchAvailable(app: CatalogApp, isAuthenticated: boolean): boolean {
   if (!getAppLaunchHref(app)) return false;
-  if (app.tier === "pro" && !isAuthenticated) return false;
-  return true;
+  return isAuthenticated;
+}
+
+export function getAppLaunchBlockReason(
+  app: CatalogApp,
+  isAuthenticated: boolean,
+): "sign-in" | null {
+  if (!getAppLaunchHref(app)) return null;
+  if (isAuthenticated) return null;
+  return "sign-in";
 }
 
 export function getAppAvailabilityRank(app: CatalogApp, isAuthenticated: boolean): number {

@@ -30,6 +30,7 @@ import {
   sponsoredApps,
   sortAppsByAvailability,
   getAppDetailHref,
+  getAppLaunchBlockReason,
 } from "@orbit/clovai-apps";
 import { AppStoreCard } from "@/components/apps/app-store-card";
 import { cn } from "@/lib/utils";
@@ -48,7 +49,7 @@ const iconMap = {
 
 export default function AppsPage() {
   const { isAuthenticated } = useAuthStore();
-  const { setHeader, openUpgrade } = useAppShell();
+  const { setHeader, openUpgrade, openLogin } = useAppShell();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [slide, setSlide] = useState(0);
@@ -363,13 +364,15 @@ export default function AppsPage() {
 
             <div className="grid grid-cols-2 items-stretch gap-3.5 sm:gap-5 xl:grid-cols-3">
               {filteredApps.map((app) => {
-                const locked = app.tier === "pro" && !isAuthenticated;
+                const blockReason = getAppLaunchBlockReason(app, isAuthenticated);
                 return (
                   <AppStoreCard
                     key={app.slug}
                     app={app}
-                    locked={locked}
+                    locked={Boolean(blockReason)}
+                    lockReason={blockReason ?? undefined}
                     onUpgrade={openUpgrade}
+                    onSignIn={() => openLogin("login")}
                   />
                 );
               })}
@@ -456,7 +459,7 @@ export default function AppsPage() {
           {!isAuthenticated && (
             <div className="mx-auto max-w-2xl rounded-2xl border border-border/60 bg-card/70 p-5 text-center shadow-mac backdrop-blur-sm">
               <p className="text-sm text-muted-foreground">
-                Sign in to save installed apps, usage, and generated outputs.
+                Sign in to use free apps, save your work, and sync generated outputs across devices.
               </p>
             </div>
           )}

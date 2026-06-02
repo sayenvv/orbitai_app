@@ -9,15 +9,15 @@ import {
   Download,
   FileText,
   FolderOpen,
-  LibraryBig,
+  Folders,
+  LayoutGrid,
   Loader2,
   Maximize2,
+  MessageCirclePlus,
   MessageSquarePlus,
   Plus,
   Search,
   Sparkles,
-  SquarePen,
-  Store,
   MessageSquare,
   Trash2,
   Upload,
@@ -27,10 +27,20 @@ import {
 import { AgentCardTint, AgentListingIcon } from "@orbit/ui";
 import { SidebarRecentsRowsShimmer } from "@/components/ui/skeleton";
 import { SidebarTooltip } from "@/components/layout/sidebar-tooltip";
+import {
+  SIDEBAR_COLLAPSED_COLUMN_CLASS,
+  SIDEBAR_ICON_SLOT_CLASS,
+  SIDEBAR_NAV_GLYPH_CLASS,
+  sidebarNavRowClassName,
+} from "@/components/layout/sidebar-layout";
 import { cn } from "@/lib/utils";
 import { chatApi, mapConversationSummary } from "@/lib/orbit-api";
 import { getAppChatLabel, isAppChatConversation, isSameWorkspaceAppChat } from "@/lib/app-chat";
 import { formatFileSize, formatRelativeDate } from "@/lib/format-library";
+import {
+  buildGeneratedFileAppHref,
+  resolveGeneratedFileLaunchApp,
+} from "@/lib/library-open-in-app";
 import { LibraryDeleteDialog } from "@/components/library/library-delete-dialog";
 import { InsightGeneratingOverlay } from "@/components/insights/insight-generating-overlay";
 import { InsightSectionTabs } from "@/components/insights/insight-panel";
@@ -54,12 +64,14 @@ type SidebarSectionNavProps = {
   labelClassName?: string;
 };
 
-const collapsedNavBtnClass =
-  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground";
+const collapsedNavBtnClass = cn(
+  SIDEBAR_ICON_SLOT_CLASS,
+  "rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground",
+);
 
 function sidebarNavItemClass(active: boolean) {
   return cn(
-    "flex w-full items-center gap-2.5 rounded-lg px-2 py-[7px] text-[13px] transition-colors",
+    sidebarNavRowClassName("w-full text-[13px] transition-colors"),
     active
       ? "bg-sidebar-accent font-medium text-foreground"
       : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
@@ -94,19 +106,19 @@ export function SidebarCollapsedNav({
   isAuthenticated = true,
 }: SidebarCollapsedNavProps) {
   const authenticatedItems: SidebarNavItem[] = [
-    { key: "library", label: "Library", icon: LibraryBig, active: section === "library", onClick: onLibrary },
-    { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps },
+    { key: "library", label: "Library", icon: Folders, active: section === "library", onClick: onLibrary },
+    { key: "apps", label: "Apps", icon: LayoutGrid, active: section === "apps", onClick: onApps },
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];
   const guestItems: SidebarNavItem[] = [
-    { key: "apps", label: "Apps", icon: Store, active: section === "apps", onClick: onApps },
+    { key: "apps", label: "Apps", icon: LayoutGrid, active: section === "apps", onClick: onApps },
     { key: "plans", label: "Plans", icon: Crown, active: section === "plans", onClick: onPlans },
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];
   const items = isAuthenticated ? authenticatedItems : guestItems;
 
   return (
-    <div className="flex w-full flex-col items-center gap-1 py-1">
+    <div className={cn(SIDEBAR_COLLAPSED_COLUMN_CLASS, "gap-0.5 py-1")}>
       <SidebarTooltip label="New chat" side="right">
         <button
           type="button"
@@ -114,25 +126,27 @@ export function SidebarCollapsedNav({
           aria-label="New chat"
           className={collapsedNavBtnClass}
         >
-          <Plus className="h-4 w-4 shrink-0" strokeWidth={2} />
+          <MessageCirclePlus className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
         </button>
       </SidebarTooltip>
 
-      {items.map(({ key, label, icon: Icon, active, onClick }) => (
-        <SidebarTooltip key={key} label={label} side="right">
-          <button
-            type="button"
-            onClick={onClick}
-            aria-label={label}
-            className={cn(
-              collapsedNavBtnClass,
-              active && "bg-sidebar-accent font-medium text-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-          </button>
-        </SidebarTooltip>
-      ))}
+      <div className="mt-1 flex w-full flex-col items-center gap-0.5">
+        {items.map(({ key, label, icon: Icon, active, onClick }) => (
+          <SidebarTooltip key={key} label={label} side="right">
+            <button
+              type="button"
+              onClick={onClick}
+              aria-label={label}
+              className={cn(
+                collapsedNavBtnClass,
+                active && "bg-sidebar-accent font-medium text-foreground",
+              )}
+            >
+              <Icon className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
+            </button>
+          </SidebarTooltip>
+        ))}
+      </div>
     </div>
   );
 }
@@ -146,12 +160,12 @@ export function SidebarSectionNav({
   labelClassName = "",
 }: SidebarSectionNavProps) {
   const authenticatedTabs: { id: SidebarSection; label: string; icon: LucideIcon }[] = [
-    { id: "library", label: "Library", icon: LibraryBig },
-    { id: "apps", label: "Apps", icon: Store },
+    { id: "library", label: "Library", icon: Folders },
+    { id: "apps", label: "Apps", icon: LayoutGrid },
   ];
 
   const guestTabs: { id: SidebarSection; label: string; icon: LucideIcon }[] = [
-    { id: "apps", label: "Apps", icon: Store },
+    { id: "apps", label: "Apps", icon: LayoutGrid },
     { id: "plans", label: "Plans", icon: Crown },
   ];
 
@@ -162,11 +176,15 @@ export function SidebarSectionNav({
       <button
         type="button"
         onClick={onNewChat}
-        className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground"
+        className={cn(
+          sidebarNavRowClassName("w-full text-[13px] font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground"),
+        )}
         title="New chat"
         aria-label="New chat"
       >
-        <Plus className="h-4 w-4 shrink-0" strokeWidth={2} />
+        <span className={SIDEBAR_ICON_SLOT_CLASS}>
+          <MessageCirclePlus className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
+        </span>
         {expanded && <span className={cn("truncate", labelClassName)}>New chat</span>}
       </button>
 
@@ -183,13 +201,15 @@ export function SidebarSectionNav({
               title={label}
               aria-label={label}
             >
-              <Icon
-                className={cn(
-                  "h-4 w-4 shrink-0",
-                  isActive ? "text-foreground" : "text-muted-foreground",
-                )}
-                strokeWidth={1.75}
-              />
+              <span className={SIDEBAR_ICON_SLOT_CLASS}>
+                <Icon
+                  className={cn(
+                    SIDEBAR_NAV_GLYPH_CLASS,
+                    isActive ? "text-foreground" : "text-muted-foreground",
+                  )}
+                  strokeWidth={1.75}
+                />
+              </span>
               {expanded && (
                 <span className={cn("truncate", labelClassName)}>{label}</span>
               )}
@@ -757,6 +777,7 @@ function LibraryCardIconActions({
 
 function LibraryCardActions({
   onUseInChat,
+  onOpenInApp,
   onGenerateInsights,
   onToggleExpand,
   expanded = false,
@@ -765,8 +786,11 @@ function LibraryCardActions({
   insightsLabel = "Generate",
   insightsTitle = "Generate AI insights",
   useInChatTitle = "Use in chat",
+  openInAppLabel = "Open in app",
+  openInAppTitle = "Open in the app that created this file",
 }: {
   onUseInChat?: () => void;
+  onOpenInApp?: () => void;
   onGenerateInsights?: () => void;
   onToggleExpand?: () => void;
   expanded?: boolean;
@@ -775,8 +799,10 @@ function LibraryCardActions({
   insightsLabel?: string;
   insightsTitle?: string;
   useInChatTitle?: string;
+  openInAppLabel?: string;
+  openInAppTitle?: string;
 }) {
-  if (!onUseInChat && !onGenerateInsights && !onToggleExpand) return null;
+  if (!onUseInChat && !onOpenInApp && !onGenerateInsights && !onToggleExpand) return null;
 
   return (
     <div className="mt-3 flex flex-wrap gap-2">
@@ -791,17 +817,29 @@ function LibraryCardActions({
           {expanded ? "Collapse" : "Expand"}
         </button>
       )}
-      {onUseInChat && (
+      {onOpenInApp ? (
         <button
           type="button"
-          onClick={onUseInChat}
-          disabled={useInChatDisabled}
-          title={useInChatDisabled ? "Available when processing completes" : useInChatTitle}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-45"
+          onClick={onOpenInApp}
+          title={openInAppTitle}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
         >
-          <MessageSquarePlus className="h-3.5 w-3.5 shrink-0" />
-          Chat
+          <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
+          {openInAppLabel}
         </button>
+      ) : (
+        onUseInChat && (
+          <button
+            type="button"
+            onClick={onUseInChat}
+            disabled={useInChatDisabled}
+            title={useInChatDisabled ? "Available when processing completes" : useInChatTitle}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <MessageSquarePlus className="h-3.5 w-3.5 shrink-0" />
+            Chat
+          </button>
+        )
       )}
       {onGenerateInsights && (
         <button
@@ -836,6 +874,9 @@ type LibraryItemCardProps = {
   downloadLabel?: string;
   deleteLabel?: string;
   onUseInChat?: () => void;
+  onOpenInApp?: () => void;
+  openInAppLabel?: string;
+  openInAppTitle?: string;
   onGenerateInsights?: () => void;
   expandContent?: string;
   expanded?: boolean;
@@ -859,6 +900,9 @@ function LibraryItemCard({
   downloadLabel,
   deleteLabel,
   onUseInChat,
+  onOpenInApp,
+  openInAppLabel,
+  openInAppTitle,
   onGenerateInsights,
   expandContent,
   expanded = false,
@@ -937,6 +981,9 @@ function LibraryItemCard({
 
           <LibraryCardActions
             onUseInChat={onUseInChat}
+            onOpenInApp={onOpenInApp}
+            openInAppLabel={openInAppLabel}
+            openInAppTitle={openInAppTitle}
             onGenerateInsights={onGenerateInsights}
             onToggleExpand={expandContent ? onToggleExpand : undefined}
             expanded={expanded}
@@ -1323,7 +1370,13 @@ export function MainLibraryPanel({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredGenerated.map((file) => (
+          {filteredGenerated.map((file) => {
+            const launchApp = resolveGeneratedFileLaunchApp(file, uploads);
+            const openInAppHref = launchApp
+              ? buildGeneratedFileAppHref(file, launchApp, uploads)
+              : null;
+
+            return (
             <LibraryItemCard
               key={file.id}
               icon={
@@ -1350,7 +1403,18 @@ export function MainLibraryPanel({
               }
               downloadLabel="Download file"
               deleteLabel="Delete generated file"
-              onUseInChat={() => onSelectGenerated(file)}
+              onOpenInApp={
+                openInAppHref ? () => router.push(openInAppHref) : undefined
+              }
+              openInAppLabel={launchApp ? `Open in ${launchApp.name}` : undefined}
+              openInAppTitle={
+                launchApp
+                  ? `Open this file in ${launchApp.name}`
+                  : undefined
+              }
+              onUseInChat={
+                openInAppHref ? undefined : () => onSelectGenerated(file)
+              }
               expandContent={file.preview.trim() || undefined}
               expanded={expandedGeneratedId === file.id}
               onToggleExpand={
@@ -1362,7 +1426,8 @@ export function MainLibraryPanel({
                   : undefined
               }
             />
-          ))}
+            );
+          })}
         </div>
       )}
       </div>

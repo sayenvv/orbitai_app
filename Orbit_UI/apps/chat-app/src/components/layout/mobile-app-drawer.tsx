@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { BrandMark } from "@orbit/ui";
 import { X } from "lucide-react";
 
 import { AppSidebarContent } from "@/components/layout/app-sidebar-content";
 import { useAppShell } from "@/components/layout/app-shell-context";
+import { SidebarBrand } from "@/components/layout/sidebar-brand";
+import { SIDEBAR_PADDING_X } from "@/components/layout/sidebar-layout";
 import { cn } from "@/lib/utils";
 
 export function MobileAppDrawer() {
@@ -71,9 +72,9 @@ export function MobileAppDrawer() {
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-[3.25rem] shrink-0 items-center justify-between px-4">
-          <div className="min-w-0">
-            <BrandMark size="sm" />
+        <div className={cn("flex h-[3.25rem] shrink-0 items-center justify-between", SIDEBAR_PADDING_X)}>
+          <div className="min-w-0 flex-1">
+            <SidebarBrand showText />
           </div>
           <button
             type="button"
@@ -89,7 +90,7 @@ export function MobileAppDrawer() {
           <AppSidebarContent
             expanded
             variant="drawer"
-            className="px-3 pb-4"
+            className="pb-4"
             onNavigate={close}
           />
         </div>

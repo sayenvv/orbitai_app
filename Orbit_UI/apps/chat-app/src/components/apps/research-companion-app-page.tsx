@@ -24,6 +24,7 @@ import { PdfDocumentProvider, usePdfDocument } from "@/components/rag/pdf-docume
 import { PdfPageCanvas, ResearchCompanionPdfShell } from "@/components/rag/pdf-page-canvas";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { findExistingInsightForDocument } from "@/lib/research-companion-insights";
+import { LIBRARY_OPEN_ORIGIN } from "@/lib/library-open-in-app";
 import { getApiErrorMessage, publicApi } from "@/lib/orbit-api";
 import {
   buildRecentWorkspaceHref,
@@ -62,6 +63,7 @@ type WorkspaceContentProps = {
   fileUploading?: boolean;
   fileUploadProgress?: string | null;
   fileUploadError?: string | null;
+  resumedFromLibrary?: boolean;
 };
 
 function ResearchCompanionWorkspaceApp({
@@ -89,6 +91,7 @@ function ResearchCompanionWorkspaceApp({
   fileUploading,
   fileUploadProgress,
   fileUploadError,
+  resumedFromLibrary = false,
 }: WorkspaceContentProps) {
   const documentTitle = sourceName?.trim() || "Selected document";
 
@@ -138,6 +141,7 @@ function ResearchCompanionWorkspaceApp({
         recentWorkspaces={recentWorkspaces}
         onOpenRecentWorkspace={onOpenRecentWorkspace}
         formatRecentWorkspaceTime={formatRecentWorkspaceTime}
+        resumedFromLibrary={resumedFromLibrary}
         renderPageThumbnail={renderPageThumbnail}
         renderAssistPanel={({ panel, sourceId: docId, activePage, pageCount, onPageChange, onClose }) => {
           if (panel === "chat" && docId) {
@@ -230,6 +234,7 @@ function ResearchCompanionWorkspaceWithDocument({
   fileUploading,
   fileUploadProgress,
   fileUploadError,
+  resumedFromLibrary = false,
 }: {
   sourceId: string;
   sourceName: string | null;
@@ -255,6 +260,7 @@ function ResearchCompanionWorkspaceWithDocument({
   fileUploading?: boolean;
   fileUploadProgress?: string | null;
   fileUploadError?: string | null;
+  resumedFromLibrary?: boolean;
 }) {
   const { numPages } = usePdfDocument();
   const pageCount = Math.max(numPages, apiPageCount ?? 0, 1);
@@ -285,6 +291,7 @@ function ResearchCompanionWorkspaceWithDocument({
       fileUploading={fileUploading}
       fileUploadProgress={fileUploadProgress}
       fileUploadError={fileUploadError}
+      resumedFromLibrary={resumedFromLibrary}
     />
   );
 }
@@ -324,6 +331,7 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
   const insightTypesParam = searchParams.get("insightTypes");
   const assistPanelParam = searchParams.get("panel");
   const initialConversationId = searchParams.get("chatId");
+  const resumedFromLibrary = searchParams.get("origin") === LIBRARY_OPEN_ORIGIN;
 
   const initialAssistPanel: "chat" | "summary" | "flashcards" | "note" | null =
     assistPanelParam === "chat" ||
@@ -554,6 +562,7 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
     fileUploading,
     fileUploadProgress,
     fileUploadError,
+    resumedFromLibrary,
   };
 
   return (

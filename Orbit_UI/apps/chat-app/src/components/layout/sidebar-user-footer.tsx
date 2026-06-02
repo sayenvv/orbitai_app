@@ -2,6 +2,13 @@
 
 import { Settings } from "lucide-react";
 import { SidebarTooltip } from "@/components/layout/sidebar-tooltip";
+import {
+  SIDEBAR_COLLAPSED_COLUMN_CLASS,
+  SIDEBAR_ICON_SLOT_CLASS,
+  SIDEBAR_NAV_GLYPH_CLASS,
+  SIDEBAR_PADDING_X,
+  sidebarRowClassName,
+} from "@/components/layout/sidebar-layout";
 import { cn } from "@/lib/utils";
 
 type SidebarUserFooterProps = {
@@ -50,13 +57,13 @@ export function SidebarUserFooter({
 }: SidebarUserFooterProps) {
   if (!expanded) {
     return (
-      <div className="mt-auto flex shrink-0 flex-col items-center gap-1.5 px-2 py-2.5">
+      <div className={cn(SIDEBAR_COLLAPSED_COLUMN_CLASS, "mt-auto shrink-0 gap-1.5 py-2.5")}>
         <SidebarTooltip label={name} hint={subtitle} side="right">
           <button
             type="button"
             onClick={onProfile}
             aria-label={`Open profile for ${name}`}
-            className="rounded-full transition-transform hover:scale-105 active:scale-95"
+            className={cn(SIDEBAR_ICON_SLOT_CLASS, "rounded-full transition-transform hover:scale-105 active:scale-95")}
           >
             <ProfileAvatar initials={initials} size="sm" />
           </button>
@@ -66,9 +73,12 @@ export function SidebarUserFooter({
             type="button"
             onClick={onSettings}
             aria-label="Settings & Help"
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-500/15 to-slate-500/5 text-muted-foreground transition-colors hover:from-primary/15 hover:to-violet-500/10 hover:text-primary"
+            className={cn(
+              SIDEBAR_ICON_SLOT_CLASS,
+              "rounded-lg bg-gradient-to-br from-slate-500/15 to-slate-500/5 text-muted-foreground transition-colors hover:from-primary/15 hover:to-violet-500/10 hover:text-primary",
+            )}
           >
-            <Settings className="h-4 w-4" strokeWidth={1.75} />
+            <Settings className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
           </button>
         </SidebarTooltip>
       </div>
@@ -76,14 +86,14 @@ export function SidebarUserFooter({
   }
 
   return (
-    <div className="mt-auto shrink-0 px-3 py-2.5">
-      <div className="flex items-center gap-2">
+    <div className={cn("mt-auto shrink-0 py-2.5", SIDEBAR_PADDING_X)}>
+      <div className={sidebarRowClassName("gap-2")}>
         <SidebarTooltip label={name} hint={subtitle} side="top" disabled>
           <button
             type="button"
             onClick={onProfile}
             aria-label={`Open profile for ${name}`}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left transition-colors hover:bg-sidebar-accent/80"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1.5 text-left transition-colors hover:bg-sidebar-accent/80"
           >
             <ProfileAvatar initials={initials} />
             <div className="min-w-0 flex-1">
