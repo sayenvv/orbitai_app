@@ -7,7 +7,9 @@ import {
   type CatalogApp,
   type RecentWorkspace,
   type ResearchCompanionGeneratableInsightType,
+  type ResearchCompanionView,
   getAppWorkspaceHref,
+  getAppHelpHref,
   getMissingInsightTypes,
   mergeInsightTypes,
   normalizeResearchCompanionInsightTypes,
@@ -41,13 +43,16 @@ type WorkspaceContentProps = {
   insightId: string | null;
   generatedInsightTypes?: ResearchCompanionGeneratableInsightType[];
   pageCount: number;
-  initialTab: "overview" | "workspace";
+  initialTab: ResearchCompanionView;
   initialAssistPanel?: "chat" | "summary" | "flashcards" | "note" | null;
   initialConversationId?: string | null;
   onOpenFile: () => void;
   onOpenLibrary: () => void;
   onUploadFile: () => void;
   onNewWorkspace: () => void;
+  onResetDraftWorkspace: () => void | Promise<void>;
+  workspaceSessionKey: number;
+  onOpenHelp: () => void;
   recentWorkspaces: RecentWorkspace[];
   onOpenRecentWorkspace: (workspace: RecentWorkspace) => void;
   onGenerateInsights?: () => void | Promise<void>;
@@ -72,6 +77,9 @@ function ResearchCompanionWorkspaceApp({
   onOpenLibrary,
   onUploadFile,
   onNewWorkspace,
+  onResetDraftWorkspace,
+  workspaceSessionKey,
+  onOpenHelp,
   recentWorkspaces,
   onOpenRecentWorkspace,
   onGenerateInsights,
@@ -124,6 +132,9 @@ function ResearchCompanionWorkspaceApp({
         fileUploadProgress={fileUploadProgress}
         fileUploadError={fileUploadError}
         onNewWorkspace={onNewWorkspace}
+        onResetDraftWorkspace={onResetDraftWorkspace}
+        workspaceSessionKey={workspaceSessionKey}
+        onOpenHelp={onOpenHelp}
         recentWorkspaces={recentWorkspaces}
         onOpenRecentWorkspace={onOpenRecentWorkspace}
         formatRecentWorkspaceTime={formatRecentWorkspaceTime}
@@ -207,6 +218,9 @@ function ResearchCompanionWorkspaceWithDocument({
   onOpenLibrary,
   onUploadFile,
   onNewWorkspace,
+  onResetDraftWorkspace,
+  workspaceSessionKey,
+  onOpenHelp,
   recentWorkspaces,
   onOpenRecentWorkspace,
   onGenerateInsights,
@@ -222,13 +236,16 @@ function ResearchCompanionWorkspaceWithDocument({
   insightId: string | null;
   generatedInsightTypes?: ResearchCompanionGeneratableInsightType[];
   apiPageCount?: number;
-  initialTab: "overview" | "workspace";
+  initialTab: ResearchCompanionView;
   initialAssistPanel?: "chat" | "summary" | "flashcards" | "note" | null;
   initialConversationId?: string | null;
   onOpenFile: () => void;
   onOpenLibrary: () => void;
   onUploadFile: () => void;
   onNewWorkspace: () => void;
+  onResetDraftWorkspace: () => void | Promise<void>;
+  workspaceSessionKey: number;
+  onOpenHelp: () => void;
   recentWorkspaces: RecentWorkspace[];
   onOpenRecentWorkspace: (workspace: RecentWorkspace) => void;
   onGenerateInsights?: () => void | Promise<void>;
@@ -256,6 +273,9 @@ function ResearchCompanionWorkspaceWithDocument({
       onOpenLibrary={onOpenLibrary}
       onUploadFile={onUploadFile}
       onNewWorkspace={onNewWorkspace}
+      onResetDraftWorkspace={onResetDraftWorkspace}
+      workspaceSessionKey={workspaceSessionKey}
+      onOpenHelp={onOpenHelp}
       recentWorkspaces={recentWorkspaces}
       onOpenRecentWorkspace={onOpenRecentWorkspace}
       onGenerateInsights={onGenerateInsights}
@@ -338,6 +358,7 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
   const [fileUploadProgress, setFileUploadProgress] = useState<string | null>(null);
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(true);
+  const [workspaceSessionKey, setWorkspaceSessionKey] = useState(0);
 
   useEffect(() => {
     setIsOpening(true);
@@ -345,15 +366,24 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
     return () => clearTimeout(timer);
   }, []);
 
-  const initialTab: "overview" | "workspace" =
-    insightId || (sourceId && initialAssistPanel) ? "workspace" : "overview";
+  const initialTab: ResearchCompanionView =
+    insightId || (sourceId && initialAssistPanel) ? "workspace" : "home";
   const canGenerateInsights = Boolean(
     sourceId && (!insightId || missingInsightTypes.length > 0),
   );
 
-  const handleNewWorkspace = () => {
-    router.push(workspaceHref);
-  };
+  const handleResetDraftWorkspace = useCallback(async () => {
+    setWorkspaceSessionKey((key) => key + 1);
+    router.replace(workspaceHref);
+  }, [router, workspaceHref]);
+
+  const handleNewWorkspace = useCallback(() => {
+    router.replace(workspaceHref);
+  }, [router, workspaceHref]);
+
+  const handleOpenHelp = useCallback(() => {
+    router.push(getAppHelpHref(app));
+  }, [app, router]);
 
   const handleOpenRecentWorkspace = useCallback(
     (workspace: RecentWorkspace) => {
@@ -512,6 +542,9 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
     onOpenLibrary: openLibrary,
     onUploadFile: triggerDirectUpload,
     onNewWorkspace: handleNewWorkspace,
+    onResetDraftWorkspace: handleResetDraftWorkspace,
+    workspaceSessionKey,
+    onOpenHelp: handleOpenHelp,
     recentWorkspaces,
     onOpenRecentWorkspace: handleOpenRecentWorkspace,
     onGenerateInsights: canGenerateInsights ? handleOpenGenerateModal : undefined,

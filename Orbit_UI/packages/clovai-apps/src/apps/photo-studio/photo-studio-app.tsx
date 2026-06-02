@@ -16,6 +16,9 @@ import {
   FolderOpen,
   ImageIcon,
   ImagePlus,
+  Home,
+  LayoutTemplate,
+  CircleHelp,
   Layers,
   Lasso,
   MessageCircle,
@@ -47,7 +50,6 @@ import {
   Plus,
   Search,
   X,
-  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 
@@ -73,6 +75,9 @@ import {
   isLightHexColor,
 } from "./photo-studio-color-palette";
 import { drawPhotoStudioShapeStageToContext, PhotoStudioShapeStage } from "./photo-studio-shape-stage";
+import { PhotoStudioWorkspaceShimmer } from "./photo-studio-workspace-shimmer";
+
+const WORKSPACE_PREPARE_DELAY_MS = 750;
 
 export type { PhotoStudioShapeType } from "./photo-studio-canvas-types";
 
@@ -119,7 +124,7 @@ export type PhotoStudioSavedDesign = {
   source: "system" | "user";
 };
 
-export type PhotoStudioView = "overview" | "workspace";
+export type PhotoStudioView = "home" | "open" | "workspace";
 
 export type CanvasBackgroundId =
   | "violet-sunset"
@@ -173,8 +178,10 @@ export type PhotoStudioAppProps = {
   formatRecentTime?: (openedAt: number) => string;
   onOpenLibrary?: () => void;
   onUploadAsset?: () => void;
-  onOpenEmptyWorkspace?: () => void;
+  onOpenEmptyWorkspace?: () => void | Promise<void>;
+  onResetDraftWorkspace?: () => void | Promise<void>;
   onNewWorkspace?: () => void;
+  workspaceSessionKey?: number | string;
   onWorkspaceSnapshotChange?: (snapshot: PhotoStudioWorkspaceSnapshot) => void;
   onLoadDesigns?: (
     workspaceId: string | null,
@@ -200,6 +207,7 @@ export type PhotoStudioAppProps = {
   assetUploading?: boolean;
   assetUploadProgress?: string | null;
   assetUploadError?: string | null;
+  onOpenHelp?: () => void;
 };
 
 const creationTypes: Array<{
@@ -3469,7 +3477,61 @@ function LauncherOptionCard({
   );
 }
 
-function PhotoStudioLauncher({
+function PhotoStudioHome() {
+  return (
+    <div className="relative min-h-0 flex-1 overflow-y-auto">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" />
+        <div className="absolute right-0 top-32 h-80 w-80 rounded-full bg-fuchsia-400/15 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 md:px-8 md:py-7">
+        <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-600 to-cyan-600 p-6 text-white shadow-[0_20px_60px_rgba(124,58,237,0.25)] md:p-8">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(56,189,248,0.35),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.1),transparent_50%)]" />
+          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-16 left-1/4 h-44 w-44 rounded-full bg-cyan-300/20 blur-3xl" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 ring-1 ring-white/20 backdrop-blur-sm">
+                <Sparkles className="h-3.5 w-3.5" />
+                Photo Studio
+              </div>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-[2.65rem] md:leading-tight">
+                Start creating visuals
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 md:text-base">
+                Use Open to resume a saved project or pick an image from your library. Choose New
+                for a draft canvas, then save with a project name when you are ready to keep it.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
+              {[
+                { label: "Logos", className: "bg-white/15 ring-white/20" },
+                { label: "Product shots", className: "bg-cyan-400/20 ring-cyan-200/30" },
+                { label: "Campaigns", className: "bg-fuchsia-400/20 ring-fuchsia-200/30" },
+              ].map((chip) => (
+                <span
+                  key={chip.label}
+                  className={cn(
+                    "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold text-white ring-1 backdrop-blur-sm",
+                    chip.className,
+                  )}
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function PhotoStudioOpen({
   recentProjects,
   onOpenRecentProject,
   onDeleteRecentProject,
@@ -3500,46 +3562,6 @@ function PhotoStudioLauncher({
       </div>
 
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 md:px-8 md:py-7">
-        <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-600 to-cyan-600 p-6 text-white shadow-[0_20px_60px_rgba(124,58,237,0.25)] md:p-8">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(56,189,248,0.35),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.1),transparent_50%)]" />
-          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-16 left-1/4 h-44 w-44 rounded-full bg-cyan-300/20 blur-3xl" />
-
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 ring-1 ring-white/20 backdrop-blur-sm">
-                <Sparkles className="h-3.5 w-3.5" />
-                Photo Studio
-              </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-[2.65rem] md:leading-tight">
-                Start creating visuals
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 md:text-base">
-                Resume recent work, open an image from your library, or switch to the Workspace tab to
-                start creating logos, product photos, and campaign visuals.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
-              {[
-                { label: "Logos", className: "bg-white/15 ring-white/20" },
-                { label: "Product shots", className: "bg-cyan-400/20 ring-cyan-200/30" },
-                { label: "Campaigns", className: "bg-fuchsia-400/20 ring-fuchsia-200/30" },
-              ].map((chip) => (
-                <span
-                  key={chip.label}
-                  className={cn(
-                    "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold text-white ring-1 backdrop-blur-sm",
-                    chip.className,
-                  )}
-                >
-                  {chip.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <LauncherPanel label="Get started" title="Choose how to begin" accent="fuchsia">
           <div className="grid gap-3 lg:grid-cols-2">
             <LauncherOptionCard
@@ -6397,14 +6419,16 @@ export function PhotoStudioApp({
   assetImageUrl,
   workspaceId,
   initialWorkspaceSnapshot,
-  initialView = "overview",
+  initialView = "home",
   recentProjects = [],
   onOpenRecentProject,
   formatRecentTime,
   onOpenLibrary,
   onUploadAsset,
   onOpenEmptyWorkspace,
+  onResetDraftWorkspace,
   onNewWorkspace,
+  workspaceSessionKey = 0,
   onWorkspaceSnapshotChange,
   onLoadDesigns,
   onSaveWorkspace,
@@ -6422,19 +6446,38 @@ export function PhotoStudioApp({
   assetUploading = false,
   assetUploadProgress,
   assetUploadError,
+  onOpenHelp,
 }: PhotoStudioAppProps) {
   const hasAsset = Boolean(assetId);
   const [activeView, setActiveView] = useState<PhotoStudioView>(
-    initialView === "workspace" || hasAsset ? "workspace" : "overview",
+    initialView === "workspace" || hasAsset ? "workspace" : initialView === "open" ? "open" : "home",
   );
+  const [isPreparingWorkspace, setIsPreparingWorkspace] = useState(false);
+  const [draftSessionActive, setDraftSessionActive] = useState(
+    initialView === "workspace" || hasAsset || Boolean(workspaceId),
+  );
+  const hasStartedDraftRef = useRef(
+    initialView === "workspace" || hasAsset || Boolean(workspaceId),
+  );
+
+  useEffect(() => {
+    if (workspaceId || hasAsset || initialView === "workspace") {
+      setDraftSessionActive(true);
+      hasStartedDraftRef.current = true;
+    }
+  }, [workspaceId, hasAsset, initialView]);
 
   useEffect(() => {
     if (hasAsset || initialView === "workspace") {
       setActiveView("workspace");
       return;
     }
-    if (initialView === "overview") {
-      setActiveView("overview");
+    if (initialView === "open") {
+      setActiveView("open");
+      return;
+    }
+    if (initialView === "home") {
+      setActiveView("home");
     }
   }, [assetId, hasAsset, initialView]);
 
@@ -6443,38 +6486,77 @@ export function PhotoStudioApp({
     ((openedAt: number) =>
       new Date(openedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }));
 
-  const openEmptyWorkspace = () => {
-    onOpenEmptyWorkspace?.();
-    setActiveView("workspace");
+  const handleNewWorkspace = async () => {
+    if (isPreparingWorkspace) return;
+
+    const resetDraft = onResetDraftWorkspace ?? onOpenEmptyWorkspace;
+
+    if (activeView === "workspace" && draftSessionActive && !workspacePersisted) {
+      return;
+    }
+
+    if (draftSessionActive && !workspacePersisted && activeView !== "workspace") {
+      setActiveView("workspace");
+      return;
+    }
+
+    const isFirstDraftStart = !hasStartedDraftRef.current;
+
+    if (isFirstDraftStart) {
+      setIsPreparingWorkspace(true);
+    }
+
+    try {
+      if (isFirstDraftStart) {
+        await Promise.all([
+          Promise.resolve(resetDraft?.()),
+          new Promise<void>((resolve) => {
+            window.setTimeout(resolve, WORKSPACE_PREPARE_DELAY_MS);
+          }),
+        ]);
+        hasStartedDraftRef.current = true;
+      } else if (workspacePersisted || workspaceId) {
+        await Promise.resolve(resetDraft?.());
+      }
+
+      setDraftSessionActive(true);
+      setActiveView("workspace");
+    } finally {
+      setIsPreparingWorkspace(false);
+    }
   };
 
-  const resetToOverview = () => {
-    onNewWorkspace?.();
-    setActiveView("overview");
-  };
+  const navTabs = [
+    {
+      id: "home" as const,
+      label: "Home",
+      hint: "Welcome and quick overview",
+      icon: Home,
+    },
+    {
+      id: "open" as const,
+      label: "Open",
+      hint: "Open a saved project or image from your library",
+      icon: FolderOpen,
+    },
+    {
+      id: "new" as const,
+      label: "New",
+      hint: "Start a new blank workspace",
+      icon: LayoutTemplate,
+    },
+  ];
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <header className="relative z-[110] flex shrink-0 items-stretch border-b border-border/40 bg-gradient-to-b from-muted/25 to-transparent backdrop-blur-xl">
         <nav className="flex min-w-0 flex-1" role="tablist" aria-label="Photo Studio views">
-          {(
-            [
-              {
-                id: "overview" as const,
-                label: "Overview",
-                hint: "Recent projects and ways to get started",
-                icon: LayoutGrid,
-              },
-              {
-                id: "workspace" as const,
-                label: "Workspace",
-                hint: "Design canvas, tools, and exports",
-                icon: Layers,
-              },
-            ] as const
-          ).map((view) => {
+          {navTabs.map((view) => {
             const Icon = view.icon;
-            const selected = activeView === view.id;
+            const isNewTab = view.id === "new";
+            const selected = isNewTab
+              ? activeView === "workspace"
+              : activeView === view.id;
             return (
               <button
                 key={view.id}
@@ -6483,21 +6565,24 @@ export function PhotoStudioApp({
                 aria-selected={selected}
                 aria-label={view.label}
                 title={view.hint}
+                disabled={isNewTab && isPreparingWorkspace}
                 onClick={() => {
-                  if (view.id === "overview") {
-                    setActiveView("overview");
+                  if (view.id === "home") {
+                    setActiveView("home");
                     return;
                   }
-                  if (onOpenEmptyWorkspace && !hasAsset) {
-                    onOpenEmptyWorkspace();
+                  if (view.id === "open") {
+                    setActiveView("open");
+                    return;
                   }
-                  setActiveView("workspace");
+                  void handleNewWorkspace();
                 }}
                 className={cn(
                   "group relative flex min-w-0 items-center gap-2 border-b-2 px-4 py-3 transition-all duration-200 sm:px-5",
                   selected
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/20 hover:text-foreground",
+                  isNewTab && isPreparingWorkspace && "cursor-wait opacity-70",
                 )}
               >
                 <span
@@ -6508,9 +6593,15 @@ export function PhotoStudioApp({
                       : "bg-transparent group-hover:bg-muted/50",
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5" strokeWidth={selected ? 2.25 : 2} />
+                  {isNewTab && isPreparingWorkspace ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.25} />
+                  ) : (
+                    <Icon className="h-3.5 w-3.5" strokeWidth={selected ? 2.25 : 2} />
+                  )}
                 </span>
-                <span className="truncate text-xs font-semibold tracking-wide">{view.label}</span>
+                <span className="truncate text-xs font-semibold tracking-wide">
+                  {isNewTab && isPreparingWorkspace ? "Preparing…" : view.label}
+                </span>
               </button>
             );
           })}
@@ -6518,51 +6609,68 @@ export function PhotoStudioApp({
 
         <button
           type="button"
-          onClick={resetToOverview}
-          title="Start a new project"
-          className="flex shrink-0 items-center gap-1.5 border-l border-border/30 px-4 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/20 hover:text-foreground sm:px-5"
+          onClick={() => onOpenHelp?.()}
+          disabled={!onOpenHelp}
+          title="Photo Studio help"
+          className="flex shrink-0 items-center gap-1.5 border-l border-border/30 px-4 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/20 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
         >
-          <Plus className="h-3.5 w-3.5" strokeWidth={2.25} />
-          <span className="hidden sm:inline">New</span>
+          <CircleHelp className="h-3.5 w-3.5" strokeWidth={2.25} />
+          <span className="hidden sm:inline">Help</span>
         </button>
       </header>
 
-      {activeView === "overview" ? (
-        <PhotoStudioLauncher
-          recentProjects={recentProjects}
-          onOpenRecentProject={onOpenRecentProject}
-          onDeleteRecentProject={onDeleteRecentProject}
-          formatRecentTime={defaultFormatRecentTime}
-          onOpenLibrary={onOpenLibrary}
-          onUploadAsset={onUploadAsset}
-          assetUploading={assetUploading}
-          assetUploadProgress={assetUploadProgress}
-          assetUploadError={assetUploadError}
-        />
+      {isPreparingWorkspace ? (
+        <PhotoStudioWorkspaceShimmer label="Preparing new workspace…" />
       ) : (
-        <PhotoStudioWorkspace
-          assetId={assetId}
-          assetName={assetName}
-          assetImageUrl={assetImageUrl}
-          workspaceId={workspaceId}
-          initialWorkspaceSnapshot={initialWorkspaceSnapshot}
-          onWorkspaceSnapshotChange={onWorkspaceSnapshotChange}
-          onLoadDesigns={onLoadDesigns}
-          onSaveWorkspace={onSaveWorkspace}
-          isSavingWorkspace={isSavingWorkspace}
-          workspacePersisted={workspacePersisted}
-          hasUnsavedWorkspaceChanges={hasUnsavedWorkspaceChanges}
-          photoStudioOptions={photoStudioOptions}
-          onDeleteGeneration={onDeleteGeneration}
-          onFetchGeneration={onFetchGeneration}
-          generationsLoading={generationsLoading}
-          initialGenerationsFromApi={initialGenerationsFromApi}
-          onOpenLibrary={onOpenLibrary}
-          onUploadAsset={onUploadAsset}
-          onGenerate={onGenerate}
-          generating={generating}
-          assetUploading={assetUploading}
-        />
+        <>
+          {activeView === "home" ? <PhotoStudioHome /> : null}
+          {activeView === "open" ? (
+            <PhotoStudioOpen
+              recentProjects={recentProjects}
+              onOpenRecentProject={onOpenRecentProject}
+              onDeleteRecentProject={onDeleteRecentProject}
+              formatRecentTime={defaultFormatRecentTime}
+              onOpenLibrary={onOpenLibrary}
+              onUploadAsset={onUploadAsset}
+              assetUploading={assetUploading}
+              assetUploadProgress={assetUploadProgress}
+              assetUploadError={assetUploadError}
+            />
+          ) : null}
+          {draftSessionActive ? (
+            <div
+              className={cn(
+                "flex min-h-0 flex-1 flex-col overflow-hidden",
+                activeView !== "workspace" && "hidden",
+              )}
+            >
+              <PhotoStudioWorkspace
+                key={`${workspaceSessionKey}-${workspaceId ?? "draft"}`}
+                assetId={assetId}
+                assetName={assetName}
+                assetImageUrl={assetImageUrl}
+                workspaceId={workspaceId}
+                initialWorkspaceSnapshot={initialWorkspaceSnapshot}
+                onWorkspaceSnapshotChange={onWorkspaceSnapshotChange}
+                onLoadDesigns={onLoadDesigns}
+                onSaveWorkspace={onSaveWorkspace}
+                isSavingWorkspace={isSavingWorkspace}
+                workspacePersisted={workspacePersisted}
+                hasUnsavedWorkspaceChanges={hasUnsavedWorkspaceChanges}
+                photoStudioOptions={photoStudioOptions}
+                onDeleteGeneration={onDeleteGeneration}
+                onFetchGeneration={onFetchGeneration}
+                generationsLoading={generationsLoading}
+                initialGenerationsFromApi={initialGenerationsFromApi}
+                onOpenLibrary={onOpenLibrary}
+                onUploadAsset={onUploadAsset}
+                onGenerate={onGenerate}
+                generating={generating}
+                assetUploading={assetUploading}
+              />
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );

@@ -21,6 +21,7 @@ export type CatalogSubApp = {
 export type CatalogApp = {
   id: string;
   slug: string;
+  version: string;
   name: string;
   iconKey:
     | "wand"
@@ -62,6 +63,7 @@ export const appsCatalog: CatalogApp[] = [
   {
     id: catalogAppIds.logoStudio,
     slug: "logo-studio",
+    version: "0.1.0",
     name: "Logo Studio",
     iconKey: "wand",
     category: "Branding",
@@ -100,6 +102,7 @@ export const appsCatalog: CatalogApp[] = [
   {
     id: catalogAppIds.photoGenerator,
     slug: "photo-studio",
+    version: "1.0.0",
     name: "Photo Studio",
     iconKey: "camera",
     category: "Image",
@@ -138,6 +141,7 @@ export const appsCatalog: CatalogApp[] = [
   {
     id: catalogAppIds.creativeEditor,
     slug: "creative-editor",
+    version: "0.1.0",
     name: "Creative Editor",
     iconKey: "brush",
     category: "Editing",
@@ -176,6 +180,7 @@ export const appsCatalog: CatalogApp[] = [
   {
     id: catalogAppIds.videoSnippets,
     slug: "video-snippets",
+    version: "0.1.0",
     name: "Video Snippets",
     iconKey: "film",
     category: "Video",
@@ -213,6 +218,7 @@ export const appsCatalog: CatalogApp[] = [
   {
     id: catalogAppIds.voiceMaker,
     slug: "voice-maker",
+    version: "0.1.0",
     name: "Voice Maker",
     iconKey: "mic",
     category: "Audio",
@@ -250,6 +256,7 @@ export const appsCatalog: CatalogApp[] = [
   {
     id: catalogAppIds.assetRemix,
     slug: "asset-remix",
+    version: "0.1.0",
     name: "Asset Remix",
     iconKey: "image",
     category: "Design",
@@ -287,6 +294,7 @@ export const appsCatalog: CatalogApp[] = [
   {
     id: catalogAppIds.careerCoach,
     slug: "career-coach",
+    version: "0.1.0",
     name: "Career Coach",
     iconKey: "briefcase",
     category: "Career",
@@ -340,6 +348,7 @@ export const appsCatalog: CatalogApp[] = [
   {
     id: catalogAppIds.researchCompanion,
     slug: "research-companion",
+    version: "1.0.0",
     name: "Research Companion",
     iconKey: "book",
     category: "Research",
@@ -452,6 +461,9 @@ export function getAppWorkspaceHref(appOrId: CatalogApp | string): string {
   const id = typeof appOrId === "string" ? appOrId : appOrId.id;
   return `/apps/${id}/workspace`;
 }
+
+export { getAppHelpContent, getAppHelpHref } from "./app-help-content";
+export type { AppHelpContent, AppHelpSection } from "./app-help-content";
 
 /** Apps with a live workspace route (not the marketing detail page). */
 export type LaunchAppKey = "research-companion" | "photo-studio";

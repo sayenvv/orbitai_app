@@ -1,0 +1,57 @@
+"use client";
+
+import { Loader2 } from "lucide-react";
+
+function ShimmerBlock({ className }: { className?: string }) {
+  return <div className={`animate-pulse rounded-xl bg-muted/60 ${className ?? ""}`} />;
+}
+
+export function ResearchCompanionWorkspaceShimmer({
+  label = "Preparing workspace…",
+}: {
+  label?: string;
+}) {
+  return (
+    <div
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      aria-busy="true"
+      aria-label={label}
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-slate-400/10 blur-3xl" />
+      </div>
+
+      <div className="relative shrink-0 border-b border-border/30 bg-background/95 px-4 py-2.5 md:px-5">
+        <div className="flex items-center gap-3">
+          <ShimmerBlock className="h-9 w-9 shrink-0 rounded-xl" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <ShimmerBlock className="h-4 w-44 max-w-[60%]" />
+            <ShimmerBlock className="h-3 w-32 max-w-[45%]" />
+          </div>
+        </div>
+      </div>
+
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        <aside className="hidden w-[17rem] shrink-0 border-r border-border/30 p-3 lg:block">
+          <ShimmerBlock className="mb-3 h-8 w-full rounded-lg" />
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <ShimmerBlock key={index} className="h-10 w-full rounded-lg" />
+            ))}
+          </div>
+        </aside>
+
+        <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-6 md:p-10">
+          <div className="w-full max-w-2xl space-y-4">
+            <ShimmerBlock className="mx-auto aspect-[4/5] w-full max-w-md rounded-[1.75rem]" />
+            <div className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
+              <span>{label}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

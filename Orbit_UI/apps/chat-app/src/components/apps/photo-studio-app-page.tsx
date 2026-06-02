@@ -13,6 +13,7 @@ import {
   type RecentPhotoProject,
   type CanvasBackgroundId,
   getAppWorkspaceHref,
+  getAppHelpHref,
 } from "@orbit/clovai-apps";
 import { PhotoStudioAssetPicker } from "@/components/apps/photo-studio-asset-picker";
 import { useAppShell } from "@/components/layout/app-shell-context";
@@ -125,6 +126,10 @@ function buildWorkspaceUrl(
     search.set("view", "workspace");
   } else if (params.view === "workspace") {
     search.set("view", "workspace");
+  } else if (params.view === "open") {
+    search.set("view", "open");
+  } else if (params.view === "home") {
+    search.set("view", "home");
   }
   if (params.assetId) {
     search.set("assetId", params.assetId);
@@ -198,8 +203,14 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
   const assetIdParam = searchParams.get("assetId");
   const assetNameParam = searchParams.get("assetName");
   const viewParam = searchParams.get("view");
+  const normalizedView =
+    viewParam === "overview" ? "home" : viewParam === "open" || viewParam === "home" ? viewParam : null;
   const initialView: PhotoStudioView =
-    viewParam === "workspace" || workspaceIdParam || assetIdParam ? "workspace" : "overview";
+    workspaceIdParam || assetIdParam
+      ? "workspace"
+      : normalizedView === "open"
+        ? "open"
+        : "home";
 
   const [isOpening, setIsOpening] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -219,6 +230,7 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [workspaceSessionKey, setWorkspaceSessionKey] = useState(0);
 
   const latestSnapshotRef = useRef<PhotoStudioWorkspaceSnapshot | null>(null);
   const savedSnapshotKeyRef = useRef<string | null>(null);
@@ -466,12 +478,21 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
     };
   }, []);
 
-  const handleOpenEmptyWorkspace = useCallback(() => {
-    router.push(buildWorkspaceUrl(workspaceHref, { view: "workspace" }));
+  const handleResetDraftWorkspace = useCallback(async () => {
+    setWorkspaceId(null);
+    setWorkspaceSnapshot(null);
+    setResolvedAssetId(null);
+    setResolvedAssetName(null);
+    setWorkspaceError(null);
+    latestSnapshotRef.current = null;
+    savedSnapshotKeyRef.current = null;
+    setHasUnsavedChanges(false);
+    setWorkspaceSessionKey((key) => key + 1);
+    router.replace(buildWorkspaceUrl(workspaceHref, { view: "workspace" }));
   }, [router, workspaceHref]);
 
   const handleNewWorkspace = useCallback(() => {
-    router.push(workspaceHref);
+    router.push(buildWorkspaceUrl(workspaceHref, { view: "home" }));
   }, [router, workspaceHref]);
 
   const handleOpenRecentProject = useCallback(
@@ -540,6 +561,10 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
     [refreshRecents, router, workspaceHref, workspaceId],
   );
 
+  const handleOpenHelp = useCallback(() => {
+    router.push(getAppHelpHref(app));
+  }, [app, router]);
+
   const assetImageUrl = resolvedAssetId
     ? `${getApiBaseUrl()}/files/${resolvedAssetId}/download`
     : null;
@@ -573,8 +598,9 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         onDeleteRecentProject={handleDeleteRecentProject}
         formatRecentTime={formatRecentPhotoProjectTime}
         onOpenLibrary={() => setPickerOpen(true)}
-        onOpenEmptyWorkspace={handleOpenEmptyWorkspace}
+        onResetDraftWorkspace={handleResetDraftWorkspace}
         onNewWorkspace={handleNewWorkspace}
+        workspaceSessionKey={workspaceSessionKey}
         onWorkspaceSnapshotChange={handleWorkspaceSnapshotChange}
         onSaveWorkspace={handleOpenSaveDialog}
         isSavingWorkspace={isSavingWorkspace}
@@ -587,6 +613,7 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         onGenerate={handleGenerate}
         onDeleteGeneration={handleDeleteGeneration}
         onFetchGeneration={handleFetchGeneration}
+        onOpenHelp={handleOpenHelp}
       />
       <PhotoStudioAssetPicker
         open={pickerOpen}

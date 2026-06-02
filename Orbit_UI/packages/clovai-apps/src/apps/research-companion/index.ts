@@ -1,6 +1,7 @@
 export const appSlug = "research-companion";
 export { ResearchCompanionApp } from "./research-companion-app";
-export type { ResearchCompanionAppProps, RecentWorkspace } from "./research-companion-app";
+export type { ResearchCompanionAppProps, RecentWorkspace, ResearchCompanionView } from "./research-companion-app";
+export { ResearchCompanionWorkspaceShimmer } from "./research-companion-workspace-shimmer";
 export {
   DEFAULT_RESEARCH_COMPANION_INSIGHT_TYPES,
   RESEARCH_COMPANION_INSIGHT_OPTIONS,

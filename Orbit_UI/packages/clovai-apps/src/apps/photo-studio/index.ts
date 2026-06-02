@@ -1,5 +1,6 @@
 export const appSlug = "photo-studio";
 export { PhotoStudioApp } from "./photo-studio-app";
+export { PhotoStudioWorkspaceShimmer } from "./photo-studio-workspace-shimmer";
 export {
   PHOTO_STUDIO_IMAGE_ACCEPT,
   PHOTO_STUDIO_IMAGE_FORMATS_LABEL,

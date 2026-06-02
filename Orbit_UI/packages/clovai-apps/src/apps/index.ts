@@ -26,7 +26,7 @@ export {
   appSlug as researchCompanionSlug,
   ResearchCompanionApp,
 } from "./research-companion";
-export type { ResearchCompanionAppProps, RecentWorkspace } from "./research-companion";
+export type { ResearchCompanionAppProps, RecentWorkspace, ResearchCompanionView } from "./research-companion";
 export type {
   ResearchCompanionGeneratableInsightType,
   ResearchCompanionInsightOption,
