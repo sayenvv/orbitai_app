@@ -4,7 +4,9 @@ import { useState, FormEvent, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { BrandMark } from "@orbit/ui";
 import { authApi, isAdminRole, ApiError } from "@/lib/orbit-api";
+import { mapBackendRoleToDemoRole } from "@/lib/map-backend-role";
 import { useSessionStore } from "@/store/session-store";
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
 
 type LoginFieldErrors = {
@@ -69,6 +71,7 @@ export function AdminLoginPage() {
         email: data.user.email,
         role: data.user.role,
       });
+      useAuthStore.getState().setRole(mapBackendRoleToDemoRole(data.user.role));
       setLoading(false);
     } catch (err) {
       const message =

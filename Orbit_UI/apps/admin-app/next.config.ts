@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { withSecurityHeaders } from "@orbit/security/next-config";
 
-const nextConfig: NextConfig = {
+const nextConfig: NextConfig = withSecurityHeaders({
   turbopack: {
     root: path.resolve(__dirname, "../.."),
   },
-  transpilePackages: ["@orbit/ui", "@orbit/types"],
+  transpilePackages: ["@orbit/ui", "@orbit/types", "@orbit/security"],
   async rewrites() {
     return [
       {
@@ -14,6 +15,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-};
+});
 
 export default nextConfig;

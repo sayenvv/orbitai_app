@@ -2,11 +2,13 @@ import json
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.v1.public.auth import require_chat_user
+from app.core.config import settings
+from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.models import Agent, Conversation, Message, User
 from app.orchestration.runner import (
@@ -169,9 +171,15 @@ def delete_conversation(
 @router.post("/message/stream")
 async def stream_message(
     body: StreamMessageRequest,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_chat_user),
 ):
+    enforce_rate_limit(
+        request,
+        scope="chat-stream",
+        limit=settings.rate_limit_chat_stream_per_minute,
+    )
     registry = AgentRegistry(db)
 
     history: list[tuple[str, str]] = []

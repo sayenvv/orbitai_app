@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { withSecurityHeaders } from "@orbit/security/next-config";
 
 const apiProxy = process.env.API_PROXY_URL ?? "http://127.0.0.1:8000";
 
-const nextConfig: NextConfig = {
+const nextConfig: NextConfig = withSecurityHeaders({
   devIndicators: false,
   allowedDevOrigins: ["192.168.1.4", "192.168.1.16", "172.20.10.2"],
   images: {
@@ -18,7 +19,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname, "../.."),
   },
-  transpilePackages: ["@orbit/ui", "@orbit/types", "@orbit/clovai-apps"],
+  transpilePackages: ["@orbit/ui", "@orbit/types", "@orbit/clovai-apps", "@orbit/security"],
   async rewrites() {
     return [
       {
@@ -27,6 +28,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-};
+});
 
 export default nextConfig;

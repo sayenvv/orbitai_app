@@ -17,6 +17,9 @@ importers:
 
   apps/admin-app:
     dependencies:
+      '@orbit/security':
+        specifier: workspace:*
+        version: link:../../packages/security
       '@orbit/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -96,6 +99,9 @@ importers:
       '@orbit/clovai-apps':
         specifier: workspace:*
         version: link:../../packages/clovai-apps
+      '@orbit/security':
+        specifier: workspace:*
+        version: link:../../packages/security
       '@orbit/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -190,6 +196,9 @@ importers:
 
   apps/control_center_app:
     dependencies:
+      '@orbit/security':
+        specifier: workspace:*
+        version: link:../../packages/security
       '@orbit/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -294,6 +303,18 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.3(@types/react@19.2.15)
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  packages/security:
+    devDependencies:
+      '@orbit/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      next:
+        specifier: 16.2.6
+        version: 16.2.6(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       typescript:
         specifier: ^5
         version: 5.9.3

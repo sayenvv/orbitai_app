@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.rate_limit import enforce_rate_limit
 from app.core.security import create_access_token, decode_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models import User
@@ -90,16 +91,27 @@ def _set_auth_cookie(response: Response, realm: AuthRealm, user: User) -> None:
         key=_cookie_name_for_realm(realm),
         value=token,
         httponly=True,
-        samesite="lax",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
         max_age=settings.auth_cookie_max_age,
         path="/",
     )
     if settings.auth_cookie_name != _cookie_name_for_realm(realm):
-        response.delete_cookie(settings.auth_cookie_name, path="/")
+        response.delete_cookie(
+            settings.auth_cookie_name,
+            path="/",
+            secure=settings.cookie_secure,
+            samesite=settings.cookie_samesite,
+        )
 
 
 def _clear_auth_cookie(response: Response, realm: AuthRealm) -> None:
-    response.delete_cookie(_cookie_name_for_realm(realm), path="/")
+    response.delete_cookie(
+        _cookie_name_for_realm(realm),
+        path="/",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+    )
 
 
 def _user_response(user: User) -> UserResponse:
@@ -131,7 +143,17 @@ def _login_for_realm(
 
 
 @router.post("/chat/register", response_model=AuthResponse)
-def chat_register(body: RegisterRequest, response: Response, db: Session = Depends(get_db)):
+def chat_register(
+    body: RegisterRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        request,
+        scope="auth-register",
+        limit=settings.rate_limit_register_per_minute,
+    )
     existing = db.query(User).filter(User.email == body.email.lower()).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -149,7 +171,17 @@ def chat_register(body: RegisterRequest, response: Response, db: Session = Depen
 
 
 @router.post("/chat/login", response_model=AuthResponse)
-def chat_login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
+def chat_login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        request,
+        scope="auth-login",
+        limit=settings.rate_limit_auth_per_minute,
+    )
     return _login_for_realm(AuthRealm.chat, body, response, db)
 
 
@@ -177,7 +209,17 @@ def chat_logout(response: Response):
 
 
 @router.post("/control/login", response_model=AuthResponse)
-def control_login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
+def control_login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        request,
+        scope="auth-login",
+        limit=settings.rate_limit_auth_per_minute,
+    )
     return _login_for_realm(AuthRealm.control, body, response, db)
 
 
@@ -193,7 +235,17 @@ def control_logout(response: Response):
 
 
 @router.post("/admin/login", response_model=AuthResponse)
-def admin_login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
+def admin_login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        request,
+        scope="auth-login",
+        limit=settings.rate_limit_auth_per_minute,
+    )
     return _login_for_realm(AuthRealm.admin, body, response, db)
 
 

@@ -1,12 +1,13 @@
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.v1.public.auth import require_chat_user
 from app.core.config import settings
+from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.models import Conversation, RagDocument, User
 from app.schemas import PdfInspectResponse, RagDocumentListResponse, RagDocumentResponse
@@ -134,12 +135,18 @@ def get_file(
 
 @router.post("/upload", response_model=RagDocumentResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_file(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     conversation_id: uuid.UUID | None = Form(default=None),
     user: User = Depends(require_chat_user),
     db: Session = Depends(get_db),
 ):
+    enforce_rate_limit(
+        request,
+        scope="file-upload",
+        limit=settings.rate_limit_upload_per_minute,
+    )
     upload_kind = _validate_upload(file)
 
     data = await file.read()

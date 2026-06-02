@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { Role } from "@/lib/rbac";
 
 type AuthState = {
@@ -9,21 +8,13 @@ type AuthState = {
   hydrated: boolean;
   setRole: (role: Role) => void;
   setHydrated: (v: boolean) => void;
+  resetRole: () => void;
 };
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      role: "super_admin",
-      hydrated: false,
-      setRole: (role) => set({ role }),
-      setHydrated: (v) => set({ hydrated: v }),
-    }),
-    {
-      name: "orbit-admin-auth",
-      onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
-      },
-    }
-  )
-);
+export const useAuthStore = create<AuthState>((set) => ({
+  role: "viewer",
+  hydrated: true,
+  setRole: (role) => set({ role }),
+  setHydrated: (v) => set({ hydrated: v }),
+  resetRole: () => set({ role: "viewer" }),
+}));

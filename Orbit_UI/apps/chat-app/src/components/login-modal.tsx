@@ -3,6 +3,7 @@
 import { useState, FormEvent, useEffect, useRef } from "react";
 import { X, Loader2, Eye, EyeOff, Bot, ArrowLeft } from "lucide-react";
 import { authApi, mapApiUser } from "@/lib/orbit-api";
+import { loginSchema, registerSchema } from "@/lib/auth-schemas";
 import { useAuthStore } from "@/store/auth-store";
 
 interface LoginModalProps {
@@ -48,19 +49,24 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
 
     try {
       if (mode === "register") {
-        if (password.length < 6) {
-          setError("Password must be at least 6 characters");
-          setIsSubmitting(false);
+        const parsed = registerSchema.safeParse({
+          email,
+          password,
+          name,
+          confirmPassword,
+        });
+        if (!parsed.success) {
+          setError(parsed.error.issues[0]?.message ?? "Invalid form data");
           return;
         }
-        if (password !== confirmPassword) {
-          setError("Passwords do not match");
-          setIsSubmitting(false);
-          return;
-        }
-        await authApi.register(name.trim(), email.trim(), password);
+        await authApi.register(parsed.data.name, parsed.data.email, parsed.data.password);
       } else {
-        await authApi.login(email.trim(), password);
+        const parsed = loginSchema.safeParse({ email, password });
+        if (!parsed.success) {
+          setError(parsed.error.issues[0]?.message ?? "Invalid form data");
+          return;
+        }
+        await authApi.login(parsed.data.email, parsed.data.password);
       }
       const me = await authApi.me();
       setUser(mapApiUser(me));

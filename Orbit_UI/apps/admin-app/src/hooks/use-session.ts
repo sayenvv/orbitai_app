@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { authApi, isAdminRole } from "@/lib/orbit-api";
+import { mapBackendRoleToDemoRole } from "@/lib/map-backend-role";
 import { useSessionStore } from "@/store/session-store";
+import { useAuthStore } from "@/store/auth-store";
 
 export function useAdminSession() {
   const { setUser, setLoading } = useSessionStore();
@@ -25,6 +27,7 @@ export function useAdminSession() {
         return;
       }
       setUser({ id: data.id, name: data.name, email: data.email, role: data.role });
+      useAuthStore.getState().setRole(mapBackendRoleToDemoRole(data.role));
     } catch {
       if (seq !== checkSeq.current) return;
       const state = useSessionStore.getState();
@@ -65,6 +68,7 @@ export function useAdminLogout() {
     } catch {
       // still clear local state
     }
+    useAuthStore.getState().resetRole();
     logout();
   };
 }

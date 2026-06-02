@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     auth_cookie_control: str = "orbit_control_session"
     auth_cookie_admin: str = "orbit_admin_session"
     auth_cookie_max_age: int = 604800
+    auth_cookie_secure: bool | None = None
+    auth_cookie_samesite: str = "lax"
+    rate_limit_auth_per_minute: int = 20
+    rate_limit_register_per_minute: int = 5
+    rate_limit_upload_per_minute: int = 15
+    rate_limit_chat_stream_per_minute: int = 40
     control_center_data_dir: str = "../Orbit_UI/apps/control_center_app/src/data"
     local_llm_base_url: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_BASE_URL")
     local_llm_default_model: str = Field(default="llama3.2", validation_alias="OLLAMA_DEFAULT_MODEL")
@@ -61,6 +67,25 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def cookie_secure(self) -> bool:
+        if self.auth_cookie_secure is not None:
+            return self.auth_cookie_secure
+        return not self.debug
+
+    @property
+    def use_strict_transport_security(self) -> bool:
+        return self.cookie_secure
+
+    @property
+    def cookie_samesite(self) -> str:
+        value = self.auth_cookie_samesite.strip().lower()
+        if value not in {"lax", "strict", "none"}:
+            return "lax"
+        if value == "none" and not self.cookie_secure:
+            return "lax"
+        return value
 
     @property
     def use_local_llm(self) -> bool:
