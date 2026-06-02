@@ -13,7 +13,14 @@ export type {
   PhotoStudioAppProps,
   PhotoStudioCreationType,
   PhotoStudioGeneratedItem,
+  PhotoStudioSavedDesign,
   PhotoStudioView,
+  PhotoStudioWorkspaceSnapshot,
   CanvasBackgroundId,
   RecentPhotoProject,
 } from "./photo-studio-app";
+export type { PhotoStudioOptionsConfig } from "./photo-studio-options";
+export {
+  DEFAULT_PHOTO_STUDIO_OPTIONS,
+  resolvePhotoStudioOptions,
+} from "./photo-studio-options";

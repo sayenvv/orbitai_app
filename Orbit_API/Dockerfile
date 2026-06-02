@@ -6,6 +6,9 @@ WORKDIR /app
 COPY packages/clovai /tmp/clovai
 RUN pip install --no-cache-dir /tmp/clovai
 
+COPY packages/clovai-apps /tmp/clovai-apps
+RUN pip install --no-cache-dir /tmp/clovai-apps
+
 COPY personal/orbitai_app/Orbit_API/pyproject.toml personal/orbitai_app/Orbit_API/README.md ./
 COPY personal/orbitai_app/Orbit_API/app ./app
 COPY personal/orbitai_app/Orbit_API/alembic.ini ./

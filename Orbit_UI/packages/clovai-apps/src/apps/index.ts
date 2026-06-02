@@ -14,9 +14,14 @@ export type {
   PhotoStudioAppProps,
   PhotoStudioCreationType,
   PhotoStudioGeneratedItem,
+  PhotoStudioSavedDesign,
   PhotoStudioView,
+  PhotoStudioWorkspaceSnapshot,
+  CanvasBackgroundId,
   RecentPhotoProject,
 } from "./photo-studio";
+export type { PhotoStudioOptionsConfig } from "./photo-studio";
+export { DEFAULT_PHOTO_STUDIO_OPTIONS, resolvePhotoStudioOptions } from "./photo-studio";
 export {
   appSlug as researchCompanionSlug,
   ResearchCompanionApp,

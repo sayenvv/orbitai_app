@@ -410,6 +410,192 @@ export const publicApi = {
     request<ApiLibraryGenerated>(getApiBaseUrl(), `/library/generated/${id}`),
 };
 
+// ─── Photo Studio (`/api/apps/photo-studio/*`) ───────────────────────────────
+
+export type ApiPhotoStudioGeneratedItem = {
+  id: string;
+  prompt: string;
+  creationType: "logo" | "product" | "lifestyle" | "campaign";
+  aspectRatio: string;
+  stylePreset: string;
+  label: string;
+  previewGradient: string;
+  createdAt: number;
+  transparentBackground?: boolean;
+  canvasBackgroundId?: string;
+  variantIndex?: number;
+  imageUrl?: string | null;
+  batchId?: string;
+};
+
+export type ApiPhotoStudioGenerateInput = {
+  prompt: string;
+  creationType: "logo" | "product" | "lifestyle" | "campaign";
+  aspectRatio: string;
+  stylePreset: string;
+  transparentBackground?: boolean;
+  assetId?: string | null;
+};
+
+export type ApiPhotoStudioOptions = {
+  creationTypes: Array<{ id: string; label: string; description: string }>;
+  aspectRatios: Array<{ id: string; label: string; hint: string }>;
+  stylePresets: Array<{ id: string; label: string }>;
+  batchSize: number;
+};
+
+export const photoStudioApi = {
+  options: () => request<ApiPhotoStudioOptions>(getApiBaseUrl(), "/apps/photo-studio/options"),
+
+  generate: (input: ApiPhotoStudioGenerateInput) =>
+    request<{ batchId: string; variants: ApiPhotoStudioGeneratedItem[] }>(
+      getApiBaseUrl(),
+      "/apps/photo-studio/generate",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          prompt: input.prompt,
+          creationType: input.creationType,
+          aspectRatio: input.aspectRatio,
+          stylePreset: input.stylePreset,
+          transparentBackground: input.transparentBackground,
+          assetId: input.assetId ?? undefined,
+        }),
+      },
+    ),
+
+  generations: () =>
+    request<{ data: ApiPhotoStudioGeneratedItem[] }>(
+      getApiBaseUrl(),
+      "/apps/photo-studio/generations",
+    ),
+
+  deleteGeneration: (id: string) =>
+    request<{ ok: boolean }>(getApiBaseUrl(), `/apps/photo-studio/generations/${id}`, {
+      method: "DELETE",
+    }),
+
+  getGeneration: (id: string) =>
+    request<ApiPhotoStudioGeneratedItem>(getApiBaseUrl(), `/apps/photo-studio/generations/${id}`),
+
+  assets: () =>
+    request<
+      Array<{
+        id: string;
+        name: string;
+        mimeType?: string | null;
+        downloadUrl: string;
+        createdAt?: string | null;
+      }>
+    >(getApiBaseUrl(), "/apps/photo-studio/assets"),
+
+  designs: (workspaceId?: string) => {
+    const query = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
+    return request<ApiPhotoStudioDesignListResponse>(
+      getApiBaseUrl(),
+      `/apps/photo-studio/designs${query}`,
+    );
+  },
+
+  workspaces: (limit = 20) =>
+    request<{ data: ApiPhotoStudioWorkspaceSummary[] }>(
+      getApiBaseUrl(),
+      `/apps/photo-studio/workspaces?limit=${limit}`,
+    ),
+
+  getWorkspace: (id: string) =>
+    request<ApiPhotoStudioWorkspaceResponse>(getApiBaseUrl(), `/apps/photo-studio/workspaces/${id}`),
+
+  createWorkspace: (input: ApiPhotoStudioWorkspaceCreateInput) =>
+    request<ApiPhotoStudioWorkspaceResponse>(getApiBaseUrl(), "/apps/photo-studio/workspaces", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  updateWorkspace: (id: string, input: ApiPhotoStudioWorkspaceUpdateInput) =>
+    request<ApiPhotoStudioWorkspaceResponse>(getApiBaseUrl(), `/apps/photo-studio/workspaces/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+
+  deleteWorkspace: (id: string) =>
+    request<{ ok: boolean }>(getApiBaseUrl(), `/apps/photo-studio/workspaces/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export type ApiPhotoStudioDesignItem = {
+  id: string;
+  title: string;
+  aspectRatio: string;
+  canvasBackgroundId: string;
+  shapes: unknown[];
+  texts: unknown[];
+  createdAt: number;
+  source: "system" | "user";
+};
+
+export type ApiPhotoStudioDesignListResponse = {
+  templates: ApiPhotoStudioDesignItem[];
+  saved: ApiPhotoStudioDesignItem[];
+};
+
+export type ApiPhotoStudioWorkspaceSummary = {
+  id: string;
+  title: string;
+  assetId?: string | null;
+  assetName?: string | null;
+  aspectRatio: string;
+  openedAt: number;
+  updatedAt: number;
+};
+
+export type ApiPhotoStudioWorkspaceState = {
+  title: string;
+  assetId?: string | null;
+  assetName?: string | null;
+  aspectRatio: string;
+  creationType: "logo" | "product" | "lifestyle" | "campaign";
+  stylePreset: string;
+  logoTransparentBackground: boolean;
+  canvasBackgroundId: string;
+  customCanvasBackgroundColor: string;
+  customCanvasGradientEnd: string;
+  customCanvasGradientEnabled: boolean;
+  projectName: string;
+  canvasShapes: unknown[];
+  canvasTexts: unknown[];
+  generatedItems: ApiPhotoStudioGeneratedItem[];
+  savedDesigns?: unknown[];
+  selectedGenerationId?: string | null;
+  materializedGenerationId?: string | null;
+};
+
+export type ApiPhotoStudioWorkspaceResponse = {
+  id: string;
+  title: string;
+  assetId?: string | null;
+  assetName?: string | null;
+  openedAt: number;
+  updatedAt: number;
+  state: ApiPhotoStudioWorkspaceState;
+};
+
+export type ApiPhotoStudioWorkspaceCreateInput = {
+  title?: string;
+  assetId?: string;
+  assetName?: string;
+  state?: Partial<ApiPhotoStudioWorkspaceState>;
+};
+
+export type ApiPhotoStudioWorkspaceUpdateInput = {
+  title?: string;
+  assetId?: string | null;
+  assetName?: string | null;
+  state?: Partial<ApiPhotoStudioWorkspaceState>;
+  touch?: boolean;
+};
+
 // ─── Chat (`/api/chat/*`) ───────────────────────────────────────────────────
 
 export type ConversationListResult = {

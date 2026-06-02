@@ -7,7 +7,13 @@ import {
   isPhotoStudioSupportedImageFilename,
   isPhotoStudioSupportedImageMime,
 } from "@orbit/clovai-apps";
-import { getApiErrorMessage, publicApi, type ApiLibraryGenerated, type ApiRagDocument } from "@/lib/orbit-api";
+import { getApiErrorMessage, photoStudioApi, publicApi, type ApiLibraryGenerated, type ApiRagDocument } from "@/lib/orbit-api";
+
+type PickerUpload = {
+  id: string;
+  name: string;
+  status: ApiRagDocument["status"];
+};
 
 type PhotoStudioAssetPickerProps = {
   open: boolean;
@@ -67,7 +73,7 @@ function AssetRow({
 export function PhotoStudioAssetPicker({ open, onClose, onSelect }: PhotoStudioAssetPickerProps) {
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState("");
-  const [uploads, setUploads] = useState<ApiRagDocument[]>([]);
+  const [uploads, setUploads] = useState<PickerUpload[]>([]);
   const [generated, setGenerated] = useState<ApiLibraryGenerated[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -83,11 +89,29 @@ export function PhotoStudioAssetPicker({ open, onClose, onSelect }: PhotoStudioA
 
     setLoading(true);
     setLoadError("");
-    publicApi
-      .library()
-      .then((data) => {
-        setUploads((data.uploads || []).filter(isPhotoStudioLibraryUpload));
-        setGenerated((data.generated || []).filter(isVisualGenerated));
+    Promise.all([
+      photoStudioApi.assets(),
+      publicApi.library().catch(() => ({ uploads: [] as ApiRagDocument[], generated: [] as ApiLibraryGenerated[] })),
+    ])
+      .then(([assets, library]) => {
+        const photoStudioUploads: PickerUpload[] = assets.map((asset) => ({
+          id: asset.id,
+          name: asset.name,
+          status: "ready",
+        }));
+        const libraryUploads: PickerUpload[] = (library.uploads || [])
+          .filter(isPhotoStudioLibraryUpload)
+          .map((doc) => ({
+            id: doc.id,
+            name: doc.name || doc.original_filename,
+            status: doc.status,
+          }));
+        const mergedUploads = new Map<string, PickerUpload>();
+        for (const doc of [...photoStudioUploads, ...libraryUploads]) {
+          mergedUploads.set(doc.id, doc);
+        }
+        setUploads(Array.from(mergedUploads.values()));
+        setGenerated((library.generated || []).filter(isVisualGenerated));
       })
       .catch((err) => setLoadError(getApiErrorMessage(err, "Failed to load library")))
       .finally(() => setLoading(false));
@@ -103,11 +127,11 @@ export function PhotoStudioAssetPicker({ open, onClose, onSelect }: PhotoStudioA
   }, [open, onClose]);
 
   const handleSelectUpload = useCallback(
-    (doc: ApiRagDocument) => {
+    (doc: PickerUpload) => {
       if (doc.status !== "ready") return;
       onSelect({
         id: doc.id,
-        name: doc.name || doc.original_filename,
+        name: doc.name,
         kind: "upload",
       });
       onClose();
@@ -131,7 +155,7 @@ export function PhotoStudioAssetPicker({ open, onClose, onSelect }: PhotoStudioA
 
   const query = search.trim().toLowerCase();
   const filteredUploads = uploads.filter((doc) => {
-    const name = (doc.name || doc.original_filename).toLowerCase();
+    const name = doc.name.toLowerCase();
     return !query || name.includes(query);
   });
   const filteredGenerated = generated.filter((item) => {
@@ -206,7 +230,7 @@ export function PhotoStudioAssetPicker({ open, onClose, onSelect }: PhotoStudioA
                   {filteredUploads.map((doc) => (
                     <AssetRow
                       key={doc.id}
-                      title={doc.name || doc.original_filename}
+                      title={doc.name}
                       subtitle={doc.status === "ready" ? "Ready to open" : doc.status}
                       disabled={doc.status !== "ready"}
                       onClick={() => handleSelectUpload(doc)}

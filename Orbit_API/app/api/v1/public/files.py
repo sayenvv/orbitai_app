@@ -20,20 +20,11 @@ from app.services.rag.ingest import save_upload_file
 from app.services.rag.ingest_dispatch import dispatch_document_ingest
 from app.services.rag.limits import max_pages_for_plan
 from app.services.rag.pdf_extract import count_pdf_pages
+from clovai_apps.shared.assets import build_image_document_metadata, default_image_filename, detect_upload_kind
 
 router = APIRouter(prefix="/files", tags=["files"])
 
 PDF_MIME_TYPES = frozenset({"application/pdf", "application/x-pdf"})
-IMAGE_MIME_TYPES = frozenset({"image/jpeg", "image/png"})
-IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")
-
-
-def _is_image_upload(upload: UploadFile) -> bool:
-    content_type = (upload.content_type or "").lower()
-    filename = (upload.filename or "").lower()
-    if content_type in IMAGE_MIME_TYPES:
-        return True
-    return any(filename.endswith(ext) for ext in IMAGE_EXTENSIONS)
 
 
 def _validate_pdf(upload: UploadFile) -> None:
@@ -69,16 +60,16 @@ def _inspect_pdf_bytes(data: bytes, plan: str) -> PdfInspectResponse:
 
 
 def _validate_upload(upload: UploadFile) -> str:
-    content_type = (upload.content_type or "").lower()
-    if _is_image_upload(upload):
-        return "image"
-    if content_type.startswith("image/"):
+    try:
+        upload_kind = detect_upload_kind(content_type=upload.content_type, filename=upload.filename)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only JPG, JPEG, and PNG images are supported.",
-        )
-    _validate_pdf(upload)
-    return "pdf"
+            detail=str(exc),
+        ) from exc
+    if upload_kind == "pdf":
+        _validate_pdf(upload)
+    return upload_kind
 
 
 @router.post("/inspect", response_model=PdfInspectResponse)
@@ -170,7 +161,7 @@ async def upload_file(
             raise HTTPException(status_code=404, detail="Conversation not found")
 
     document_id = uuid.uuid4()
-    default_filename = "reference.png" if upload_kind == "image" else "document.pdf"
+    default_filename = default_image_filename() if upload_kind == "image" else "document.pdf"
     filename = Path(file.filename or default_filename).name
     storage_path = save_upload_file(
         user_id=user.id,
@@ -192,10 +183,7 @@ async def upload_file(
             page_count=1,
             pages_processed=0,
             chunk_count=0,
-            doc_metadata={
-                "asset_kind": "image",
-                "photo_studio_reference": True,
-            },
+            doc_metadata=build_image_document_metadata(),
         )
         db.add(document)
         db.commit()

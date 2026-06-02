@@ -20,6 +20,7 @@ dependencies = [
   "langgraph>=0.2.0",
   "httpx>=0.28.0",
   "clovai @ file:packages/clovai",
+  "clovai-apps @ file:packages/clovai-apps",
   "pypdf>=5.1.0",
   "fastembed>=0.4.2",
   "numpy>=2.1.0",

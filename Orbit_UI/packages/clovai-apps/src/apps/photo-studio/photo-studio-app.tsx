@@ -29,6 +29,7 @@ import {
   Loader2,
   Pipette,
   RotateCw,
+  Save,
   ShoppingBag,
   SlidersHorizontal,
   Sparkles,
@@ -53,6 +54,12 @@ import {
 import { HexColorPicker } from "react-colorful";
 
 import { PHOTO_STUDIO_IMAGE_FORMATS_LABEL } from "./image-formats";
+import {
+  buildCreationTypeOptions,
+  isAllowedAspectRatio,
+  resolvePhotoStudioOptions,
+  type PhotoStudioOptionsConfig,
+} from "./photo-studio-options";
 import type Konva from "konva";
 import type { CanvasShapeElement, PhotoStudioShapeType } from "./photo-studio-canvas-types";
 import { snapShapeCenterPercents } from "./photo-studio-alignment-guides";
@@ -74,9 +81,42 @@ export type PhotoStudioCreationType = "logo" | "product" | "lifestyle" | "campai
 export type RecentPhotoProject = {
   key: string;
   title: string;
+  workspaceId?: string | null;
   assetId?: string | null;
   assetName?: string | null;
   openedAt: number;
+};
+
+export type PhotoStudioWorkspaceSnapshot = {
+  title: string;
+  assetId?: string | null;
+  assetName?: string | null;
+  aspectRatio: string;
+  creationType: PhotoStudioCreationType;
+  stylePreset: string;
+  logoTransparentBackground: boolean;
+  canvasBackgroundId: CanvasBackgroundId;
+  customCanvasBackgroundColor: string;
+  customCanvasGradientEnd: string;
+  customCanvasGradientEnabled: boolean;
+  projectName: string;
+  canvasShapes: CanvasShapeElement[];
+  canvasTexts: CanvasTextElement[];
+  generatedItems: PhotoStudioGeneratedItem[];
+  savedDesigns: PhotoStudioSavedDesign[];
+  selectedGenerationId: string | null;
+  materializedGenerationId: string | null;
+};
+
+export type PhotoStudioSavedDesign = {
+  id: string;
+  title: string;
+  aspectRatio: string;
+  canvasBackgroundId: CanvasBackgroundId;
+  shapes: CanvasShapeElement[];
+  texts: CanvasTextElement[];
+  createdAt: number;
+  source: "system" | "user";
 };
 
 export type PhotoStudioView = "overview" | "workspace";
@@ -125,6 +165,8 @@ export type PhotoStudioAppProps = {
   assetId?: string | null;
   assetName?: string | null;
   assetImageUrl?: string | null;
+  workspaceId?: string | null;
+  initialWorkspaceSnapshot?: PhotoStudioWorkspaceSnapshot | null;
   initialView?: PhotoStudioView;
   recentProjects?: RecentPhotoProject[];
   onOpenRecentProject?: (project: RecentPhotoProject) => void;
@@ -133,6 +175,20 @@ export type PhotoStudioAppProps = {
   onUploadAsset?: () => void;
   onOpenEmptyWorkspace?: () => void;
   onNewWorkspace?: () => void;
+  onWorkspaceSnapshotChange?: (snapshot: PhotoStudioWorkspaceSnapshot) => void;
+  onLoadDesigns?: (
+    workspaceId: string | null,
+  ) => Promise<{ templates: PhotoStudioSavedDesign[]; saved: PhotoStudioSavedDesign[] }>;
+  onSaveWorkspace?: () => void;
+  isSavingWorkspace?: boolean;
+  workspacePersisted?: boolean;
+  hasUnsavedWorkspaceChanges?: boolean;
+  photoStudioOptions?: PhotoStudioOptionsConfig;
+  onDeleteGeneration?: (id: string) => Promise<void>;
+  onDeleteRecentProject?: (project: RecentPhotoProject) => Promise<void>;
+  onFetchGeneration?: (id: string) => Promise<PhotoStudioGeneratedItem>;
+  generationsLoading?: boolean;
+  initialGenerationsFromApi?: PhotoStudioGeneratedItem[];
   onGenerate?: (input: {
     prompt: string;
     creationType: PhotoStudioCreationType;
@@ -297,19 +353,23 @@ function AspectRatioPicker({
   value,
   onChange,
   variant = "premium",
+  ratioOptions = aspectRatioOptions,
 }: {
   value: PhotoStudioAspectRatio;
   onChange: (ratio: PhotoStudioAspectRatio) => void;
   variant?: "premium" | "compact";
+  ratioOptions?: Array<{ id: string; intent: string }>;
 }) {
+  const ratios = ratioOptions.map((option) => option.id);
+
   if (variant === "compact") {
     return (
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aspect ratio">
-        {aspectRatios.map((ratio) => (
+        {ratios.map((ratio) => (
           <button
             key={ratio}
             type="button"
-            onClick={() => onChange(ratio)}
+            onClick={() => onChange(ratio as PhotoStudioAspectRatio)}
             aria-pressed={value === ratio}
             className={cn(
               "inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-semibold transition-colors",
@@ -327,13 +387,13 @@ function AspectRatioPicker({
 
   return (
     <div className="grid grid-cols-2 gap-2" role="group" aria-label="Aspect ratio">
-      {aspectRatioOptions.map((option) => {
+      {ratioOptions.map((option) => {
         const selected = value === option.id;
         return (
           <button
             key={option.id}
             type="button"
-            onClick={() => onChange(option.id)}
+            onClick={() => onChange(option.id as PhotoStudioAspectRatio)}
             aria-pressed={selected}
             aria-label={`${option.id} — ${option.intent}`}
             className={cn(
@@ -350,7 +410,7 @@ function AspectRatioPicker({
             ) : (
               <span className="absolute right-1.5 top-1.5 h-4 w-4 rounded-full border border-border/40 bg-background/80 opacity-0 transition-opacity group-hover:opacity-100" />
             )}
-            <AspectRatioFrame ratio={option.id} selected={selected} />
+            <AspectRatioFrame ratio={option.id as PhotoStudioAspectRatio} selected={selected} />
             <span className="min-w-0 px-0.5">
               <span
                 className={cn(
@@ -876,16 +936,19 @@ function GeneratedLogoPreview({
   );
 }
 
-function createGenerationBatch(input: {
-  prompt: string;
-  creationType: PhotoStudioCreationType;
-  aspectRatio: string;
-  stylePreset: string;
-  transparentBackground?: boolean;
-}): PhotoStudioGeneratedItem[] {
+function createGenerationBatch(
+  input: {
+    prompt: string;
+    creationType: PhotoStudioCreationType;
+    aspectRatio: string;
+    stylePreset: string;
+    transparentBackground?: boolean;
+  },
+  batchSize = GENERATION_BATCH_SIZE,
+): PhotoStudioGeneratedItem[] {
   const batchId = `${Date.now()}`;
   const isTransparentLogo = input.creationType === "logo" && input.transparentBackground !== false;
-  return Array.from({ length: GENERATION_BATCH_SIZE }, (_, index) => ({
+  return Array.from({ length: batchSize }, (_, index) => ({
     id: `${batchId}-${index}`,
     prompt: input.prompt,
     creationType: input.creationType,
@@ -1009,11 +1072,17 @@ function GeneratedItemsGrid({
   selectedId,
   materializedId,
   onSelect,
+  onDelete,
+  deletingId,
+  creationTypeLabels,
 }: {
   items: PhotoStudioGeneratedItem[];
   selectedId?: string | null;
   materializedId?: string | null;
   onSelect: (item: PhotoStudioGeneratedItem) => void;
+  onDelete?: (id: string) => void;
+  deletingId?: string | null;
+  creationTypeLabels?: Record<string, string>;
 }) {
   if (items.length === 0) {
     return (
@@ -1033,12 +1102,30 @@ function GeneratedItemsGrid({
         const selected = selectedId === item.id;
         const onCanvas = materializedId === item.id;
         return (
-          <button
-            key={item.id}
+          <div key={item.id} className="group relative">
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void onDelete(item.id);
+                }}
+                disabled={deletingId === item.id}
+                className="absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100 disabled:opacity-50"
+                aria-label={`Delete ${item.label}`}
+              >
+                {deletingId === item.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3 w-3" />
+                )}
+              </button>
+            ) : null}
+            <button
             type="button"
             onClick={() => onSelect(item)}
             className={cn(
-              "group overflow-hidden rounded-xl border text-left transition-all",
+              "w-full overflow-hidden rounded-xl border text-left transition-all",
               selected
                 ? "border-primary/40 ring-2 ring-primary/15"
                 : "border-border/40 hover:border-primary/25",
@@ -1085,26 +1172,22 @@ function GeneratedItemsGrid({
             </div>
             <div className="border-t border-border/30 bg-background/95 px-2 py-1.5">
               <p className="truncate text-[10px] font-semibold text-foreground">
-                {creationTypes.find((type) => type.id === item.creationType)?.label ?? "Visual"}
+                {creationTypeLabels?.[item.creationType] ??
+                  creationTypes.find((type) => type.id === item.creationType)?.label ??
+                  "Visual"}
               </p>
               <p className="mt-0.5 truncate text-[9px] text-muted-foreground">{item.aspectRatio}</p>
             </div>
           </button>
+          </div>
         );
       })}
     </div>
   );
 }
 
-type SavedCanvasDesign = {
-  id: string;
-  title: string;
+type SavedCanvasDesign = PhotoStudioSavedDesign & {
   aspectRatio: PhotoStudioAspectRatio;
-  canvasBackgroundId: CanvasBackgroundId;
-  shapes: CanvasShapeElement[];
-  texts: CanvasTextElement[];
-  createdAt: number;
-  source: "system" | "user";
 };
 
 type CanvasLayerListItem = {
@@ -1169,6 +1252,35 @@ function DesignPreviewThumbnail({
           {design.texts[0]?.content}
         </span>
       ) : null}
+    </div>
+  );
+}
+
+function DesignsPanelSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        <div className="h-2.5 w-24 animate-pulse rounded-full bg-muted/60" />
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="aspect-[4/5] animate-pulse rounded-xl bg-gradient-to-br from-violet-200/50 to-fuchsia-200/35 dark:from-violet-900/25 dark:to-fuchsia-900/15"
+            />
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-2.5 w-20 animate-pulse rounded-full bg-muted/60" />
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={`template-${index}`}
+              className="aspect-[4/5] animate-pulse rounded-xl bg-gradient-to-br from-cyan-200/45 to-violet-200/35 dark:from-cyan-900/20 dark:to-violet-900/15"
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1975,143 +2087,6 @@ function createCanvasShape(shapeType: PhotoStudioShapeType, x: number, y: number
     label: "",
   };
 }
-
-function createHardcodedSavedDesigns(): SavedCanvasDesign[] {
-  const now = Date.now();
-  const day = 86_400_000;
-
-  const shape = (
-    id: string,
-    shapeType: PhotoStudioShapeType,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    fillColor: string,
-    strokeColor = fillColor,
-  ): CanvasShapeElement => ({
-    id,
-    shapeType,
-    x,
-    y,
-    width,
-    height,
-    strokeWidth: 3,
-    strokeColor,
-    fillColor,
-    fillOpacity: 0.8,
-    cornerRadius: shapeType === "rectangle" || shapeType === "square" ? 4 : 0,
-    label: "",
-  });
-
-  const text = (
-    id: string,
-    content: string,
-    x: number,
-    y: number,
-    color = "#ffffff",
-    fontStyleId: PhotoStudioFontStyleId = "bold-headline",
-  ): CanvasTextElement => ({
-    id,
-    x,
-    y,
-    width: 38,
-    height: 10,
-    content,
-    fontStyleId,
-    fontSize: 16,
-    color,
-  });
-
-  return [
-    {
-      id: "design-mock-orbit-logo",
-      title: "Orbit Brand Mark",
-      aspectRatio: "1:1",
-      canvasBackgroundId: "violet-sunset",
-      shapes: [
-        shape("mock-s-1", "circle", 50, 42, 26, 26, "#a855f7", "#7c3aed"),
-        shape("mock-s-2", "ellipse", 50, 42, 36, 36, "#c084fc", "#ddd6fe"),
-      ],
-      texts: [text("mock-t-1", "ORBIT", 50, 68)],
-      createdAt: now - day * 3,
-    },
-    {
-      id: "design-mock-minimal-badge",
-      title: "Minimal Badge",
-      aspectRatio: "1:1",
-      canvasBackgroundId: "midnight",
-      shapes: [
-        shape("mock-s-3", "hexagon", 50, 45, 30, 30, "#6366f1", "#818cf8"),
-        shape("mock-s-4", "diamond", 50, 45, 18, 18, "#22d3ee", "#06b6d4"),
-      ],
-      texts: [text("mock-t-2", "STUDIO", 50, 72, "#e2e8f0", "modern-sans")],
-      createdAt: now - day * 5,
-    },
-    {
-      id: "design-mock-product-hero",
-      title: "Product Hero",
-      aspectRatio: "1:1",
-      canvasBackgroundId: "amber-glow",
-      shapes: [
-        shape("mock-s-5", "rectangle", 50, 55, 52, 38, "#f97316", "#ea580c"),
-        shape("mock-s-6", "circle", 50, 38, 22, 22, "#fde68a", "#fbbf24"),
-      ],
-      texts: [text("mock-t-3", "NEW DROP", 50, 78, "#1c1917")],
-      createdAt: now - day * 2,
-    },
-    {
-      id: "design-mock-launch-banner",
-      title: "Launch Banner",
-      aspectRatio: "1:1",
-      canvasBackgroundId: "cyan-ocean",
-      shapes: [
-        shape("mock-s-9", "rectangle", 50, 50, 72, 48, "#0ea5e9", "#0284c7"),
-        shape("mock-s-10", "arrow", 68, 50, 24, 14, "#ffffff", "#e0f2fe"),
-      ],
-      texts: [text("mock-t-5", "SUMMER LAUNCH", 32, 52, "#ffffff")],
-      createdAt: now - day * 1,
-    },
-    {
-      id: "design-mock-web-hero",
-      title: "Web Hero",
-      aspectRatio: "1:1",
-      canvasBackgroundId: "fuchsia-pop",
-      shapes: [
-        shape("mock-s-11", "ellipse", 28, 50, 28, 40, "#ec4899", "#db2777"),
-        shape("mock-s-12", "triangle", 72, 50, 26, 36, "#a855f7", "#9333ea"),
-      ],
-      texts: [text("mock-t-6", "CREATIVE SUITE", 50, 78, "#fdf4ff")],
-      createdAt: now - day * 4,
-    },
-    {
-      id: "design-mock-neon-pulse",
-      title: "Neon Pulse",
-      aspectRatio: "1:1",
-      canvasBackgroundId: "fuchsia-pop",
-      shapes: [
-        shape("mock-s-17", "circle", 50, 46, 32, 32, "#d946ef", "#a855f7"),
-        shape("mock-s-18", "star", 50, 46, 20, 20, "#fdf4ff", "#f0abfc"),
-      ],
-      texts: [text("mock-t-9", "PULSE", 50, 74, "#fdf4ff")],
-      createdAt: now - day * 9,
-    },
-    {
-      id: "design-mock-ocean-mark",
-      title: "Ocean Mark",
-      aspectRatio: "1:1",
-      canvasBackgroundId: "cyan-ocean",
-      shapes: [
-        shape("mock-s-19", "triangle", 50, 44, 34, 34, "#06b6d4", "#0891b2"),
-        shape("mock-s-20", "hexagon", 50, 44, 22, 22, "#67e8f9", "#22d3ee"),
-      ],
-      texts: [text("mock-t-10", "WAVE", 50, 72, "#ecfeff", "modern-sans")],
-      createdAt: now - day * 10,
-    },
-  ].map((design) => ({ ...design, source: "system" as const })) as SavedCanvasDesign[];
-}
-
-const HARDCODED_SAVED_DESIGNS = createHardcodedSavedDesigns();
 
 const colorPaletteGroups = photoStudioColorPaletteGroups;
 const quickColorSwatches = photoStudioQuickColorSwatches;
@@ -3497,6 +3472,7 @@ function LauncherOptionCard({
 function PhotoStudioLauncher({
   recentProjects,
   onOpenRecentProject,
+  onDeleteRecentProject,
   formatRecentTime,
   onOpenLibrary,
   onUploadAsset,
@@ -3506,6 +3482,7 @@ function PhotoStudioLauncher({
 }: {
   recentProjects: RecentPhotoProject[];
   onOpenRecentProject?: (project: RecentPhotoProject) => void;
+  onDeleteRecentProject?: (project: RecentPhotoProject) => Promise<void>;
   formatRecentTime: (openedAt: number) => string;
   onOpenLibrary?: () => void;
   onUploadAsset?: () => void;
@@ -3513,6 +3490,7 @@ function PhotoStudioLauncher({
   assetUploadProgress?: string | null;
   assetUploadError?: string | null;
 }) {
+  const [deletingProjectKey, setDeletingProjectKey] = useState<string | null>(null);
   return (
     <div className="relative min-h-0 flex-1 overflow-y-auto">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -3597,35 +3575,63 @@ function PhotoStudioLauncher({
                 const accent = recentAccentKeys[index % recentAccentKeys.length];
                 const theme = accentThemes[accent];
                 return (
-                  <button
+                  <div
                     key={project.key}
-                    type="button"
-                    onClick={() => onOpenRecentProject?.(project)}
-                    disabled={!onOpenRecentProject}
                     className={cn(
-                      "group relative flex items-start gap-3 overflow-hidden rounded-[1.15rem] px-4 py-4 text-left transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50",
+                      "group relative overflow-hidden rounded-[1.15rem] transition-all duration-300 hover:-translate-y-0.5",
                       theme.card,
                     )}
                   >
-                    <span
-                      className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105",
-                        theme.icon,
-                      )}
+                    <button
+                      type="button"
+                      onClick={() => onOpenRecentProject?.(project)}
+                      disabled={!onOpenRecentProject}
+                      className="flex w-full items-start gap-3 px-4 py-4 text-left disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <ImageIcon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-foreground">
-                        {project.title}
+                      <span
+                        className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105",
+                          theme.icon,
+                        )}
+                      >
+                        <ImageIcon className="h-4 w-4" />
                       </span>
-                      <span className="mt-1 block text-[11px] text-muted-foreground">
-                        {formatRecentTime(project.openedAt)}
-                        {project.assetId ? " · Image attached" : " · Blank workspace"}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">
+                          {project.title}
+                        </span>
+                        <span className="mt-1 block text-[11px] text-muted-foreground">
+                          {formatRecentTime(project.openedAt)}
+                          {project.workspaceId
+                            ? " · Saved workspace"
+                            : project.assetId
+                              ? " · Image attached"
+                              : " · Blank workspace"}
+                        </span>
                       </span>
-                    </span>
-                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
-                  </button>
+                      <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                    </button>
+                    {project.workspaceId && onDeleteRecentProject ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeletingProjectKey(project.key);
+                          void onDeleteRecentProject(project).finally(() => {
+                            setDeletingProjectKey(null);
+                          });
+                        }}
+                        disabled={deletingProjectKey === project.key}
+                        className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 disabled:opacity-50"
+                        aria-label={`Delete ${project.title}`}
+                      >
+                        {deletingProjectKey === project.key ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
@@ -3647,10 +3653,32 @@ function PhotoStudioLauncher({
   );
 }
 
+function mapDesignToSavedCanvasDesign(design: PhotoStudioSavedDesign): SavedCanvasDesign {
+  return {
+    ...design,
+    aspectRatio: isPhotoStudioAspectRatio(design.aspectRatio) ? design.aspectRatio : "1:1",
+    shapes: design.shapes as CanvasShapeElement[],
+    texts: design.texts as CanvasTextElement[],
+  };
+}
+
 function PhotoStudioWorkspace({
   assetId,
   assetName,
   assetImageUrl,
+  workspaceId,
+  initialWorkspaceSnapshot,
+  onWorkspaceSnapshotChange,
+  onLoadDesigns,
+  onSaveWorkspace,
+  isSavingWorkspace = false,
+  workspacePersisted = false,
+  hasUnsavedWorkspaceChanges = false,
+  photoStudioOptions,
+  onDeleteGeneration,
+  onFetchGeneration,
+  generationsLoading = false,
+  initialGenerationsFromApi = [],
   onOpenLibrary,
   onUploadAsset,
   onGenerate,
@@ -3660,16 +3688,47 @@ function PhotoStudioWorkspace({
   assetId?: string | null;
   assetName?: string | null;
   assetImageUrl?: string | null;
+  workspaceId?: string | null;
+  initialWorkspaceSnapshot?: PhotoStudioWorkspaceSnapshot | null;
+  onWorkspaceSnapshotChange?: (snapshot: PhotoStudioWorkspaceSnapshot) => void;
+  onLoadDesigns?: (
+    workspaceId: string | null,
+  ) => Promise<{ templates: PhotoStudioSavedDesign[]; saved: PhotoStudioSavedDesign[] }>;
+  onSaveWorkspace?: () => void;
+  isSavingWorkspace?: boolean;
+  workspacePersisted?: boolean;
+  hasUnsavedWorkspaceChanges?: boolean;
+  photoStudioOptions?: PhotoStudioOptionsConfig;
+  onDeleteGeneration?: (id: string) => Promise<void>;
+  onFetchGeneration?: (id: string) => Promise<PhotoStudioGeneratedItem>;
+  generationsLoading?: boolean;
+  initialGenerationsFromApi?: PhotoStudioGeneratedItem[];
   onOpenLibrary?: () => void;
   onUploadAsset?: () => void;
   onGenerate?: PhotoStudioAppProps["onGenerate"];
   generating?: boolean;
   assetUploading?: boolean;
 }) {
+  const studioOptions = useMemo(() => resolvePhotoStudioOptions(photoStudioOptions), [photoStudioOptions]);
+  const creationTypeOptions = useMemo(
+    () => buildCreationTypeOptions(studioOptions),
+    [studioOptions],
+  );
+  const aspectRatioPickerOptions = useMemo(
+    () => studioOptions.aspectRatios.map((ratio) => ({ id: ratio.id, intent: ratio.hint })),
+    [studioOptions],
+  );
+  const creationTypeLabels = useMemo(
+    () => Object.fromEntries(studioOptions.creationTypes.map((type) => [type.id, type.label])),
+    [studioOptions],
+  );
+  const hydratedWorkspaceIdRef = useRef<string | null>(null);
+  const skipSnapshotEmitRef = useRef(Boolean(initialWorkspaceSnapshot && workspaceId));
+  const reloadDesignsRef = useRef<(() => Promise<void>) | null>(null);
   const [prompt, setPrompt] = useState("");
   const [creationType, setCreationType] = useState<PhotoStudioCreationType>("logo");
   const [aspectRatio, setAspectRatio] = useState<PhotoStudioAspectRatio>("1:1");
-  const [stylePreset, setStylePreset] = useState<(typeof stylePresets)[number]["id"]>("studio");
+  const [stylePreset, setStylePreset] = useState("studio");
   const [logoTransparentBackground, setLogoTransparentBackground] = useState(true);
   const [canvasBackgroundId, setCanvasBackgroundId] = useState<CanvasBackgroundId>("violet-sunset");
   const [customCanvasBackgroundColor, setCustomCanvasBackgroundColor] = useState(
@@ -3717,15 +3776,88 @@ function PhotoStudioWorkspace({
   const [generatedItems, setGeneratedItems] = useState<PhotoStudioGeneratedItem[]>([]);
   const [selectedGenerationId, setSelectedGenerationId] = useState<string | null>(null);
   const [materializedGenerationId, setMaterializedGenerationId] = useState<string | null>(null);
-  const [savedDesigns, setSavedDesigns] = useState<SavedCanvasDesign[]>(HARDCODED_SAVED_DESIGNS);
+  const [savedDesigns, setSavedDesigns] = useState<SavedCanvasDesign[]>([]);
+  const [designsLoading, setDesignsLoading] = useState(false);
   const [designSearchQuery, setDesignSearchQuery] = useState("");
   const [activeSavedDesignId, setActiveSavedDesignId] = useState<string | null>(null);
   const [localGenerating, setLocalGenerating] = useState(false);
+  const [deletingGenerationId, setDeletingGenerationId] = useState<string | null>(null);
   const [chatDraft, setChatDraft] = useState("");
   const [chatMessages, setChatMessages] = useState<
     Array<{ id: string; role: "user" | "assistant"; content: string }>
   >([]);
   const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    if (!workspaceId || !initialWorkspaceSnapshot) return;
+    if (hydratedWorkspaceIdRef.current === workspaceId) return;
+
+    const snapshot = initialWorkspaceSnapshot;
+    skipSnapshotEmitRef.current = true;
+    setCreationType(snapshot.creationType);
+    if (isAllowedAspectRatio(snapshot.aspectRatio, studioOptions)) {
+      setAspectRatio(snapshot.aspectRatio as PhotoStudioAspectRatio);
+    }
+    setStylePreset(snapshot.stylePreset);
+    setLogoTransparentBackground(snapshot.logoTransparentBackground);
+    setCanvasBackgroundId(snapshot.canvasBackgroundId);
+    setCustomCanvasBackgroundColor(snapshot.customCanvasBackgroundColor);
+    setCustomCanvasGradientEnd(snapshot.customCanvasGradientEnd);
+    setCustomCanvasGradientEnabled(snapshot.customCanvasGradientEnabled);
+    setProjectName(snapshot.projectName);
+    setCanvasShapes(structuredClone(snapshot.canvasShapes));
+    setCanvasTexts(structuredClone(snapshot.canvasTexts));
+    setGeneratedItems(structuredClone(snapshot.generatedItems));
+    setSelectedGenerationId(snapshot.selectedGenerationId);
+    setMaterializedGenerationId(snapshot.materializedGenerationId);
+    hydratedWorkspaceIdRef.current = workspaceId;
+    requestAnimationFrame(() => {
+      skipSnapshotEmitRef.current = false;
+    });
+  }, [workspaceId, initialWorkspaceSnapshot, studioOptions]);
+
+  useEffect(() => {
+    if (!initialGenerationsFromApi.length) return;
+    setGeneratedItems((current) => {
+      const merged = new Map<string, PhotoStudioGeneratedItem>();
+      for (const item of [...initialGenerationsFromApi, ...current]) {
+        merged.set(item.id, item);
+      }
+      return Array.from(merged.values()).sort((a, b) => b.createdAt - a.createdAt);
+    });
+  }, [initialGenerationsFromApi]);
+
+  useEffect(() => {
+    if (!onLoadDesigns) return;
+
+    let cancelled = false;
+
+    const loadDesigns = async () => {
+      setDesignsLoading(true);
+      try {
+        const result = await onLoadDesigns(workspaceId ?? null);
+        if (cancelled) return;
+        setSavedDesigns([
+          ...result.templates.map(mapDesignToSavedCanvasDesign),
+          ...result.saved.map(mapDesignToSavedCanvasDesign),
+        ]);
+      } catch {
+        if (!cancelled) setSavedDesigns([]);
+      } finally {
+        if (!cancelled) setDesignsLoading(false);
+      }
+    };
+
+    reloadDesignsRef.current = loadDesigns;
+
+    if (leftPanelTab === "designs") {
+      void loadDesigns();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [leftPanelTab, onLoadDesigns, workspaceId]);
 
   const handleCanvasZoomIn = useCallback(() => {
     setCanvasZoom((current) => clampCanvasZoom(current + CANVAS_ZOOM_STEP));
@@ -3742,6 +3874,51 @@ function PhotoStudioWorkspace({
   const workspaceTitle = projectName.trim() || "Untitled project";
   const hasAsset = Boolean(assetId);
   const isGenerating = generating || localGenerating;
+
+  useEffect(() => {
+    if (!onWorkspaceSnapshotChange || skipSnapshotEmitRef.current) return;
+    onWorkspaceSnapshotChange({
+      title: workspaceTitle,
+      assetId: assetId ?? null,
+      assetName: assetName ?? null,
+      aspectRatio,
+      creationType,
+      stylePreset,
+      logoTransparentBackground,
+      canvasBackgroundId,
+      customCanvasBackgroundColor,
+      customCanvasGradientEnd,
+      customCanvasGradientEnabled,
+      projectName,
+      canvasShapes,
+      canvasTexts,
+      generatedItems,
+      savedDesigns: savedDesigns.filter((design) => design.source === "user"),
+      selectedGenerationId,
+      materializedGenerationId,
+    });
+  }, [
+    onWorkspaceSnapshotChange,
+    workspaceTitle,
+    assetId,
+    assetName,
+    aspectRatio,
+    creationType,
+    stylePreset,
+    logoTransparentBackground,
+    canvasBackgroundId,
+    customCanvasBackgroundColor,
+    customCanvasGradientEnd,
+    customCanvasGradientEnabled,
+    projectName,
+    canvasShapes,
+    canvasTexts,
+    generatedItems,
+    savedDesigns,
+    selectedGenerationId,
+    materializedGenerationId,
+  ]);
+
   const selectedGeneration =
     generatedItems.find((item) => item.id === selectedGenerationId) ?? null;
   const selectedShape = canvasShapes.find((shape) => shape.id === selectedShapeId) ?? null;
@@ -3787,40 +3964,74 @@ function PhotoStudioWorkspace({
     return () => observer.disconnect();
   }, [canvasAspectRatio]);
 
-  const applyGenerationToCanvas = useCallback((item: PhotoStudioGeneratedItem) => {
-    setSelectedGenerationId(item.id);
-    if (isPhotoStudioAspectRatio(item.aspectRatio)) {
-      setAspectRatio(item.aspectRatio);
-    }
-    if (item.canvasBackgroundId) {
-      setCanvasBackgroundId(item.canvasBackgroundId);
-    } else if (!item.transparentBackground) {
-      setCanvasBackgroundId(
-        defaultCanvasBackgroundIds[(item.variantIndex ?? 0) % defaultCanvasBackgroundIds.length],
-      );
-    }
+  const applyGenerationToCanvas = useCallback(
+    async (item: PhotoStudioGeneratedItem) => {
+      let resolved = item;
+      if (onFetchGeneration) {
+        try {
+          resolved = await onFetchGeneration(item.id);
+        } catch {
+          resolved = item;
+        }
+      }
 
-    if (materializedGenerationId !== item.id) {
-      const { shapes, texts } = buildLayersFromGeneration(item);
-      setCanvasShapes((current) => [
-        ...current.filter((shape) => !isGenerationLayerId(shape.id)),
-        ...shapes,
-      ]);
-      setCanvasTexts((current) => [
-        ...current.filter((text) => !isGenerationLayerId(text.id)),
-        ...texts,
-      ]);
-      setMaterializedGenerationId(item.id);
-      setSelectedShapeId(shapes[0]?.id ?? null);
-      setSelectedTextId(null);
-      setEditingShapeTextId(null);
-      setEditingTextId(null);
-      setActiveTool("select");
-      setEditToolSubPanel(null);
-    }
+      setSelectedGenerationId(resolved.id);
+      if (isAllowedAspectRatio(resolved.aspectRatio, studioOptions)) {
+        setAspectRatio(resolved.aspectRatio as PhotoStudioAspectRatio);
+      }
+      if (resolved.canvasBackgroundId) {
+        setCanvasBackgroundId(resolved.canvasBackgroundId);
+      } else if (!resolved.transparentBackground) {
+        setCanvasBackgroundId(
+          defaultCanvasBackgroundIds[(resolved.variantIndex ?? 0) % defaultCanvasBackgroundIds.length],
+        );
+      }
 
-    setCanvasHasEdits(true);
-  }, [materializedGenerationId]);
+      if (materializedGenerationId !== resolved.id) {
+        const { shapes, texts } = buildLayersFromGeneration(resolved);
+        setCanvasShapes((current) => [
+          ...current.filter((shape) => !isGenerationLayerId(shape.id)),
+          ...shapes,
+        ]);
+        setCanvasTexts((current) => [
+          ...current.filter((text) => !isGenerationLayerId(text.id)),
+          ...texts,
+        ]);
+        setMaterializedGenerationId(resolved.id);
+        setSelectedShapeId(shapes[0]?.id ?? null);
+        setSelectedTextId(null);
+        setEditingShapeTextId(null);
+        setEditingTextId(null);
+        setActiveTool("select");
+        setEditToolSubPanel(null);
+      }
+
+      setCanvasHasEdits(true);
+    },
+    [materializedGenerationId, onFetchGeneration, studioOptions],
+  );
+
+  const handleDeleteGenerationItem = useCallback(
+    async (id: string) => {
+      if (!onDeleteGeneration) return;
+      setDeletingGenerationId(id);
+      try {
+        await onDeleteGeneration(id);
+        setGeneratedItems((current) => current.filter((item) => item.id !== id));
+        if (selectedGenerationId === id) {
+          setSelectedGenerationId(null);
+        }
+        if (materializedGenerationId === id) {
+          setMaterializedGenerationId(null);
+          setCanvasShapes((current) => current.filter((shape) => !isGenerationLayerId(shape.id)));
+          setCanvasTexts((current) => current.filter((text) => !isGenerationLayerId(text.id)));
+        }
+      } finally {
+        setDeletingGenerationId(null);
+      }
+    },
+    [materializedGenerationId, onDeleteGeneration, selectedGenerationId],
+  );
 
   const saveCurrentDesign = useCallback(() => {
     const manualShapes = canvasShapes.filter((shape) => !isGenerationLayerId(shape.id));
@@ -3841,6 +4052,7 @@ function PhotoStudioWorkspace({
     setSavedDesigns((current) => [design, ...current]);
     setActiveSavedDesignId(design.id);
     setLeftPanelTab("designs");
+    void reloadDesignsRef.current?.();
   }, [aspectRatio, canvasBackgroundId, canvasShapes, canvasTexts, projectName, savedDesigns.length]);
 
   const loadSavedDesign = useCallback((design: SavedCanvasDesign) => {
@@ -3953,11 +4165,11 @@ function PhotoStudioWorkspace({
       const newItems =
         Array.isArray(result) && result.length > 0
           ? result
-          : createGenerationBatch(input);
+          : createGenerationBatch(input, studioOptions.batchSize);
 
       setGeneratedItems((current) => [...newItems, ...current]);
       if (newItems[0]) {
-        applyGenerationToCanvas(newItems[0]);
+        void applyGenerationToCanvas(newItems[0]);
       }
       setLeftPanelTab("generations");
     } finally {
@@ -4628,7 +4840,7 @@ function PhotoStudioWorkspace({
             Creation type
           </p>
           <div className="mt-2 space-y-1.5">
-            {creationTypes.map((type) => {
+            {creationTypeOptions.map((type) => {
               const Icon = type.icon;
               const accent = creationTypeAccents[type.id];
               const theme = accentThemes[accent];
@@ -4692,7 +4904,12 @@ function PhotoStudioWorkspace({
             Choose a frame that matches your creative intent before generating.
           </p>
           <div className="mt-3 rounded-xl border border-border/30 bg-gradient-to-b from-muted/25 via-background/40 to-transparent p-2.5">
-            <AspectRatioPicker value={aspectRatio} onChange={setAspectRatio} variant="premium" />
+            <AspectRatioPicker
+              value={aspectRatio}
+              onChange={setAspectRatio}
+              variant="premium"
+              ratioOptions={aspectRatioPickerOptions}
+            />
           </div>
         </div>
 
@@ -4701,7 +4918,7 @@ function PhotoStudioWorkspace({
             Style preset
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {stylePresets.map((preset) => (
+            {studioOptions.stylePresets.map((preset) => (
               <button
                 key={preset.id}
                 type="button"
@@ -5480,7 +5697,7 @@ function PhotoStudioWorkspace({
                 const selected = leftPanelTab === tab.id;
                 const badgeCount =
                   tab.id === "designs"
-                    ? savedDesigns.filter((design) => design.source === "system").length
+                    ? savedDesigns.length
                     : tab.id === "generations"
                       ? generatedItems.length
                       : 0;
@@ -5545,10 +5762,13 @@ function PhotoStudioWorkspace({
                         type="text"
                         value={projectName}
                         onChange={(event) => setProjectName(event.target.value)}
-                        placeholder="Untitled project"
+                        placeholder="Name when you save"
                         aria-label="Project name"
                         className="h-9 w-full rounded-xl border border-border/40 bg-background/60 px-3 text-sm font-semibold tracking-tight text-foreground outline-none transition-all placeholder:font-normal placeholder:text-muted-foreground hover:border-border/55 hover:bg-background/80 focus:border-violet-400/45 focus:bg-background focus:ring-4 focus:ring-violet-500/10"
                       />
+                      <p className="text-[10px] leading-relaxed text-muted-foreground">
+                        Use Save project to name and store this workspace in your recents.
+                      </p>
                     </div>
 
                     <div className="shrink-0 space-y-3 rounded-xl border border-border/30 bg-gradient-to-b from-muted/20 via-background/50 to-transparent p-3">
@@ -5560,7 +5780,12 @@ function PhotoStudioWorkspace({
                           {canvasDesign.title}. Select a ratio that fits your layout before you design or generate.
                         </p>
                       </div>
-                      <AspectRatioPicker value={aspectRatio} onChange={setAspectRatio} variant="premium" />
+                      <AspectRatioPicker
+                        value={aspectRatio}
+                        onChange={setAspectRatio}
+                        variant="premium"
+                        ratioOptions={aspectRatioPickerOptions}
+                      />
                     </div>
 
                     {hasAsset ? (
@@ -5746,14 +5971,40 @@ function PhotoStudioWorkspace({
                   </div>
 
                   <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
-                    <OwnDesignsGrid
-                      items={savedDesigns.filter((design) => design.source === "system")}
-                      searchQuery={designSearchQuery}
-                      filterAspectRatio={aspectRatio}
-                      activeId={activeSavedDesignId}
-                      onSelect={loadSavedDesign}
-                      onDelete={deleteSavedDesign}
-                    />
+                    {designsLoading ? (
+                      <DesignsPanelSkeleton />
+                    ) : (
+                      <div className="space-y-4">
+                        {savedDesigns.some((design) => design.source === "user") ? (
+                          <section>
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                              Your saved designs
+                            </p>
+                            <OwnDesignsGrid
+                              items={savedDesigns.filter((design) => design.source === "user")}
+                              searchQuery={designSearchQuery}
+                              filterAspectRatio={aspectRatio}
+                              activeId={activeSavedDesignId}
+                              onSelect={loadSavedDesign}
+                              onDelete={deleteSavedDesign}
+                            />
+                          </section>
+                        ) : null}
+                        <section>
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            Templates
+                          </p>
+                          <OwnDesignsGrid
+                            items={savedDesigns.filter((design) => design.source === "system")}
+                            searchQuery={designSearchQuery}
+                            filterAspectRatio={aspectRatio}
+                            activeId={activeSavedDesignId}
+                            onSelect={loadSavedDesign}
+                            onDelete={deleteSavedDesign}
+                          />
+                        </section>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
@@ -5774,9 +6025,9 @@ function PhotoStudioWorkspace({
                     ) : null}
                   </div>
                   <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
-                    {isGenerating ? (
+                    {generationsLoading || isGenerating ? (
                       <div className="grid grid-cols-2 gap-2">
-                        {Array.from({ length: GENERATION_BATCH_SIZE }).map((_, index) => (
+                        {Array.from({ length: studioOptions.batchSize }).map((_, index) => (
                           <div
                             key={index}
                             className="aspect-square animate-pulse rounded-xl bg-gradient-to-br from-violet-200/60 to-fuchsia-200/40 dark:from-violet-900/30 dark:to-fuchsia-900/20"
@@ -5788,7 +6039,10 @@ function PhotoStudioWorkspace({
                         items={generatedItems}
                         selectedId={selectedGenerationId}
                         materializedId={materializedGenerationId}
-                        onSelect={applyGenerationToCanvas}
+                        onSelect={(item) => void applyGenerationToCanvas(item)}
+                        onDelete={onDeleteGeneration ? handleDeleteGenerationItem : undefined}
+                        deletingId={deletingGenerationId}
+                        creationTypeLabels={creationTypeLabels}
                       />
                     )}
                   </div>
@@ -5830,6 +6084,34 @@ function PhotoStudioWorkspace({
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {onSaveWorkspace ? (
+                <button
+                  type="button"
+                  onClick={onSaveWorkspace}
+                  disabled={isSavingWorkspace}
+                  className={cn(
+                    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:px-3",
+                    workspacePersisted && !hasUnsavedWorkspaceChanges
+                      ? "border-border/30 bg-muted/40 text-muted-foreground"
+                      : "border-primary/25 bg-primary/10 text-primary hover:bg-primary/15",
+                  )}
+                  aria-label="Save project"
+                  title="Save project to your library and recents"
+                >
+                  {isSavingWorkspace ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  <span className="hidden md:inline">
+                    {isSavingWorkspace
+                      ? "Saving…"
+                      : workspacePersisted && !hasUnsavedWorkspaceChanges
+                        ? "Saved"
+                        : "Save project"}
+                  </span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void handleExportCanvas("transparent")}
@@ -6113,6 +6395,8 @@ export function PhotoStudioApp({
   assetId,
   assetName,
   assetImageUrl,
+  workspaceId,
+  initialWorkspaceSnapshot,
   initialView = "overview",
   recentProjects = [],
   onOpenRecentProject,
@@ -6121,6 +6405,18 @@ export function PhotoStudioApp({
   onUploadAsset,
   onOpenEmptyWorkspace,
   onNewWorkspace,
+  onWorkspaceSnapshotChange,
+  onLoadDesigns,
+  onSaveWorkspace,
+  isSavingWorkspace = false,
+  workspacePersisted = false,
+  hasUnsavedWorkspaceChanges = false,
+  photoStudioOptions,
+  onDeleteGeneration,
+  onDeleteRecentProject,
+  onFetchGeneration,
+  generationsLoading = false,
+  initialGenerationsFromApi = [],
   onGenerate,
   generating = false,
   assetUploading = false,
@@ -6235,6 +6531,7 @@ export function PhotoStudioApp({
         <PhotoStudioLauncher
           recentProjects={recentProjects}
           onOpenRecentProject={onOpenRecentProject}
+          onDeleteRecentProject={onDeleteRecentProject}
           formatRecentTime={defaultFormatRecentTime}
           onOpenLibrary={onOpenLibrary}
           onUploadAsset={onUploadAsset}
@@ -6247,6 +6544,19 @@ export function PhotoStudioApp({
           assetId={assetId}
           assetName={assetName}
           assetImageUrl={assetImageUrl}
+          workspaceId={workspaceId}
+          initialWorkspaceSnapshot={initialWorkspaceSnapshot}
+          onWorkspaceSnapshotChange={onWorkspaceSnapshotChange}
+          onLoadDesigns={onLoadDesigns}
+          onSaveWorkspace={onSaveWorkspace}
+          isSavingWorkspace={isSavingWorkspace}
+          workspacePersisted={workspacePersisted}
+          hasUnsavedWorkspaceChanges={hasUnsavedWorkspaceChanges}
+          photoStudioOptions={photoStudioOptions}
+          onDeleteGeneration={onDeleteGeneration}
+          onFetchGeneration={onFetchGeneration}
+          generationsLoading={generationsLoading}
+          initialGenerationsFromApi={initialGenerationsFromApi}
           onOpenLibrary={onOpenLibrary}
           onUploadAsset={onUploadAsset}
           onGenerate={onGenerate}

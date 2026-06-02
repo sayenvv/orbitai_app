@@ -28,6 +28,12 @@ class User(Base):
     library_generated_files: Mapped[list["LibraryGeneratedFile"]] = relationship(
         back_populates="user"
     )
+    photo_studio_generations: Mapped[list["PhotoStudioGeneration"]] = relationship(
+        back_populates="user"
+    )
+    photo_studio_workspaces: Mapped[list["PhotoStudioWorkspace"]] = relationship(
+        back_populates="user"
+    )
 
 
 class Agent(Base):
@@ -242,3 +248,53 @@ class LibraryGeneratedFile(Base):
     conversation: Mapped["Conversation | None"] = relationship()
     agent: Mapped["Agent | None"] = relationship()
     source_document: Mapped["RagDocument | None"] = relationship()
+
+
+class PhotoStudioGeneration(Base):
+    __tablename__ = "photo_studio_generations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    batch_id: Mapped[str] = mapped_column(String(64), index=True)
+    prompt: Mapped[str] = mapped_column(Text)
+    creation_type: Mapped[str] = mapped_column(String(32))
+    aspect_ratio: Mapped[str] = mapped_column(String(16))
+    style_preset: Mapped[str] = mapped_column(String(32))
+    label: Mapped[str] = mapped_column(String(128))
+    preview_gradient: Mapped[str] = mapped_column(String(255))
+    transparent_background: Mapped[bool | None] = mapped_column(nullable=True)
+    canvas_background_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    variant_index: Mapped[int] = mapped_column(Integer, default=0)
+    reference_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rag_documents.id", ondelete="SET NULL"), nullable=True
+    )
+    image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="photo_studio_generations")
+    reference_asset: Mapped["RagDocument | None"] = relationship()
+
+
+class PhotoStudioWorkspace(Base):
+    __tablename__ = "photo_studio_workspaces"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(512))
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rag_documents.id", ondelete="SET NULL"), nullable=True
+    )
+    asset_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    state: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    last_opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="photo_studio_workspaces")
+    asset: Mapped["RagDocument | None"] = relationship()

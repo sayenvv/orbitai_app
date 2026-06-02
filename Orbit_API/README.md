@@ -6,7 +6,7 @@ Python backend for the Orbit AI platform — chat streaming, multi-agent orchest
 
 | Frontend app | Port | Main API routes |
 |--------------|------|-----------------|
-| **chat-app** | 3001 | `/api/auth`, `/api/chat`, `/api/agents`, `/api/files`, `/api/library`, `/api/plans` |
+| **chat-app** | 3001 | `/api/auth`, `/api/chat`, `/api/agents`, `/api/apps`, `/api/files`, `/api/library`, `/api/plans` |
 | **control_center_app** | 3003 | `/api/control/*` |
 | **admin-app** | 3004 | `/api/platform/*` |
 
@@ -207,7 +207,7 @@ Note: if port `5432` is already used by a local Postgres, change the `db` servic
 
 ```
 app/
-├── api/v1/public/     # chat-app endpoints (auth, chat, files, library, plans)
+├── api/v1/public/     # chat-app endpoints (auth, chat, apps, files, library, plans)
 ├── api/v1/control/    # control center CRUD
 ├── api/v1/platform/   # admin-app ops
 ├── orchestration/     # agent chat runner (Ollama / OpenAI / Azure per plan)
@@ -215,7 +215,29 @@ app/
 ├── worker/            # Celery tasks (PDF ingest)
 └── models/            # SQLAlchemy tables
 packages/clovai/         # LLM client used by the Clovai API
+packages/clovai-apps/    # App catalog, slugs, and app-specific backend logic
 ```
+
+### Local packages
+
+| Package | Purpose |
+|---------|---------|
+| `clovai` | Ollama / LLM streaming client |
+| `clovai-apps` | App catalog, slug constants, Photo Studio & asset helpers |
+
+App HTTP routes live in `app/api/v1/public/apps.py` and delegate to `clovai_apps`.
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/apps` | List apps (`?visibleOnly=true` by default) |
+| `GET /api/apps/{id_or_slug}` | App catalog entry |
+| `GET /api/apps/by-slug/{slug}/context` | Slug, tier, and related API paths |
+| `GET /api/apps/photo-studio/options` | Photo Studio creation types, aspect ratios, style presets |
+| `POST /api/apps/photo-studio/generate` | Generate a batch of Photo Studio variants (persisted) |
+| `GET /api/apps/photo-studio/generations` | List saved generations for the current user |
+| `GET /api/apps/photo-studio/generations/{id}` | Get one generation |
+| `DELETE /api/apps/photo-studio/generations/{id}` | Delete a generation |
+| `GET /api/apps/photo-studio/assets` | List image assets usable as references |
 
 ---
 
