@@ -9,6 +9,7 @@ import {
   BriefcaseBusiness,
   Brush,
   Camera,
+  Layers,
   CheckCircle2,
   Download,
   Film,
@@ -44,6 +45,7 @@ const iconMap = {
   sparkles: Sparkles,
   briefcase: BriefcaseBusiness,
   book: BookOpenCheck,
+  layers: Layers,
 } as const;
 
 export function AppDetailView({ app }: { app: CatalogApp }) {

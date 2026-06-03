@@ -4,6 +4,7 @@ import { findCatalogApp, getAppLaunchHref, getAppWorkspaceHref } from "@orbit/cl
 
 export const APP_SLUG_LABELS: Record<string, string> = {
   "research-companion": "Clovai Insights",
+  "project-planning": "Clovai Project Studio",
 };
 
 export function isAppChatConversation(conv: Conversation): boolean {

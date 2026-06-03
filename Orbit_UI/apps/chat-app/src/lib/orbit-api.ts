@@ -812,6 +812,84 @@ export const chatApi = {
   },
 };
 
+// ─── Project Planning (`/api/apps/project-planning/*`) ───────────────────────
+
+export type ApiProjectPlanningWorksheetContent = {
+  blocks: Array<Record<string, unknown>>;
+};
+
+export type ApiProjectPlanningDocument = {
+  id: string;
+  name: string;
+  summary: string;
+  stack: { backend: string; mobile: string };
+  phases: Array<{
+    id: string;
+    label: string;
+    artifacts: Array<{
+      id: string;
+      phaseId: string;
+      label: string;
+      description: string;
+      format: "diagram" | "document" | "matrix";
+      worksheet?: ApiProjectPlanningWorksheetContent;
+    }>;
+  }>;
+  state: {
+    reviewedArtifactIds: string[];
+    activePhaseId: string;
+    activeArtifactId: string | null;
+    worksheetsByArtifactId: Record<string, ApiProjectPlanningWorksheetContent>;
+  };
+  updatedAt: string;
+};
+
+export const projectPlanningApi = {
+  listTemplates: () =>
+    request<{ projectIds: string[] }>(getApiBaseUrl(), "/apps/project-planning/templates"),
+
+  getProject: (projectId: string) =>
+    request<ApiProjectPlanningDocument>(
+      getApiBaseUrl(),
+      `/apps/project-planning/projects/${encodeURIComponent(projectId)}`,
+    ),
+
+  saveProject: (projectId: string, body: ApiProjectPlanningDocument) =>
+    request<{ projectId: string; relativePath: string; updatedAt: string }>(
+      getApiBaseUrl(),
+      `/apps/project-planning/projects/${encodeURIComponent(projectId)}`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ),
+
+  aiAssist: (body: {
+    projectId: string;
+    artifactId: string;
+    message: string;
+    projectName: string;
+    projectSummary: string;
+    phaseLabel: string;
+    artifactLabel: string;
+    artifactDescription: string;
+    artifactFormat: "diagram" | "document" | "matrix";
+    worksheet: ApiProjectPlanningWorksheetContent;
+    history?: Array<{ role: "user" | "assistant"; content: string }>;
+    textSelection?: {
+      blockId: string;
+      selectedText: string;
+      start: number;
+      end: number;
+    } | null;
+  }) =>
+    request<{
+      reply: string;
+      worksheet?: ApiProjectPlanningWorksheetContent;
+      worksheetUpdated: boolean;
+    }>(getApiBaseUrl(), "/apps/project-planning/ai-assist", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
 // ─── Mappers for UI types ─────────────────────────────────────────────────────
 
 export function mapConversationSummary(raw: ApiConversationSummary): Conversation {

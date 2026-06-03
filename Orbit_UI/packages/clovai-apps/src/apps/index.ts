@@ -46,6 +46,44 @@ export {
   normalizeResearchCompanionInsightTypes,
   parseResearchCompanionInsightTypesParam,
   serializeResearchCompanionInsightTypes,
+  DEFAULT_WORKSPACE_TYPE_ID,
+  RESEARCH_COMPANION_WORKSPACE_TYPES,
+  getDefaultWorksheetTabId,
+  getWorkspaceTypeDefinition,
+  parseWorkspaceTypeParam,
+  WorkspaceTypePicker,
+  WorkspaceTypePickerModal,
 } from "./research-companion";
+export type {
+  ResearchCompanionWorkspaceTypeDefinition,
+  ResearchCompanionWorkspaceTypeId,
+  WorksheetTabDefinition,
+} from "./research-companion";
+export {
+  appSlug as projectPlanningSlug,
+  ProjectPlanningApp,
+  ProjectPlanningHeaderNav,
+} from "./project-planning";
+export type {
+  ProjectPlanningAppProps,
+  ProjectPlanningView,
+  ProjectPlanningWorkspaceTab,
+  ProjectPlanningDocument,
+  ProjectPlanningPersistence,
+  ProjectPlanningDeliverableChatProps,
+} from "./project-planning";
+export {
+  CRIMINAL_DETECTION_PROJECT_ID,
+  PROJECT_PLANNING_PHASES,
+  PROJECT_PLANNING_ARTIFACT_COUNT,
+  PROJECT_PLANNING_ROOT_LABEL,
+  ProjectPlanningWorkspace,
+} from "./project-planning";
+export type {
+  PlanningArtifact,
+  PlanningPhase,
+  PlanningWorksheetContent,
+  WorksheetTextSelection,
+} from "./project-planning";
 export { appSlug as videoSnippetsSlug } from "./video-snippets";
 export { appSlug as voiceMakerSlug } from "./voice-maker";

@@ -8,6 +8,7 @@ import {
   BriefcaseBusiness,
   Brush,
   Camera,
+  Layers,
   CheckCircle2,
   Download,
   Film,
@@ -37,6 +38,7 @@ const iconMap = {
   sparkles: Sparkles,
   briefcase: BriefcaseBusiness,
   book: BookOpenCheck,
+  layers: Layers,
 } as const;
 
 function SectionLabel({ children }: { children: React.ReactNode }) {

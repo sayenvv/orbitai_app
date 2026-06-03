@@ -7,6 +7,7 @@ import {
   BriefcaseBusiness,
   Brush,
   Camera,
+  Layers,
   Download,
   Film,
   ImagePlus,
@@ -32,6 +33,7 @@ const iconMap = {
   sparkles: Sparkles,
   briefcase: BriefcaseBusiness,
   book: BookOpenCheck,
+  layers: Layers,
 } as const;
 
 type AppStoreCardProps = {

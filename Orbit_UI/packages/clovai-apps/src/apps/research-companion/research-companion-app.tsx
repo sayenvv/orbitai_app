@@ -12,11 +12,13 @@ import {
   ChevronDown,
   ChevronRight,
   CircleHelp,
+  Cloud,
   Download,
   FileText,
   FolderOpen,
   Highlighter,
   Home,
+  Lightbulb,
   Loader2,
   Lock,
   MessageCircleQuestion,
@@ -27,6 +29,7 @@ import {
   PanelRight,
   PanelRightClose,
   Pencil,
+  Scale,
   Sparkles,
   StickyNote,
   TextSearch,
@@ -34,6 +37,23 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ResearchCompanionWorkspaceShimmer } from "./research-companion-workspace-shimmer";
+import {
+  DeliverableWorkspaceChrome,
+  DeliverableWorkspacePanel,
+} from "./deliverable-workspace-panel";
+import {
+  ResearchCompanionWorksheetNavbar,
+  type WorksheetNavItem,
+  type WorksheetTabId,
+} from "./research-companion-worksheet-navbar";
+import {
+  DEFAULT_WORKSPACE_TYPE_ID,
+  getDefaultWorksheetTabId,
+  getWorkspaceTypeDefinition,
+  RESEARCH_COMPANION_WORKSPACE_TYPES,
+  type ResearchCompanionWorkspaceTypeId,
+} from "./workspace-types";
+import { WorkspaceTypePicker } from "./workspace-type-picker";
 import { PhotoStudioNavMoreMenu } from "../photo-studio/photo-studio-nav-more-menu";
 import {
   ResearchCompanionWorkspaceChrome,
@@ -92,7 +112,6 @@ export type ResearchCompanionAppProps = {
     activePage: number;
     pageCount: number;
     onPageChange: (page: number) => void;
-    renderToolsPanel: () => ReactNode;
   }) => ReactNode;
   renderPageThumbnail?: (page: number, active: boolean) => ReactNode;
   renderAssistPanel?: (props: {
@@ -114,43 +133,16 @@ export type ResearchCompanionAppProps = {
   isPreparingNewWorkspaceTab?: boolean;
   /** Keeps parent `initialTab` aligned when the user switches Home vs workspace inside the app. */
   onShellViewChange?: (view: ResearchCompanionView) => void;
+  /** Active workspace tab mode — drives dynamic worksheet tabs. */
+  workspaceTypeId?: ResearchCompanionWorkspaceTypeId;
+  /** Home type cards and picker — parent creates a typed workspace tab. */
+  onStartWorkspaceWithType?: (typeId: ResearchCompanionWorkspaceTypeId) => void;
 };
 
 type WorkspaceTool = "select" | "pencil" | "highlight" | "note" | "comment";
-type LeftPanelTab = "file" | "insights";
-
-const leftSidebarTabs: Array<{
-  id: LeftPanelTab;
-  label: string;
-  shortLabel: string;
-  hint: string;
-  icon: LucideIcon;
-}> = [
-  {
-    id: "file",
-    label: "File",
-    shortLabel: "File",
-    hint: "Source document and page thumbnails",
-    icon: FileText,
-  },
-  {
-    id: "insights",
-    label: "Insights",
-    shortLabel: "Insights",
-    hint: "AI-generated research insights",
-    icon: Sparkles,
-  },
-];
 
 type InsightTab = "keywords" | "concepts" | "summary" | "evidence" | "questions" | "notes";
 type AssistPanel = "chat" | "summary" | "flashcards" | "note";
-
-const workflowSteps = [
-  "Attach a source document",
-  "Generate AI insights",
-  "Review findings and evidence",
-  "Annotate, discuss, and export",
-] as const;
 
 const recentAccentKeys = ["emerald", "teal", "cyan", "violet", "amber", "rose"] as const;
 
@@ -233,11 +225,13 @@ function InsightsLauncherPanel({
 function InsightsHome({
   recentWorkspaces,
   onOpenRecentWorkspace,
+  onStartWorkspaceWithType,
   formatRecentTime,
   fileUploadError,
 }: {
   recentWorkspaces: RecentWorkspace[];
   onOpenRecentWorkspace?: (workspace: RecentWorkspace) => void;
+  onStartWorkspaceWithType?: (typeId: ResearchCompanionWorkspaceTypeId) => void;
   formatRecentTime: (openedAt: number) => string;
   fileUploadError?: string | null;
 }) {
@@ -262,12 +256,12 @@ function InsightsHome({
                 Clovai Insights
               </div>
               <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-[2.65rem] md:leading-tight">
-                Start your research
+                Start your workspace
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 md:text-base">
-                Use <span className="font-semibold text-white">More</span> in the header to open
-                from your library or upload a PDF. Pick a recent document below, or start a new tab
-                with <span className="font-semibold text-white">+</span>.
+                Choose a workspace type below—research, project discussion, or literature review.
+                Use <span className="font-semibold text-white">+</span> for another tab, or open a
+                recent document.
               </p>
             </div>
 
@@ -290,6 +284,17 @@ function InsightsHome({
             </div>
           </div>
         </section>
+
+        <InsightsLauncherPanel label="Workspace type" title="How do you want to work?" accent="cyan">
+          <WorkspaceTypePicker
+            onSelect={(typeId) => onStartWorkspaceWithType?.(typeId)}
+          />
+          {!onStartWorkspaceWithType ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Open a workspace tab to enable type selection.
+            </p>
+          ) : null}
+        </InsightsLauncherPanel>
 
         <InsightsLauncherPanel label="Recent" title="Continue where you left off" accent="teal">
           {recentWorkspaces.length > 0 ? (
@@ -338,19 +343,42 @@ function InsightsHome({
           )}
         </InsightsLauncherPanel>
 
-        <InsightsLauncherPanel label="Workflow" title="How Clovai Insights works" accent="emerald">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {workflowSteps.map((step, index) => (
-              <div
-                key={step}
-                className="rounded-xl border border-border/30 bg-background/60 p-4"
-              >
-                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-primary/10 px-1.5 text-[11px] font-bold text-primary">
-                  {index + 1}
-                </span>
-                <p className="mt-3 text-sm font-medium leading-snug text-foreground">{step}</p>
-              </div>
-            ))}
+        <InsightsLauncherPanel label="Modes" title="What each workspace type includes" accent="emerald">
+          <div className="grid gap-3 md:grid-cols-3">
+            {RESEARCH_COMPANION_WORKSPACE_TYPES.map((type) => {
+              const Icon = type.icon;
+              const theme = accentThemes[type.accentKey];
+              return (
+                <div
+                  key={type.id}
+                  className={cn(
+                    "rounded-xl border border-border/30 bg-background/60 p-4",
+                    theme.card,
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "inline-flex h-8 w-8 items-center justify-center rounded-lg",
+                      theme.icon,
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <p className="mt-3 text-sm font-semibold text-foreground">{type.label}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {type.description}
+                  </p>
+                  <ol className="mt-3 space-y-1.5">
+                    {type.workflowSteps.map((step, index) => (
+                      <li key={step} className="flex gap-2 text-[11px] text-muted-foreground">
+                        <span className="font-bold text-primary">{index + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              );
+            })}
           </div>
         </InsightsLauncherPanel>
 
@@ -760,19 +788,14 @@ function SidebarResizeHandle({
 function ResearchCompanionWorkspaceShell({
   chrome,
   children,
-  toolsPanel,
 }: {
   chrome: ReactNode;
   children: ReactNode;
-  toolsPanel: ReactNode;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       {chrome}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
-        {toolsPanel}
-      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
     </div>
   );
 }
@@ -1141,11 +1164,20 @@ export function ResearchCompanionApp({
   onNewWorkspaceTab,
   isPreparingNewWorkspaceTab = false,
   onShellViewChange,
+  workspaceTypeId = DEFAULT_WORKSPACE_TYPE_ID,
+  onStartWorkspaceWithType,
 }: ResearchCompanionAppProps) {
+  const workspaceTypeDef = useMemo(
+    () => getWorkspaceTypeDefinition(workspaceTypeId),
+    [workspaceTypeId],
+  );
   const isEmptyWorkspace = !sourceId;
-  const workspaceTitle = sourceName?.trim() || (isEmptyWorkspace ? NEW_WORKSPACE_TITLE : "Selected document");
+  const workspaceTitle =
+    sourceName?.trim() ||
+    (isEmptyWorkspace ? `${workspaceTypeDef.shortLabel} workspace` : "Selected document");
   const hasInsights = Boolean(insightId);
-  const isPreparingWorkspace = Boolean(sourceId && !hasInsights);
+  const isAcademicResearch = workspaceTypeId === "academic-research";
+  const isPreparingWorkspace = Boolean(isAcademicResearch && sourceId && !hasInsights);
   const [resumedFromLibrary, setResumedFromLibrary] = useState(initialResumedFromLibrary);
   const [activeView, setActiveView] = useState<ResearchCompanionView>(
     initialTab === "workspace" || initialTab === "open" || insightId || sourceId
@@ -1158,7 +1190,9 @@ export function ResearchCompanionApp({
   );
   const hasStartedDraftRef = useRef(Boolean(sourceId || insightId || initialTab === "workspace"));
   const [activeTool, setActiveTool] = useState<WorkspaceTool>("pencil");
-  const [leftPanelTab, setLeftPanelTab] = useState<LeftPanelTab>("file");
+  const [worksheetTab, setWorksheetTab] = useState<WorksheetTabId>(() =>
+    getDefaultWorksheetTabId(workspaceTypeId),
+  );
   const [activePage, setActivePage] = useState(1);
   const [activeInsightTab, setActiveInsightTab] = useState<InsightTab>("summary");
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
@@ -1210,6 +1244,10 @@ export function ResearchCompanionApp({
     setActiveAssistPanel(initialAssistPanel);
     setRightToolbarExpanded(true);
   }, [initialAssistPanel]);
+
+  useEffect(() => {
+    setWorksheetTab(getDefaultWorksheetTabId(workspaceTypeId));
+  }, [workspaceTypeId, workspaceSessionKey]);
 
   const handleRightSidebarResize = useCallback((deltaX: number) => {
     setRightSidebarWidth((current) =>
@@ -1265,17 +1303,28 @@ export function ResearchCompanionApp({
       })),
     [isEmptyWorkspace, isInsightTabAvailable],
   );
-  const availableInsightCount = useMemo(
-    () => visibleInsightTabs.filter((tab) => tab.available).length,
-    [visibleInsightTabs],
+  const workspaceGridClassName = useMemo(
+    () =>
+      cn(
+        "grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)]",
+        leftSidebarCollapsed
+          ? "lg:grid-cols-[minmax(0,1fr)_auto]"
+          : "lg:grid-cols-[17rem_minmax(0,1fr)_auto]",
+      ),
+    [leftSidebarCollapsed],
   );
 
-  const workspaceGridColumns = useMemo(() => {
-    if (leftSidebarCollapsed) {
-      return "lg:[grid-template-columns:minmax(0,1fr)]";
-    }
-    return "lg:[grid-template-columns:17rem_minmax(0,1fr)]";
-  }, [leftSidebarCollapsed]);
+  const worksheetNavRowClassName = leftSidebarCollapsed
+    ? "border-b border-border/40 bg-card/70 lg:col-start-1 lg:row-start-1"
+    : "border-b border-border/40 bg-card/70 lg:col-start-2 lg:row-start-1";
+
+  const worksheetBodyClassName = leftSidebarCollapsed
+    ? "relative flex min-h-0 flex-col overflow-hidden lg:col-start-1 lg:row-start-2"
+    : "relative flex min-h-0 flex-col overflow-hidden lg:col-start-2 lg:row-start-2";
+
+  const toolsPanelGridClassName = leftSidebarCollapsed
+    ? "hidden min-h-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:flex"
+    : "hidden min-h-0 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:flex";
 
   const openAssistPanel = (panel: AssistPanel) => {
     setActiveAssistPanel((current) => {
@@ -1310,7 +1359,7 @@ export function ResearchCompanionApp({
 
   const renderWorkspaceToolsPanel = () => (
     <div
-      className="relative hidden min-h-0 shrink-0 lg:flex"
+      className="relative flex h-full min-h-0 w-full shrink-0"
       style={{
         width: rightToolbarExpanded ? rightSidebarWidth : RIGHT_SIDEBAR_COLLAPSED_WIDTH,
       }}
@@ -1321,12 +1370,12 @@ export function ResearchCompanionApp({
       <aside className="flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-background">
         <div
           className={cn(
-            "shrink-0 border-b border-border/30",
-            rightToolbarExpanded ? "px-3 py-2.5" : "px-2 py-2",
+            "flex h-10 shrink-0 items-center border-b border-border/30",
+            rightToolbarExpanded ? "justify-between gap-2 px-3" : "justify-center px-2",
           )}
         >
           {rightToolbarExpanded ? (
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex w-full items-center justify-between gap-2">
               <p className="text-xs font-semibold text-foreground">Tools</p>
               <button
                 type="button"
@@ -1541,6 +1590,16 @@ export function ResearchCompanionApp({
     [onOpenRecentWorkspace, showWorkspaceView],
   );
 
+  const handleStartWorkspaceWithType = useCallback(
+    (typeId: ResearchCompanionWorkspaceTypeId) => {
+      void onStartWorkspaceWithType?.(typeId);
+      setDraftSessionActive(true);
+      hasStartedDraftRef.current = true;
+      showWorkspaceView();
+    },
+    [onStartWorkspaceWithType, showWorkspaceView],
+  );
+
   const handleNewWorkspace = async () => {
     if (isPreparingNewWorkspace || isPreparingNewWorkspaceTab) return;
 
@@ -1593,11 +1652,120 @@ export function ResearchCompanionApp({
   };
 
   const resetWorkspacePanels = () => {
-    setLeftPanelTab("file");
+    setWorksheetTab(getDefaultWorksheetTabId(workspaceTypeId));
     setLeftSidebarCollapsed(false);
     setActiveAssistPanel(null);
     setActivePage(1);
     setActiveInsightTab("summary");
+  };
+
+  const isWorksheetTabAvailable = useCallback(
+    (tabId: WorksheetTabId, kind: "document" | "insight" | "deliverable") => {
+      if (kind === "document" || kind === "deliverable") return true;
+      if (isEmptyWorkspace) return true;
+      return isInsightTabAvailable(tabId as InsightTab);
+    },
+    [isEmptyWorkspace, isInsightTabAvailable],
+  );
+
+  const worksheetNavItems = useMemo((): WorksheetNavItem[] => {
+    return workspaceTypeDef.worksheetTabs.map((spec) => {
+      const insightMeta =
+        spec.kind === "insight"
+          ? visibleInsightTabs.find((tab) => tab.id === spec.id)
+          : undefined;
+      return {
+        id: spec.id,
+        label: spec.label,
+        shortLabel: spec.shortLabel,
+        hint: spec.hint,
+        icon: spec.icon,
+        available: isWorksheetTabAvailable(spec.id, spec.kind),
+        badgeCount:
+          spec.kind === "insight" && insightMeta?.available ? insightMeta.count : undefined,
+      };
+    });
+  }, [isWorksheetTabAvailable, visibleInsightTabs, workspaceTypeDef.worksheetTabs]);
+
+  const activeWorksheetTabDef = useMemo(
+    () =>
+      workspaceTypeDef.worksheetTabs.find((tab) => tab.id === worksheetTab) ??
+      workspaceTypeDef.worksheetTabs[0],
+    [workspaceTypeDef.worksheetTabs, worksheetTab],
+  );
+
+  const handleWorksheetTabSelect = useCallback(
+    (tabId: WorksheetTabId) => {
+      setWorksheetTab(tabId);
+      const tabDef = workspaceTypeDef.worksheetTabs.find((item) => item.id === tabId);
+      if (tabDef?.kind === "insight") {
+        if (tabDef.id === "notes" || isGeneratableInsightTab(tabDef.id as InsightTab)) {
+          setActiveInsightTab(tabDef.id as InsightTab);
+        }
+      }
+    },
+    [workspaceTypeDef.worksheetTabs],
+  );
+
+  const worksheetNav = (
+    <ResearchCompanionWorksheetNavbar
+      activeTab={worksheetTab}
+      tabs={worksheetNavItems}
+      onSelectTab={handleWorksheetTabSelect}
+    />
+  );
+
+  const renderWorksheetContent = () => {
+    if (activeWorksheetTabDef.kind === "document") {
+      if (hasDocumentViewer) {
+        return (
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {renderDocumentView!({
+              sourceId: sourceId!,
+              documentTitle: workspaceTitle,
+              activePage,
+              pageCount: sourcePages.length,
+              onPageChange: setActivePage,
+            })}
+          </div>
+        );
+      }
+      return (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {renderEmptyFileWorkspace()}
+        </div>
+      );
+    }
+
+    if (activeWorksheetTabDef.kind === "deliverable") {
+      return (
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <ResearchCompanionWorkspaceShell
+            chrome={
+              <DeliverableWorkspaceChrome
+                tab={activeWorksheetTabDef}
+                workspaceTitle={workspaceTitle}
+              />
+            }
+          >
+            <DeliverableWorkspacePanel
+              tab={activeWorksheetTabDef}
+              workspaceTitle={workspaceTitle}
+            />
+          </ResearchCompanionWorkspaceShell>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {isEmptyWorkspace
+          ? renderEmptyInsightWorkspace()
+          : !isInsightTabAvailable(worksheetTab as InsightTab)
+            ? renderUnavailableInsightPanel()
+            : renderInsightWorkspace()}
+      </div>
+    );
   };
 
   const activeInsight =
@@ -1624,7 +1792,6 @@ export function ResearchCompanionApp({
           </div>
         </div>
       }
-      toolsPanel={renderWorkspaceToolsPanel()}
     >
       <div className="rc-pdf-stage h-full w-full overflow-auto p-6 md:p-10">
         <WorkspaceStageEmptyState
@@ -1663,7 +1830,6 @@ export function ResearchCompanionApp({
           </div>
         </div>
       }
-      toolsPanel={renderWorkspaceToolsPanel()}
     >
       <div className="rc-pdf-stage h-full w-full overflow-auto p-6 md:p-10">
         <WorkspaceStageEmptyState
@@ -1699,7 +1865,6 @@ export function ResearchCompanionApp({
           </div>
         </div>
       }
-      toolsPanel={renderWorkspaceToolsPanel()}
     >
       <div className="rc-pdf-stage h-full w-full overflow-auto p-6 md:p-10">
         <div className="flex min-h-full items-center justify-center">
@@ -1755,7 +1920,6 @@ export function ResearchCompanionApp({
           </div>
         </div>
       }
-      toolsPanel={renderWorkspaceToolsPanel()}
     >
       <div className="rc-pdf-stage h-full w-full overflow-auto p-6 md:p-10">
         <div className="mx-auto grid min-h-full w-full max-w-6xl gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -1811,7 +1975,7 @@ export function ResearchCompanionApp({
                 Context notes
               </p>
               <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
-                Review AI insights while keeping the source document open in the File tab.
+                Review AI insights while keeping the source document open on the Document tab.
               </p>
             </section>
             <section className="flex flex-1 flex-col rounded-sm bg-primary/[0.04] p-5 shadow-sm ring-1 ring-primary/10 md:p-6">
@@ -1929,6 +2093,7 @@ export function ResearchCompanionApp({
               <InsightsHome
                 recentWorkspaces={recentWorkspaces}
                 onOpenRecentWorkspace={handleOpenRecentWorkspace}
+                onStartWorkspaceWithType={handleStartWorkspaceWithType}
                 formatRecentTime={formatRecentTime}
                 fileUploadError={fileUploadError}
               />
@@ -1967,267 +2132,134 @@ export function ResearchCompanionApp({
 
           {draftSessionActive ? (
             <div
-              key={`${workspaceSessionKey}-${sourceId ?? "draft"}-${insightId ?? "none"}`}
+              key={`${workspaceSessionKey}-${workspaceTypeId}-${sourceId ?? "draft"}-${insightId ?? "none"}`}
               className={cn(
                 "flex min-h-0 flex-1 flex-col overflow-hidden",
                 activeView !== "workspace" && "hidden",
               )}
             >
-        <div
-          className={cn(
-            "grid min-h-0 flex-1 grid-cols-1",
-            workspaceGridColumns,
-          )}
-        >
+        <div className={workspaceGridClassName}>
           {!leftSidebarCollapsed && (
-          <aside className="hidden min-h-0 min-w-0 overflow-hidden border-r border-border/30 bg-white lg:flex lg:flex-col dark:bg-background">
-            <nav
-              className="flex shrink-0 items-stretch border-b border-border/40 bg-gradient-to-b from-muted/25 to-transparent"
-              aria-label="Workspace panels"
-            >
-              <div className="flex min-w-0 flex-1" role="tablist">
-                {leftSidebarTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const selected = leftPanelTab === tab.id;
-                  const badgeCount =
-                    tab.id === "file"
-                      ? sourcePages.length
-                      : tab.id === "insights"
-                        ? availableInsightCount
-                        : 0;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={selected}
-                      aria-label={tab.label}
-                      title={tab.hint}
-                      onClick={() => setLeftPanelTab(tab.id)}
-                      className={cn(
-                        "group relative flex min-w-0 flex-1 flex-col items-center gap-1 border-b-2 px-1 py-2.5 transition-all duration-200",
-                        selected
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/20 hover:text-foreground",
-                      )}
-                    >
-                      <span
+            <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden border-r border-border/30 bg-white lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:flex dark:bg-background">
+              <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/40 bg-card/70 px-2 backdrop-blur-sm">
+                <p className="text-xs font-semibold text-foreground">Pages</p>
+                <button
+                  type="button"
+                  onClick={() => setLeftSidebarCollapsed(true)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                  aria-label="Collapse sidebar"
+                  title="Collapse sidebar"
+                >
+                  <PanelLeftClose className="h-4 w-4" strokeWidth={2} />
+                </button>
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
+                <div className="shrink-0 min-w-0 pb-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Source
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-sm font-semibold tracking-tight text-foreground">
+                    {workspaceTitle}
+                  </p>
+                </div>
+                <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
+                  {isEmptyWorkspace ? (
+                    <div className="rounded-lg border border-dashed border-border/40 bg-muted/20 px-3 py-8 text-center">
+                      <Upload className="mx-auto h-5 w-5 text-muted-foreground" />
+                      <p className="mt-3 text-xs font-semibold text-foreground">No file uploaded</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                        Upload a PDF to preview pages here.
+                      </p>
+                    </div>
+                  ) : sourcePages.length === 0 ? (
+                    <div className="rounded-lg bg-muted/35 px-3 py-8 text-center text-[11px] text-muted-foreground">
+                      Loading pages…
+                    </div>
+                  ) : (
+                    sourcePages.map((page) => (
+                      <button
+                        key={page.page}
+                        type="button"
+                        onClick={() => {
+                          setActivePage(page.page);
+                          setWorksheetTab(getDefaultWorksheetTabId(workspaceTypeId));
+                        }}
                         className={cn(
-                          "relative flex h-7 w-7 items-center justify-center rounded-lg transition-colors duration-200",
-                          selected
-                            ? "bg-primary/12 ring-1 ring-primary/15"
-                            : "bg-transparent group-hover:bg-muted/50",
+                          "group flex w-full gap-2.5 rounded-xl border p-2 text-left transition-all duration-200",
+                          activePage === page.page
+                            ? "border-primary/25 bg-background ring-2 ring-primary/15"
+                            : "border-border/30 bg-background/55 hover:bg-background",
                         )}
                       >
-                        <Icon className="h-3.5 w-3.5" strokeWidth={selected ? 2.25 : 2} />
-                        {badgeCount > 0 ? (
-                          <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-primary-foreground shadow-sm">
-                            {badgeCount > 9 ? "9+" : badgeCount}
+                        {renderPageThumbnail ? (
+                          renderPageThumbnail(page.page, activePage === page.page)
+                        ) : (
+                          <span className="flex h-20 w-14 shrink-0 items-center justify-center rounded-lg bg-background text-[11px] font-semibold text-muted-foreground">
+                            {page.page}
                           </span>
-                        ) : null}
-                      </span>
-                      <span className="max-w-full truncate text-[10px] font-semibold tracking-wide">
-                        {tab.shortLabel}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={() => setLeftSidebarCollapsed(true)}
-                className="flex w-9 shrink-0 items-center justify-center border-l border-border/30 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
-                aria-label="Collapse sidebar"
-                title="Collapse sidebar"
-              >
-                <PanelLeftClose className="h-4 w-4" strokeWidth={2} />
-              </button>
-            </nav>
-
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
-              {leftPanelTab === "file" ? (
-                <>
-                  <div className="shrink-0 min-w-0 pb-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                      Source
-                    </p>
-                    <p className="mt-1 line-clamp-2 text-sm font-semibold tracking-tight text-foreground">
-                      {workspaceTitle}
-                    </p>
-                  </div>
-                  <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
-                    {isEmptyWorkspace ? (
-                      <div className="rounded-lg border border-dashed border-border/40 bg-muted/20 px-3 py-8 text-center">
-                        <Upload className="mx-auto h-5 w-5 text-muted-foreground" />
-                        <p className="mt-3 text-xs font-semibold text-foreground">No file uploaded</p>
-                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                          Upload a PDF to preview pages here.
-                        </p>
-                      </div>
-                    ) : sourcePages.length === 0 ? (
-                      <div className="rounded-lg bg-muted/35 px-3 py-8 text-center text-[11px] text-muted-foreground">
-                        Loading pages…
-                      </div>
-                    ) : (
-                      sourcePages.map((page) => (
-                        <button
-                          key={page.page}
-                          type="button"
-                          onClick={() => {
-                            setActivePage(page.page);
-                            setLeftPanelTab("file");
-                          }}
-                          className={cn(
-                            "group flex w-full gap-2.5 rounded-xl border p-2 text-left transition-all duration-200",
-                            activePage === page.page
-                              ? "border-primary/25 bg-background ring-2 ring-primary/15"
-                              : "border-border/30 bg-background/55 hover:bg-background",
-                          )}
-                        >
-                          {renderPageThumbnail ? (
-                            renderPageThumbnail(page.page, activePage === page.page)
-                          ) : (
-                            <span className="flex h-20 w-14 shrink-0 items-center justify-center rounded-lg bg-background text-[11px] font-semibold text-muted-foreground">
-                              {page.page}
+                        )}
+                        <span className="min-w-0 flex-1 self-center">
+                          <span className="text-xs font-semibold text-foreground">
+                            Page {page.page}
+                          </span>
+                          {activePage === page.page && (
+                            <span className="mt-0.5 block text-[10px] font-medium text-primary">
+                              Active
                             </span>
                           )}
-                          <span className="min-w-0 flex-1 self-center">
-                            <span className="text-xs font-semibold text-foreground">
-                              Page {page.page}
-                            </span>
-                            {activePage === page.page && (
-                              <span className="mt-0.5 block text-[10px] font-medium text-primary">
-                                Active
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                      ))
-                    )}
-                  </div>
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+                {isEmptyWorkspace ? (
                   <button
                     type="button"
                     onClick={uploadFile ?? onOpenFile ?? onOpenDifferentFile}
                     className="mt-3 shrink-0 h-9 w-full rounded-lg border border-border/30 bg-background/80 text-xs font-semibold text-foreground transition-all duration-200 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={(!uploadFile && !onOpenFile && !onOpenDifferentFile) || fileUploading}
                   >
-                    {isEmptyWorkspace
-                      ? fileUploading
-                        ? fileUploadProgress || "Uploading…"
-                        : "Upload file"
-                      : "Switch file"}
+                    {fileUploading ? fileUploadProgress || "Uploading…" : "Upload file"}
                   </button>
-                </>
-              ) : (
-                <>
-                  <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    AI insights
-                  </p>
-                  <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                    {visibleInsightTabs.map((tab) => {
-                      const isActive = activeInsightTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => {
-                            setActiveInsightTab(tab.id);
-                            setLeftPanelTab("insights");
-                          }}
-                          className={cn(
-                            "w-full rounded-xl border p-3 text-left transition-all duration-200",
-                            isActive
-                              ? tab.available
-                                ? "border-primary/25 bg-background ring-2 ring-primary/10"
-                                : "border-border/40 bg-muted/20 ring-1 ring-border/30"
-                              : tab.available
-                                ? "border-border/30 bg-background/55 hover:bg-background"
-                                : "border-border/25 bg-muted/15 opacity-80 hover:bg-muted/25",
-                          )}
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span
-                              className={cn(
-                                "text-xs font-semibold",
-                                tab.available ? "text-foreground" : "text-muted-foreground",
-                              )}
-                            >
-                              {tab.label}
-                            </span>
-                            {tab.available ? (
-                              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                                {tab.count}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                                <Lock className="h-3 w-3" />
-                                Unavailable
-                              </span>
-                            )}
-                          </span>
-                          <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">
-                            {tab.available
-                              ? tab.description
-                              : "Not generated — you can create this insight later."}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {missingInsightTypes.length > 0 && onGenerateInsights && (
+                ) : (
+                  <>
                     <button
                       type="button"
-                      onClick={() => void onGenerateInsights()}
-                      disabled={insightsGenerating}
-                      className="mt-3 shrink-0 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.06] text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={uploadFile ?? onOpenFile ?? onOpenDifferentFile}
+                      className="mt-3 shrink-0 h-9 w-full rounded-lg border border-border/30 bg-background/80 text-xs font-semibold text-foreground transition-all duration-200 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={(!uploadFile && !onOpenFile && !onOpenDifferentFile) || fileUploading}
                     >
-                      <Sparkles className="h-3.5 w-3.5" />
-                      {insightsGenerating
-                        ? "Generating…"
-                        : `Generate missing (${missingInsightTypes.length})`}
+                      Switch file
                     </button>
-                  )}
-                </>
-              )}
-            </div>
-          </aside>
+                    {missingInsightTypes.length > 0 && onGenerateInsights ? (
+                      <button
+                        type="button"
+                        onClick={() => void onGenerateInsights()}
+                        disabled={insightsGenerating}
+                        className="mt-2 shrink-0 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.06] text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {insightsGenerating
+                          ? "Generating…"
+                          : `Generate insights (${missingInsightTypes.length})`}
+                      </button>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </aside>
           )}
 
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-            {leftPanelTab === "file" && hasDocumentViewer ? (
-              <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                {leftSidebarCollapsed && (
-                  <WorkspaceSidebarExpandButton onClick={() => setLeftSidebarCollapsed(false)} />
-                )}
-                {renderDocumentView!({
-                  sourceId: sourceId!,
-                  documentTitle: workspaceTitle,
-                  activePage,
-                  pageCount: sourcePages.length,
-                  onPageChange: setActivePage,
-                  renderToolsPanel: renderWorkspaceToolsPanel,
-                })}
-              </div>
-            ) : leftPanelTab === "insights" ? (
-              <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                {leftSidebarCollapsed && (
-                  <WorkspaceSidebarExpandButton onClick={() => setLeftSidebarCollapsed(false)} />
-                )}
-                {isEmptyWorkspace
-                  ? renderEmptyInsightWorkspace()
-                  : !isInsightTabAvailable(activeInsightTab)
-                    ? renderUnavailableInsightPanel()
-                    : renderInsightWorkspace()}
-              </div>
-            ) : (
-              <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                {leftSidebarCollapsed && (
-                  <WorkspaceSidebarExpandButton onClick={() => setLeftSidebarCollapsed(false)} />
-                )}
-                {renderEmptyFileWorkspace()}
-              </div>
+          <div className={worksheetNavRowClassName}>{worksheetNav}</div>
+
+          <div className={worksheetBodyClassName}>
+            {leftSidebarCollapsed && (
+              <WorkspaceSidebarExpandButton onClick={() => setLeftSidebarCollapsed(false)} />
             )}
+            {renderWorksheetContent()}
           </div>
+
+          <div className={toolsPanelGridClassName}>{renderWorkspaceToolsPanel()}</div>
         </div>
             </div>
           ) : null}

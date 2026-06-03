@@ -17,6 +17,8 @@ export type AppHeaderState = {
   title?: string;
   subtitle?: string;
   leading?: ReactNode;
+  /** Renders inline after the title (e.g. app Home + workspace tabs). */
+  nav?: ReactNode;
   actions?: ReactNode;
 };
 

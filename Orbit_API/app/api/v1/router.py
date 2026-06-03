@@ -14,12 +14,14 @@ from app.api.v1.public.multi_agent import router as multi_agent_router
 from app.api.v1.public.misc import router as misc_router
 from app.api.v1.public.llm import router as llm_router
 from app.api.v1.public.photo_studio import router as photo_studio_router
+from app.api.v1.public.project_planning import router as project_planning_router
 
 api_router = APIRouter(prefix="/api")
 
 api_router.include_router(auth_router)
 api_router.include_router(apps_router)
 api_router.include_router(photo_studio_router)
+api_router.include_router(project_planning_router)
 api_router.include_router(chat_router)
 api_router.include_router(crawl_router)
 api_router.include_router(misc_router)

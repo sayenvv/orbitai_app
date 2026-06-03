@@ -10,6 +10,7 @@ from clovai_apps.constants import (
     APP_SLUG_CREATIVE_EDITOR,
     APP_SLUG_LOGO_STUDIO,
     APP_SLUG_PHOTO_STUDIO,
+    APP_SLUG_PROJECT_PLANNING,
     APP_SLUG_RESEARCH_COMPANION,
     APP_SLUG_VIDEO_SNIPPETS,
     APP_SLUG_VOICE_MAKER,
@@ -29,6 +30,7 @@ CATALOG_APP_IDS = {
     "asset_remix": "a1000001-0006-4000-8000-000000000006",
     "career_coach": "a1000001-0007-4000-8000-000000000007",
     "research_companion": "a1000001-0008-4000-8000-000000000008",
+    "project_planning": "a1000001-0009-4000-8000-000000000009",
 }
 
 CATALOG_ID_BY_SLUG: dict[str, str] = {
@@ -40,10 +42,13 @@ CATALOG_ID_BY_SLUG: dict[str, str] = {
     APP_SLUG_ASSET_REMIX: CATALOG_APP_IDS["asset_remix"],
     APP_SLUG_CAREER_COACH: CATALOG_APP_IDS["career_coach"],
     APP_SLUG_RESEARCH_COMPANION: CATALOG_APP_IDS["research_companion"],
+    APP_SLUG_PROJECT_PLANNING: CATALOG_APP_IDS["project_planning"],
 }
 
 # Apps with a live workspace in the chat UI (not just marketing detail pages).
-VISIBLE_APP_SLUGS = frozenset({APP_SLUG_PHOTO_STUDIO, APP_SLUG_RESEARCH_COMPANION})
+VISIBLE_APP_SLUGS = frozenset(
+    {APP_SLUG_PHOTO_STUDIO, APP_SLUG_RESEARCH_COMPANION, APP_SLUG_PROJECT_PLANNING}
+)
 
 
 class CatalogAppSummary(BaseModel):
@@ -153,6 +158,19 @@ APPS_CATALOG: tuple[CatalogAppSummary, ...] = (
         tier="pro",
         tagline="Analyze documents, organize evidence, and build structured research notes.",
         short_description="Multipurpose research assistant for papers, case studies, and reports.",
+        model_access="Pro model access",
+        featured=True,
+        launch_available=True,
+    ),
+    CatalogAppSummary(
+        id=CATALOG_APP_IDS["project_planning"],
+        slug=APP_SLUG_PROJECT_PLANNING,
+        name="Clovai Project Studio",
+        category="Product",
+        tag="Planning",
+        tier="pro",
+        tagline="Requirements, architecture, and delivery planning in one structured workspace.",
+        short_description="13 phases and 103 deliverables from discovery through DevOps.",
         model_access="Pro model access",
         featured=True,
         launch_available=True,

@@ -21,3 +21,17 @@ export type {
   ResearchCompanionGeneratableInsightType,
   ResearchCompanionInsightOption,
 } from "./insight-types";
+export {
+  DEFAULT_WORKSPACE_TYPE_ID,
+  RESEARCH_COMPANION_WORKSPACE_TYPES,
+  getDefaultWorksheetTabId,
+  getWorkspaceTypeDefinition,
+  parseWorkspaceTypeParam,
+} from "./workspace-types";
+export type {
+  ResearchCompanionWorkspaceTypeDefinition,
+  ResearchCompanionWorkspaceTypeId,
+  WorksheetTabDefinition,
+} from "./workspace-types";
+export { WorkspaceTypePicker, WorkspaceTypePickerModal } from "./workspace-type-picker";
+export { DeliverableWorkspacePanel, DeliverableWorkspaceChrome } from "./deliverable-workspace-panel";

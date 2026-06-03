@@ -9,6 +9,7 @@ import {
   BriefcaseBusiness,
   Brush,
   Camera,
+  Layers,
   ChevronLeft,
   ChevronRight,
   Film,
@@ -45,6 +46,7 @@ const iconMap = {
   sparkles: Sparkles,
   briefcase: BriefcaseBusiness,
   book: BookOpenCheck,
+  layers: Layers,
 } as const;
 
 export default function AppsPage() {

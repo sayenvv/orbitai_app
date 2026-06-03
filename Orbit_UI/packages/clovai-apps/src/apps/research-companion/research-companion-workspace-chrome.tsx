@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleHelp, FileText, Home, Loader2, Plus, X } from "lucide-react";
+import { CircleHelp, Home, Loader2, Plus, X } from "lucide-react";
 import {
   PhotoStudioNavMoreMenu,
   type PhotoStudioMoreMenuItem,
@@ -10,9 +10,15 @@ function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
 }
 
+import {
+  getWorkspaceTypeDefinition,
+  type ResearchCompanionWorkspaceTypeId,
+} from "./workspace-types";
+
 export type ResearchCompanionWorkspaceTab = {
   id: string;
   title: string;
+  workspaceType: ResearchCompanionWorkspaceTypeId;
   sourceId: string | null;
   sourceName: string | null;
   insightId: string | null;
@@ -86,6 +92,8 @@ export function ResearchCompanionWorkspaceChrome({
               {tabs.map((tab) => {
                 const selected = tab.id === activeTabId;
                 const label = tab.title.trim() || "Untitled";
+                const typeDef = getWorkspaceTypeDefinition(tab.workspaceType);
+                const TabIcon = typeDef.icon;
 
                 return (
                   <div
@@ -102,7 +110,7 @@ export function ResearchCompanionWorkspaceChrome({
                       type="button"
                       role="tab"
                       aria-selected={selected}
-                      title={label}
+                      title={`${typeDef.label} — ${label}`}
                       onClick={() => onSelectTab(tab.id)}
                       className={cn(
                         "flex min-w-0 flex-1 items-center gap-1.5 rounded-md border py-0 text-left font-medium transition-colors duration-150",
@@ -111,7 +119,7 @@ export function ResearchCompanionWorkspaceChrome({
                           : "border-transparent bg-transparent px-2 pr-6 text-[11px] text-muted-foreground hover:border-border/30 hover:bg-muted/40 hover:text-foreground",
                       )}
                     >
-                      <FileText
+                      <TabIcon
                         className={cn(
                           "shrink-0",
                           selected ? "h-3.5 w-3.5 text-primary" : "h-3 w-3 text-muted-foreground/80",
@@ -119,7 +127,10 @@ export function ResearchCompanionWorkspaceChrome({
                         strokeWidth={2}
                         aria-hidden
                       />
-                      <span className="min-w-0 truncate">{label}</span>
+                      <span className="min-w-0 truncate">
+                        <span className="sr-only">{typeDef.shortLabel}: </span>
+                        {label}
+                      </span>
                       {tab.hasUnsavedChanges ? (
                         <span
                           className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"

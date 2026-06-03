@@ -32,7 +32,8 @@ export type CatalogApp = {
     | "image"
     | "sparkles"
     | "briefcase"
-    | "book";
+    | "book"
+    | "layers";
   category: string;
   tag: string;
   tier: AppTier;
@@ -399,6 +400,45 @@ export const appsCatalog: CatalogApp[] = [
       },
     ],
   },
+  {
+    id: catalogAppIds.projectPlanning,
+    slug: "project-planning",
+    version: "1.0.0",
+    name: "Clovai Project Studio",
+    iconKey: "layers",
+    category: "Product",
+    tag: "Planning",
+    tier: "pro",
+    tagline: "Requirements, architecture, and delivery planning in one structured workspace.",
+    heroGradient: "from-slate-600 via-zinc-600 to-neutral-700",
+    shortDescription:
+      "Browse 13 phases and 103 deliverables — from discovery and SRS through UX, backend, AI, security, and DevOps.",
+    description:
+      "Clovai Project Studio is a dedicated planning workspace for software and product teams. Navigate the full project lifecycle catalog, search deliverables, and open structured templates for diagrams and documents without mixing research document workflows.",
+    monthlyUsers: "4.2k monthly users",
+    usageCount: "28k plans started",
+    rating: 4.8,
+    installs: "9k installs",
+    modelAccess: "Pro model access",
+    badges: ["13 phases", "103 deliverables", "Searchable catalog", "Multi-project tabs"],
+    screenshots: [
+      {
+        title: "Phase tree",
+        caption: "Collapse and search the full planning hierarchy.",
+        gradientClass: "from-slate-500/35 via-zinc-500/25 to-neutral-500/20",
+      },
+      {
+        title: "Deliverable detail",
+        caption: "Open any artifact with format hints and placeholders.",
+        gradientClass: "from-zinc-500/35 via-slate-500/20 to-stone-500/25",
+      },
+      {
+        title: "Multi-project tabs",
+        caption: "Run parallel planning workspaces from the tab bar.",
+        gradientClass: "from-neutral-500/30 via-slate-500/20 to-zinc-500/25",
+      },
+    ],
+  },
 ];
 
 /** Apps kept in catalog data but hidden from store listings until implemented. */
@@ -466,11 +506,12 @@ export { getAppHelpContent, getAppHelpHref } from "./app-help-content";
 export type { AppHelpContent, AppHelpSection } from "./app-help-content";
 
 /** Apps with a live workspace route (not the marketing detail page). */
-export type LaunchAppKey = "research-companion" | "photo-studio";
+export type LaunchAppKey = "research-companion" | "photo-studio" | "project-planning";
 
 const launchAppIdByKey: Record<LaunchAppKey, CatalogAppId> = {
   "research-companion": catalogAppIds.researchCompanion,
   "photo-studio": catalogAppIds.photoGenerator,
+  "project-planning": catalogAppIds.projectPlanning,
 };
 
 /** Canonical slug for launch routing (handles legacy aliases). */
@@ -483,6 +524,7 @@ export function normalizeCatalogAppSlug(slug: string): string {
 export function getLaunchAppKey(app: CatalogApp): LaunchAppKey | null {
   if (app.id === launchAppIdByKey["research-companion"]) return "research-companion";
   if (app.id === launchAppIdByKey["photo-studio"]) return "photo-studio";
+  if (app.id === launchAppIdByKey["project-planning"]) return "project-planning";
   return null;
 }
 

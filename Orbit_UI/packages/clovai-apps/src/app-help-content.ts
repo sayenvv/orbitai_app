@@ -105,9 +105,41 @@ const researchCompanionHelp: AppHelpContent = {
   ],
 };
 
+const projectPlanningHelp: AppHelpContent = {
+  appId: catalogAppIds.projectPlanning,
+  appName: "Clovai Project Studio",
+  title: "Clovai Project Studio help",
+  subtitle: "Browse phases, search deliverables, and manage project workspaces.",
+  sections: [
+    {
+      title: "Home",
+      body: "Overview of the planning catalog and a quick start for new project workspaces.",
+    },
+    {
+      title: "Workspace tabs",
+      body: "Use + in the header to open another planning workspace. Close tabs with the × on each tab.",
+    },
+    {
+      title: "Phase & deliverable steps",
+      body: "Use the phase dropdown to switch sections. Each deliverable appears as a numbered step on the left; open one to review on the right.",
+    },
+    {
+      title: "Deliverables",
+      body: "Each item shows its format (diagram, document, or matrix) with placeholders for future canvas templates.",
+    },
+  ],
+  workflowSteps: [
+    "Start a new project workspace from Home",
+    "Browse or search the 13-phase catalog",
+    "Open deliverables and capture planning artifacts",
+    "Use multiple tabs for parallel projects",
+  ],
+};
+
 const helpByAppId: Partial<Record<string, AppHelpContent>> = {
   [catalogAppIds.photoGenerator]: photoStudioHelp,
   [catalogAppIds.researchCompanion]: researchCompanionHelp,
+  [catalogAppIds.projectPlanning]: projectPlanningHelp,
 };
 
 function buildGenericHelpContent(app: AppHelpCatalogApp): AppHelpContent {
