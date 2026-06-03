@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Arrow,
   Circle,
   Ellipse,
   Group,
+  Image as KonvaImage,
   Layer,
   Line,
   Path,
@@ -51,6 +52,7 @@ import {
   getShapeStrokeWidthPx,
   normalizeShapeRotation,
   PATH_SHAPE_VIEWBOX_SIZE,
+  isImageShapeType,
   shapePercentToBox,
   shapeSupportsCornerRadius,
   shapeUsesPathData,
@@ -67,6 +69,13 @@ export type ShapeTransformPatch = Pick<
   CanvasShapeElement,
   "x" | "y" | "width" | "height" | "rotation"
 >;
+
+export type CanvasSelectionBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
 
 type PhotoStudioShapeStageProps = {
   shapes: CanvasShapeElement[];
@@ -88,11 +97,59 @@ type PhotoStudioShapeStageProps = {
   onStartEditText: (id: string) => void;
   onCommitLabel: (id: string, label: string) => void;
   onCancelEditText: () => void;
+  onSelectionBoundsChange?: (bounds: CanvasSelectionBounds | null) => void;
   stageRef?: React.RefObject<Konva.Stage | null>;
 };
 
+const SELECTION_BOX_PAD = 4;
+
 function shapeSupportsFill(shapeType: PhotoStudioShapeType): boolean {
-  return !isLineLikeShapeType(shapeType);
+  return !isLineLikeShapeType(shapeType) && !isImageShapeType(shapeType);
+}
+
+function KonvaRasterImageShape({
+  imageUrl,
+  width,
+  height,
+  listening,
+}: {
+  imageUrl: string;
+  width: number;
+  height: number;
+  listening: boolean;
+}) {
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (!cancelled) setImage(img);
+    };
+    img.onerror = () => {
+      if (!cancelled) setImage(null);
+    };
+    img.src = imageUrl;
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [imageUrl]);
+
+  if (!image) return null;
+
+  return (
+    <KonvaImage
+      image={image}
+      x={0}
+      y={0}
+      width={width}
+      height={height}
+      listening={listening}
+    />
+  );
 }
 
 function clampBox(box: PixelBox, canvas: CanvasSize): PixelBox {
@@ -108,6 +165,62 @@ function getShapePixelSize(shape: CanvasShapeElement, canvas: CanvasSize) {
     width: (shape.width / 100) * canvas.width,
     height: (shape.height / 100) * canvas.height,
   };
+}
+
+function getCoDragShapeIds(
+  shape: CanvasShapeElement,
+  allShapes: CanvasShapeElement[],
+  selectedIds: string[],
+): string[] {
+  if (shape.groupId) {
+    return allShapes.filter((item) => item.groupId === shape.groupId).map((item) => item.id);
+  }
+  if (selectedIds.includes(shape.id) && selectedIds.length > 1) {
+    return selectedIds;
+  }
+  return [shape.id];
+}
+
+function syncCoDragKonvaNodes(
+  draggedShapeId: string,
+  draggedNode: Konva.Group,
+  shapes: CanvasShapeElement[],
+  canvasSize: CanvasSize,
+  selectedIds: string[],
+  origins: Map<string, { x: number; y: number }>,
+) {
+  const draggedShape = shapes.find((item) => item.id === draggedShapeId);
+  if (!draggedShape) return;
+
+  const coDragIds = getCoDragShapeIds(draggedShape, shapes, selectedIds);
+  if (coDragIds.length <= 1) return;
+
+  const draggedOrigin = origins.get(draggedShapeId);
+  if (!draggedOrigin) return;
+
+  const { width, height } = getShapePixelSize(draggedShape, canvasSize);
+  const box = readRotatedGroupBox(draggedNode, width, height, canvasSize);
+  const next = boxToShapePercent(draggedShapeId, draggedShape, box, canvasSize);
+  const dx = next.x - draggedOrigin.x;
+  const dy = next.y - draggedOrigin.y;
+
+  const stage = draggedNode.getStage();
+  if (!stage) return;
+
+  for (const shapeId of coDragIds) {
+    if (shapeId === draggedShapeId) continue;
+    const member = shapes.find((item) => item.id === shapeId);
+    const origin = origins.get(shapeId);
+    const node = stage.findOne(`#shape-node-${shapeId}`) as Konva.Group | null;
+    if (!member || !origin || !node) continue;
+
+    const memberBox = shapePercentToBox(
+      { ...member, x: origin.x + dx, y: origin.y + dy },
+      canvasSize,
+    );
+    node.x(memberBox.centerX);
+    node.y(memberBox.centerY);
+  }
 }
 
 function readRotatedGroupBox(
@@ -457,6 +570,17 @@ function KonvaShapeGeometry({
   canvasSize: CanvasSize;
   listening: boolean;
 }) {
+  if (isImageShapeType(shape.shapeType) && shape.imageUrl?.trim()) {
+    return (
+      <KonvaRasterImageShape
+        imageUrl={shape.imageUrl.trim()}
+        width={width}
+        height={height}
+        listening={listening}
+      />
+    );
+  }
+
   const hasFill = shapeUsesPathData(shape) || shapeSupportsFill(shape.shapeType);
   const fill = hasFill ? shape.fillColor : undefined;
   const fillOpacity = hasFill ? shape.fillOpacity : undefined;
@@ -483,10 +607,9 @@ function KonvaShapeGeometry({
   };
 
   const wrapWithClip = (node: ReactNode) => {
-    if (shape.shapeType === "rectangle" || shape.shapeType === "square") {
-      return node;
-    }
-    if (!shapeSupportsCornerRadius(shape.shapeType) || cornerRadius <= 0) {
+    const usesRectCornerClip =
+      shape.shapeType === "rectangle" || shape.shapeType === "square";
+    if (!usesRectCornerClip || cornerRadius <= 0) {
       return node;
     }
     return (
@@ -554,18 +677,19 @@ function KonvaShapeGeometry({
       );
     case "circle":
     case "ellipse":
-      return wrapWithClip(
+      return (
         <Ellipse
           x={width / 2}
           y={height / 2}
-          radiusX={width / 2}
-          radiusY={height / 2}
+          radiusX={Math.max(1, width / 2)}
+          radiusY={Math.max(1, height / 2)}
           fill={fill}
           fillOpacity={fillOpacity}
           strokeOpacity={1}
+          perfectDrawEnabled={false}
           listening={listening}
           {...commonStroke}
-        />,
+        />
       );
     case "triangle":
       return wrapWithClip(
@@ -726,11 +850,14 @@ export function PhotoStudioShapeStage({
   onStartEditText,
   onCommitLabel,
   onCancelEditText,
+  onSelectionBoundsChange,
   stageRef,
 }: PhotoStudioShapeStageProps) {
   const internalStageRef = useRef<Konva.Stage | null>(null);
   const transformerRef = useRef<Konva.Transformer | null>(null);
+  const multiSelectOverlayRef = useRef<Konva.Group | null>(null);
   const dragOriginRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const coDragOriginsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const [activeGuides, setActiveGuides] = useState<AlignmentGuide[]>([]);
   const [lineLivePatch, setLineLivePatch] = useState<{
     shapeId: string;
@@ -741,8 +868,107 @@ export function PhotoStudioShapeStage({
 
   const clearGuides = () => setActiveGuides([]);
 
+  const updateSelectionOverlay = useCallback(() => {
+    const stage = internalStageRef.current;
+    const overlay = multiSelectOverlayRef.current;
+    if (!stage || !overlay) return;
+
+    if (selectedIds.length === 0) {
+      overlay.visible(false);
+      onSelectionBoundsChange?.(null);
+      overlay.getLayer()?.batchDraw();
+      return;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const id of selectedIds) {
+      const node = stage.findOne(`#shape-node-${id}`) as Konva.Group | null;
+      if (!node) continue;
+      const rect = node.getClientRect({ relativeTo: stage });
+      minX = Math.min(minX, rect.x);
+      minY = Math.min(minY, rect.y);
+      maxX = Math.max(maxX, rect.x + rect.width);
+      maxY = Math.max(maxY, rect.y + rect.height);
+    }
+
+    if (!Number.isFinite(minX)) {
+      overlay.visible(false);
+      onSelectionBoundsChange?.(null);
+      overlay.getLayer()?.batchDraw();
+      return;
+    }
+
+    onSelectionBoundsChange?.({ minX, minY, maxX, maxY });
+
+    if (selectedIds.length < 2) {
+      overlay.visible(false);
+      overlay.getLayer()?.batchDraw();
+      return;
+    }
+
+    const boxX = minX - SELECTION_BOX_PAD;
+    const boxY = minY - SELECTION_BOX_PAD;
+    const boxW = maxX - minX + SELECTION_BOX_PAD * 2;
+    const boxH = maxY - minY + SELECTION_BOX_PAD * 2;
+
+    overlay.visible(true);
+    const boxNode = overlay.findOne(".selection-bounds-box") as Konva.Rect | null;
+    boxNode?.setAttrs({
+      x: boxX,
+      y: boxY,
+      width: boxW,
+      height: boxH,
+    });
+
+    const selectedMembers = shapes.filter((item) => selectedIds.includes(item.id));
+    const sharedGroupId = selectedMembers[0]?.groupId;
+    const showGroupedLabel =
+      selectedMembers.length > 1 &&
+      Boolean(sharedGroupId) &&
+      selectedMembers.every((item) => item.groupId === sharedGroupId);
+
+    const labelGroup = overlay.findOne(".selection-group-label") as Konva.Group | null;
+    if (labelGroup) {
+      labelGroup.visible(showGroupedLabel);
+      if (showGroupedLabel) {
+        const tag = labelGroup.findOne(".selection-group-tag") as Konva.Rect | null;
+        const tagText = labelGroup.findOne(".selection-group-text") as Konva.Text | null;
+        const tagW = 56;
+        const tagH = 16;
+        tag?.setAttrs({
+          x: boxX + 6,
+          y: boxY + 6,
+          width: tagW,
+          height: tagH,
+        });
+        tagText?.setAttrs({
+          x: boxX + 10,
+          y: boxY + 8,
+          text: "Grouped",
+        });
+      }
+    }
+
+    overlay.getLayer()?.batchDraw();
+  }, [onSelectionBoundsChange, selectedIds, shapes]);
+
+  useEffect(() => {
+    updateSelectionOverlay();
+  }, [updateSelectionOverlay, shapes, canvasSize]);
+
   const handleDragStart = (shape: CanvasShapeElement) => {
     dragOriginRef.current = { id: shape.id, x: shape.x, y: shape.y };
+    coDragOriginsRef.current.clear();
+    for (const shapeId of getCoDragShapeIds(shape, shapes, selectedIds)) {
+      const member = shapes.find((item) => item.id === shapeId);
+      if (member) {
+        coDragOriginsRef.current.set(shapeId, { x: member.x, y: member.y });
+      }
+    }
     clearGuides();
   };
 
@@ -753,7 +979,16 @@ export function PhotoStudioShapeStage({
     const { box: snappedBox, guides } = snapBoxToGuides(box, snapLines, ALIGNMENT_SNAP_THRESHOLD_PX);
     group.x(snappedBox.x + snappedBox.width / 2);
     group.y(snappedBox.y + snappedBox.height / 2);
+    syncCoDragKonvaNodes(
+      shape.id,
+      group,
+      shapes,
+      canvasSize,
+      selectedIds,
+      coDragOriginsRef.current,
+    );
     setActiveGuides(guides);
+    updateSelectionOverlay();
     group.getLayer()?.batchDraw();
   };
 
@@ -764,14 +999,24 @@ export function PhotoStudioShapeStage({
     const { box: snappedBox, guides } = snapBoxToGuides(box, snapLines, ALIGNMENT_SNAP_THRESHOLD_PX);
     group.x(snappedBox.x + snappedBox.width / 2);
     group.y(snappedBox.y + snappedBox.height / 2);
+    syncCoDragKonvaNodes(
+      shape.id,
+      group,
+      shapes,
+      canvasSize,
+      selectedIds,
+      coDragOriginsRef.current,
+    );
     setActiveGuides(guides);
 
     const next = boxToShapePercent(shape.id, shape, snappedBox, canvasSize);
     const origin = dragOriginRef.current;
-    const dx = origin?.id === shape.id ? next.x - origin.x : next.x - shape.x;
-    const dy = origin?.id === shape.id ? next.y - origin.y : next.y - shape.y;
+    const dx = origin?.id === shape.id ? next.x - origin.x : 0;
+    const dy = origin?.id === shape.id ? next.y - origin.y : 0;
     dragOriginRef.current = null;
+    coDragOriginsRef.current.clear();
     onMove(shape.id, next.x, next.y, { dx, dy });
+    updateSelectionOverlay();
 
     window.setTimeout(clearGuides, 180);
   };
@@ -801,6 +1046,7 @@ export function PhotoStudioShapeStage({
       applyTransformFromNode(shape, node as Konva.Group);
     });
     clearGuides();
+    updateSelectionOverlay();
   };
 
   useEffect(() => {
@@ -818,7 +1064,8 @@ export function PhotoStudioShapeStage({
       })
       .filter((node): node is Konva.Group => node !== null && node !== undefined);
 
-    if (selectedNodes.length > 0 && resizable) {
+    // Multi-select transform skews relative positions; resize one shape at a time.
+    if (selectedNodes.length === 1 && resizable) {
       transformer.nodes(selectedNodes);
       transformer.visible(true);
     } else {
@@ -864,7 +1111,13 @@ export function PhotoStudioShapeStage({
         }
       }}
     >
-      <Layer name="shapes">
+      <Layer
+        name="shapes"
+        clipX={0}
+        clipY={0}
+        clipWidth={canvasSize.width}
+        clipHeight={canvasSize.height}
+      >
         {shapes.map((shape) => {
           const livePatch =
             lineLivePatch?.shapeId === shape.id ? lineLivePatch.patch : null;
@@ -956,13 +1209,28 @@ export function PhotoStudioShapeStage({
                   onCancel={onCancelEditText}
                 />
               ) : null}
-              {isSelected && selectedIds.length === 1 && !isLineLikeShapeType(shape.shapeType) ? (
+              {isSelected &&
+              selectedIds.length === 1 &&
+              !isLineLikeShapeType(shape.shapeType) ? (
                 <Rect
                   width={box.width}
                   height={box.height}
-                  stroke="#8b5cf6"
-                  strokeWidth={1}
-                  dash={[4, 4]}
+                  fill="rgba(124, 58, 237, 0.1)"
+                  stroke="#7c3aed"
+                  strokeWidth={2}
+                  listening={false}
+                />
+              ) : null}
+              {isSelected &&
+              selectedIds.length === 1 &&
+              isLineLikeShapeType(shape.shapeType) ? (
+                <Rect
+                  width={box.width}
+                  height={box.height}
+                  fill="rgba(124, 58, 237, 0.06)"
+                  stroke="#7c3aed"
+                  strokeWidth={2}
+                  dash={[5, 4]}
                   listening={false}
                 />
               ) : null}
@@ -985,6 +1253,32 @@ export function PhotoStudioShapeStage({
             </Group>
           );
         })}
+        <Group ref={multiSelectOverlayRef} visible={false} listening={false}>
+          <Rect
+            name="selection-bounds-box"
+            stroke="#7c3aed"
+            strokeWidth={2}
+            dash={[7, 5]}
+            fill="rgba(124, 58, 237, 0.08)"
+            listening={false}
+          />
+          <Group name="selection-group-label" visible={false} listening={false}>
+            <Rect
+              name="selection-group-tag"
+              fill="rgba(124, 58, 237, 0.92)"
+              cornerRadius={4}
+              listening={false}
+            />
+            <Text
+              name="selection-group-text"
+              text="Grouped"
+              fontSize={9}
+              fontStyle="bold"
+              fill="#ffffff"
+              listening={false}
+            />
+          </Group>
+        </Group>
         {resizable ? (
           <Transformer
             ref={transformerRef}

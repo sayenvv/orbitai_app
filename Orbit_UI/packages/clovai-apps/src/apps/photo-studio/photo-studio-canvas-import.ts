@@ -39,6 +39,7 @@ const SHAPE_TYPES = new Set<PhotoStudioShapeType>([
   "hexagon",
   "diamond",
   "path",
+  "image",
 ]);
 
 const FONT_STYLE_IDS = new Set([
@@ -114,6 +115,8 @@ function normalizeShape(raw: unknown): CanvasShapeElement | null {
     sideGaps: normalizeShapeSideGaps(item.sideGaps ?? item.side_gaps),
     linePoints: normalizeLinePoints(item.linePoints ?? item.line_points),
     label: asString(item.label),
+    imageUrl: asString(item.imageUrl ?? item.image_url) || undefined,
+    assetId: asString(item.assetId ?? item.asset_id) || null,
   };
 }
 

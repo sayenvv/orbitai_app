@@ -10,6 +10,7 @@ export {
   isPhotoStudioSupportedImageFilename,
   isPhotoStudioSupportedImageMime,
 } from "./image-formats";
+export type { PhotoStudioWorkspaceUpload } from "./photo-studio-uploads-panel";
 export type {
   PhotoStudioAppProps,
   PhotoStudioCreationType,
@@ -19,6 +20,7 @@ export type {
   PhotoStudioWorkspaceSnapshot,
   CanvasBackgroundId,
   RecentPhotoProject,
+  PhotoStudioWorkspaceTab,
 } from "./photo-studio-app";
 export type { PhotoStudioOptionsConfig } from "./photo-studio-options";
 export {

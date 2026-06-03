@@ -19,6 +19,7 @@ export type {
   PhotoStudioWorkspaceSnapshot,
   CanvasBackgroundId,
   RecentPhotoProject,
+  PhotoStudioWorkspaceTab,
 } from "./photo-studio";
 export type { PhotoStudioOptionsConfig } from "./photo-studio";
 export { DEFAULT_PHOTO_STUDIO_OPTIONS, resolvePhotoStudioOptions, parseCanvasLayersJson } from "./photo-studio";
@@ -27,7 +28,12 @@ export {
   appSlug as researchCompanionSlug,
   ResearchCompanionApp,
 } from "./research-companion";
-export type { ResearchCompanionAppProps, RecentWorkspace, ResearchCompanionView } from "./research-companion";
+export type {
+  ResearchCompanionAppProps,
+  RecentWorkspace,
+  ResearchCompanionView,
+  ResearchCompanionWorkspaceTab,
+} from "./research-companion";
 export type {
   ResearchCompanionGeneratableInsightType,
   ResearchCompanionInsightOption,

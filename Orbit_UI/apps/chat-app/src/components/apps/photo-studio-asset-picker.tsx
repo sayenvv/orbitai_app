@@ -175,7 +175,7 @@ export function PhotoStudioAssetPicker({ open, onClose, onSelect }: PhotoStudioA
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Photo Studio library"
+        aria-label="Clovai Canvas library"
         className="fixed left-1/2 top-1/2 z-[9999] flex max-h-[min(80vh,36rem)] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-violet-200/50 bg-card shadow-[0_24px_60px_rgba(124,58,237,0.18)] dark:border-violet-500/20"
       >
         <div className="relative flex items-center justify-between border-b border-border/40 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/5 to-cyan-500/10 px-4 py-3">

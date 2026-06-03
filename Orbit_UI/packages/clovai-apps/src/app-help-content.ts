@@ -25,13 +25,13 @@ export type AppHelpContent = {
 
 const photoStudioHelp: AppHelpContent = {
   appId: catalogAppIds.photoGenerator,
-  appName: "Photo Studio",
-  title: "Photo Studio help",
+  appName: "Clovai Canvas",
+  title: "Clovai Canvas help",
   subtitle: "Navigation, saving projects, and creating visuals with AI.",
   sections: [
     {
       title: "Home",
-      body: "Your starting point with a quick overview of what Photo Studio can create.",
+      body: "Your starting point with a quick overview of what Clovai Canvas can create.",
     },
     {
       title: "Open",
@@ -68,21 +68,21 @@ const photoStudioHelp: AppHelpContent = {
 
 const researchCompanionHelp: AppHelpContent = {
   appId: catalogAppIds.researchCompanion,
-  appName: "Research Companion",
-  title: "Research Companion help",
+  appName: "Clovai Insights",
+  title: "Clovai Insights help",
   subtitle: "Navigation, documents, annotations, and AI-generated insights.",
   sections: [
     {
       title: "Home",
-      body: "Overview, insight setup progress, and how Research Companion fits your workflow.",
+      body: "Recent documents and a quick overview of how Clovai Insights fits your workflow.",
     },
     {
-      title: "Open",
-      body: "Browse your library, upload a PDF, or resume a recent document.",
+      title: "More menu",
+      body: "Open from your library or upload a PDF from your device.",
     },
     {
-      title: "New",
-      body: "Start a local draft workspace. Attach a document when you are ready — nothing is added to recents until you open a file.",
+      title: "Workspace tabs",
+      body: "Use + in the header to open another document in a new tab. Close tabs with the × on each tab.",
     },
     {
       title: "Insights",

@@ -15,7 +15,9 @@ export type PhotoStudioShapeType =
   | "hexagon"
   | "diamond"
   /** Arbitrary SVG path (`pathData`), viewBox 0–100 × 0–100 */
-  | "path";
+  | "path"
+  /** Raster image placed on the canvas */
+  | "image";
 
 export const PATH_SHAPE_VIEWBOX_SIZE = 100;
 
@@ -47,6 +49,10 @@ export type CanvasShapeElement = {
   /** Anchor points for line / curve / arc / arrow (normalized 0–1 in shape box). */
   linePoints?: LinePoints;
   label: string;
+  /** When `shapeType` is `"image"`, URL used to render the bitmap. */
+  imageUrl?: string;
+  /** Optional library / upload file id for persistence and re-selection. */
+  assetId?: string | null;
 };
 
 export type { LinePoints } from "./photo-studio-line-geometry";
@@ -129,10 +135,17 @@ export function shapeUsesPathData(shape: Pick<CanvasShapeElement, "shapeType" | 
 }
 
 export function shapeSupportsCornerRadius(shapeType: PhotoStudioShapeType): boolean {
-  return shapeType !== "line" &&
+  return (
+    shapeType !== "line" &&
     shapeType !== "curvedLine" &&
     shapeType !== "arc" &&
-    shapeType !== "arrow";
+    shapeType !== "arrow" &&
+    shapeType !== "image"
+  );
+}
+
+export function isImageShapeType(shapeType: PhotoStudioShapeType): boolean {
+  return shapeType === "image";
 }
 
 export function getMaxShapeCornerRadius(shapeType: PhotoStudioShapeType): number {

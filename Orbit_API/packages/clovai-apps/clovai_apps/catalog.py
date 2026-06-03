@@ -78,7 +78,7 @@ APPS_CATALOG: tuple[CatalogAppSummary, ...] = (
     CatalogAppSummary(
         id=CATALOG_APP_IDS["photo_studio"],
         slug=APP_SLUG_PHOTO_STUDIO,
-        name="Photo Studio",
+        name="Clovai Canvas",
         category="Image",
         tag="Visuals",
         tier="starter",
@@ -147,7 +147,7 @@ APPS_CATALOG: tuple[CatalogAppSummary, ...] = (
     CatalogAppSummary(
         id=CATALOG_APP_IDS["research_companion"],
         slug=APP_SLUG_RESEARCH_COMPANION,
-        name="Research Companion",
+        name="Clovai Insights",
         category="Research",
         tag="Research",
         tier="pro",
