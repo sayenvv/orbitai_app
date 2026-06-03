@@ -26,6 +26,10 @@ import {
   recordRecentPhotoProject,
 } from "@/lib/photo-studio-recent-projects";
 import { LIBRARY_OPEN_ORIGIN } from "@/lib/library-open-in-app";
+import {
+  createDebouncedCanvasJsonExporter,
+  fetchExportedCanvasLayers,
+} from "@/lib/photo-studio-canvas-export";
 import { PhotoStudioLaunchShimmer } from "@/components/ui/skeleton";
 
 const APP_OPEN_DELAY_MS = 750;
@@ -238,6 +242,24 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
   const latestSnapshotRef = useRef<PhotoStudioWorkspaceSnapshot | null>(null);
   const savedSnapshotKeyRef = useRef<string | null>(null);
   const workspaceRequestRef = useRef(0);
+  const draftExportIdRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `draft-${Date.now()}`,
+  );
+  const canvasJsonExporterRef = useRef(
+    createDebouncedCanvasJsonExporter({
+      workspaceId: workspaceId,
+      draftId: draftExportIdRef.current,
+    }),
+  );
+
+  useEffect(() => {
+    canvasJsonExporterRef.current = createDebouncedCanvasJsonExporter({
+      workspaceId,
+      draftId: draftExportIdRef.current,
+    });
+  }, [workspaceId]);
 
   useEffect(() => {
     setHeader({
@@ -408,6 +430,7 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
 
   const handleWorkspaceSnapshotChange = useCallback((snapshot: PhotoStudioWorkspaceSnapshot) => {
     latestSnapshotRef.current = snapshot;
+    canvasJsonExporterRef.current(snapshot);
     if (!workspaceId) {
       setHasUnsavedChanges(true);
       return;
@@ -648,6 +671,10 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         onFetchGeneration={handleFetchGeneration}
         onOpenHelp={handleOpenHelp}
         resumedFromLibrary={resumedFromLibrary}
+        canvasDraftId={draftExportIdRef.current}
+        loadExportedCanvasJson={async ({ workspaceId: wsId, draftId }) =>
+          fetchExportedCanvasLayers({ workspaceId: wsId, draftId })
+        }
       />
       <PhotoStudioAssetPicker
         open={pickerOpen}

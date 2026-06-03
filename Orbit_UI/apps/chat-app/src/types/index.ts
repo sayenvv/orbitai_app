@@ -1,8 +1,21 @@
+export type MessageRoutingMetadata = {
+  routing?: {
+    primary_agent: string;
+    selected_agents: string[];
+    intent: string;
+    topics: string[];
+    reasoning: string;
+  } | null;
+  orchestration_status?: string | null;
+  human_prompt?: string | null;
+};
+
 export type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  metadata?: MessageRoutingMetadata;
 };
 
 export type Conversation = {

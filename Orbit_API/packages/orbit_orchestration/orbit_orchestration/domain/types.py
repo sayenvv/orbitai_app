@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from orbit_orchestration.domain.routing import TaskRouting
 
-AgentName = Literal["human", "summarizer", "image_generator"]
+AgentName = Literal["human", "summarizer", "image_generator", "assistant"]
 
 
 class OrchestrationStatus(str, Enum):

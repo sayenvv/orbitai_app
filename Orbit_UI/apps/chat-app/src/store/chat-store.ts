@@ -141,20 +141,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setConversations: (incoming) =>
     set((state) => {
-      const merged = incoming.map((apiConv) => {
+      const foldedLocal = (apiConv: Conversation) => {
         const existing = state.conversations.find((c) => c.id === apiConv.id);
-        if (existing && existing.messages.length > 0) {
+        const orphan = state.conversations.find((c) => {
+          if (c.id === apiConv.id) return false;
+          if (c.messages.length === 0) return false;
+          if (!c.title || !apiConv.title || c.title !== apiConv.title) return false;
+          const delta = Math.abs(
+            new Date(c.updatedAt).getTime() - new Date(apiConv.updatedAt).getTime(),
+          );
+          return delta < 120_000;
+        });
+        const messages = existing?.messages.length
+          ? existing.messages
+          : orphan?.messages ?? [];
+        if (messages.length > 0) {
           return {
             ...apiConv,
-            messages: dedupeMessages(existing.messages),
+            messages: dedupeMessages(messages),
             updatedAt: apiConv.updatedAt,
           };
         }
         return apiConv;
+      };
+
+      const merged = incoming.map(foldedLocal);
+      const localOnly = state.conversations.filter((c) => {
+        if (incoming.some((ic) => ic.id === c.id)) return false;
+        const superseded = incoming.some((ic) => {
+          if (!c.title || !ic.title || c.title !== ic.title) return false;
+          if (c.messages.length === 0) return false;
+          const delta = Math.abs(
+            new Date(c.updatedAt).getTime() - new Date(ic.updatedAt).getTime(),
+          );
+          return delta < 120_000;
+        });
+        return !superseded;
       });
-      const localOnly = state.conversations.filter(
-        (c) => !incoming.some((ic) => ic.id === c.id),
-      );
       return { conversations: dedupeConversations([...localOnly, ...merged]) };
     }),
 

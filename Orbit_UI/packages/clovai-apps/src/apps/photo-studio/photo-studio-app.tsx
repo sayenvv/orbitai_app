@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import {
   Brush,
@@ -75,6 +75,7 @@ import {
   isLightHexColor,
 } from "./photo-studio-color-palette";
 import { drawPhotoStudioShapeStageToContext, PhotoStudioShapeStage } from "./photo-studio-shape-stage";
+import { parseCanvasLayersJson, type ParsedCanvasLayers } from "./photo-studio-canvas-import";
 import { PhotoStudioWorkspaceShimmer } from "./photo-studio-workspace-shimmer";
 
 const WORKSPACE_PREPARE_DELAY_MS = 750;
@@ -210,6 +211,13 @@ export type PhotoStudioAppProps = {
   onOpenHelp?: () => void;
   /** When true, header highlights Open while an existing workspace session is shown. */
   resumedFromLibrary?: boolean;
+  /** Stable id for draft canvas JSON export/import (unsaved workspace). */
+  canvasDraftId?: string;
+  /** Load last server-exported canvas JSON (`GET /canvas-export`). */
+  loadExportedCanvasJson?: (params: {
+    workspaceId: string | null;
+    draftId: string;
+  }) => Promise<unknown | null>;
 };
 
 const creationTypes: Array<{
@@ -3708,6 +3716,8 @@ function PhotoStudioWorkspace({
   onGenerate,
   generating = false,
   assetUploading,
+  canvasDraftId = "draft",
+  loadExportedCanvasJson,
 }: {
   assetId?: string | null;
   assetName?: string | null;
@@ -3715,6 +3725,11 @@ function PhotoStudioWorkspace({
   workspaceId?: string | null;
   initialWorkspaceSnapshot?: PhotoStudioWorkspaceSnapshot | null;
   onWorkspaceSnapshotChange?: (snapshot: PhotoStudioWorkspaceSnapshot) => void;
+  canvasDraftId?: string;
+  loadExportedCanvasJson?: (params: {
+    workspaceId: string | null;
+    draftId: string;
+  }) => Promise<unknown | null>;
   onLoadDesigns?: (
     workspaceId: string | null,
   ) => Promise<{ templates: PhotoStudioSavedDesign[]; saved: PhotoStudioSavedDesign[] }>;
@@ -3811,6 +3826,118 @@ function PhotoStudioWorkspace({
     Array<{ id: string; role: "user" | "assistant"; content: string }>
   >([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [canvasImportNotice, setCanvasImportNotice] = useState<string | null>(null);
+  const canvasJsonInputRef = useRef<HTMLInputElement>(null);
+  const autoLoadedCanvasJsonRef = useRef(false);
+
+  const applyCanvasLayersImport = useCallback((parsed: ParsedCanvasLayers) => {
+    setCanvasShapes(structuredClone(parsed.shapes));
+    setCanvasTexts(structuredClone(parsed.texts) as CanvasTextElement[]);
+    if (parsed.aspectRatio && isAllowedAspectRatio(parsed.aspectRatio, studioOptions)) {
+      setAspectRatio(parsed.aspectRatio as PhotoStudioAspectRatio);
+    }
+    if (
+      parsed.canvasBackgroundId &&
+      (parsed.canvasBackgroundId === "custom" ||
+        canvasBackgroundPresets.some((preset) => preset.id === parsed.canvasBackgroundId) ||
+        parsed.canvasBackgroundId in legacyCanvasSolidColors)
+    ) {
+      setCanvasBackgroundId(parsed.canvasBackgroundId as CanvasBackgroundId);
+    }
+    if (parsed.customCanvasBackgroundColor) {
+      setCustomCanvasBackgroundColor(parsed.customCanvasBackgroundColor);
+    }
+    if (parsed.customCanvasGradientEnd) {
+      setCustomCanvasGradientEnd(parsed.customCanvasGradientEnd);
+    }
+    if (parsed.customCanvasGradientEnabled !== undefined) {
+      setCustomCanvasGradientEnabled(parsed.customCanvasGradientEnabled);
+    }
+    if (parsed.projectName?.trim()) {
+      setProjectName(parsed.projectName.trim());
+    }
+    setSelectedGenerationId(null);
+    setMaterializedGenerationId(null);
+    setActiveSavedDesignId(null);
+    setSelectedShapeId(null);
+    setSelectedTextId(null);
+    setEditingShapeTextId(null);
+    setEditingTextId(null);
+    setActiveTool("select");
+    setEditToolSubPanel(null);
+    setCanvasHasEdits(true);
+  }, [studioOptions]);
+
+  const restoreCanvasFromJson = useCallback(
+    async (source: unknown) => {
+      const parsed = parseCanvasLayersJson(source);
+      if (!parsed) {
+        setCanvasImportNotice("Could not read canvas JSON.");
+        return false;
+      }
+      applyCanvasLayersImport(parsed);
+      setCanvasImportNotice("Canvas restored from JSON.");
+      return true;
+    },
+    [applyCanvasLayersImport],
+  );
+
+  const handleRestoreExportedCanvasJson = useCallback(async () => {
+    if (!loadExportedCanvasJson) {
+      setCanvasImportNotice("Canvas export API is not configured.");
+      return;
+    }
+    const data = await loadExportedCanvasJson({
+      workspaceId: workspaceId ?? null,
+      draftId: canvasDraftId,
+    });
+    if (!data) {
+      setCanvasImportNotice("No saved canvas JSON found yet. Draw a shape first.");
+      return;
+    }
+    await restoreCanvasFromJson(data);
+  }, [canvasDraftId, loadExportedCanvasJson, restoreCanvasFromJson, workspaceId]);
+
+  const handleCanvasJsonFileChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      try {
+        const text = await file.text();
+        await restoreCanvasFromJson(text);
+      } catch {
+        setCanvasImportNotice("Failed to read the JSON file.");
+      }
+    },
+    [restoreCanvasFromJson],
+  );
+
+  useEffect(() => {
+    if (!loadExportedCanvasJson || autoLoadedCanvasJsonRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      void loadExportedCanvasJson({
+        workspaceId: workspaceId ?? null,
+        draftId: canvasDraftId,
+      }).then((data) => {
+        if (!data) return;
+        const parsed = parseCanvasLayersJson(data);
+        if (!parsed || (parsed.shapes.length === 0 && parsed.texts.length === 0)) return;
+        applyCanvasLayersImport(parsed);
+        autoLoadedCanvasJsonRef.current = true;
+        setCanvasImportNotice("Restored your last canvas export.");
+      });
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [applyCanvasLayersImport, canvasDraftId, loadExportedCanvasJson, workspaceId]);
+
+  useEffect(() => {
+    if (!canvasImportNotice) return;
+    const timer = window.setTimeout(() => setCanvasImportNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [canvasImportNotice]);
 
   useEffect(() => {
     if (!workspaceId || !initialWorkspaceSnapshot) return;
@@ -5967,6 +6094,32 @@ function PhotoStudioWorkspace({
                     >
                       {assetUploading ? "Uploading…" : hasAsset ? "Replace image" : "Upload image"}
                     </button>
+                    <input
+                      ref={canvasJsonInputRef}
+                      type="file"
+                      accept="application/json,.json"
+                      className="hidden"
+                      onChange={handleCanvasJsonFileChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => canvasJsonInputRef.current?.click()}
+                      className="h-9 w-full rounded-lg border border-border/30 bg-background/80 text-xs font-semibold transition-colors hover:bg-muted/50"
+                    >
+                      Open canvas JSON…
+                    </button>
+                    {loadExportedCanvasJson ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleRestoreExportedCanvasJson()}
+                        className="h-9 w-full rounded-lg border border-violet-400/25 bg-violet-500/10 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-500/15 dark:text-violet-200"
+                      >
+                        Restore last export
+                      </button>
+                    ) : null}
+                    {canvasImportNotice ? (
+                      <p className="text-[11px] leading-snug text-muted-foreground">{canvasImportNotice}</p>
+                    ) : null}
                   </div>
                 </>
               ) : leftPanelTab === "designs" ? (
@@ -6450,6 +6603,8 @@ export function PhotoStudioApp({
   assetUploadError,
   onOpenHelp,
   resumedFromLibrary: initialResumedFromLibrary = false,
+  canvasDraftId,
+  loadExportedCanvasJson,
 }: PhotoStudioAppProps) {
   const hasAsset = Boolean(assetId);
   const [resumedFromLibrary, setResumedFromLibrary] = useState(initialResumedFromLibrary);
@@ -6679,6 +6834,8 @@ export function PhotoStudioApp({
                 onGenerate={onGenerate}
                 generating={generating}
                 assetUploading={assetUploading}
+                canvasDraftId={canvasDraftId}
+                loadExportedCanvasJson={loadExportedCanvasJson}
               />
             </div>
           ) : null}

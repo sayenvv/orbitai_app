@@ -1,22 +1,11 @@
-import json
-from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.v1.public.auth import require_chat_user
-from app.core.config import settings
-from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
-from app.models import Agent, Conversation, Message, User
-from app.orchestration.runner import (
-    get_or_create_conversation,
-    load_conversation_history,
-    save_message,
-    stream_agent_response,
-)
+from app.models import Agent, Conversation, User
 from app.schemas import (
     ConversationDetailResponse,
     ConversationListResponse,
@@ -24,17 +13,10 @@ from app.schemas import (
     CreateConversationRequest,
     MessageResponse,
     StreamMessageRequest,
-    TokenUsageResponse,
 )
 from app.services.agent_registry import AgentRegistry
-from app.services.token_usage import (
-    can_consume,
-    ensure_current_period,
-    estimate_tokens,
-    estimate_turn_tokens,
-    get_usage_snapshot,
-    record_usage,
-)
+from app.services.multi_agent_chat import metadata_from_message
+from app.services.multi_agent_stream import chat_streaming_response
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -144,6 +126,7 @@ def get_conversation(
             role=m.role,
             content=m.content,
             timestamp=m.created_at,
+            metadata=metadata_from_message(m),
         )
         for m in conv.messages
     ]
@@ -175,106 +158,5 @@ async def stream_message(
     db: Session = Depends(get_db),
     user: User = Depends(require_chat_user),
 ):
-    enforce_rate_limit(
-        request,
-        scope="chat-stream",
-        limit=settings.rate_limit_chat_stream_per_minute,
-    )
-    registry = AgentRegistry(db)
-
-    history: list[tuple[str, str]] = []
-    conv: Conversation | None = None
-    agent_slug: str | None = body.agent_id or None
-
-    if body.conversation_id:
-        conv = (
-            db.query(Conversation)
-            .options(joinedload(Conversation.agent))
-            .filter(Conversation.id == body.conversation_id)
-            .first()
-        )
-        if conv:
-            if conv.user_id and conv.user_id != user.id:
-                raise HTTPException(status_code=403, detail="Forbidden")
-            history = load_conversation_history(db, conv.id)
-            if not agent_slug and conv.agent:
-                agent_slug = conv.agent.slug
-
-    agent_uuid = _resolve_agent_uuid(registry, agent_slug)
-
-    if conv is None:
-        conv = get_or_create_conversation(
-            db,
-            conversation_id=None,
-            user_id=user.id,
-            agent_id=agent_uuid,
-            title=(body.message[:50] if body.message else "New conversation"),
-            app_slug=body.app_slug,
-            source_id=body.source_id if body.app_slug else None,
-        )
-    elif body.app_slug or body.source_id:
-        changed = False
-        if body.app_slug and not conv.app_slug:
-            conv.app_slug = body.app_slug
-            changed = True
-        if body.source_id and not conv.source_id:
-            conv.source_id = body.source_id
-            changed = True
-        if changed:
-            db.commit()
-            db.refresh(conv)
-
-    assert conv is not None
-
-    ensure_current_period(db, user)
-    estimated = estimate_tokens(body.message)
-    if not can_consume(user, estimated):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Monthly token limit reached. Upgrade your plan to continue chatting.",
-        )
-
-    save_message(db, conv.id, "user", body.message)
-    conv.updated_at = datetime.now(timezone.utc)
-    db.commit()
-
-    async def event_generator():
-        conv_id = str(conv.id)
-        yield f"data: {json.dumps({'type': 'start', 'conversation_id': conv_id})}\n\n"
-
-        full = ""
-        async for token in stream_agent_response(
-            db,
-            user_message=body.message,
-            agent_slug=agent_slug,
-            history=history,
-            source_id=body.source_id if body.source_id else None,
-            user_id=user.id,
-            user_plan=user.plan,
-        ):
-            full += token
-            yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
-
-        save_message(db, conv.id, "assistant", full)
-        conv.updated_at = datetime.now(timezone.utc)
-        db.commit()
-
-        turn_tokens = estimate_turn_tokens(user_message=body.message, assistant_message=full)
-        snapshot = record_usage(db, user, turn_tokens)
-        done_payload: dict = {
-            "type": "done",
-            "usage": TokenUsageResponse(
-                tokens_used=snapshot.tokens_used,
-                tokens_limit=snapshot.tokens_limit,
-                tokens_remaining=snapshot.tokens_remaining,
-                usage_percent=snapshot.usage_percent,
-                limit_reached=snapshot.limit_reached,
-            ).model_dump(),
-        }
-        yield f"data: {json.dumps(done_payload)}\n\n"
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    """Chat SSE — delegates to ``POST /api/multi-agent/runs/stream`` with conversation context."""
+    return chat_streaming_response(db, user, body, request)

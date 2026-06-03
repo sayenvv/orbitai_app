@@ -25,3 +25,5 @@ export {
   DEFAULT_PHOTO_STUDIO_OPTIONS,
   resolvePhotoStudioOptions,
 } from "./photo-studio-options";
+export { parseCanvasLayersJson } from "./photo-studio-canvas-import";
+export type { CanvasTextLayer, ParsedCanvasLayers } from "./photo-studio-canvas-import";

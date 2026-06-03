@@ -44,7 +44,7 @@ def get_app_context(
         "endpoints": {
             "catalog": f"/api/apps/{app.id}",
             "files": "/api/files",
-            "chatStream": "/api/chat/message/stream",
+            "chatStream": "/api/multi-agent/runs/stream",
             **(
                 {
                     "options": "/api/apps/photo-studio/options",

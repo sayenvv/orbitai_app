@@ -50,7 +50,16 @@ Before the group chat runs, `langchain/intent_router.py` analyzes the user promp
 - `intent` — e.g. `content_summarization`, `image_generation`, `summarize_then_image`
 - `topics` — subjects mentioned in the prompt
 
-These fields are exposed on `POST /api/multi-agent/runs` as `routing` in the JSON response.
+These fields are exposed on `POST /api/multi-agent/runs` (and SSE `meta` events on `/runs/stream`) as `routing`.
+
+## HTTP streaming (SSE)
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/multi-agent/runs/stream` | Start a run |
+| `POST /api/multi-agent/runs/{session_id}/human-input/stream` | Resume after HITL |
+
+Event types: `start`, `meta`, `message` (team agent steps), `token` (display text), `done` (full run snapshot), `error`.
 
 ## Usage (Python)
 
@@ -67,6 +76,9 @@ run = await orch.start("Summarize this article, then propose an image for the co
 print(run.routing.intent, run.routing.selected_agents)
 if run.status == "awaiting_human":
     run = await orch.resume(run.session_id, human_input="approve the image prompt")
+
+async for event in orch.stream_start("hi"):
+    print(event["type"], event.get("content", "")[:80])
 ```
 
 ## References

@@ -6,7 +6,7 @@ Python backend for the Orbit AI platform — chat streaming, multi-agent orchest
 
 | Frontend app | Port | Main API routes |
 |--------------|------|-----------------|
-| **chat-app** | 3001 | `/api/auth`, `/api/chat`, `/api/agents`, `/api/apps`, `/api/files`, `/api/library`, `/api/plans`, `/api/multi-agent` |
+| **chat-app** | 3001 | `/api/auth`, `/api/chat` (multi-agent orchestration), `/api/agents`, `/api/apps`, `/api/files`, `/api/library`, `/api/plans`, `/api/multi-agent` |
 | **control_center_app** | 3003 | `/api/control/*` |
 | **admin-app** | 3004 | `/api/platform/*` |
 
@@ -93,15 +93,21 @@ Each app uses its **own session cookie** (`orbit_chat_session`, `orbit_control_s
 
 ### 4. Multi-agent orchestration (AutoGen + LangChain)
 
+**Chat** streams via `POST /api/multi-agent/runs/stream` (with `conversation_id`). Legacy alias: `POST /api/chat/message/stream`. Standalone debugging: `/api/multi-agent/*`.
+
 Package: `packages/orbit_orchestration/` — summarizer + image generator in a **SelectorGroupChat** with **human-in-the-loop** via API.
 
 Uses the same LLM provider as chat (`LLM_PROVIDER` in `.env`). **Ollama** is the default for local dev; set `LLM_PROVIDER=openai` and `OPENAI_API_KEY` for cloud models. Reinstall deps after pulling: `python -m pip install -r requirements-local.txt`.
 
+Run migration `alembic upgrade head` for conversation orchestration columns (`013`).
+
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /api/multi-agent/runs` | Start group chat on a `task` |
+| `POST /api/multi-agent/runs` | Start group chat on a `task` (JSON response) |
+| `POST /api/multi-agent/runs/stream` | Start run — **SSE** (`start`, `meta`, `message`, `token`, `done`) |
 | `GET /api/multi-agent/runs/{session_id}` | Poll session state |
-| `POST /api/multi-agent/runs/{session_id}/human-input` | Resume after `status=awaiting_human` |
+| `POST /api/multi-agent/runs/{session_id}/human-input` | Resume after `status=awaiting_human` (JSON) |
+| `POST /api/multi-agent/runs/{session_id}/human-input/stream` | Resume — **SSE** |
 
 Example:
 
@@ -115,6 +121,11 @@ curl -X POST http://localhost:8000/api/multi-agent/runs \
 curl -X POST http://localhost:8000/api/multi-agent/runs/{session_id}/human-input \
   -H "Content-Type: application/json" -b "orbit_chat_session=..." \
   -d '{"human_input": "Approve — use a minimal flat illustration style."}'
+
+# Streaming (SSE) — general chat streams tokens live; team runs emit message steps then chunked result
+curl -N -X POST http://localhost:8000/api/multi-agent/runs/stream \
+  -H "Content-Type: application/json" -b "orbit_chat_session=..." \
+  -d '{"task": "hi"}'
 ```
 
 See `packages/orbit_orchestration/README.md` for package layout.
@@ -240,7 +251,7 @@ app/
 ├── api/v1/public/     # chat-app endpoints (auth, chat, apps, files, library, plans)
 ├── api/v1/control/    # control center CRUD
 ├── api/v1/platform/   # admin-app ops
-├── orchestration/     # agent chat runner (Ollama / OpenAI / Azure per plan)
+├── orchestration/     # multi-agent group chat + legacy runner utilities
 ├── services/          # RAG, plans, library, token usage
 ├── worker/            # Celery tasks (PDF ingest)
 └── models/            # SQLAlchemy tables

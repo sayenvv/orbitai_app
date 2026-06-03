@@ -5,7 +5,7 @@ const apiProxy = process.env.API_PROXY_URL ?? "http://127.0.0.1:8000";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Proxy SSE stream without buffering (Next rewrites buffer on mobile). */
+/** Proxy multi-agent SSE without buffering (Next rewrites buffer on mobile). */
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const cookie = req.headers.get("cookie") ?? "";

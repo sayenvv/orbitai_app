@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api.v1.public.auth import require_chat_user
+from app.db.session import get_db
 from app.models import User
 from app.orchestration.multi_agent import get_group_chat_orchestrator
 from app.schemas import (
@@ -10,8 +11,10 @@ from app.schemas import (
     MultiAgentRunResponse,
     MultiAgentStartRequest,
 )
+from app.services.multi_agent_stream import multi_agent_streaming_response, sse_response
 from orbit_orchestration.domain.routing import TaskRouting
 from orbit_orchestration.domain.types import OrchestrationRun
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/multi-agent", tags=["multi-agent"])
 
@@ -62,6 +65,21 @@ async def start_multi_agent_run(
     return _to_response(run)
 
 
+@router.post("/runs/stream")
+async def start_multi_agent_run_stream(
+    body: MultiAgentStartRequest,
+    request: Request,
+    user: User = Depends(require_chat_user),
+    db: Session = Depends(get_db),
+):
+    """SSE stream for orchestration.
+
+    With ``conversation_id``: chat-integrated stream (saves messages, token usage).
+    Without: standalone debug stream (session events only).
+    """
+    return multi_agent_streaming_response(db, user, body, request)
+
+
 @router.get("/runs/{session_id}", response_model=MultiAgentRunResponse)
 async def get_multi_agent_run(
     session_id: str,
@@ -95,3 +113,27 @@ async def resume_multi_agent_run(
             detail=f"Multi-agent resume failed: {exc}",
         ) from exc
     return _to_response(run)
+
+
+@router.post("/runs/{session_id}/human-input/stream")
+async def resume_multi_agent_run_stream(
+    session_id: str,
+    body: MultiAgentHumanInputRequest,
+    user: User = Depends(require_chat_user),
+):
+    """SSE stream to resume a run after ``status=awaiting_human``."""
+    _ = user
+    orchestrator = get_group_chat_orchestrator()
+
+    async def event_source():
+        try:
+            async for event in orchestrator.stream_resume(session_id, body.human_input):
+                yield event
+        except LookupError as exc:
+            yield {"type": "error", "detail": str(exc)}
+        except ValueError as exc:
+            yield {"type": "error", "detail": str(exc)}
+        except Exception as exc:
+            yield {"type": "error", "detail": f"Multi-agent resume failed: {exc}"}
+
+    return sse_response(event_source())

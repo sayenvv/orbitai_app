@@ -310,6 +310,12 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         const isMissing =
           err instanceof ApiError && (err.status === 404 || err.status === 422 || err.status === 403);
         if (isMissing) {
+          const local = useChatStore.getState().conversations.find((c) => c.id === id);
+          if (local && local.messages.length > 0) {
+            setConversationMessages(id, local.messages);
+            setActiveConversation(id);
+            return;
+          }
           deleteConversation(id);
           setActiveConversation(null);
           setConversationError(true);
@@ -325,7 +331,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     if (!conversationId || !isAuthenticated || !conversationsHydrated || authLoading) {
       return;
     }
-    if (streamingConversationRef.current || isLoading) return;
+    if (streamingConversationRef.current) return;
 
     const conv = useChatStore.getState().conversations.find((c) => c.id === conversationId);
     if (conv?.agentSlug) {
@@ -338,6 +344,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       setActiveConversation(conversationId);
       return;
     }
+
+    if (isLoading) return;
 
     void loadConversationMessages(conversationId);
   }, [
@@ -499,12 +507,16 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
             if (isNewConversation) {
               updateConversationId(tempId, event.conversation_id);
               streamConversationId = event.conversation_id;
-              syncConversationToUrl(event.conversation_id);
-              void refreshConversationsList();
+              // Defer URL change until the stream finishes so we don't remount mid-turn
+              // and lose the in-memory messages / sidebar row.
             } else if (event.conversation_id !== streamConversationId) {
               updateConversationId(streamConversationId, event.conversation_id);
               streamConversationId = event.conversation_id;
             }
+          } else if (event.type === "meta" || event.type === "message") {
+            // Orchestration metadata / agent steps — not appended to message body.
+          } else if (event.type === "error") {
+            streamBufferRef.current += event.detail;
           } else if (event.type === "token") {
             streamBufferRef.current += event.content;
           } else if (event.type === "done" && event.usage) {
@@ -520,6 +532,9 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
 
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         updateMessage(streamConversationId, assistantMsgId, streamBufferRef.current);
+        if (isNewConversation) {
+          syncConversationToUrl(streamConversationId);
+        }
         void refreshConversationsList();
       } catch (err) {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);

@@ -39,6 +39,11 @@ from clovai_apps.photo_studio.workspace_schemas import (
     PhotoStudioWorkspaceResponse,
     PhotoStudioWorkspaceUpdateRequest,
 )
+from clovai_apps.photo_studio.canvas_export_schemas import (
+    PhotoStudioCanvasExportPayload,
+    PhotoStudioCanvasExportRequest,
+    PhotoStudioCanvasExportResponse,
+)
 from clovai_apps.photo_studio.design_schemas import PhotoStudioDesignListResponse
 from clovai_apps.shared.assets import ASSET_KIND_METADATA_KEY, is_image_upload
 
@@ -125,6 +130,58 @@ def photo_studio_get_workspace(
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found.")
     return serialize_workspace(row)
+
+
+@router.get("/canvas-export", response_model=PhotoStudioCanvasExportPayload)
+def photo_studio_get_canvas_json(
+    workspace_id: uuid.UUID | None = Query(default=None, alias="workspaceId"),
+    draft_id: str | None = Query(default=None, alias="draftId"),
+    user: User = Depends(require_chat_user),
+):
+    from app.core.config import settings
+    from app.services.photo_studio.canvas_json_export import load_canvas_layers_json
+
+    if not settings.photo_studio_canvas_export_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Canvas JSON export is disabled on this server.",
+        )
+    if not workspace_id and not draft_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide workspaceId or draftId.",
+        )
+
+    payload = load_canvas_layers_json(
+        user.id,
+        workspace_id=str(workspace_id) if workspace_id else None,
+        draft_id=draft_id,
+    )
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Canvas JSON not found.")
+    return payload
+
+
+@router.post("/canvas-export", response_model=PhotoStudioCanvasExportResponse)
+def photo_studio_export_canvas_json(
+    body: PhotoStudioCanvasExportRequest,
+    user: User = Depends(require_chat_user),
+):
+    from app.core.config import settings
+    from app.services.photo_studio.canvas_json_export import save_canvas_layers_json
+
+    if not settings.photo_studio_canvas_export_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Canvas JSON export is disabled on this server.",
+        )
+    try:
+        return save_canvas_layers_json(user.id, body)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to write canvas JSON: {exc}",
+        ) from exc
 
 
 @router.put("/workspaces/{workspace_id}", response_model=PhotoStudioWorkspaceResponse)

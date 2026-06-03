@@ -22,7 +22,10 @@ def build_human_proxy(session: OrchestrationSession) -> UserProxyAgent:
             return pending
 
         session.status = OrchestrationStatus.awaiting_human
-        session.human_prompt = prompt.strip() or "Human input is required to continue."
+        session.human_prompt = prompt.strip() or (
+            "What colors and style do you want for this image? "
+            "Reply with preferences or say approve to continue."
+        )
         session.messages.append(
             OrchestrationMessage(
                 source="human",

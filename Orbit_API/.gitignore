@@ -32,3 +32,4 @@ build/
 .python-version
 .ipynb_checkpoints/
 data/rag_uploads/
+data/photo_studio_canvas_exports/

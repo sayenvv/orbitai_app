@@ -147,11 +147,26 @@ export type ApiCrawlRequest = {
   include_links?: boolean;
 };
 
+export type ApiMultiAgentRouting = {
+  primary_agent: string;
+  selected_agents: string[];
+  intent: string;
+  topics: string[];
+  reasoning: string;
+};
+
+export type ApiMessageMetadata = {
+  routing?: ApiMultiAgentRouting | null;
+  orchestration_status?: string | null;
+  human_prompt?: string | null;
+};
+
 export type ApiMessage = {
   id: string;
   role: string;
   content: string;
   timestamp: string;
+  metadata?: ApiMessageMetadata | null;
 };
 
 export type ApiTokenUsage = {
@@ -196,10 +211,28 @@ export type ApiPlanLimit = {
 };
 
 export type StreamEvent =
-  | { type: "start"; conversation_id: string }
+  | {
+      type: "start";
+      conversation_id?: string;
+      session_id?: string;
+      status?: string;
+    }
+  | {
+      type: "meta";
+      routing?: ApiMultiAgentRouting;
+      orchestration_status?: string;
+      human_prompt?: string;
+    }
+  | { type: "message"; source: string; content: string }
+  | { type: "routing"; routing: ApiMultiAgentRouting }
+  | { type: "awaiting_human"; human_prompt: string }
   | { type: "token"; content: string }
+  | { type: "error"; detail: string }
   | {
       type: "done";
+      conversation_id?: string;
+      session_id?: string;
+      orchestration_status?: string;
       usage?: {
         tokens_used: number;
         tokens_limit: number | null;
@@ -571,6 +604,47 @@ export const photoStudioApi = {
     request<{ ok: boolean }>(getApiBaseUrl(), `/apps/photo-studio/workspaces/${id}`, {
       method: "DELETE",
     }),
+
+  getCanvasExport: (params: { workspaceId?: string; draftId?: string }) => {
+    const query = new URLSearchParams();
+    if (params.workspaceId) query.set("workspaceId", params.workspaceId);
+    if (params.draftId) query.set("draftId", params.draftId);
+    const qs = query.toString();
+    return request<{
+      exportedAt?: string;
+      workspaceId?: string | null;
+      draftId?: string | null;
+      projectName?: string;
+      aspectRatio?: string;
+      canvasBackgroundId?: string;
+      customCanvasBackgroundColor?: string;
+      customCanvasGradientEnd?: string;
+      customCanvasGradientEnabled?: boolean;
+      canvasShapes: unknown[];
+      canvasTexts: unknown[];
+    }>(getApiBaseUrl(), `/apps/photo-studio/canvas-export${qs ? `?${qs}` : ""}`);
+  },
+
+  exportCanvasJson: (input: {
+    workspaceId?: string;
+    draftId?: string;
+    projectName?: string;
+    aspectRatio?: string;
+    canvasBackgroundId?: string;
+    customCanvasBackgroundColor?: string;
+    customCanvasGradientEnd?: string;
+    customCanvasGradientEnabled?: boolean;
+    canvasShapes: unknown[];
+    canvasTexts: unknown[];
+  }) =>
+    request<{ fileName: string; relativePath: string }>(
+      getApiBaseUrl(),
+      "/apps/photo-studio/canvas-export",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    ),
 };
 
 export type ApiPhotoStudioDesignItem = {
@@ -689,11 +763,17 @@ export const chatApi = {
       history?: { role: string; content: string }[];
     },
   ): AsyncGenerator<StreamEvent> {
-    const response = await fetch(`${getChatApiBaseUrl()}/message/stream`, {
+    const response = await fetch(`${getApiBaseUrl()}/multi-agent/runs/stream`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        task: body.message,
+        conversation_id: body.conversation_id ?? null,
+        agent_id: body.agent_id ?? null,
+        app_slug: body.app_slug ?? null,
+        source_id: body.source_id ?? null,
+      }),
     });
 
     if (!response.ok) {
@@ -758,5 +838,6 @@ export function mapMessage(raw: ApiMessage): Message {
     role: raw.role as "user" | "assistant",
     content: raw.content,
     timestamp: new Date(raw.timestamp),
+    metadata: raw.metadata ?? undefined,
   };
 }

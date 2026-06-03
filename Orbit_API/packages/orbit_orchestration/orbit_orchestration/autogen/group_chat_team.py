@@ -10,9 +10,24 @@ from orbit_orchestration.agents.summarization import build_summarization_tool
 from orbit_orchestration.autogen.human_proxy import build_human_proxy
 from orbit_orchestration.config import OrchestrationSettings, get_orchestration_settings
 from orbit_orchestration.domain.constants import HITL_PAUSE_SENTINEL
-from orbit_orchestration.domain.routing import TaskRouting
+from orbit_orchestration.domain.routing import TaskRouting, active_specialists
 from orbit_orchestration.domain.session import OrchestrationSession
 from orbit_orchestration.domain.types import AgentName
+
+
+def _assistant_agent(model_client: OpenAIChatCompletionClient) -> AssistantAgent:
+    return AssistantAgent(
+        name="assistant",
+        description="General helpful assistant for conversation, Q&A, and explanations.",
+        model_client=model_client,
+        system_message=(
+            "You are the main Orbit assistant. Reply naturally to the user. "
+            "Do not call tools. Do not mention routing, agents, or internal orchestration. "
+            "For greetings, respond warmly and briefly. For questions, give a clear answer. "
+            "Use fenced markdown code blocks with language tags (```python, ```css, ```html, "
+            "```json, etc.) when showing code or structured data."
+        ),
+    )
 
 
 def _summarizer_agent(
@@ -21,12 +36,13 @@ def _summarizer_agent(
 ) -> AssistantAgent:
     return AssistantAgent(
         name="summarizer",
-        description="Summarizes documents and long text using LangChain-backed tools.",
+        description="Summarizes long documents and text using summarize_text.",
         model_client=model_client,
         tools=[build_summarization_tool(settings)],
         system_message=(
-            "You are the summarization specialist. When the user provides text or asks for a "
-            "summary, call summarize_text. Be concise in chat; put the full summary in the tool output."
+            "You summarize long content. Only call summarize_text when the user pasted long text "
+            "or explicitly asked for a summary. Pass one string argument `text` with the raw content. "
+            "Never pass JSON schema objects. For short greetings or questions, do not use tools."
         ),
     )
 
@@ -38,19 +54,12 @@ def _image_agent(model_client: OpenAIChatCompletionClient) -> AssistantAgent:
         model_client=model_client,
         tools=[build_image_generation_tool()],
         system_message=(
-            "You are the image generation specialist. Before calling generate_image for a new "
-            "image, ask the human (via the human participant) to approve or edit the prompt. "
-            "Only call generate_image after explicit human approval. When the workflow is "
-            "finished, say TERMINATE."
+            "You are the image generation specialist. The human has already answered clarifying "
+            "questions in the conversation. Use their latest message as approval to proceed. "
+            "Call generate_image once with a detailed prompt that includes their preferences "
+            "(colors, style, mood, composition). Do not ask more questions. When done, say TERMINATE."
         ),
     )
-
-
-def _active_specialists(routing: TaskRouting | None) -> set[AgentName]:
-    if routing is None:
-        return {"summarizer", "image_generator"}
-    specialists = {a for a in routing.selected_agents if a in ("summarizer", "image_generator")}
-    return specialists or {"summarizer", "image_generator"}
 
 
 def build_group_chat_team(
@@ -61,13 +70,19 @@ def build_group_chat_team(
 ) -> SelectorGroupChat:
     cfg = settings or get_orchestration_settings()
     route = routing or session.routing
-    specialists = _active_specialists(route)
+    specialists = active_specialists(route)
 
-    participants = [build_human_proxy(session)]
+    participants: list = [_assistant_agent(model_client)]
     if "summarizer" in specialists:
         participants.append(_summarizer_agent(model_client, cfg))
     if "image_generator" in specialists:
+        participants.append(build_human_proxy(session))
         participants.append(_image_agent(model_client))
+
+    if len(participants) < 2:
+        raise ValueError(
+            "SelectorGroupChat requires at least two participants; use direct assistant mode."
+        )
 
     termination = (
         MaxMessageTermination(cfg.max_team_turns)

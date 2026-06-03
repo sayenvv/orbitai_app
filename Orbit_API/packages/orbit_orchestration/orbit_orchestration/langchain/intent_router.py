@@ -7,7 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from orbit_orchestration.config import OrchestrationSettings
-from orbit_orchestration.domain.routing import VALID_AGENTS, TaskRouting
+from orbit_orchestration.domain.routing import VALID_AGENTS, TaskRouting, is_general_chat
 from orbit_orchestration.domain.types import AgentName
 from orbit_orchestration.langchain.llm_factory import create_chat_model
 
@@ -17,8 +17,10 @@ _ROUTING_PROMPT = ChatPromptTemplate.from_messages(
             "system",
             "You route user requests to specialist agents in a multi-agent system.\n"
             "Agents:\n"
-            "- summarizer: summarize, condense, explain, or extract key points from text\n"
-            "- image_generator: create, draw, illustrate, or design images from descriptions\n"
+            "- assistant: general chat, greetings, Q&A, explanations (default for short messages)\n"
+            "- summarizer: ONLY when the user provides long pasted text to summarize or explicitly asks for a summary — "
+            "never for code, math, or how-to programming questions\n"
+            "- image_generator: create, draw, illustrate, or design images\n"
             "- human: only when the user must approve something before work proceeds (rare at routing)\n\n"
             "Return JSON only with keys: primary_agent, selected_agents (array), intent (snake_case label), "
             "topics (array of short strings), reasoning (one sentence).",
@@ -45,31 +47,82 @@ def _normalize_agents(raw: list[str]) -> list[AgentName]:
     return picked
 
 
+def _wants_code_or_explain(task: str) -> bool:
+    text = task.lower()
+    return bool(
+        re.search(
+            r"\b(python|javascript|typescript|java|golang|rust|code|function|class|script|"
+            r"fibonacci|algorithm|implement|write a|how to|example|snippet|program)\b",
+            text,
+        )
+    )
+
+
+def _wants_image(task: str) -> bool:
+    text = task.lower()
+    return bool(
+        re.search(
+            r"\b(image|picture|photo|illustration|artwork|draw|sketch|render|logo|icon|poster|cover)\b",
+            text,
+        )
+        or re.search(r"\b(generate|create|make|design)\s+(an?\s+)?(image|picture|photo|illustration)\b", text)
+        or re.search(r"\b(generate|create|make|design)\s+.*\s+(image|picture|photo)\b", text)
+    )
+
+
 def _keyword_routing(task: str) -> TaskRouting:
     text = task.lower()
+    if _wants_code_or_explain(task) and not re.search(
+        r"\b(summar(y|ize|ise)|tldr|condense)\b", text
+    ):
+        return TaskRouting(
+            primary_agent="assistant",
+            selected_agents=[],
+            intent="code_generation",
+            topics=_extract_topics_heuristic(task),
+            reasoning="Programming or explanation request; assistant only.",
+        )
     wants_summary = bool(
         re.search(
-            r"\b(summar(y|ize|ise)|tldr|condense|key points?|brief|overview|explain)\b",
+            r"\b(summar(y|ize|ise)|tldr|condense|key points?|brief|overview)\b",
             text,
         )
     )
-    wants_image = bool(
-        re.search(
-            r"\b(image|picture|photo|illustration|cover|artwork|draw|generate.*visual|logo|icon)\b",
-            text,
-        )
-    )
+    wants_image = _wants_image(task)
 
     selected: list[AgentName] = []
     if wants_summary:
         selected.append("summarizer")
     if wants_image:
         selected.append("image_generator")
+    is_greeting = bool(re.match(r"^(hi|hello|hey|yo|hiya)\b", text))
+    is_question = bool(
+        re.search(
+            r"\b(what is|what are|how does|how do|why is|tell me about|who is|explain)\b",
+            text,
+        )
+        or re.search(r"\bwhat is\s+\w+", text)
+    )
+    is_short = len(task.split()) <= 12 and not wants_summary and not wants_image
+
     if not selected:
-        if len(task.split()) > 80:
+        if wants_summary or len(task.split()) > 80:
             selected = ["summarizer"]
+        elif wants_image:
+            selected = ["image_generator"]
         else:
-            selected = ["summarizer", "image_generator"]
+            intent = "general_chat"
+            if is_greeting:
+                intent = "greet_user"
+            elif is_question:
+                intent = "question_answer"
+            return TaskRouting(
+                primary_agent="assistant",
+                selected_agents=[],
+                intent=intent,
+                topics=_extract_topics_heuristic(task),
+                reasoning="General conversation; no specialist agents required.",
+            )
 
     primary: AgentName = selected[0]
     if wants_image and not wants_summary:
@@ -84,6 +137,19 @@ def _keyword_routing(task: str) -> TaskRouting:
         intent = "image_generation"
     elif wants_summary and wants_image:
         intent = "summarize_then_image"
+    elif is_greeting or is_question or is_short:
+        intent = "general_chat"
+        if is_greeting:
+            intent = "greet_user"
+        elif is_question:
+            intent = "question_answer"
+        return TaskRouting(
+            primary_agent="assistant",
+            selected_agents=[],
+            intent=intent,
+            topics=_extract_topics_heuristic(task),
+            reasoning="Routed from keyword analysis of the user prompt.",
+        )
 
     topics = _extract_topics_heuristic(task)
     return TaskRouting(
@@ -119,7 +185,13 @@ def _extract_topics_heuristic(task: str) -> list[str]:
 def _schema_to_routing(schema: _RoutingSchema) -> TaskRouting:
     selected = _normalize_agents(schema.selected_agents)
     if not selected:
-        selected = ["summarizer"]
+        return TaskRouting(
+            primary_agent="assistant",
+            selected_agents=[],
+            intent=schema.intent.strip() or "general_chat",
+            topics=[t.strip() for t in schema.topics if t.strip()][:8],
+            reasoning=schema.reasoning.strip(),
+        )
 
     primary_raw = schema.primary_agent.strip().lower().replace(" ", "_")
     primary: AgentName = (
@@ -152,6 +224,40 @@ def _parse_json_routing(text: str) -> TaskRouting | None:
         return None
 
 
+def normalize_task_routing(routing: TaskRouting, task: str) -> TaskRouting:
+    """Correct LLM misroutes (e.g. summarizer for Python/code questions)."""
+    if _wants_image(task) and not re.search(r"\b(summar(y|ize|ise)|tldr|condense)\b", task.lower()):
+        return TaskRouting(
+            primary_agent="image_generator",
+            selected_agents=["image_generator"],
+            intent="image_generation",
+            topics=routing.topics or _extract_topics_heuristic(task),
+            reasoning="Image creation request; human approval required before generation.",
+        )
+    if _wants_code_or_explain(task) and not re.search(
+        r"\b(summar(y|ize|ise)|tldr|condense)\b",
+        task.lower(),
+    ):
+        return TaskRouting(
+            primary_agent="assistant",
+            selected_agents=[],
+            intent="code_generation",
+            topics=routing.topics,
+            reasoning="Programming or explanation request; assistant only.",
+        )
+    if is_general_chat(routing):
+        return TaskRouting(
+            primary_agent="assistant",
+            selected_agents=[],
+            intent=routing.intent
+            if routing.intent not in ("content_summarization", "summarize_then_image")
+            else "general_chat",
+            topics=routing.topics,
+            reasoning=routing.reasoning,
+        )
+    return routing
+
+
 async def analyze_task_intent(
     task: str,
     settings: OrchestrationSettings | None = None,
@@ -174,7 +280,7 @@ async def analyze_task_intent(
         chain = _ROUTING_PROMPT | structured
         schema = await chain.ainvoke({"task": trimmed[:8_000]})
         if isinstance(schema, _RoutingSchema):
-            routing = _schema_to_routing(schema)
+            routing = normalize_task_routing(_schema_to_routing(schema), trimmed)
             if "human" not in routing.selected_agents:
                 return routing
     except Exception:
@@ -187,8 +293,8 @@ async def analyze_task_intent(
         text = content if isinstance(content, str) else str(content)
         parsed = _parse_json_routing(text)
         if parsed and "human" not in parsed.selected_agents:
-            return parsed
+            return normalize_task_routing(parsed, trimmed)
     except Exception:
         pass
 
-    return _keyword_routing(trimmed)
+    return normalize_task_routing(_keyword_routing(trimmed), trimmed)

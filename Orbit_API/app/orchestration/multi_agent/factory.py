@@ -1,9 +1,13 @@
 from functools import lru_cache
 
 from orbit_orchestration.config import OrchestrationSettings
+from orbit_orchestration.domain.session import SessionStore
 from orbit_orchestration.orchestrator import GroupChatOrchestrator
 
 from app.core.config import settings as app_settings
+
+# Shared across chat + /api/multi-agent so resume/HITL works for a session id.
+_ORCHESTRATION_STORE = SessionStore()
 
 
 def _orchestration_settings() -> OrchestrationSettings:
@@ -24,6 +28,10 @@ def _orchestration_settings() -> OrchestrationSettings:
     )
 
 
+def get_orchestration_settings() -> OrchestrationSettings:
+    return _orchestration_settings()
+
+
 @lru_cache
 def get_group_chat_orchestrator() -> GroupChatOrchestrator:
-    return GroupChatOrchestrator(settings=_orchestration_settings())
+    return GroupChatOrchestrator(settings=_orchestration_settings(), store=_ORCHESTRATION_STORE)

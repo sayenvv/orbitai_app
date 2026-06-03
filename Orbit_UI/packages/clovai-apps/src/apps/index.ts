@@ -21,7 +21,8 @@ export type {
   RecentPhotoProject,
 } from "./photo-studio";
 export type { PhotoStudioOptionsConfig } from "./photo-studio";
-export { DEFAULT_PHOTO_STUDIO_OPTIONS, resolvePhotoStudioOptions } from "./photo-studio";
+export { DEFAULT_PHOTO_STUDIO_OPTIONS, resolvePhotoStudioOptions, parseCanvasLayersJson } from "./photo-studio";
+export type { ParsedCanvasLayers, CanvasTextLayer } from "./photo-studio";
 export {
   appSlug as researchCompanionSlug,
   ResearchCompanionApp,
