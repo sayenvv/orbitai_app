@@ -1,4 +1,6 @@
 import type { CanvasShapeElement, PhotoStudioShapeType } from "./photo-studio-canvas-types";
+import { normalizeLinePoints } from "./photo-studio-line-geometry";
+import { normalizeShapeSideGaps } from "./photo-studio-side-gaps";
 
 export type CanvasTextLayer = {
   id: string;
@@ -30,10 +32,13 @@ const SHAPE_TYPES = new Set<PhotoStudioShapeType>([
   "ellipse",
   "triangle",
   "line",
+  "curvedLine",
+  "arc",
   "arrow",
   "star",
   "hexagon",
   "diamond",
+  "path",
 ]);
 
 const FONT_STYLE_IDS = new Set([
@@ -65,22 +70,49 @@ function asBoolean(value: unknown, fallback = false): boolean {
 function normalizeShape(raw: unknown): CanvasShapeElement | null {
   if (!raw || typeof raw !== "object") return null;
   const item = raw as Record<string, unknown>;
-  const shapeType = asString(item.shapeType ?? item.shape_type);
-  if (!SHAPE_TYPES.has(shapeType as PhotoStudioShapeType)) return null;
+  const pathData = asString(item.pathData ?? item.path_data ?? item.d ?? item.svgPath);
+  const shapeTypeRaw = asString(item.shapeType ?? item.shape_type);
+
+  let shapeType: PhotoStudioShapeType;
+  if (pathData) {
+    shapeType = "path";
+  } else {
+    const normalized =
+      shapeTypeRaw === "curved_line" ? "curvedLine" : shapeTypeRaw;
+    if (!SHAPE_TYPES.has(normalized as PhotoStudioShapeType)) {
+      return null;
+    }
+    shapeType = normalized as PhotoStudioShapeType;
+  }
 
   const id = asString(item.id) || `shape-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {
     id,
-    shapeType: shapeType as PhotoStudioShapeType,
+    shapeType,
+    pathData: pathData || undefined,
+    pathViewBox: pathData
+      ? (() => {
+          const v = asNumber(item.pathViewBox ?? item.path_view_box, 0);
+          return v > 0 ? v : undefined;
+        })()
+      : undefined,
+    pathFillRule:
+      pathData && (item.pathFillRule === "evenodd" || item.path_fill_rule === "evenodd")
+        ? "evenodd"
+        : undefined,
     x: asNumber(item.x, 50),
     y: asNumber(item.y, 50),
     width: asNumber(item.width, 20),
     height: asNumber(item.height, 20),
+    rotation: asNumber(item.rotation, 0),
+    groupId: asString(item.groupId ?? item.group_id) || null,
     strokeWidth: asNumber(item.strokeWidth ?? item.stroke_width, 3),
     strokeColor: asString(item.strokeColor ?? item.stroke_color, "#7c3aed"),
     fillColor: asString(item.fillColor ?? item.fill_color, "#8b5cf6"),
     fillOpacity: asNumber(item.fillOpacity ?? item.fill_opacity, 0.8),
     cornerRadius: asNumber(item.cornerRadius ?? item.corner_radius, 0),
+    sideGaps: normalizeShapeSideGaps(item.sideGaps ?? item.side_gaps),
+    linePoints: normalizeLinePoints(item.linePoints ?? item.line_points),
     label: asString(item.label),
   };
 }

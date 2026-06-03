@@ -14,6 +14,7 @@ import {
   Eraser,
   FlipHorizontal2,
   FolderOpen,
+  Group as GroupIcon,
   ImageIcon,
   ImagePlus,
   Home,
@@ -43,6 +44,8 @@ import {
   Upload,
   Wand2,
   Minus,
+  Spline,
+  CircleDot,
   ArrowUpRight,
   Hexagon,
   Diamond,
@@ -64,6 +67,38 @@ import {
 } from "./photo-studio-options";
 import type Konva from "konva";
 import type { CanvasShapeElement, PhotoStudioShapeType } from "./photo-studio-canvas-types";
+import {
+  DEFAULT_SHAPE_ROTATION,
+  getMaxShapeCornerRadius,
+  normalizeShapeRotation,
+  shapeSupportsCornerRadius,
+  shapeUsesPathData,
+} from "./photo-studio-canvas-types";
+import { isChatGptSolidIcon } from "./photo-studio-chatgpt-logo";
+import {
+  buildLineLikePreviewPathD,
+  getDefaultLinePoints,
+  isLineLikeShapeType,
+  lineShapeHasCurveHandle,
+  normalizeLinePoints,
+  resolveLinePoints,
+} from "./photo-studio-line-geometry";
+import {
+  PATH_CHATGPT_ICON,
+  PATH_CHATGPT_ICON_VIEWBOX,
+  PATH_LOBE_UP,
+  PATH_RING_SOFT,
+} from "./photo-studio-path-presets";
+import {
+  DEFAULT_SIDE_GAP,
+  SHAPE_SIDES,
+  buildRectangleWithSideGapsPathD,
+  normalizeShapeSideGaps,
+  shapeHasSideGaps,
+  shapeSupportsSideGaps,
+  type ShapeSide,
+  type SideGapConfig,
+} from "./photo-studio-side-gaps";
 import { snapShapeCenterPercents } from "./photo-studio-alignment-guides";
 import { PhotoStudioColorPaletteGrid } from "./photo-studio-color-palette-grid";
 import {
@@ -74,7 +109,11 @@ import {
   hexColorsMatch,
   isLightHexColor,
 } from "./photo-studio-color-palette";
-import { drawPhotoStudioShapeStageToContext, PhotoStudioShapeStage } from "./photo-studio-shape-stage";
+import {
+  drawPhotoStudioShapeStageToContext,
+  PhotoStudioShapeStage,
+  type ShapeTransformPatch,
+} from "./photo-studio-shape-stage";
 import { parseCanvasLayersJson, type ParsedCanvasLayers } from "./photo-studio-canvas-import";
 import { PhotoStudioWorkspaceShimmer } from "./photo-studio-workspace-shimmer";
 
@@ -1022,6 +1061,9 @@ function buildLayersFromGeneration(item: PhotoStudioGeneratedItem): {
           fillColor: "#ffffff",
           fillOpacity: 1,
           cornerRadius: 0,
+          rotation: 0,
+          groupId: null,
+          pathData: undefined,
           label: "",
         },
       ],
@@ -1066,6 +1108,9 @@ function buildLayersFromGeneration(item: PhotoStudioGeneratedItem): {
         fillColor: "#ffffff",
         fillOpacity: 0.12,
         cornerRadius: 14,
+        rotation: 0,
+        groupId: null,
+        pathData: undefined,
         label: "",
       },
     ],
@@ -1428,7 +1473,7 @@ function CanvasLayersList({
     <div className="space-y-1">
       {layers.map((layer) => {
         const selected =
-          (layer.kind === "shape" && selectedShapeId === layer.id) ||
+          (layer.kind === "shape" && selectedShapeIds.includes(layer.id)) ||
           (layer.kind === "text" && selectedTextId === layer.id);
         const ShapeIcon =
           layer.kind === "shape" && layer.shapeType
@@ -1516,17 +1561,31 @@ type AssistPanel = "prompt" | "chat";
 
 type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
-const shapeTypes: Array<{ id: PhotoStudioShapeType; label: string; icon: LucideIcon }> = [
+type ShapeToolDef = { id: PhotoStudioShapeType; label: string; icon: LucideIcon };
+
+const primitiveShapeTools: ShapeToolDef[] = [
   { id: "rectangle", label: "Rectangle", icon: Square },
   { id: "square", label: "Square", icon: Square },
   { id: "circle", label: "Circle", icon: Circle },
   { id: "ellipse", label: "Ellipse", icon: Circle },
   { id: "triangle", label: "Triangle", icon: Triangle },
-  { id: "line", label: "Line", icon: Minus },
-  { id: "arrow", label: "Arrow", icon: ArrowUpRight },
   { id: "star", label: "Star", icon: Star },
   { id: "hexagon", label: "Hexagon", icon: Hexagon },
   { id: "diamond", label: "Diamond", icon: Diamond },
+];
+
+const lineShapeTools: ShapeToolDef[] = [
+  { id: "line", label: "Straight", icon: Minus },
+  { id: "curvedLine", label: "Curved", icon: Spline },
+  { id: "arc", label: "Arc", icon: CircleDot },
+  { id: "arrow", label: "Arrow", icon: ArrowUpRight },
+];
+
+const shapeTypes: ShapeToolDef[] = [...primitiveShapeTools, ...lineShapeTools];
+
+const shapeToolGroups: Array<{ title: string; tools: ShapeToolDef[] }> = [
+  { title: "Shapes", tools: primitiveShapeTools },
+  { title: "Lines", tools: lineShapeTools },
 ];
 
 const SHAPE_DRAG_MIME = "application/x-photo-studio-shape";
@@ -2031,11 +2090,11 @@ function textHitByEraser(
 }
 
 function shapeSupportsFill(shapeType: PhotoStudioShapeType): boolean {
-  return shapeType !== "line";
+  return !isLineLikeShapeType(shapeType);
 }
 
-function shapeSupportsCornerRadius(shapeType: PhotoStudioShapeType): boolean {
-  return shapeType === "rectangle" || shapeType === "square";
+function shapeSupportsFillElement(shape: CanvasShapeElement): boolean {
+  return shapeUsesPathData(shape) || shapeSupportsFill(shape.shapeType);
 }
 
 function getShapeViewBoxRect(
@@ -2056,9 +2115,7 @@ function getShapeViewBoxRect(
 }
 
 function getMaxCornerRadius(shapeType: PhotoStudioShapeType): number {
-  const rect = getShapeViewBoxRect(shapeType);
-  if (!rect) return 0;
-  return Math.floor(Math.min(rect.width, rect.height) / 2);
+  return getMaxShapeCornerRadius(shapeType);
 }
 
 function getDefaultShapeSize(shapeType: PhotoStudioShapeType): { width: number; height: number } {
@@ -2074,9 +2131,13 @@ function getDefaultShapeSize(shapeType: PhotoStudioShapeType): { width: number; 
     case "triangle":
       return { width: 18, height: 16 };
     case "line":
-      return { width: 30, height: 4 };
+      return { width: 22, height: 8 };
+    case "curvedLine":
+      return { width: 24, height: 14 };
+    case "arc":
+      return { width: 24, height: 14 };
     case "arrow":
-      return { width: 26, height: 10 };
+      return { width: 22, height: 10 };
     case "star":
       return { width: 18, height: 18 };
     case "hexagon":
@@ -2086,6 +2147,33 @@ function getDefaultShapeSize(shapeType: PhotoStudioShapeType): { width: number; 
     default:
       return { width: 18, height: 18 };
   }
+}
+
+function ensureShapeDefaults(shape: CanvasShapeElement): CanvasShapeElement {
+  const usesPath = shapeUsesPathData(shape);
+  const sideGaps = shapeSupportsSideGaps(shape.shapeType)
+    ? normalizeShapeSideGaps(shape.sideGaps)
+    : undefined;
+  const linePoints = isLineLikeShapeType(shape.shapeType)
+    ? normalizeLinePoints(shape.linePoints) ?? getDefaultLinePoints(shape.shapeType)
+    : undefined;
+  return {
+    ...shape,
+    shapeType: usesPath ? "path" : shape.shapeType,
+    pathData: usesPath ? shape.pathData?.trim() || PATH_LOBE_UP : shape.pathData,
+    pathViewBox: shape.pathViewBox,
+    pathFillRule:
+      shape.pathFillRule ??
+      (usesPath &&
+      shape.pathViewBox === PATH_CHATGPT_ICON_VIEWBOX &&
+      shape.pathData?.trim().startsWith("M14.949")
+        ? "evenodd"
+        : undefined),
+    rotation: shape.rotation ?? DEFAULT_SHAPE_ROTATION,
+    groupId: shape.groupId ?? null,
+    sideGaps,
+    linePoints,
+  };
 }
 
 function createCanvasShape(shapeType: PhotoStudioShapeType, x: number, y: number): CanvasShapeElement {
@@ -2101,7 +2189,12 @@ function createCanvasShape(shapeType: PhotoStudioShapeType, x: number, y: number
     strokeColor: DEFAULT_SHAPE_STROKE_COLOR,
     fillColor: DEFAULT_SHAPE_FILL_COLOR,
     fillOpacity: DEFAULT_SHAPE_FILL_OPACITY,
+    rotation: DEFAULT_SHAPE_ROTATION,
+    groupId: null,
+    pathData: undefined,
     cornerRadius: shapeSupportsCornerRadius(shapeType) ? DEFAULT_SHAPE_CORNER_RADIUS : 0,
+    sideGaps: undefined,
+    linePoints: isLineLikeShapeType(shapeType) ? getDefaultLinePoints(shapeType) : undefined,
     label: "",
   };
 }
@@ -2440,6 +2533,11 @@ function getUniformShapeCornerRadii(
 
 function CanvasShapePaths({
   shapeType,
+  pathData,
+  pathViewBox,
+  pathFillRule,
+  sideGaps,
+  linePoints,
   strokeWidth,
   strokeColor,
   fillColor,
@@ -2449,6 +2547,11 @@ function CanvasShapePaths({
   pixelHeight = 100,
 }: {
   shapeType: PhotoStudioShapeType;
+  pathData?: string;
+  pathViewBox?: number;
+  pathFillRule?: CanvasShapeElement["pathFillRule"];
+  sideGaps?: CanvasShapeElement["sideGaps"];
+  linePoints?: CanvasShapeElement["linePoints"];
   strokeWidth: number;
   strokeColor: string;
   fillColor: string;
@@ -2457,10 +2560,28 @@ function CanvasShapePaths({
   pixelWidth?: number;
   pixelHeight?: number;
 }) {
+  if (pathData?.trim()) {
+    const vb = pathViewBox && pathViewBox > 0 ? pathViewBox : 100;
+    return (
+      <svg viewBox={`0 0 ${vb} ${vb}`} className="h-full w-full" aria-hidden>
+        <path
+          d={pathData.trim()}
+          fill={fillColor}
+          fillRule={pathFillRule ?? "nonzero"}
+          fillOpacity={fillOpacity}
+          stroke={strokeColor}
+          strokeWidth={getUniformShapeStrokeWidth(strokeWidth, pixelWidth, pixelHeight)}
+          vectorEffect="nonScalingStroke"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
   const stroke = strokeColor;
   const fill = fillColor;
   const renderedStrokeWidth = getUniformShapeStrokeWidth(strokeWidth, pixelWidth, pixelHeight);
-  const lineStrokeWidth = renderedStrokeWidth * 1.25;
+  const lineStrokeWidth = renderedStrokeWidth;
   const uniformStroke = { vectorEffect: "nonScalingStroke" as const };
   const maxCornerRadius = getMaxCornerRadius(shapeType);
   const rx = shapeSupportsCornerRadius(shapeType)
@@ -2472,7 +2593,21 @@ function CanvasShapePaths({
 
   switch (shapeType) {
     case "rectangle":
-    case "square":
+    case "square": {
+      const gapPath = buildRectangleWithSideGapsPathD(sideGaps);
+      if (gapPath) {
+        return (
+          <path
+            d={gapPath}
+            fill={fill}
+            fillOpacity={fillOpacity}
+            stroke={stroke}
+            strokeWidth={renderedStrokeWidth}
+            strokeLinejoin="round"
+            {...uniformStroke}
+          />
+        );
+      }
       return (
         <rect
           x={SHAPE_VIEWBOX_INSET}
@@ -2488,6 +2623,7 @@ function CanvasShapePaths({
           {...uniformStroke}
         />
       );
+    }
     case "circle":
       return (
         <circle
@@ -2528,34 +2664,24 @@ function CanvasShapePaths({
         />
       );
     case "line":
+    case "curvedLine":
+    case "arc":
+    case "arrow": {
+      const previewPoints =
+        linePoints ??
+        (isLineLikeShapeType(shapeType) ? getDefaultLinePoints(shapeType) : undefined);
       return (
-        <line
-          x1={SHAPE_VIEWBOX_INSET}
-          y1={100 - SHAPE_VIEWBOX_INSET}
-          x2={100 - SHAPE_VIEWBOX_INSET}
-          y2={SHAPE_VIEWBOX_INSET}
+        <path
+          d={buildLineLikePreviewPathD(shapeType, previewPoints)}
+          fill="none"
           stroke={stroke}
           strokeWidth={lineStrokeWidth}
           strokeLinecap="round"
+          strokeLinejoin="round"
           {...uniformStroke}
         />
       );
-    case "arrow":
-      return (
-        <>
-          <line
-            x1={SHAPE_VIEWBOX_INSET}
-            y1={82}
-            x2={78}
-            y2={22}
-            stroke={stroke}
-            strokeWidth={renderedStrokeWidth}
-            strokeLinecap="round"
-            {...uniformStroke}
-          />
-          <polygon points="78,22 66,26 70,38" fill={stroke} />
-        </>
-      );
+    }
     case "star":
       return (
         <polygon
@@ -2686,7 +2812,7 @@ function CanvasShapeItem({
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const shapeRef = useRef<HTMLDivElement>(null);
   const pixelSize = useElementPixelSize(shapeRef);
-  const canHaveText = shapeSupportsFill(shape.shapeType);
+  const canHaveText = shapeSupportsFillElement(shape);
 
   useEffect(() => {
     if (isEditingText) {
@@ -2861,6 +2987,11 @@ function CanvasShapeItem({
       >
         <CanvasShapePaths
           shapeType={shape.shapeType}
+          pathData={shape.pathData}
+          pathViewBox={shape.pathViewBox}
+          pathFillRule={shape.pathFillRule}
+          sideGaps={shape.sideGaps}
+          linePoints={shape.linePoints}
           strokeWidth={shape.strokeWidth}
           strokeColor={shape.strokeColor}
           fillColor={shape.fillColor}
@@ -3798,7 +3929,8 @@ function PhotoStudioWorkspace({
   const paintCanvasRef = useRef<HTMLCanvasElement>(null);
   const lastPaintPointRef = useRef<PaintPoint | null>(null);
   const isPaintingRef = useRef(false);
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
+  const selectedShapeId = selectedShapeIds[0] ?? null;
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [editingShapeTextId, setEditingShapeTextId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -3831,7 +3963,7 @@ function PhotoStudioWorkspace({
   const autoLoadedCanvasJsonRef = useRef(false);
 
   const applyCanvasLayersImport = useCallback((parsed: ParsedCanvasLayers) => {
-    setCanvasShapes(structuredClone(parsed.shapes));
+    setCanvasShapes(structuredClone(parsed.shapes).map(ensureShapeDefaults));
     setCanvasTexts(structuredClone(parsed.texts) as CanvasTextElement[]);
     if (parsed.aspectRatio && isAllowedAspectRatio(parsed.aspectRatio, studioOptions)) {
       setAspectRatio(parsed.aspectRatio as PhotoStudioAspectRatio);
@@ -3859,7 +3991,7 @@ function PhotoStudioWorkspace({
     setSelectedGenerationId(null);
     setMaterializedGenerationId(null);
     setActiveSavedDesignId(null);
-    setSelectedShapeId(null);
+    clearShapeSelection();
     setSelectedTextId(null);
     setEditingShapeTextId(null);
     setEditingTextId(null);
@@ -3956,7 +4088,7 @@ function PhotoStudioWorkspace({
     setCustomCanvasGradientEnd(snapshot.customCanvasGradientEnd);
     setCustomCanvasGradientEnabled(snapshot.customCanvasGradientEnabled);
     setProjectName(snapshot.projectName);
-    setCanvasShapes(structuredClone(snapshot.canvasShapes));
+    setCanvasShapes(structuredClone(snapshot.canvasShapes).map(ensureShapeDefaults));
     setCanvasTexts(structuredClone(snapshot.canvasTexts));
     setGeneratedItems(structuredClone(snapshot.generatedItems));
     setSelectedGenerationId(snapshot.selectedGenerationId);
@@ -4073,7 +4205,61 @@ function PhotoStudioWorkspace({
   const selectedGeneration =
     generatedItems.find((item) => item.id === selectedGenerationId) ?? null;
   const selectedShape = canvasShapes.find((shape) => shape.id === selectedShapeId) ?? null;
+  const selectedShapes = canvasShapes.filter((shape) => selectedShapeIds.includes(shape.id));
   const selectedText = canvasTexts.find((text) => text.id === selectedTextId) ?? null;
+
+  const resolveShapeSelection = useCallback(
+    (id: string) => {
+      const shape = canvasShapes.find((item) => item.id === id);
+      if (!shape?.groupId) return [id];
+      return canvasShapes.filter((item) => item.groupId === shape.groupId).map((item) => item.id);
+    },
+    [canvasShapes],
+  );
+
+  const selectCanvasShape = useCallback(
+    (id: string, additive: boolean) => {
+      const members = resolveShapeSelection(id);
+      setSelectedShapeIds((current) => {
+        if (additive) {
+          const next = new Set(current);
+          const allSelected = members.every((memberId) => next.has(memberId));
+          for (const memberId of members) {
+            if (allSelected) next.delete(memberId);
+            else next.add(memberId);
+          }
+          return Array.from(next);
+        }
+        return members;
+      });
+      setSelectedTextId(null);
+      setEditingTextId(null);
+      setEditingShapeTextId((current) => (current !== null && current !== id ? null : current));
+    },
+    [resolveShapeSelection],
+  );
+
+  const clearShapeSelection = useCallback(() => {
+    setSelectedShapeIds([]);
+    setEditingShapeTextId(null);
+  }, []);
+
+  const groupSelectedShapes = useCallback(() => {
+    if (selectedShapeIds.length < 2) return;
+    const groupId = `grp-${Date.now()}`;
+    const ids = new Set(selectedShapeIds);
+    setCanvasShapes((current) =>
+      current.map((shape) => (ids.has(shape.id) ? { ...shape, groupId } : shape)),
+    );
+  }, [selectedShapeIds]);
+
+  const ungroupSelectedShapes = useCallback(() => {
+    if (selectedShapeIds.length === 0) return;
+    const ids = new Set(selectedShapeIds);
+    setCanvasShapes((current) =>
+      current.map((shape) => (ids.has(shape.id) ? { ...shape, groupId: null } : shape)),
+    );
+  }, [selectedShapeIds]);
   const manualCanvasLayers = useMemo((): CanvasLayerListItem[] => {
     const shapeLayers = canvasShapes
       .filter((shape) => !isGenerationLayerId(shape.id))
@@ -4149,7 +4335,7 @@ function PhotoStudioWorkspace({
           ...texts,
         ]);
         setMaterializedGenerationId(resolved.id);
-        setSelectedShapeId(shapes[0]?.id ?? null);
+        setSelectedShapeIds(shapes.length > 0 ? shapes.map((shape) => shape.id) : []);
         setSelectedTextId(null);
         setEditingShapeTextId(null);
         setEditingTextId(null);
@@ -4209,12 +4395,12 @@ function PhotoStudioWorkspace({
   const loadSavedDesign = useCallback((design: SavedCanvasDesign) => {
     setAspectRatio(design.aspectRatio);
     setCanvasBackgroundId(design.canvasBackgroundId);
-    setCanvasShapes(structuredClone(design.shapes));
+    setCanvasShapes(structuredClone(design.shapes).map(ensureShapeDefaults));
     setCanvasTexts(structuredClone(design.texts));
     setSelectedGenerationId(null);
     setMaterializedGenerationId(null);
     setActiveSavedDesignId(design.id);
-    setSelectedShapeId(null);
+    clearShapeSelection();
     setSelectedTextId(null);
     setEditingShapeTextId(null);
     setEditingTextId(null);
@@ -4234,13 +4420,13 @@ function PhotoStudioWorkspace({
 
   const selectCanvasLayer = useCallback((layer: CanvasLayerListItem) => {
     if (layer.kind === "shape") {
-      setSelectedShapeId(layer.id);
+      setSelectedShapeIds([layer.id]);
       setSelectedTextId(null);
       setEditingShapeTextId(null);
       setEditingTextId(null);
     } else {
       setSelectedTextId(layer.id);
-      setSelectedShapeId(null);
+      clearShapeSelection();
       setEditingShapeTextId(null);
       setEditingTextId(null);
     }
@@ -4367,7 +4553,7 @@ function PhotoStudioWorkspace({
     setActiveTool(tool);
     setActiveAssistPanel(null);
     if (tool !== "select" && tool !== "shape") {
-      setSelectedShapeId(null);
+      clearShapeSelection();
       setSelectedTextId(null);
       setEditingShapeTextId(null);
       setEditingTextId(null);
@@ -4441,7 +4627,7 @@ function PhotoStudioWorkspace({
     const { x, y } = snapShapeCenterPercents(dropX, dropY);
     const newShape = createCanvasShape(shapeType, x, y);
     setCanvasShapes((current) => [...current, newShape]);
-    setSelectedShapeId(newShape.id);
+    setSelectedShapeIds([newShape.id]);
     setSelectedTextId(null);
     setEditingShapeTextId(null);
     setEditingTextId(null);
@@ -4451,12 +4637,37 @@ function PhotoStudioWorkspace({
     setCanvasHasEdits(true);
   };
 
-  const resizeCanvasShape = (
+  const updateLinePointsShape = (
     id: string,
-    next: Pick<CanvasShapeElement, "x" | "y" | "width" | "height">,
+    patch: Partial<Pick<CanvasShapeElement, "x" | "y" | "width" | "height" | "linePoints">>,
   ) => {
     setCanvasShapes((current) =>
-      current.map((shape) => (shape.id === id ? { ...shape, ...next } : shape)),
+      current.map((shape) => {
+        if (shape.id !== id) return shape;
+        return {
+          ...shape,
+          ...patch,
+          linePoints:
+            patch.linePoints !== undefined ? patch.linePoints : shape.linePoints,
+        };
+      }),
+    );
+  };
+
+  const transformCanvasShape = (id: string, patch: ShapeTransformPatch) => {
+    setCanvasShapes((current) =>
+      current.map((shape) =>
+        shape.id === id
+          ? {
+              ...shape,
+              ...patch,
+              rotation:
+                patch.rotation !== undefined
+                  ? normalizeShapeRotation(patch.rotation)
+                  : shape.rotation ?? DEFAULT_SHAPE_ROTATION,
+            }
+          : shape,
+      ),
     );
   };
 
@@ -4467,10 +4678,33 @@ function PhotoStudioWorkspace({
     );
   };
 
-  const updateShapeCornerRadius = (id: string, cornerRadius: number) => {
+  const updateShapeSideGap = (
+    id: string,
+    side: ShapeSide,
+    gap: SideGapConfig | null,
+  ) => {
     setCanvasShapes((current) =>
       current.map((shape) => {
-        if (shape.id !== id || !shapeSupportsCornerRadius(shape.shapeType)) return shape;
+        if (shape.id !== id || !shapeSupportsSideGaps(shape.shapeType)) return shape;
+        const nextGaps = { ...(shape.sideGaps ?? {}) };
+        if (gap) {
+          nextGaps[side] = gap;
+        } else {
+          delete nextGaps[side];
+        }
+        const sideGaps = normalizeShapeSideGaps(nextGaps);
+        return { ...shape, sideGaps };
+      }),
+    );
+  };
+
+  const updateShapeCornerRadius = (cornerRadius: number) => {
+    const targetIds = new Set(
+      selectedShapeIds.length > 0 ? selectedShapeIds : selectedShapeId ? [selectedShapeId] : [],
+    );
+    setCanvasShapes((current) =>
+      current.map((shape) => {
+        if (!targetIds.has(shape.id) || !shapeSupportsCornerRadius(shape.shapeType)) return shape;
         const maxRadius = getMaxCornerRadius(shape.shapeType);
         const clamped = Math.min(maxRadius, Math.max(MIN_SHAPE_CORNER_RADIUS, cornerRadius));
         return { ...shape, cornerRadius: clamped };
@@ -4478,13 +4712,36 @@ function PhotoStudioWorkspace({
     );
   };
 
+  const updateShapeRotation = (rotation: number) => {
+    const targetIds = new Set(
+      selectedShapeIds.length > 0 ? selectedShapeIds : selectedShapeId ? [selectedShapeId] : [],
+    );
+    const normalized = normalizeShapeRotation(rotation);
+    setCanvasShapes((current) =>
+      current.map((shape) =>
+        targetIds.has(shape.id) ? { ...shape, rotation: normalized } : shape,
+      ),
+    );
+  };
+
+  const getActiveShapeColorTargetIds = (): Set<string> =>
+    new Set(
+      selectedShapeIds.length > 0
+        ? selectedShapeIds
+        : selectedShapeId
+          ? [selectedShapeId]
+          : [],
+    );
+
   const updateShapeColors = (
     id: string,
     next: Partial<Pick<CanvasShapeElement, "strokeColor" | "fillColor" | "fillOpacity">>,
   ) => {
+    const targetIds = getActiveShapeColorTargetIds();
+    const applyTo = targetIds.size > 1 && targetIds.has(id) ? targetIds : new Set([id]);
     setCanvasShapes((current) =>
       current.map((shape) => {
-        if (shape.id !== id) return shape;
+        if (!applyTo.has(shape.id)) return shape;
         const strokeColor = next.strokeColor
           ? normalizeHexColor(next.strokeColor) ?? next.strokeColor
           : shape.strokeColor;
@@ -4565,7 +4822,7 @@ function PhotoStudioWorkspace({
     const newText = createCanvasText(activeFontStyleId, x, y);
     setCanvasTexts((current) => [...current, newText]);
     setSelectedTextId(newText.id);
-    setSelectedShapeId(null);
+    clearShapeSelection();
     setEditingTextId(newText.id);
     setCanvasHasEdits(true);
   };
@@ -4586,7 +4843,7 @@ function PhotoStudioWorkspace({
       }
       if (removedShapeIds.size === 0) return shapes;
 
-      setSelectedShapeId((current) => (current && removedShapeIds.has(current) ? null : current));
+      setSelectedShapeIds((current) => current.filter((shapeId) => !removedShapeIds.has(shapeId)));
       setEditingShapeTextId((current) => (current && removedShapeIds.has(current) ? null : current));
       return shapes.filter((shape) => !removedShapeIds.has(shape.id));
     });
@@ -4716,11 +4973,19 @@ function PhotoStudioWorkspace({
     ctx.restore();
   };
 
-  const deleteCanvasShape = useCallback((id: string) => {
-    setCanvasShapes((current) => current.filter((shape) => shape.id !== id));
-    setSelectedShapeId((current) => (current === id ? null : current));
-    setEditingShapeTextId((current) => (current === id ? null : current));
-  }, []);
+  const deleteCanvasShape = useCallback(
+    (id: string) => {
+      const deleteIds = new Set(
+        selectedShapeIds.includes(id) && selectedShapeIds.length > 0
+          ? selectedShapeIds
+          : [id],
+      );
+      setCanvasShapes((current) => current.filter((shape) => !deleteIds.has(shape.id)));
+      setSelectedShapeIds((current) => current.filter((shapeId) => !deleteIds.has(shapeId)));
+      setEditingShapeTextId((current) => (current && deleteIds.has(current) ? null : current));
+    },
+    [selectedShapeIds],
+  );
 
   const deleteCanvasText = useCallback((id: string) => {
     setCanvasTexts((current) => current.filter((text) => text.id !== id));
@@ -4728,17 +4993,36 @@ function PhotoStudioWorkspace({
     setEditingTextId((current) => (current === id ? null : current));
   }, []);
 
-  const moveCanvasShape = (id: string, x: number, y: number) => {
+  const moveCanvasShape = (
+    id: string,
+    x: number,
+    y: number,
+    delta: { dx: number; dy: number },
+  ) => {
+    const source = canvasShapes.find((shape) => shape.id === id);
+    const moveIds = new Set(
+      selectedShapeIds.length > 0 && selectedShapeIds.includes(id) ? selectedShapeIds : [id],
+    );
+    if (source?.groupId) {
+      canvasShapes
+        .filter((shape) => shape.groupId === source.groupId)
+        .forEach((shape) => moveIds.add(shape.id));
+    }
+
+    const clampPercent = (value: number) => Math.min(95, Math.max(5, value));
+
     setCanvasShapes((current) =>
-      current.map((shape) =>
-        shape.id === id
-          ? {
-              ...shape,
-              x: Math.min(95, Math.max(5, x)),
-              y: Math.min(95, Math.max(5, y)),
-            }
-          : shape,
-      ),
+      current.map((shape) => {
+        if (!moveIds.has(shape.id)) return shape;
+        if (shape.id === id) {
+          return { ...shape, x: clampPercent(x), y: clampPercent(y) };
+        }
+        return {
+          ...shape,
+          x: clampPercent(shape.x + delta.dx),
+          y: clampPercent(shape.y + delta.dy),
+        };
+      }),
     );
   };
 
@@ -4940,9 +5224,9 @@ function PhotoStudioWorkspace({
         return;
       }
 
-      if (selectedShapeId) {
+      if (selectedShapeIds.length > 0 || selectedShapeId) {
         event.preventDefault();
-        deleteCanvasShape(selectedShapeId);
+        deleteCanvasShape(selectedShapeId ?? selectedShapeIds[0] ?? "");
         return;
       }
 
@@ -4961,6 +5245,7 @@ function PhotoStudioWorkspace({
     editingShapeTextId,
     editingTextId,
     selectedShapeId,
+    selectedShapeIds,
     selectedTextId,
   ]);
 
@@ -5287,66 +5572,81 @@ function PhotoStudioWorkspace({
                         </p>
                       </div>
                     ) : null}
-                    <div
-                      className={cn(
-                        "grid gap-1.5",
-                        rightToolbarExpanded ? "grid-cols-3" : "grid-cols-1",
-                      )}
-                    >
-                      {shapeTypes.map((shape) => {
-                        const ShapeIcon = shape.icon;
-                        const selected = activeShapeType === shape.id;
-                        return (
-                          <WorkspaceTooltip
-                            key={shape.id}
-                            label={shape.label}
-                            enabled={!rightToolbarExpanded}
+                    <div className="space-y-3">
+                      {shapeToolGroups.map((group) => (
+                        <div key={group.title} className="space-y-1.5">
+                          {rightToolbarExpanded ? (
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                              {group.title}
+                            </p>
+                          ) : null}
+                          <div
+                            className={cn(
+                              "grid gap-1.5",
+                              rightToolbarExpanded ? "grid-cols-3" : "grid-cols-1",
+                            )}
                           >
-                            <button
-                              type="button"
-                              draggable
-                              onDragStart={(event) => handleShapeDragStart(event, shape.id)}
-                              onDragEnd={handleShapeDragEnd}
-                              onClick={() => setActiveShapeType(shape.id)}
-                              className={cn(
-                                "flex w-full rounded-lg border transition-all duration-200",
-                                rightToolbarExpanded
-                                  ? "flex-col items-center justify-center gap-1 px-1 py-2 text-center"
-                                  : "items-center justify-center p-2.5",
-                                selected
-                                  ? "border-primary/25 bg-primary/10 text-primary ring-2 ring-primary/10"
-                                  : "border-border/30 bg-background/55 text-foreground hover:bg-background",
-                                "cursor-grab active:cursor-grabbing",
-                              )}
-                              aria-label={`${shape.label} — drag to canvas`}
-                              aria-pressed={selected}
-                            >
-                              <span
-                                className={cn(
-                                  "flex shrink-0 items-center justify-center rounded-md",
-                                  rightToolbarExpanded ? "h-7 w-7" : "h-8 w-8",
-                                  selected
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-muted/60 text-muted-foreground",
-                                )}
-                              >
-                                <ShapeIcon
-                                  className={cn(
-                                    rightToolbarExpanded ? "h-3.5 w-3.5" : "h-4 w-4",
-                                    shape.id === "ellipse" && "scale-x-125",
-                                    shape.id === "line" && "rotate-[-35deg]",
-                                  )}
-                                />
-                              </span>
-                              {rightToolbarExpanded ? (
-                                <span className="block w-full truncate text-[10px] font-semibold leading-tight">
-                                  {shape.label}
-                                </span>
-                              ) : null}
-                            </button>
-                          </WorkspaceTooltip>
-                        );
-                      })}
+                            {group.tools.map((shape) => {
+                              const ShapeIcon = shape.icon;
+                              const selected = activeShapeType === shape.id;
+                              return (
+                                <WorkspaceTooltip
+                                  key={shape.id}
+                                  label={shape.label}
+                                  enabled={!rightToolbarExpanded}
+                                >
+                                  <button
+                                    type="button"
+                                    draggable
+                                    onDragStart={(event) => handleShapeDragStart(event, shape.id)}
+                                    onDragEnd={handleShapeDragEnd}
+                                    onClick={() => setActiveShapeType(shape.id)}
+                                    className={cn(
+                                      "flex w-full rounded-lg border transition-all duration-200",
+                                      rightToolbarExpanded
+                                        ? "flex-col items-center justify-center gap-1 px-1 py-2 text-center"
+                                        : "items-center justify-center p-2.5",
+                                      selected
+                                        ? "border-primary/25 bg-primary/10 text-primary ring-2 ring-primary/10"
+                                        : "border-border/30 bg-background/55 text-foreground hover:bg-background",
+                                      "cursor-grab active:cursor-grabbing",
+                                    )}
+                                    aria-label={`${shape.label} — drag to canvas`}
+                                    aria-pressed={selected}
+                                  >
+                                    <span
+                                      className={cn(
+                                        "flex shrink-0 items-center justify-center rounded-md",
+                                        rightToolbarExpanded ? "h-7 w-7" : "h-8 w-8",
+                                        selected
+                                          ? "bg-primary text-primary-foreground"
+                                          : "bg-muted/60 text-muted-foreground",
+                                      )}
+                                    >
+                                      <ShapeIcon
+                                        className={cn(
+                                          rightToolbarExpanded ? "h-3.5 w-3.5" : "h-4 w-4",
+                                          shape.id === "ellipse" && "scale-x-125",
+                                          (shape.id === "line" ||
+                                            shape.id === "curvedLine" ||
+                                            shape.id === "arc") &&
+                                            "rotate-[-35deg]",
+                                          shape.id === "arc" && "scale-90",
+                                        )}
+                                      />
+                                    </span>
+                                    {rightToolbarExpanded ? (
+                                      <span className="block w-full truncate text-[10px] font-semibold leading-tight">
+                                        {shape.label}
+                                      </span>
+                                    ) : null}
+                                  </button>
+                                </WorkspaceTooltip>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </>
                 ) : editToolSubPanel === "text" ? (
@@ -5442,13 +5742,58 @@ function PhotoStudioWorkspace({
                       </div>
                     ) : null}
 
-                    {rightToolbarExpanded && canSelectShapes && selectedShape ? (
+                    {rightToolbarExpanded && canSelectShapes && selectedShapes.length > 0 ? (
                       <div className="mt-3 space-y-3 rounded-xl border border-border/30 bg-background/55 p-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          Shape style
+                          {selectedShapes.length > 1
+                            ? `${selectedShapes.length} shapes selected`
+                            : "Shape style"}
                         </p>
 
-                        {shapeSupportsFill(selectedShape.shapeType) ? (
+                        {selectedShape && isLineLikeShapeType(selectedShape.shapeType) ? (
+                          <p className="rounded-lg border border-border/30 bg-muted/25 px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground">
+                            Drag the <span className="font-medium text-foreground">violet handles</span> on
+                            the canvas: move endpoints to stretch the line.
+                            {lineShapeHasCurveHandle(selectedShape.shapeType)
+                              ? " Drag the middle handle to bend the curve."
+                              : " Straight and arrow lines stay straight."}
+                          </p>
+                        ) : null}
+
+                        {selectedShape && isChatGptSolidIcon(selectedShape) ? (
+                          <p className="rounded-lg border border-border/30 bg-muted/25 px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground">
+                            Use <span className="font-medium text-foreground">Background</span> for the
+                            icon fill and <span className="font-medium text-foreground">Border color</span>{" "}
+                            + <span className="font-medium text-foreground">Thickness</span> for the outline.
+                            Canvas backdrop is under background settings above the canvas.
+                          </p>
+                        ) : null}
+
+                        {selectedShapes.length > 1 ? (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={groupSelectedShapes}
+                              className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/35 bg-background/80 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted/50"
+                            >
+                              <GroupIcon className="h-3.5 w-3.5" />
+                              Group
+                            </button>
+                            <button
+                              type="button"
+                              onClick={ungroupSelectedShapes}
+                              className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/35 bg-background/80 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted/50"
+                            >
+                              <Layers className="h-3.5 w-3.5" />
+                              Ungroup
+                            </button>
+                          </div>
+                        ) : null}
+                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                          Shift+click to multi-select. Grouped shapes move and rotate together.
+                        </p>
+
+                        {selectedShape && shapeSupportsFillElement(selectedShape) ? (
                           <div className="space-y-2">
                             <p className="text-[10px] leading-relaxed text-muted-foreground">
                               Double-click the shape to add or edit text (Select or Shape tool).
@@ -5463,15 +5808,17 @@ function PhotoStudioWorkspace({
                           </div>
                         ) : null}
 
-                        <ShapeColorInput
-                          label="Border color"
-                          value={selectedShape.strokeColor}
-                          onChange={(strokeColor) =>
-                            updateShapeColors(selectedShape.id, { strokeColor })
-                          }
-                        />
+                        {selectedShape ? (
+                          <ShapeColorInput
+                            label="Border color"
+                            value={selectedShape.strokeColor}
+                            onChange={(strokeColor) =>
+                              updateShapeColors(selectedShape.id, { strokeColor })
+                            }
+                          />
+                        ) : null}
 
-                        {shapeSupportsFill(selectedShape.shapeType) ? (
+                        {selectedShape && shapeSupportsFillElement(selectedShape) ? (
                           <>
                             <ShapeColorInput
                               label="Background"
@@ -5505,7 +5852,114 @@ function PhotoStudioWorkspace({
                           </>
                         ) : null}
 
-                        {shapeSupportsCornerRadius(selectedShape.shapeType) ? (
+                        {selectedShape && shapeSupportsSideGaps(selectedShape.shapeType) ? (
+                          <div className="space-y-3 border-t border-border/30 pt-3">
+                            <div>
+                              <p className="text-[11px] font-medium text-foreground">Edge gaps (weave)</p>
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                Cut openings on rectangle sides so other shapes can pass through. Stack
+                                layers to build interwoven logos.
+                              </p>
+                            </div>
+                            {SHAPE_SIDES.map((side) => {
+                              const gap = selectedShape.sideGaps?.[side] ?? null;
+                              const enabled = Boolean(gap);
+                              const config = gap ?? DEFAULT_SIDE_GAP;
+                              const sideLabel =
+                                side === "top"
+                                  ? "Top"
+                                  : side === "right"
+                                    ? "Right"
+                                    : side === "bottom"
+                                      ? "Bottom"
+                                      : "Left";
+                              return (
+                                <div
+                                  key={side}
+                                  className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-2"
+                                >
+                                  <label className="flex items-center justify-between gap-2 text-[11px]">
+                                    <span className="font-medium text-foreground">{sideLabel} gap</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={enabled}
+                                      onChange={(event) =>
+                                        updateShapeSideGap(
+                                          selectedShape.id,
+                                          side,
+                                          event.target.checked ? { ...DEFAULT_SIDE_GAP } : null,
+                                        )
+                                      }
+                                      className="accent-violet-600"
+                                    />
+                                  </label>
+                                  {enabled ? (
+                                    <>
+                                      <div className="flex items-center justify-between text-[10px]">
+                                        <span className="text-muted-foreground">Opening width</span>
+                                        <span className="tabular-nums font-semibold">{config.size}%</span>
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min={5}
+                                        max={80}
+                                        step={1}
+                                        value={config.size}
+                                        onChange={(event) =>
+                                          updateShapeSideGap(selectedShape.id, side, {
+                                            ...config,
+                                            size: Number(event.target.value),
+                                          })
+                                        }
+                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                      />
+                                      <div className="flex items-center justify-between text-[10px]">
+                                        <span className="text-muted-foreground">Position</span>
+                                        <span className="tabular-nums font-semibold">{config.position}%</span>
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                        value={config.position}
+                                        onChange={(event) =>
+                                          updateShapeSideGap(selectedShape.id, side, {
+                                            ...config,
+                                            position: Number(event.target.value),
+                                          })
+                                        }
+                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                      />
+                                      <div className="flex items-center justify-between text-[10px]">
+                                        <span className="text-muted-foreground">Cut depth</span>
+                                        <span className="tabular-nums font-semibold">{config.depth}%</span>
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min={5}
+                                        max={50}
+                                        step={1}
+                                        value={config.depth}
+                                        onChange={(event) =>
+                                          updateShapeSideGap(selectedShape.id, side, {
+                                            ...config,
+                                            depth: Number(event.target.value),
+                                          })
+                                        }
+                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                      />
+                                    </>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+
+                        {selectedShape &&
+                        shapeSupportsCornerRadius(selectedShape.shapeType) &&
+                        !shapeHasSideGaps(selectedShape.sideGaps) ? (
                           <div className="space-y-2 border-t border-border/30 pt-3">
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-[11px] font-medium text-foreground">Corner radius</p>
@@ -5520,7 +5974,7 @@ function PhotoStudioWorkspace({
                               step={1}
                               value={selectedShape.cornerRadius}
                               onChange={(event) =>
-                                updateShapeCornerRadius(selectedShape.id, Number(event.target.value))
+                                updateShapeCornerRadius(Number(event.target.value))
                               }
                               aria-label="Corner radius"
                               className="h-1.5 w-full cursor-pointer accent-violet-600"
@@ -5532,34 +5986,62 @@ function PhotoStudioWorkspace({
                           </div>
                         ) : null}
 
-                        <div className="space-y-2 border-t border-border/30 pt-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-medium text-foreground">Thickness</p>
-                            <span className="text-[11px] font-semibold tabular-nums text-foreground">
-                              {selectedShape.strokeWidth}
-                            </span>
+                        {selectedShape && !isLineLikeShapeType(selectedShape.shapeType) ? (
+                          <div className="space-y-2 border-t border-border/30 pt-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-medium text-foreground">Rotation</p>
+                              <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                                {Math.round(selectedShape.rotation ?? 0)}°
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={0}
+                              max={359}
+                              step={1}
+                              value={Math.round(selectedShape.rotation ?? 0)}
+                              onChange={(event) =>
+                                updateShapeRotation(Number(event.target.value))
+                              }
+                              aria-label="Shape rotation"
+                              className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              Or drag the rotate handle on the canvas.
+                            </p>
                           </div>
-                          <input
-                            type="range"
-                            min={MIN_SHAPE_STROKE_WIDTH}
-                            max={MAX_SHAPE_STROKE_WIDTH}
-                            step={1}
-                            value={selectedShape.strokeWidth}
-                            onChange={(event) =>
-                              updateShapeStrokeWidth(selectedShape.id, Number(event.target.value))
-                            }
-                            aria-label="Shape thickness"
-                            className="h-1.5 w-full cursor-pointer accent-violet-600"
-                          />
-                          <div className="flex justify-between text-[10px] text-muted-foreground">
-                            <span>Thin</span>
-                            <span>Thick</span>
+                        ) : null}
+
+                        {selectedShape ? (
+                          <div className="space-y-2 border-t border-border/30 pt-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-medium text-foreground">Thickness</p>
+                              <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                                {selectedShape.strokeWidth}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={MIN_SHAPE_STROKE_WIDTH}
+                              max={MAX_SHAPE_STROKE_WIDTH}
+                              step={1}
+                              value={selectedShape.strokeWidth}
+                              onChange={(event) =>
+                                updateShapeStrokeWidth(selectedShape.id, Number(event.target.value))
+                              }
+                              aria-label="Shape thickness"
+                              className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            />
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>Thin</span>
+                              <span>Thick</span>
+                            </div>
                           </div>
-                        </div>
+                        ) : null}
 
                         <button
                           type="button"
-                          onClick={() => deleteCanvasShape(selectedShape.id)}
+                          onClick={() => deleteCanvasShape(selectedShapeId ?? selectedShapes[0]?.id ?? "")}
                           className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/15"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -6448,26 +6930,20 @@ function PhotoStudioWorkspace({
                     <PhotoStudioShapeStage
                       shapes={canvasShapes}
                       canvasSize={canvasPixelSize}
-                      selectedId={selectedShapeId}
+                      selectedIds={selectedShapeIds}
                       selectable={canSelectShapes}
                       movable={canDragShapes}
                       resizable={canResizeShapes}
                       textEditable={canEditShapeText}
                       editingTextId={editingShapeTextId}
                       stageRef={shapeStageRef}
-                      onSelect={(id) => {
-                        setSelectedShapeId(id);
-                        setSelectedTextId(null);
-                        setEditingTextId(null);
-                        setEditingShapeTextId((current) =>
-                          current !== null && current !== id ? null : current,
-                        );
+                      onSelect={(id, additive) => {
+                        selectCanvasShape(id, additive);
                         focusSelectionToolbar();
                       }}
                       onClearSelection={() => {
                         if (canSelectShapes) {
-                          setSelectedShapeId(null);
-                          setEditingShapeTextId(null);
+                          clearShapeSelection();
                         }
                         if (canSelectTexts) {
                           setSelectedTextId(null);
@@ -6475,9 +6951,10 @@ function PhotoStudioWorkspace({
                         }
                       }}
                       onMove={moveCanvasShape}
-                      onResize={resizeCanvasShape}
+                      onTransform={transformCanvasShape}
+                      onLinePointsChange={updateLinePointsShape}
                       onStartEditText={(id) => {
-                        setSelectedShapeId(id);
+                        setSelectedShapeIds([id]);
                         setSelectedTextId(null);
                         setEditingTextId(null);
                         setEditingShapeTextId(id);
@@ -6518,7 +6995,7 @@ function PhotoStudioWorkspace({
                       canvasRef={canvasRef}
                       onSelect={() => {
                         setSelectedTextId(text.id);
-                        setSelectedShapeId(null);
+                        clearShapeSelection();
                         setEditingShapeTextId(null);
                         setEditingTextId(null);
                         focusSelectionToolbar();
