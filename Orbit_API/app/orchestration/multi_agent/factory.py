@@ -14,9 +14,15 @@ def _orchestration_settings() -> OrchestrationSettings:
     provider = app_settings.llm_provider.strip().lower()
     if provider not in ("ollama", "openai", "azure_openai"):
         provider = "ollama"
-    # Azure is not wired for AutoGen group chat yet; fall back to OpenAI key + deployment naming
+
     if provider == "azure_openai":
-        provider = "openai"
+        return OrchestrationSettings(
+            llm_provider="azure_openai",
+            azure_openai_endpoint=app_settings.azure_openai_endpoint,
+            azure_openai_api_key=app_settings.azure_openai_api_key,
+            azure_openai_api_version=app_settings.azure_openai_api_version,
+            azure_openai_chat_deployment=app_settings.azure_openai_chat_deployment,
+        )
 
     return OrchestrationSettings(
         llm_provider=provider,

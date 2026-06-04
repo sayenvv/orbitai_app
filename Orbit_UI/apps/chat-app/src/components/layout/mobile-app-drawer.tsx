@@ -86,13 +86,8 @@ export function MobileAppDrawer() {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
-          <AppSidebarContent
-            expanded
-            variant="drawer"
-            className="pb-4"
-            onNavigate={close}
-          />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <AppSidebarContent expanded variant="drawer" onNavigate={close} />
         </div>
       </aside>
     </div>,

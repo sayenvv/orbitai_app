@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LogIn } from "lucide-react";
+import {
+  Crown,
+  Folders,
+  LogIn,
+  MessageCirclePlus,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   SidebarCollapsedNav,
   SidebarRecentsList,
-  SidebarSectionNav,
   type SidebarSection,
 } from "@/components/home/app-sidebar-panels";
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
@@ -26,8 +31,51 @@ import { cn } from "@/lib/utils";
 import {
   SIDEBAR_COLLAPSED_COLUMN_CLASS,
   SIDEBAR_PADDING_X,
+  SIDEBAR_ICON_SLOT_CLASS,
+  SIDEBAR_NAV_GLYPH_CLASS,
+  sidebarNavRowClassName,
 } from "@/components/layout/sidebar-layout";
 import type { Conversation } from "@/types";
+
+function SidebarNavRow({
+  icon: Icon,
+  label,
+  active = false,
+  onClick,
+  labelClassName,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  labelClassName?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={cn(
+        sidebarNavRowClassName("w-full rounded-full text-[13px] font-medium transition-all"),
+        active
+          ? "bg-foreground/[0.07] text-foreground dark:bg-white/[0.14]"
+          : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground dark:hover:bg-white/[0.06]",
+      )}
+    >
+      <span className={SIDEBAR_ICON_SLOT_CLASS}>
+        <Icon
+          className={cn(
+            SIDEBAR_NAV_GLYPH_CLASS,
+            active ? "text-foreground" : "text-muted-foreground",
+          )}
+          strokeWidth={1.75}
+        />
+      </span>
+      <span className={cn("truncate", labelClassName)}>{label}</span>
+    </button>
+  );
+}
 
 type AppSidebarContentProps = {
   expanded: boolean;
@@ -128,10 +176,6 @@ export function AppSidebarContent({
     handleSectionChange("library");
   };
 
-  const handleApps = () => {
-    handleSectionChange("apps");
-  };
-
   const handlePlans = () => {
     handleSectionChange("plans");
   };
@@ -143,6 +187,22 @@ export function AppSidebarContent({
 
   const historyLoading = chatsLoading || !chatsHydrated;
   const isDrawer = variant === "drawer";
+
+  const navItems: Array<{
+    key: string;
+    icon: LucideIcon;
+    label: string;
+    onClick: () => void;
+    active?: boolean;
+  }> = isAuthenticated
+    ? [
+        { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
+        { key: "library", icon: Folders, label: "Library", onClick: handleLibrary, active: section === "library" },
+      ]
+    : [
+        { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
+        { key: "plans", icon: Crown, label: "Plans", onClick: handlePlans, active: section === "plans" },
+      ];
 
   return (
     <div
@@ -159,20 +219,23 @@ export function AppSidebarContent({
         )}
       >
         {expanded ? (
-          <SidebarSectionNav
-            expanded
-            section={section}
-            onSectionChange={handleSectionChange}
-            onNewChat={handleNewChat}
-            isAuthenticated={isAuthenticated}
-            labelClassName={labelClassName}
-          />
+          <nav className="flex flex-col gap-0.5">
+            {navItems.map((item) => (
+              <SidebarNavRow
+                key={item.key}
+                icon={item.icon}
+                label={item.label}
+                active={item.active}
+                onClick={item.onClick}
+                labelClassName={labelClassName}
+              />
+            ))}
+          </nav>
         ) : (
           <SidebarCollapsedNav
             section={section}
             onNewChat={handleNewChat}
             onLibrary={handleLibrary}
-            onApps={handleApps}
             onPlans={handlePlans}
             onSearch={handleSearch}
             isAuthenticated={isAuthenticated}
@@ -181,12 +244,10 @@ export function AppSidebarContent({
       </div>
 
       {expanded && isAuthenticated && (
-        <div
-          className={cn(
-            "flex min-h-0 flex-1 flex-col px-3 pt-3",
-            !isDrawer && "overflow-hidden",
-          )}
-        >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-3">
+          <p className="mb-1 shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            Recents
+          </p>
           <SidebarRecentsList
             conversations={conversations}
             loading={chatsLoading}
@@ -201,7 +262,8 @@ export function AppSidebarContent({
             onDelete={(id) => void removeConversation(id)}
             autoFocusSearch={focusSearch}
             onSearchFocused={() => setFocusSearch(false)}
-            useOuterScroll={isDrawer}
+            useOuterScroll={false}
+            flatList
           />
         </div>
       )}

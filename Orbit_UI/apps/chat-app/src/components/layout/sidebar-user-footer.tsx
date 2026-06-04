@@ -23,25 +23,17 @@ type SidebarUserFooterProps = {
 
 function ProfileAvatar({ initials, size = "md" }: { initials: string; size?: "md" | "sm" }) {
   const dim = size === "md" ? "h-9 w-9" : "h-8 w-8";
-  const text = size === "md" ? "text-[11px]" : "text-[10px]";
+  const text = size === "md" ? "text-xs" : "text-[11px]";
 
   return (
     <div
       className={cn(
-        "shrink-0 rounded-full bg-gradient-to-br from-primary via-violet-500 to-pink-500 p-[2px] shadow-[0_2px_12px_-2px_rgba(99,102,241,0.45)]",
+        "flex aspect-square shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary via-violet-500 to-pink-500 font-bold uppercase leading-none text-white shadow-[0_2px_12px_-2px_rgba(99,102,241,0.45)]",
         dim,
+        text,
       )}
     >
-      <div className="flex h-full w-full items-center justify-center rounded-full bg-sidebar">
-        <span
-          className={cn(
-            "bg-gradient-to-br from-primary to-violet-500 bg-clip-text font-bold text-transparent",
-            text,
-          )}
-        >
-          {initials}
-        </span>
-      </div>
+      {initials}
     </div>
   );
 }

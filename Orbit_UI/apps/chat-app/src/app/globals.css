@@ -185,13 +185,15 @@
   }
 }
 
-@media (min-width: 768px) {
-  @property --sidebar-width {
-    syntax: "<length>";
-    inherits: true;
-    initial-value: 280px;
-  }
+/* Registered so the grid column width can interpolate (must be top-level —
+   @property is ignored if nested inside @media). */
+@property --sidebar-width {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 280px;
+}
 
+@media (min-width: 768px) {
   .app-shell-grid {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     will-change: grid-template-columns;
@@ -353,6 +355,40 @@
   100% { transform: translate3d(-1%, 1%, 0) scale(1.01); }
 }
 
+/* Animated greeting text — subtle grey shimmer that matches the theme */
+.brand-text-gradient {
+  color: var(--foreground);
+  background-image: linear-gradient(100deg,
+    var(--foreground) 0%,
+    var(--muted-foreground) 30%,
+    var(--foreground) 52%,
+    var(--muted-foreground) 74%,
+    var(--foreground) 100%);
+  background-size: 220% 100%;
+  animation: text-pan 7s ease-in-out infinite alternate;
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .brand-text-gradient {
+    color: transparent;
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* Home + Chat — plain canvas with a small, subtle grey gradient */
+.home-warm-canvas {
+  background:
+    radial-gradient(ellipse 100% 55% at 50% -10%, oklch(0.95 0.002 264 / 0.6), transparent 62%),
+    linear-gradient(180deg, oklch(0.99 0.002 264) 0%, oklch(0.975 0.003 264) 100%);
+}
+
+.dark .home-warm-canvas {
+  background:
+    radial-gradient(ellipse 100% 55% at 50% -10%, oklch(0.26 0.004 264 / 0.5), transparent 62%),
+    linear-gradient(180deg, oklch(0.205 0.006 264) 0%, oklch(0.185 0.006 264) 100%);
+}
+
 /* Subtle dotted grid overlay */
 .grid-dots {
   background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 8%, transparent) 1px, transparent 0);
@@ -493,7 +529,7 @@
 /* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {
   .aurora::before, .aurora::after,
-  .float-slow, .text-gradient,
+  .float-slow, .text-gradient, .brand-text-gradient,
   .gradient-border::before, .dot-live::before {
     animation: none !important;
   }

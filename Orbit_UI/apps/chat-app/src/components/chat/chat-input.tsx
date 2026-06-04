@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, FormEvent, KeyboardEvent, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
-import { ArrowUp, BookOpen, FileUp, Globe, Loader2, Paperclip, Sparkles, StopCircle } from "lucide-react";
+import { ArrowUp, BookOpen, ChevronDown, FileUp, Globe, Loader2, Mic, Paperclip, Sparkles, StopCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StudySource } from "@/types";
 import { ContextSelector, type ContextPickerTab } from "./context-selector";
@@ -22,6 +22,7 @@ type ChatInputProps = {
   conversationId?: string | null;
   columnClassName?: string;
   mobileBottom?: boolean;
+  placeholder?: string;
 };
 
 export type ChatInputHandle = {
@@ -39,6 +40,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     columnClassName,
     conversationId,
     mobileBottom = false,
+    placeholder,
   },
   ref,
 ) {
@@ -148,8 +150,12 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     !pdfUploading &&
     !webImporting;
 
-  const canImportWebpage =
-    webpageInputMode && webpageUrlInput.trim().length > 0 && !webImporting;
+  const resolvedPlaceholder = selectedSource
+    ? `Ask about "${selectedSource.name}"…`
+    : placeholder ?? "Ask anything…";
+
+  const quickToolBtnClass =
+    "inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/70 transition hover:bg-black/[0.04] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/[0.06]";
 
   const handlePdfPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -191,138 +197,161 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         <form onSubmit={handleSubmit} className="w-full">
           <div
             className={cn(
-              "gradient-border w-full rounded-[28px] p-2",
+              "w-full rounded-[1.5rem] border px-4 pb-3 pt-3 transition-all",
               mobileBottom
-                ? "bg-card/80 shadow-none backdrop-blur-xl"
-                : "bg-card/95 shadow-[0_16px_48px_-16px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.45)]",
+                ? "border-black/[0.07] bg-card/90 shadow-none backdrop-blur-xl dark:border-white/[0.08]"
+                : "border-black/[0.07] bg-white/95 shadow-[0_6px_30px_-10px_rgba(15,23,42,0.12)] backdrop-blur-sm dark:border-white/[0.08] dark:bg-card/80 dark:shadow-[0_6px_30px_-10px_rgba(0,0,0,0.5)]",
             )}
           >
-            <div className="flex items-center gap-2">
-              {webpageInputMode ? (
-                <WebpageUrlComposerField
-                  value={webpageUrlInput}
-                  onChange={(value) => {
-                    setWebpageUrlInput(value);
-                    if (webpageUrlError) setWebpageUrlError("");
-                  }}
-                  onSubmit={() => void confirmWebpageImport()}
-                  onCancel={cancelWebpageMode}
-                  error={webpageUrlError}
-                  loading={webImporting}
-                  multiline
-                />
-              ) : (
-                <div className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 rounded-2xl border border-border/50 bg-background/50 pl-1.5 pr-2 transition-all focus-within:border-primary/40 focus-within:ring-4 focus-within:ring-primary/10">
-                  {pdfUploading || webImporting ? (
-                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    </span>
-                  ) : (
-                    <ComposerToolsMenu
-                      tools={[
-                        {
-                          id: "materials",
-                          label: "Study Materials",
-                          description: "Select from your saved study content",
-                          icon: BookOpen,
-                          iconGradient: "from-indigo-500 via-violet-500 to-purple-500",
-                          disabled: contextLocked,
-                          onSelect: () => setPickerTab("materials"),
-                        },
-                        {
-                          id: "webpage",
-                          label: "Webpage",
-                          description: "Import a public doc or article URL",
-                          icon: Globe,
-                          iconGradient: "from-sky-500 via-cyan-400 to-teal-400",
-                          badge: "New",
-                          active: selectedSource?.type === "webpage",
-                          disabled: contextLocked,
-                          onSelect: enterWebpageMode,
-                        },
-                        {
-                          id: "uploads",
-                          label: "Uploaded Files",
-                          description: "Pick or upload PDFs for this chat",
-                          icon: FileUp,
-                          iconGradient: "from-orange-500 via-amber-500 to-yellow-400",
-                          disabled: contextLocked,
-                          onSelect: () => setPickerTab("files"),
-                        },
-                        {
-                          id: "pdf",
-                          label: "Upload PDF",
-                          description: "Attach a document for Q&A in this chat",
-                          icon: Paperclip,
-                          iconGradient: "from-orange-500 via-amber-500 to-yellow-400",
-                          disabled: contextLocked,
-                          onSelect: () => fileInputRef.current?.click(),
-                        },
-                      ]}
-                      disabled={contextLocked}
-                      placement={mobileBottom ? "top" : "bottom"}
-                      size="md"
-                      variant="inline"
-                    />
-                  )}
-
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => {
-                  setInput(e.target.value);
-                  resetWebpageBackspace();
+            {webpageInputMode ? (
+              <WebpageUrlComposerField
+                value={webpageUrlInput}
+                onChange={(value) => {
+                  setWebpageUrlInput(value);
+                  if (webpageUrlError) setWebpageUrlError("");
                 }}
-                    onKeyDown={handleKeyDown}
-                    placeholder={
-                      selectedSource?.type === "webpage"
-                        ? `Ask about "${selectedSource.name}"…`
-                        : selectedSource
-                          ? `Ask about "${selectedSource.name}"…`
-                          : "Ask anything…"
-                    }
-                    className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-relaxed placeholder:text-muted-foreground/70 focus:outline-none"
-                    rows={1}
-                  />
-                </div>
-              )}
+                onSubmit={() => void confirmWebpageImport()}
+                onCancel={cancelWebpageMode}
+                error={webpageUrlError}
+                loading={webImporting}
+                multiline
+              />
+            ) : (
+              <>
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    resetWebpageBackspace();
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder={resolvedPlaceholder}
+                  className="max-h-[200px] min-h-[2rem] w-full resize-none bg-transparent px-1 text-[15px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50"
+                  rows={1}
+                />
 
-              <div className="shrink-0">
-                {isLoading ? (
-                  <button
-                    type="button"
-                    className="press inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
-                    title="Stop generating"
-                  >
-                    <StopCircle className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={webpageInputMode ? !canImportWebpage : !canSend}
-                    className={cn(
-                      "press inline-flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-200",
-                      webpageInputMode
-                        ? canImportWebpage
-                          ? "bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-500/25 hover:brightness-105"
-                          : "bg-muted text-muted-foreground"
-                        : canSend
-                          ? "bg-gradient-to-br from-primary via-violet-500 to-sky-500 text-white shadow-md shadow-primary/25 hover:brightness-105"
-                          : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {webImporting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-0.5">
+                    {pdfUploading || webImporting ? (
+                      <span className="inline-flex h-8 w-8 items-center justify-center">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      </span>
                     ) : (
-                      <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                      <ComposerToolsMenu
+                        tools={[
+                          {
+                            id: "materials",
+                            label: "Study Materials",
+                            description: "Select from your saved study content",
+                            icon: BookOpen,
+                            iconGradient: "from-indigo-500 via-violet-500 to-purple-500",
+                            disabled: contextLocked,
+                            onSelect: () => setPickerTab("materials"),
+                          },
+                          {
+                            id: "webpage",
+                            label: "Webpage",
+                            description: "Import a public doc or article URL",
+                            icon: Globe,
+                            iconGradient: "from-sky-500 via-cyan-400 to-teal-400",
+                            badge: "New",
+                            active: selectedSource?.type === "webpage",
+                            disabled: contextLocked,
+                            onSelect: enterWebpageMode,
+                          },
+                          {
+                            id: "uploads",
+                            label: "Uploaded Files",
+                            description: "Pick or upload PDFs for this chat",
+                            icon: FileUp,
+                            iconGradient: "from-orange-500 via-amber-500 to-yellow-400",
+                            disabled: contextLocked,
+                            onSelect: () => setPickerTab("files"),
+                          },
+                          {
+                            id: "pdf",
+                            label: "Upload PDF",
+                            description: "Attach a document for Q&A in this chat",
+                            icon: Paperclip,
+                            iconGradient: "from-orange-500 via-amber-500 to-yellow-400",
+                            disabled: contextLocked,
+                            onSelect: () => fileInputRef.current?.click(),
+                          },
+                        ]}
+                        disabled={contextLocked}
+                        placement={mobileBottom ? "top" : "bottom"}
+                        size="md"
+                        variant="inline"
+                      />
                     )}
-                  </button>
-                )}
-              </div>
-            </div>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={contextLocked || pdfUploading}
+                      className={quickToolBtnClass}
+                      title="Attach PDF"
+                    >
+                      <Paperclip className="h-[18px] w-[18px]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={enterWebpageMode}
+                      disabled={contextLocked}
+                      className={quickToolBtnClass}
+                      title="Attach webpage"
+                    >
+                      <Globe className="h-[18px] w-[18px]" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full text-muted-foreground/40"
+                      title="Voice input coming soon"
+                    >
+                      <Mic className="h-[18px] w-[18px]" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground/80 transition hover:text-foreground"
+                      title="Model"
+                    >
+                      Axiom Ultra 3.1
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                    {isLoading ? (
+                      <button
+                        type="button"
+                        className="press inline-flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
+                        title="Stop generating"
+                      >
+                        <StopCircle className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={!canSend}
+                        className={cn(
+                          "press inline-flex h-9 w-9 items-center justify-center rounded-full transition-all",
+                          canSend
+                            ? "bg-foreground text-background shadow-sm hover:opacity-90"
+                            : "bg-black/[0.06] text-muted-foreground/50 dark:bg-white/[0.08]",
+                        )}
+                        aria-label="Send"
+                      >
+                        <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
-          <p className="mt-2 hidden items-center justify-center gap-1.5 text-[11px] text-muted-foreground/80 sm:flex">
+          <p className="mt-2 hidden items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70 sm:flex">
             <Sparkles className="h-3 w-3 shrink-0 text-primary/60" />
             {webpageInputMode
               ? "Paste a public URL · Enter to import · Double Backspace or Esc to cancel"
@@ -338,7 +367,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                         : selectedSource.type === "webpage"
                           ? `Using webpage: ${selectedSource.name}`
                           : `Using context: ${selectedSource.name}`
-                      : "Tap + to attach PDFs or webpages · Clovai can make mistakes."}
+                      : "Clovai can make mistakes. Verify important information."}
           </p>
         </form>
       </div>

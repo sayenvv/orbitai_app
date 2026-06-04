@@ -36,14 +36,14 @@ function persistOpen(side: ChatSideRailSide, open: boolean) {
 }
 
 export const useChatSideRailStore = create<ChatSideRailState>((set) => ({
-  leftOpen: true,
+  leftOpen: false,
   rightOpen: true,
   hydrated: false,
   hydrate: () => {
     const leftStored = readStoredOpen("left");
     const rightStored = readStoredOpen("right");
     set({
-      leftOpen: leftStored ?? true,
+      leftOpen: leftStored ?? false,
       rightOpen: rightStored ?? true,
       hydrated: true,
     });

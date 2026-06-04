@@ -90,7 +90,6 @@ type SidebarCollapsedNavProps = {
   section: SidebarSection;
   onNewChat: () => void;
   onLibrary: () => void;
-  onApps: () => void;
   onPlans: () => void;
   onSearch: () => void;
   isAuthenticated?: boolean;
@@ -100,18 +99,15 @@ export function SidebarCollapsedNav({
   section,
   onNewChat,
   onLibrary,
-  onApps,
   onPlans,
   onSearch,
   isAuthenticated = true,
 }: SidebarCollapsedNavProps) {
   const authenticatedItems: SidebarNavItem[] = [
     { key: "library", label: "Library", icon: Folders, active: section === "library", onClick: onLibrary },
-    { key: "apps", label: "Apps", icon: LayoutGrid, active: section === "apps", onClick: onApps },
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];
   const guestItems: SidebarNavItem[] = [
-    { key: "apps", label: "Apps", icon: LayoutGrid, active: section === "apps", onClick: onApps },
     { key: "plans", label: "Plans", icon: Crown, active: section === "plans", onClick: onPlans },
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];
@@ -139,7 +135,7 @@ export function SidebarCollapsedNav({
               aria-label={label}
               className={cn(
                 collapsedNavBtnClass,
-                active && "bg-sidebar-accent font-medium text-foreground",
+                active && "bg-foreground/[0.07] text-foreground dark:bg-white/[0.14]",
               )}
             >
               <Icon className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
@@ -280,6 +276,10 @@ type SidebarRecentsListProps = {
   historyLoading?: boolean;
   /** When true, list grows naturally and parent scrolls (mobile drawer). */
   useOuterScroll?: boolean;
+  /** Hide the inline search box (search is triggered from the nav instead). */
+  searchHidden?: boolean;
+  /** Render recents as a single flat list without date-group headings. */
+  flatList?: boolean;
 };
 
 export function SidebarRecentsList({
@@ -298,6 +298,8 @@ export function SidebarRecentsList({
   onSearchFocused,
   historyLoading,
   useOuterScroll = false,
+  searchHidden = false,
+  flatList = false,
 }: SidebarRecentsListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -401,7 +403,7 @@ export function SidebarRecentsList({
 
   return (
     <div className={cn("flex flex-col", !useOuterScroll && "min-h-0 flex-1")}>
-      {!compact && (
+      {!compact && !searchHidden && (
         <div
           className={cn(
             "relative mb-2 w-full shrink-0",
@@ -449,24 +451,38 @@ export function SidebarRecentsList({
           </p>
         ) : (
           <>
-            {recentGroups.map((group) => (
-              <div key={group.label} className="mb-3">
-                <p className="mb-1 px-2 text-[11px] font-medium text-muted-foreground">
-                  {group.label}
-                </p>
-                {group.items.map((conv) => (
-                  <RecentChatItem
-                    key={conv.id}
-                    conversation={conv}
-                    isActive={activeId === conv.id}
-                    onSelect={onSelect}
-                    onDelete={onDelete}
-                    onOpenWorkspaceChat={onOpenWorkspaceChat}
-                    workspaceSourceId={workspaceSourceId}
-                  />
+            {flatList
+              ? recentGroups
+                  .flatMap((group) => group.items)
+                  .map((conv) => (
+                    <RecentChatItem
+                      key={conv.id}
+                      conversation={conv}
+                      isActive={activeId === conv.id}
+                      onSelect={onSelect}
+                      onDelete={onDelete}
+                      onOpenWorkspaceChat={onOpenWorkspaceChat}
+                      workspaceSourceId={workspaceSourceId}
+                    />
+                  ))
+              : recentGroups.map((group) => (
+                  <div key={group.label} className="mb-3">
+                    <p className="mb-1 px-2 text-[11px] font-medium text-muted-foreground">
+                      {group.label}
+                    </p>
+                    {group.items.map((conv) => (
+                      <RecentChatItem
+                        key={conv.id}
+                        conversation={conv}
+                        isActive={activeId === conv.id}
+                        onSelect={onSelect}
+                        onDelete={onDelete}
+                        onOpenWorkspaceChat={onOpenWorkspaceChat}
+                        workspaceSourceId={workspaceSourceId}
+                      />
+                    ))}
+                  </div>
                 ))}
-              </div>
-            ))}
             {trimmedSearch.length === 0 && hasMore && (
               <div ref={loadMoreRef} className="flex justify-center py-3">
                 {loadingMore && (

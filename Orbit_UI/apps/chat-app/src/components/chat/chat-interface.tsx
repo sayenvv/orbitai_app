@@ -737,6 +737,9 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           showContextSelector={isAuthenticated}
           contextLocked={isFileContextLocked}
           conversationId={activeConversationId}
+          placeholder={
+            hasUserMessages ? "Continue the conversation…" : "How can I help you today?"
+          }
           mobileBottom
         />
       </div>

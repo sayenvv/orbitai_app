@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { BRAND_ICON, BRAND_NAME } from "@orbit/ui";
+import { chatConfig } from "@/lib/config";
 import "./globals.css";
 
 const inter = Inter({
@@ -15,8 +16,47 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${BRAND_NAME} — AI Chat & Study Assistant`,
+  metadataBase: new URL(chatConfig.url),
+  title: {
+    default: `${BRAND_NAME} — AI Chat & Study Assistant`,
+    template: `%s — ${BRAND_NAME}`,
+  },
   description: `${BRAND_NAME} — AI-powered chat, document library, and learning assistants`,
+  applicationName: BRAND_NAME,
+  alternates: {
+    canonical: "/",
+  },
+  keywords: [
+    BRAND_NAME,
+    "AI chat",
+    "AI assistant",
+    "document chat",
+    "study assistant",
+    "AI apps",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: BRAND_NAME,
+    title: `${BRAND_NAME} — AI Chat & Study Assistant`,
+    description: `${BRAND_NAME} — AI-powered chat, document library, and learning assistants`,
+    url: "/",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${BRAND_NAME} — AI Chat & Study Assistant`,
+    description: `${BRAND_NAME} — AI-powered chat, document library, and learning assistants`,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: BRAND_ICON,
     apple: BRAND_ICON,

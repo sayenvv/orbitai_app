@@ -83,14 +83,15 @@ async def _stream_azure(
             yield chunk
         return
 
+    # gpt-5 / o-series reasoning deployments only accept the default temperature
+    # (1) and use max_completion_tokens instead of max_tokens.
     llm = AzureChatOpenAI(
         azure_deployment=deployment,
         azure_endpoint=settings.azure_openai_endpoint.strip(),
         api_key=settings.azure_openai_api_key.strip(),
         api_version=settings.azure_openai_api_version,
         model=chat_stack.model,
-        temperature=config.temperature,
-        max_tokens=config.max_tokens,
+        temperature=1,
         streaming=True,
     )
 
@@ -145,6 +146,19 @@ async def _stream_local_llm(
 
 
 def _resolve_plan_stack(db: Session, user_plan: str | None) -> PlanAiStack:
+    provider = settings.llm_provider.strip().lower()
+
+    # A globally-configured cloud provider (LLM_PROVIDER in .env) takes
+    # precedence so a single switch controls chat regardless of the user's plan.
+    if (
+        provider == "azure_openai"
+        and settings.azure_openai_api_key.strip()
+        and settings.azure_openai_endpoint.strip()
+    ):
+        from app.services.plan_ai_stack import default_azure_stack
+
+        return default_azure_stack()
+
     if user_plan:
         return get_plan_ai_stack(db, user_plan)
     if settings.use_local_llm:

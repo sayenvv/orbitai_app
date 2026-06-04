@@ -14,7 +14,7 @@ import { InvalidChatModal } from "@/components/chat/invalid-chat-modal";
 import { ProfilePanel } from "@/components/profile-panel";
 import { SupportModal } from "@/components/home/support-modal";
 import { AppShellProvider, useAppShell } from "@/components/layout/app-shell-context";
-import { AppTopBar } from "@/components/layout/app-top-bar";
+import { WorkspaceTopBar } from "@/components/layout/workspace-top-bar";
 import { ChatHistoryRail } from "@/components/chat/chat-history-rail";
 import { NavbarBrand } from "@/components/layout/navbar-brand";
 import { MobileAppDrawer } from "@/components/layout/mobile-app-drawer";
@@ -179,14 +179,10 @@ function AppShellLayout({ children }: { children: ReactNode }) {
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="hidden shrink-0 md:block">
-            <AppTopBar />
+            <WorkspaceTopBar />
           </div>
 
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div aria-hidden className="pointer-events-none absolute inset-0">
-              <div className="aurora" />
-            </div>
-
+          <div className="home-warm-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden">
               {showSectionPanel ? (
                 <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6 md:py-8">

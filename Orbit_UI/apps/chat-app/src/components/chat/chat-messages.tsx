@@ -12,6 +12,7 @@ import {
   Terminal,
 } from "lucide-react";
 import { useEffect, useRef, useState, memo } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { normalizeAssistantMarkdown } from "@/lib/message-markdown";
@@ -55,6 +56,7 @@ export function ChatMessages({
 }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (streamingMsgId) {
@@ -76,8 +78,11 @@ export function ChatMessages({
           const isNewTurn = !prev || prev.role !== message.role;
 
           return (
-            <div
+            <motion.div
               key={message.id}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               className={cn(isNewTurn && index > 0 && "pt-5")}
             >
               <MessageBubble
@@ -86,7 +91,7 @@ export function ChatMessages({
                 showUpgrade={message.id === upgradeMessageId && Boolean(onUpgrade)}
                 onUpgrade={onUpgrade}
               />
-            </div>
+            </motion.div>
           );
         })}
         {isLoading && !hasStreamPlaceholder(messages, streamingMsgId) ? (
