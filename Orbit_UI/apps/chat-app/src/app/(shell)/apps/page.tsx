@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Film,
   ImagePlus,
+  Layers,
   Mic2,
   Search,
   ShieldCheck,
@@ -45,6 +46,7 @@ const iconMap = {
   sparkles: Sparkles,
   briefcase: BriefcaseBusiness,
   book: BookOpenCheck,
+  layers: Layers,
 } as const;
 
 export default function AppsPage() {

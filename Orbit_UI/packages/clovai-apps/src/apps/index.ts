@@ -1,7 +1,11 @@
-export { appSlug as assetRemixSlug } from "./asset-remix";
-export { appSlug as careerCoachSlug } from "./career-coach";
-export { appSlug as creativeEditorSlug } from "./creative-editor";
-export { appSlug as logoStudioSlug } from "./logo-studio";
+/** Catalog slugs for apps without a workspace package yet. */
+export const assetRemixSlug = "asset-remix";
+export const careerCoachSlug = "career-coach";
+export const creativeEditorSlug = "creative-editor";
+export const logoStudioSlug = "logo-studio";
+export const videoSnippetsSlug = "video-snippets";
+export const voiceMakerSlug = "voice-maker";
+
 export { appSlug as photoStudioSlug, PhotoStudioApp } from "./photo-studio";
 export {
   PHOTO_STUDIO_IMAGE_ACCEPT,
@@ -40,5 +44,25 @@ export {
   parseResearchCompanionInsightTypesParam,
   serializeResearchCompanionInsightTypes,
 } from "./research-companion";
-export { appSlug as videoSnippetsSlug } from "./video-snippets";
-export { appSlug as voiceMakerSlug } from "./voice-maker";
+export {
+  appSlug as clovaiProjectsSlug,
+  ClovaiProjectsApp,
+  buildDemoArtifacts,
+  resolvePresetModules,
+  SDLC_MODULES,
+  SDLC_SELECTION_PRESETS,
+  CLOVAI_PROJECTS_PROCESSING_STEPS,
+} from "./clovai-projects";
+export type {
+  ClovaiProjectsAppProps,
+  ClovaiProjectsView,
+  RecentProjectWorkspace,
+  ProjectWorkspace,
+  SdlcArtifact,
+  SdlcModuleId,
+  SdlcSelectionPresetId,
+  ArtifactReviewStatus,
+  GenerationStatus,
+  OutputStyle,
+  ProcessingStep,
+} from "./clovai-projects";

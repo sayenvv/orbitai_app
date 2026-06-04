@@ -25,6 +25,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "react-colorful": "^5.7.0"
+    "react-colorful": "^5.7.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   }
 }

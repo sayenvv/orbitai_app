@@ -13,6 +13,7 @@ import {
   Download,
   Film,
   ImagePlus,
+  Layers,
   Mic2,
   ShieldCheck,
   Sparkles,
@@ -44,6 +45,7 @@ const iconMap = {
   sparkles: Sparkles,
   briefcase: BriefcaseBusiness,
   book: BookOpenCheck,
+  layers: Layers,
 } as const;
 
 export function AppDetailView({ app }: { app: CatalogApp }) {

@@ -12,6 +12,7 @@ import {
   Download,
   Film,
   ImagePlus,
+  Layers,
   Mic2,
   Sparkles,
   Star,
@@ -37,6 +38,7 @@ const iconMap = {
   sparkles: Sparkles,
   briefcase: BriefcaseBusiness,
   book: BookOpenCheck,
+  layers: Layers,
 } as const;
 
 function SectionLabel({ children }: { children: React.ReactNode }) {

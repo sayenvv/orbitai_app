@@ -9,11 +9,13 @@ APP_SLUG_VOICE_MAKER = "voice-maker"
 APP_SLUG_ASSET_REMIX = "asset-remix"
 APP_SLUG_CAREER_COACH = "career-coach"
 APP_SLUG_RESEARCH_COMPANION = "research-companion"
+APP_SLUG_CLOVAI_PROJECTS = "clovai-projects"
 
 LAUNCH_APP_SLUGS = frozenset(
     {
         APP_SLUG_PHOTO_STUDIO,
         APP_SLUG_RESEARCH_COMPANION,
+        APP_SLUG_CLOVAI_PROJECTS,
     }
 )
 

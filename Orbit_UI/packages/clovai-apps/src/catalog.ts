@@ -32,7 +32,8 @@ export type CatalogApp = {
     | "image"
     | "sparkles"
     | "briefcase"
-    | "book";
+    | "book"
+    | "layers";
   category: string;
   tag: string;
   tier: AppTier;
@@ -399,6 +400,46 @@ export const appsCatalog: CatalogApp[] = [
       },
     ],
   },
+  {
+    id: catalogAppIds.clovaiProjects,
+    slug: "clovai-projects",
+    version: "1.0.0",
+    name: "Clovai Projects",
+    iconKey: "layers",
+    category: "Planning",
+    tag: "SDLC",
+    tier: "pro",
+    tagline: "Turn requirements into editable SDLC workspaces with diagrams and exportable docs.",
+    heroGradient: "from-indigo-600 via-violet-600 to-blue-800",
+    featured: true,
+    shortDescription:
+      "AI project planning from requirements to architecture, APIs, testing strategy, and deployment plans.",
+    description:
+      "Clovai Projects converts uploaded requirements or project ideas into a structured SDLC workspace. Select the sections you need, review AI-generated artifacts, edit content and diagrams, collaborate with an AI assistant, and export professional documentation.",
+    monthlyUsers: "8.2k monthly users",
+    usageCount: "140k SDLC sections generated",
+    rating: 4.9,
+    installs: "22k installs",
+    modelAccess: "Pro model access",
+    badges: ["SDLC workspace", "Mermaid diagrams", "Export center"],
+    screenshots: [
+      {
+        title: "Workspace dashboard",
+        caption: "Create workspaces and track review progress across SDLC artifacts.",
+        gradientClass: "from-indigo-500/35 via-violet-500/25 to-blue-500/20",
+      },
+      {
+        title: "SDLC selection",
+        caption: "Choose full SDLC packages or custom module sets before generation.",
+        gradientClass: "from-violet-500/35 via-indigo-500/20 to-sky-500/25",
+      },
+      {
+        title: "Planning workspace",
+        caption: "Edit requirements, diagrams, and implementation plans in one layout.",
+        gradientClass: "from-blue-500/35 via-indigo-500/20 to-violet-500/25",
+      },
+    ],
+  },
 ];
 
 /** Apps kept in catalog data but hidden from store listings until implemented. */
@@ -466,11 +507,12 @@ export { getAppHelpContent, getAppHelpHref } from "./app-help-content";
 export type { AppHelpContent, AppHelpSection } from "./app-help-content";
 
 /** Apps with a live workspace route (not the marketing detail page). */
-export type LaunchAppKey = "research-companion" | "photo-studio";
+export type LaunchAppKey = "research-companion" | "photo-studio" | "clovai-projects";
 
 const launchAppIdByKey: Record<LaunchAppKey, CatalogAppId> = {
   "research-companion": catalogAppIds.researchCompanion,
   "photo-studio": catalogAppIds.photoGenerator,
+  "clovai-projects": catalogAppIds.clovaiProjects,
 };
 
 /** Canonical slug for launch routing (handles legacy aliases). */
@@ -483,6 +525,7 @@ export function normalizeCatalogAppSlug(slug: string): string {
 export function getLaunchAppKey(app: CatalogApp): LaunchAppKey | null {
   if (app.id === launchAppIdByKey["research-companion"]) return "research-companion";
   if (app.id === launchAppIdByKey["photo-studio"]) return "photo-studio";
+  if (app.id === launchAppIdByKey["clovai-projects"]) return "clovai-projects";
   return null;
 }
 

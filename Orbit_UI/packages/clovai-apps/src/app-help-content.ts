@@ -105,9 +105,49 @@ const researchCompanionHelp: AppHelpContent = {
   ],
 };
 
+const clovaiProjectsHelp: AppHelpContent = {
+  appId: catalogAppIds.clovaiProjects,
+  appName: "Clovai Projects",
+  title: "Clovai Projects help",
+  subtitle: "Workspaces, SDLC generation, artifact editing, and exports.",
+  sections: [
+    {
+      title: "Home",
+      body: "Dashboard with workspace cards, search, status filters, and recent projects.",
+    },
+    {
+      title: "New workspace",
+      body: "Enter a name, upload requirements or paste text, select SDLC modules, and generate.",
+    },
+    {
+      title: "Processing",
+      body: "Track upload, analysis, and generation steps while the workspace is prepared.",
+    },
+    {
+      title: "Workspace",
+      body: "Three-column layout: SDLC sidebar, artifact editor, and AI assistant panel.",
+    },
+    {
+      title: "Review status",
+      body: "Mark artifacts as reviewed or verified to track progress on the dashboard.",
+    },
+    {
+      title: "Export",
+      body: "Use Export in the toolbar or Export Center to download PDF, Markdown, HTML, or DOCX.",
+    },
+  ],
+  workflowSteps: [
+    "Create a workspace from requirements",
+    "Select SDLC sections to generate",
+    "Review and edit each artifact",
+    "Export documentation for stakeholders",
+  ],
+};
+
 const helpByAppId: Partial<Record<string, AppHelpContent>> = {
   [catalogAppIds.photoGenerator]: photoStudioHelp,
   [catalogAppIds.researchCompanion]: researchCompanionHelp,
+  [catalogAppIds.clovaiProjects]: clovaiProjectsHelp,
 };
 
 function buildGenericHelpContent(app: AppHelpCatalogApp): AppHelpContent {
