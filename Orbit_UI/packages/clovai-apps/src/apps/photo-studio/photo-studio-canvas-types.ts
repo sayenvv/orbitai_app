@@ -1,3 +1,6 @@
+import type { LinePoints } from "./photo-studio-line-geometry";
+import type { ShapeSideGaps } from "./photo-studio-side-gaps";
+
 export type PhotoStudioShapeType =
   | "rectangle"
   | "square"
@@ -5,10 +8,18 @@ export type PhotoStudioShapeType =
   | "ellipse"
   | "triangle"
   | "line"
+  | "curvedLine"
+  | "arc"
   | "arrow"
   | "star"
   | "hexagon"
-  | "diamond";
+  | "diamond"
+  /** Arbitrary SVG path (`pathData`), viewBox 0–100 × 0–100 */
+  | "path"
+  /** Raster image placed on the canvas */
+  | "image";
+
+export const PATH_SHAPE_VIEWBOX_SIZE = 100;
 
 export type CanvasShapeElement = {
   id: string;
@@ -17,13 +28,39 @@ export type CanvasShapeElement = {
   y: number;
   width: number;
   height: number;
+  rotation: number;
+  groupId: string | null;
   strokeWidth: number;
   strokeColor: string;
   fillColor: string;
   fillOpacity: number;
   cornerRadius: number;
+  /** SVG `d` attribute; required when `shapeType` is `"path"`. */
+  pathData?: string;
+  /** Coordinate system for `pathData` (default 100). Official OpenAI/ChatGPT icon paths use 16. */
+  pathViewBox?: number;
+  /** SVG fill-rule for compound paths (ChatGPT icon needs `evenodd`). */
+  pathFillRule?: "evenodd" | "nonzero";
+  /**
+   * Notches on rectangle/square edges so other shapes can weave through.
+   * Each side: `size` (% of edge width), `position` (% along edge), `depth` (% into shape).
+   */
+  sideGaps?: ShapeSideGaps;
+  /** Anchor points for line / curve / arc / arrow (normalized 0–1 in shape box). */
+  linePoints?: LinePoints;
   label: string;
+  /** When `shapeType` is `"image"`, URL used to render the bitmap. */
+  imageUrl?: string;
+  /** Optional library / upload file id for persistence and re-selection. */
+  assetId?: string | null;
 };
+
+export type { LinePoints } from "./photo-studio-line-geometry";
+
+export type { ShapeSideGaps, ShapeSide, SideGapConfig } from "./photo-studio-side-gaps";
+
+export const DEFAULT_SHAPE_ROTATION = 0;
+export const MAX_SHAPE_CORNER_RADIUS = 50;
 
 export type CanvasSize = {
   width: number;
@@ -71,6 +108,17 @@ export function getShapeStrokeWidthPx(strokeWidth: number, pixelWidth: number, p
   return Math.max(0.75, strokeWidth * (minDimension / 100));
 }
 
+/**
+ * Line-like strokes use canvas-relative width so a thin bbox does not collapse thickness.
+ * Tuned to match ~10px when strokeWidth=5 on an ~800px canvas (same feel as medium shapes).
+ */
+const LINE_STROKE_CANVAS_RATIO = 0.2;
+
+export function getLineLikeStrokeWidthPx(strokeWidth: number, canvas: CanvasSize): number {
+  const ref = Math.min(canvas.width, canvas.height);
+  return Math.max(1.5, strokeWidth * (ref / 100) * LINE_STROKE_CANVAS_RATIO);
+}
+
 export function getShapeCornerRadiusPx(
   cornerRadius: number,
   maxCornerRadius: number,
@@ -82,7 +130,33 @@ export function getShapeCornerRadiusPx(
   return clamped * (minDimension / 100);
 }
 
+export function shapeUsesPathData(shape: Pick<CanvasShapeElement, "shapeType" | "pathData">): boolean {
+  return shape.shapeType === "path" || Boolean(shape.pathData?.trim());
+}
+
+export function shapeSupportsCornerRadius(shapeType: PhotoStudioShapeType): boolean {
+  return (
+    shapeType !== "line" &&
+    shapeType !== "curvedLine" &&
+    shapeType !== "arc" &&
+    shapeType !== "arrow" &&
+    shapeType !== "image"
+  );
+}
+
+export function isImageShapeType(shapeType: PhotoStudioShapeType): boolean {
+  return shapeType === "image";
+}
+
 export function getMaxShapeCornerRadius(shapeType: PhotoStudioShapeType): number {
-  if (shapeType !== "rectangle" && shapeType !== "square") return 0;
-  return Math.floor(SHAPE_VIEWBOX_SIZE / 2);
+  if (!shapeSupportsCornerRadius(shapeType)) return 0;
+  if (shapeType === "rectangle" || shapeType === "square") {
+    return Math.floor(SHAPE_VIEWBOX_SIZE / 2);
+  }
+  return MAX_SHAPE_CORNER_RADIUS;
+}
+
+export function normalizeShapeRotation(rotation: number): number {
+  const normalized = ((rotation % 360) + 360) % 360;
+  return Math.round(normalized * 10) / 10;
 }

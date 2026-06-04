@@ -1,19 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import {
   Brush,
   Camera,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Circle,
+  Copy,
   Crop,
   Download,
   Eraser,
+  FileJson,
   FlipHorizontal2,
   FolderOpen,
+  Group as GroupIcon,
   ImageIcon,
   ImagePlus,
   Home,
@@ -32,6 +36,7 @@ import {
   Loader2,
   Pipette,
   RotateCw,
+  RotateCcw,
   Save,
   ShoppingBag,
   SlidersHorizontal,
@@ -41,8 +46,11 @@ import {
   Triangle,
   Type,
   Upload,
+  Ungroup,
   Wand2,
   Minus,
+  Spline,
+  CircleDot,
   ArrowUpRight,
   Hexagon,
   Diamond,
@@ -56,6 +64,13 @@ import {
 import { HexColorPicker } from "react-colorful";
 
 import { PHOTO_STUDIO_IMAGE_FORMATS_LABEL } from "./image-formats";
+import type { PhotoStudioMoreMenuItem } from "./photo-studio-nav-more-menu";
+import { PhotoStudioNavMoreMenu } from "./photo-studio-nav-more-menu";
+import { PhotoStudioWorkspaceChrome } from "./photo-studio-workspace-tab-bar";
+import {
+  PhotoStudioUploadsPanel,
+  type PhotoStudioWorkspaceUpload,
+} from "./photo-studio-uploads-panel";
 import {
   buildCreationTypeOptions,
   isAllowedAspectRatio,
@@ -64,6 +79,40 @@ import {
 } from "./photo-studio-options";
 import type Konva from "konva";
 import type { CanvasShapeElement, PhotoStudioShapeType } from "./photo-studio-canvas-types";
+import { shapePercentToBox } from "./photo-studio-canvas-types";
+import {
+  DEFAULT_SHAPE_ROTATION,
+  getMaxShapeCornerRadius,
+  normalizeShapeRotation,
+  shapeSupportsCornerRadius,
+  isImageShapeType,
+  shapeUsesPathData,
+} from "./photo-studio-canvas-types";
+import { isChatGptSolidIcon } from "./photo-studio-chatgpt-logo";
+import {
+  buildLineLikePreviewPathD,
+  getDefaultLinePoints,
+  isLineLikeShapeType,
+  lineShapeHasCurveHandle,
+  normalizeLinePoints,
+  resolveLinePoints,
+} from "./photo-studio-line-geometry";
+import {
+  PATH_CHATGPT_ICON,
+  PATH_CHATGPT_ICON_VIEWBOX,
+  PATH_LOBE_UP,
+  PATH_RING_SOFT,
+} from "./photo-studio-path-presets";
+import {
+  DEFAULT_SIDE_GAP,
+  SHAPE_SIDES,
+  buildRectangleWithSideGapsPathD,
+  normalizeShapeSideGaps,
+  shapeHasSideGaps,
+  shapeSupportsSideGaps,
+  type ShapeSide,
+  type SideGapConfig,
+} from "./photo-studio-side-gaps";
 import { snapShapeCenterPercents } from "./photo-studio-alignment-guides";
 import { PhotoStudioColorPaletteGrid } from "./photo-studio-color-palette-grid";
 import {
@@ -74,14 +123,31 @@ import {
   hexColorsMatch,
   isLightHexColor,
 } from "./photo-studio-color-palette";
-import { drawPhotoStudioShapeStageToContext, PhotoStudioShapeStage } from "./photo-studio-shape-stage";
+import {
+  drawPhotoStudioShapeStageToContext,
+  PhotoStudioShapeStage,
+  type CanvasSelectionBounds,
+  type ShapeTransformPatch,
+} from "./photo-studio-shape-stage";
+import { parseCanvasLayersJson, type ParsedCanvasLayers } from "./photo-studio-canvas-import";
 import { PhotoStudioWorkspaceShimmer } from "./photo-studio-workspace-shimmer";
+import {
+  CANVAS_SELECTION_PANEL_COMPACT_HEIGHT,
+  CANVAS_SELECTION_PANEL_COMPACT_WIDTH,
+  CANVAS_SELECTION_PANEL_MORE_HEIGHT,
+  CANVAS_SELECTION_PANEL_MORE_WIDTH,
+  CANVAS_SELECTION_PANEL_PADDING,
+  PhotoStudioCanvasSelectionPanel,
+} from "./photo-studio-canvas-selection-panel";
 
 const WORKSPACE_PREPARE_DELAY_MS = 750;
 
 export type { PhotoStudioShapeType } from "./photo-studio-canvas-types";
 
 export type PhotoStudioCreationType = "logo" | "product" | "lifestyle" | "campaign";
+
+export type { PhotoStudioWorkspaceTab } from "./photo-studio-workspace-tab-bar";
+export { PhotoStudioWorkspaceChrome } from "./photo-studio-workspace-tab-bar";
 
 export type RecentPhotoProject = {
   key: string;
@@ -124,7 +190,12 @@ export type PhotoStudioSavedDesign = {
   source: "system" | "user";
 };
 
-export type PhotoStudioView = "home" | "open" | "workspace";
+export type PhotoStudioView = "home" | "workspace";
+
+export type PhotoStudioCanvasFileActions = {
+  openCanvasJsonFile: () => void;
+  restoreExportedCanvasJson: () => void | Promise<void>;
+};
 
 export type CanvasBackgroundId =
   | "violet-sunset"
@@ -178,9 +249,21 @@ export type PhotoStudioAppProps = {
   formatRecentTime?: (openedAt: number) => string;
   onOpenLibrary?: () => void;
   onUploadAsset?: () => void;
+  workspaceUploads?: PhotoStudioWorkspaceUpload[];
+  uploadsLoading?: boolean;
+  uploadsError?: string | null;
+  onSelectWorkspaceUpload?: (upload: PhotoStudioWorkspaceUpload) => void;
+  onRefreshWorkspaceUploads?: () => void;
+  onUploadImageFile?: (file: File) => void | Promise<void>;
   onOpenEmptyWorkspace?: () => void | Promise<void>;
   onResetDraftWorkspace?: () => void | Promise<void>;
   onNewWorkspace?: () => void;
+  workspaceTabs?: import("./photo-studio-workspace-tab-bar").PhotoStudioWorkspaceTab[];
+  activeWorkspaceTabId?: string | null;
+  onSelectWorkspaceTab?: (tabId: string) => void;
+  onCloseWorkspaceTab?: (tabId: string) => void;
+  onNewWorkspaceTab?: () => void;
+  isPreparingNewWorkspaceTab?: boolean;
   workspaceSessionKey?: number | string;
   onWorkspaceSnapshotChange?: (snapshot: PhotoStudioWorkspaceSnapshot) => void;
   onLoadDesigns?: (
@@ -210,6 +293,13 @@ export type PhotoStudioAppProps = {
   onOpenHelp?: () => void;
   /** When true, header highlights Open while an existing workspace session is shown. */
   resumedFromLibrary?: boolean;
+  /** Stable id for draft canvas JSON export/import (unsaved workspace). */
+  canvasDraftId?: string;
+  /** Load last server-exported canvas JSON (`GET /canvas-export`). */
+  loadExportedCanvasJson?: (params: {
+    workspaceId: string | null;
+    draftId: string;
+  }) => Promise<unknown | null>;
 };
 
 const creationTypes: Array<{
@@ -1014,6 +1104,9 @@ function buildLayersFromGeneration(item: PhotoStudioGeneratedItem): {
           fillColor: "#ffffff",
           fillOpacity: 1,
           cornerRadius: 0,
+          rotation: 0,
+          groupId: null,
+          pathData: undefined,
           label: "",
         },
       ],
@@ -1058,6 +1151,9 @@ function buildLayersFromGeneration(item: PhotoStudioGeneratedItem): {
         fillColor: "#ffffff",
         fillOpacity: 0.12,
         cornerRadius: 14,
+        rotation: 0,
+        groupId: null,
+        pathData: undefined,
         label: "",
       },
     ],
@@ -1420,11 +1516,13 @@ function CanvasLayersList({
     <div className="space-y-1">
       {layers.map((layer) => {
         const selected =
-          (layer.kind === "shape" && selectedShapeId === layer.id) ||
+          (layer.kind === "shape" && selectedShapeIds.includes(layer.id)) ||
           (layer.kind === "text" && selectedTextId === layer.id);
         const ShapeIcon =
           layer.kind === "shape" && layer.shapeType
-            ? shapeTypes.find((shape) => shape.id === layer.shapeType)?.icon ?? Square
+            ? layer.shapeType === "image"
+              ? ImageIcon
+              : (shapeTypes.find((shape) => shape.id === layer.shapeType)?.icon ?? Square)
             : layer.kind === "text"
               ? Type
               : Square;
@@ -1459,7 +1557,9 @@ function CanvasLayersList({
   );
 }
 
-type LeftPanelTab = "assets" | "designs" | "generations";
+type LeftPanelTab = "assets" | "uploads" | "designs" | "generations";
+
+type AssetsPanelSection = "canvasFormat" | "background";
 
 const leftSidebarTabs: Array<{
   id: LeftPanelTab;
@@ -1472,8 +1572,15 @@ const leftSidebarTabs: Array<{
     id: "assets",
     label: "Assets",
     shortLabel: "Assets",
-    hint: "Project settings, canvas format, and backgrounds",
+    hint: "Canvas format and color palette",
     icon: FolderOpen,
+  },
+  {
+    id: "uploads",
+    label: "Uploads",
+    shortLabel: "Uploads",
+    hint: "Uploaded images and workspace reference",
+    icon: ImagePlus,
   },
   {
     id: "designs",
@@ -1508,17 +1615,31 @@ type AssistPanel = "prompt" | "chat";
 
 type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
-const shapeTypes: Array<{ id: PhotoStudioShapeType; label: string; icon: LucideIcon }> = [
+type ShapeToolDef = { id: PhotoStudioShapeType; label: string; icon: LucideIcon };
+
+const primitiveShapeTools: ShapeToolDef[] = [
   { id: "rectangle", label: "Rectangle", icon: Square },
   { id: "square", label: "Square", icon: Square },
   { id: "circle", label: "Circle", icon: Circle },
   { id: "ellipse", label: "Ellipse", icon: Circle },
   { id: "triangle", label: "Triangle", icon: Triangle },
-  { id: "line", label: "Line", icon: Minus },
-  { id: "arrow", label: "Arrow", icon: ArrowUpRight },
   { id: "star", label: "Star", icon: Star },
   { id: "hexagon", label: "Hexagon", icon: Hexagon },
   { id: "diamond", label: "Diamond", icon: Diamond },
+];
+
+const lineShapeTools: ShapeToolDef[] = [
+  { id: "line", label: "Straight", icon: Minus },
+  { id: "curvedLine", label: "Curved", icon: Spline },
+  { id: "arc", label: "Arc", icon: CircleDot },
+  { id: "arrow", label: "Arrow", icon: ArrowUpRight },
+];
+
+const shapeTypes: ShapeToolDef[] = [...primitiveShapeTools, ...lineShapeTools];
+
+const shapeToolGroups: Array<{ title: string; tools: ShapeToolDef[] }> = [
+  { title: "Shapes", tools: primitiveShapeTools },
+  { title: "Lines", tools: lineShapeTools },
 ];
 
 const SHAPE_DRAG_MIME = "application/x-photo-studio-shape";
@@ -2003,7 +2124,7 @@ function createCanvasText(fontStyleId: PhotoStudioFontStyleId, x: number, y: num
     y: Math.min(92, Math.max(8, y)),
     width: DEFAULT_TEXT_WIDTH,
     height: 10,
-    content: "Text",
+    content: "",
     fontStyleId,
     fontSize: DEFAULT_TEXT_FONT_SIZE,
     color: DEFAULT_TEXT_COLOR,
@@ -2023,11 +2144,11 @@ function textHitByEraser(
 }
 
 function shapeSupportsFill(shapeType: PhotoStudioShapeType): boolean {
-  return shapeType !== "line";
+  return !isLineLikeShapeType(shapeType) && !isImageShapeType(shapeType);
 }
 
-function shapeSupportsCornerRadius(shapeType: PhotoStudioShapeType): boolean {
-  return shapeType === "rectangle" || shapeType === "square";
+function shapeSupportsFillElement(shape: CanvasShapeElement): boolean {
+  return !isImageShapeType(shape.shapeType) && (shapeUsesPathData(shape) || shapeSupportsFill(shape.shapeType));
 }
 
 function getShapeViewBoxRect(
@@ -2048,9 +2169,7 @@ function getShapeViewBoxRect(
 }
 
 function getMaxCornerRadius(shapeType: PhotoStudioShapeType): number {
-  const rect = getShapeViewBoxRect(shapeType);
-  if (!rect) return 0;
-  return Math.floor(Math.min(rect.width, rect.height) / 2);
+  return getMaxShapeCornerRadius(shapeType);
 }
 
 function getDefaultShapeSize(shapeType: PhotoStudioShapeType): { width: number; height: number } {
@@ -2066,18 +2185,85 @@ function getDefaultShapeSize(shapeType: PhotoStudioShapeType): { width: number; 
     case "triangle":
       return { width: 18, height: 16 };
     case "line":
-      return { width: 30, height: 4 };
+      return { width: 22, height: 8 };
+    case "curvedLine":
+      return { width: 24, height: 14 };
+    case "arc":
+      return { width: 24, height: 14 };
     case "arrow":
-      return { width: 26, height: 10 };
+      return { width: 22, height: 10 };
     case "star":
       return { width: 18, height: 18 };
     case "hexagon":
       return { width: 18, height: 18 };
     case "diamond":
       return { width: 14, height: 20 };
+    case "image":
+      return { width: 55, height: 42 };
     default:
       return { width: 18, height: 18 };
   }
+}
+
+function createCanvasImageShape(
+  imageUrl: string,
+  assetId: string | null,
+  label: string,
+  x = 50,
+  y = 50,
+): CanvasShapeElement {
+  const size = getDefaultShapeSize("image");
+  return ensureShapeDefaults({
+    id: `image-${assetId ?? Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    shapeType: "image",
+    imageUrl,
+    assetId,
+    x: Math.min(95, Math.max(5, x)),
+    y: Math.min(95, Math.max(5, y)),
+    width: size.width,
+    height: size.height,
+    strokeWidth: 0,
+    strokeColor: "transparent",
+    fillColor: "#000000",
+    fillOpacity: 0,
+    rotation: DEFAULT_SHAPE_ROTATION,
+    groupId: null,
+    cornerRadius: 0,
+    label: label.trim() || "Image",
+  });
+}
+
+function ensureShapeDefaults(shape: CanvasShapeElement): CanvasShapeElement {
+  const usesPath = shapeUsesPathData(shape);
+  const sideGaps = shapeSupportsSideGaps(shape.shapeType)
+    ? normalizeShapeSideGaps(shape.sideGaps)
+    : undefined;
+  const linePoints = isLineLikeShapeType(shape.shapeType)
+    ? normalizeLinePoints(shape.linePoints) ?? getDefaultLinePoints(shape.shapeType)
+    : undefined;
+  return {
+    ...shape,
+    shapeType: usesPath ? "path" : shape.shapeType,
+    pathData: usesPath ? shape.pathData?.trim() || PATH_LOBE_UP : shape.pathData,
+    pathViewBox: shape.pathViewBox,
+    pathFillRule:
+      shape.pathFillRule ??
+      (usesPath &&
+      shape.pathViewBox === PATH_CHATGPT_ICON_VIEWBOX &&
+      shape.pathData?.trim().startsWith("M14.949")
+        ? "evenodd"
+        : undefined),
+    rotation: shape.rotation ?? DEFAULT_SHAPE_ROTATION,
+    groupId: shape.groupId ?? null,
+    cornerRadius:
+      shape.shapeType === "rectangle" || shape.shapeType === "square"
+        ? shape.cornerRadius ?? DEFAULT_SHAPE_CORNER_RADIUS
+        : 0,
+    sideGaps,
+    linePoints,
+    imageUrl: shape.imageUrl,
+    assetId: shape.assetId ?? null,
+  };
 }
 
 function createCanvasShape(shapeType: PhotoStudioShapeType, x: number, y: number): CanvasShapeElement {
@@ -2093,7 +2279,13 @@ function createCanvasShape(shapeType: PhotoStudioShapeType, x: number, y: number
     strokeColor: DEFAULT_SHAPE_STROKE_COLOR,
     fillColor: DEFAULT_SHAPE_FILL_COLOR,
     fillOpacity: DEFAULT_SHAPE_FILL_OPACITY,
-    cornerRadius: shapeSupportsCornerRadius(shapeType) ? DEFAULT_SHAPE_CORNER_RADIUS : 0,
+    rotation: DEFAULT_SHAPE_ROTATION,
+    groupId: null,
+    pathData: undefined,
+    cornerRadius:
+      shapeType === "rectangle" || shapeType === "square" ? DEFAULT_SHAPE_CORNER_RADIUS : 0,
+    sideGaps: undefined,
+    linePoints: isLineLikeShapeType(shapeType) ? getDefaultLinePoints(shapeType) : undefined,
     label: "",
   };
 }
@@ -2432,6 +2624,11 @@ function getUniformShapeCornerRadii(
 
 function CanvasShapePaths({
   shapeType,
+  pathData,
+  pathViewBox,
+  pathFillRule,
+  sideGaps,
+  linePoints,
   strokeWidth,
   strokeColor,
   fillColor,
@@ -2441,6 +2638,11 @@ function CanvasShapePaths({
   pixelHeight = 100,
 }: {
   shapeType: PhotoStudioShapeType;
+  pathData?: string;
+  pathViewBox?: number;
+  pathFillRule?: CanvasShapeElement["pathFillRule"];
+  sideGaps?: CanvasShapeElement["sideGaps"];
+  linePoints?: CanvasShapeElement["linePoints"];
   strokeWidth: number;
   strokeColor: string;
   fillColor: string;
@@ -2449,10 +2651,28 @@ function CanvasShapePaths({
   pixelWidth?: number;
   pixelHeight?: number;
 }) {
+  if (pathData?.trim()) {
+    const vb = pathViewBox && pathViewBox > 0 ? pathViewBox : 100;
+    return (
+      <svg viewBox={`0 0 ${vb} ${vb}`} className="h-full w-full" aria-hidden>
+        <path
+          d={pathData.trim()}
+          fill={fillColor}
+          fillRule={pathFillRule ?? "nonzero"}
+          fillOpacity={fillOpacity}
+          stroke={strokeColor}
+          strokeWidth={getUniformShapeStrokeWidth(strokeWidth, pixelWidth, pixelHeight)}
+          vectorEffect="nonScalingStroke"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
   const stroke = strokeColor;
   const fill = fillColor;
   const renderedStrokeWidth = getUniformShapeStrokeWidth(strokeWidth, pixelWidth, pixelHeight);
-  const lineStrokeWidth = renderedStrokeWidth * 1.25;
+  const lineStrokeWidth = renderedStrokeWidth;
   const uniformStroke = { vectorEffect: "nonScalingStroke" as const };
   const maxCornerRadius = getMaxCornerRadius(shapeType);
   const rx = shapeSupportsCornerRadius(shapeType)
@@ -2464,7 +2684,21 @@ function CanvasShapePaths({
 
   switch (shapeType) {
     case "rectangle":
-    case "square":
+    case "square": {
+      const gapPath = buildRectangleWithSideGapsPathD(sideGaps);
+      if (gapPath) {
+        return (
+          <path
+            d={gapPath}
+            fill={fill}
+            fillOpacity={fillOpacity}
+            stroke={stroke}
+            strokeWidth={renderedStrokeWidth}
+            strokeLinejoin="round"
+            {...uniformStroke}
+          />
+        );
+      }
       return (
         <rect
           x={SHAPE_VIEWBOX_INSET}
@@ -2480,6 +2714,7 @@ function CanvasShapePaths({
           {...uniformStroke}
         />
       );
+    }
     case "circle":
       return (
         <circle
@@ -2520,34 +2755,24 @@ function CanvasShapePaths({
         />
       );
     case "line":
+    case "curvedLine":
+    case "arc":
+    case "arrow": {
+      const previewPoints =
+        linePoints ??
+        (isLineLikeShapeType(shapeType) ? getDefaultLinePoints(shapeType) : undefined);
       return (
-        <line
-          x1={SHAPE_VIEWBOX_INSET}
-          y1={100 - SHAPE_VIEWBOX_INSET}
-          x2={100 - SHAPE_VIEWBOX_INSET}
-          y2={SHAPE_VIEWBOX_INSET}
+        <path
+          d={buildLineLikePreviewPathD(shapeType, previewPoints)}
+          fill="none"
           stroke={stroke}
           strokeWidth={lineStrokeWidth}
           strokeLinecap="round"
+          strokeLinejoin="round"
           {...uniformStroke}
         />
       );
-    case "arrow":
-      return (
-        <>
-          <line
-            x1={SHAPE_VIEWBOX_INSET}
-            y1={82}
-            x2={78}
-            y2={22}
-            stroke={stroke}
-            strokeWidth={renderedStrokeWidth}
-            strokeLinecap="round"
-            {...uniformStroke}
-          />
-          <polygon points="78,22 66,26 70,38" fill={stroke} />
-        </>
-      );
+    }
     case "star":
       return (
         <polygon
@@ -2678,7 +2903,7 @@ function CanvasShapeItem({
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const shapeRef = useRef<HTMLDivElement>(null);
   const pixelSize = useElementPixelSize(shapeRef);
-  const canHaveText = shapeSupportsFill(shape.shapeType);
+  const canHaveText = shapeSupportsFillElement(shape);
 
   useEffect(() => {
     if (isEditingText) {
@@ -2853,6 +3078,11 @@ function CanvasShapeItem({
       >
         <CanvasShapePaths
           shapeType={shape.shapeType}
+          pathData={shape.pathData}
+          pathViewBox={shape.pathViewBox}
+          pathFillRule={shape.pathFillRule}
+          sideGaps={shape.sideGaps}
+          linePoints={shape.linePoints}
           strokeWidth={shape.strokeWidth}
           strokeColor={shape.strokeColor}
           fillColor={shape.fillColor}
@@ -3034,6 +3264,7 @@ function CanvasTextItem({
   onStartEdit,
   onEndEdit,
   onUpdateContent,
+  onRemoveIfEmpty,
 }: {
   text: CanvasTextElement;
   fontStyle: PhotoStudioFontStyle;
@@ -3050,6 +3281,7 @@ function CanvasTextItem({
   onStartEdit: () => void;
   onEndEdit: () => void;
   onUpdateContent: (id: string, content: string) => void;
+  onRemoveIfEmpty?: (id: string) => void;
 }) {
   const [draftContent, setDraftContent] = useState(text.content);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
@@ -3063,12 +3295,22 @@ function CanvasTextItem({
   }, [isEditing, text.content]);
 
   const commitContent = () => {
-    onUpdateContent(text.id, draftContent.trim() || "Text");
+    const trimmed = draftContent.trim();
+    if (!trimmed) {
+      onRemoveIfEmpty?.(text.id);
+      onEndEdit();
+      return;
+    }
+    onUpdateContent(text.id, trimmed);
     onEndEdit();
   };
 
   const cancelEdit = () => {
-    setDraftContent(text.content);
+    if (!text.content.trim() && !draftContent.trim()) {
+      onRemoveIfEmpty?.(text.id);
+    } else {
+      setDraftContent(text.content);
+    }
     onEndEdit();
   };
 
@@ -3163,10 +3405,10 @@ function CanvasTextItem({
       onDoubleClick={handleDoubleClick}
       className={cn(
         "absolute touch-none",
-        movable && "cursor-grab active:cursor-grabbing",
+        movable && !isEditing && "cursor-grab active:cursor-grabbing",
         selectable && !movable && !isEditing && "cursor-pointer",
-        editable && selected && !isEditing && "cursor-text",
-        selected && "ring-2 ring-violet-500/60 ring-offset-1 rounded-sm",
+        editable && !isEditing && "cursor-text",
+        selected && !isEditing && "ring-2 ring-violet-500/60 ring-offset-1 rounded-sm",
       )}
       style={{
         left: `${text.x}%`,
@@ -3192,18 +3434,19 @@ function CanvasTextItem({
               cancelEdit();
             }
           }}
-          rows={3}
-          className="w-full resize-none rounded border border-transparent bg-transparent p-1.5 leading-tight text-foreground outline-none focus:border-violet-400/40 focus:ring-2 focus:ring-violet-400/25"
+          placeholder="Add text…"
+          rows={2}
+          className="w-full resize-none rounded border border-transparent bg-transparent p-1 text-center text-[clamp(12px,1.1em,13px)] font-semibold leading-tight text-foreground outline-none focus:border-violet-400/40 focus:ring-2 focus:ring-violet-400/25"
           style={textStyle}
         />
-      ) : (
+      ) : text.content ? (
         <p
-          className="w-full whitespace-pre-wrap break-words leading-tight"
+          className="w-full whitespace-pre-wrap break-words text-center text-[clamp(12px,1.1em,13px)] font-semibold leading-tight"
           style={textStyle}
         >
           {text.content}
         </p>
-      )}
+      ) : null}
 
       {selected && resizable ? (
         <button
@@ -3300,6 +3543,103 @@ function SidebarResizeHandle({
         dragging && "bg-primary/10",
       )}
     />
+  );
+}
+
+type SidebarSectionAccent = keyof typeof accentThemes;
+
+function SidebarCollapsibleSection({
+  id,
+  title,
+  hint,
+  icon: Icon,
+  open,
+  onToggle,
+  accent = "violet",
+  children,
+}: {
+  id: string;
+  title: string;
+  hint?: string;
+  icon?: LucideIcon;
+  open: boolean;
+  onToggle: () => void;
+  accent?: SidebarSectionAccent;
+  children: ReactNode;
+}) {
+  const theme = accentThemes[accent];
+  const panelId = `sidebar-section-${id}`;
+  const openRingClass =
+    accent === "cyan"
+      ? "ring-cyan-500/15"
+      : accent === "fuchsia"
+        ? "ring-fuchsia-500/15"
+        : accent === "amber"
+          ? "ring-amber-500/15"
+          : "ring-violet-500/15";
+
+  return (
+    <section
+      className={cn(
+        "overflow-hidden rounded-[1.15rem] border transition-all duration-200",
+        open
+          ? cn(
+              "border-border/40 bg-card/90 shadow-[0_4px_20px_rgba(15,23,42,0.04)] ring-1",
+              openRingClass,
+            )
+          : "border-border/30 bg-muted/10 hover:border-border/45 hover:bg-muted/20",
+      )}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={onToggle}
+        className={cn(
+          "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors",
+          open && cn("border-b border-border/25 bg-gradient-to-r", theme.panelHeader),
+        )}
+      >
+        {Icon ? (
+          <span
+            className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-transform duration-200",
+              open ? theme.icon : "bg-muted/50 text-muted-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" strokeWidth={open ? 2.25 : 2} />
+          </span>
+        ) : null}
+        <span className="min-w-0 flex-1">
+          <span
+            className={cn(
+              "block text-[10px] font-semibold uppercase tracking-[0.16em]",
+              open ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {title}
+          </span>
+          {hint && !open ? (
+            <span className="mt-0.5 block truncate text-[10px] leading-snug text-muted-foreground/90">
+              {hint}
+            </span>
+          ) : null}
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground/70 transition-transform duration-200",
+            open && "rotate-180 text-foreground",
+          )}
+          strokeWidth={2}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <div id={panelId} className="space-y-3 px-3 pb-3 pt-2.5">
+          {children}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -3479,7 +3819,19 @@ function LauncherOptionCard({
   );
 }
 
-function PhotoStudioHome() {
+function PhotoStudioHome({
+  recentProjects,
+  onOpenRecentProject,
+  onDeleteRecentProject,
+  formatRecentTime,
+}: {
+  recentProjects: RecentPhotoProject[];
+  onOpenRecentProject?: (project: RecentPhotoProject) => void;
+  onDeleteRecentProject?: (project: RecentPhotoProject) => Promise<void>;
+  formatRecentTime: (openedAt: number) => string;
+}) {
+  const [deletingProjectKey, setDeletingProjectKey] = useState<string | null>(null);
+
   return (
     <div className="relative min-h-0 flex-1 overflow-y-auto">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -3498,14 +3850,15 @@ function PhotoStudioHome() {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 ring-1 ring-white/20 backdrop-blur-sm">
                 <Sparkles className="h-3.5 w-3.5" />
-                Photo Studio
+                Clovai Canvas
               </div>
               <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-[2.65rem] md:leading-tight">
                 Start creating visuals
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 md:text-base">
-                Use Open to resume a saved project or pick an image from your library. Choose New
-                for a draft canvas, then save with a project name when you are ready to keep it.
+                Use <span className="font-semibold text-white">More</span> in the header to open
+                from your library, upload an image, or import canvas JSON. Pick a recent project
+                below, or start a new tab with <span className="font-semibold text-white">+</span>.
               </p>
             </div>
 
@@ -3528,69 +3881,6 @@ function PhotoStudioHome() {
             </div>
           </div>
         </section>
-      </div>
-    </div>
-  );
-}
-
-function PhotoStudioOpen({
-  recentProjects,
-  onOpenRecentProject,
-  onDeleteRecentProject,
-  formatRecentTime,
-  onOpenLibrary,
-  onUploadAsset,
-  assetUploading,
-  assetUploadProgress,
-  assetUploadError,
-}: {
-  recentProjects: RecentPhotoProject[];
-  onOpenRecentProject?: (project: RecentPhotoProject) => void;
-  onDeleteRecentProject?: (project: RecentPhotoProject) => Promise<void>;
-  formatRecentTime: (openedAt: number) => string;
-  onOpenLibrary?: () => void;
-  onUploadAsset?: () => void;
-  assetUploading?: boolean;
-  assetUploadProgress?: string | null;
-  assetUploadError?: string | null;
-}) {
-  const [deletingProjectKey, setDeletingProjectKey] = useState<string | null>(null);
-  return (
-    <div className="relative min-h-0 flex-1 overflow-y-auto">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" />
-        <div className="absolute right-0 top-32 h-80 w-80 rounded-full bg-fuchsia-400/15 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
-      </div>
-
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 md:px-8 md:py-7">
-        <LauncherPanel label="Get started" title="Choose how to begin" accent="fuchsia">
-          <div className="grid gap-3 lg:grid-cols-2">
-            <LauncherOptionCard
-              icon={FolderOpen}
-              badge="Library"
-              accent="violet"
-              title="Open from library"
-              description="Browse JPG, PNG, and JPEG images from your library."
-              onClick={onOpenLibrary}
-              disabled={!onOpenLibrary}
-            />
-            <LauncherOptionCard
-              icon={Upload}
-              badge="Local file"
-              accent="cyan"
-              title="Upload from device"
-              description={`Pick a ${PHOTO_STUDIO_IMAGE_FORMATS_LABEL} image from your device and open it in the workspace.`}
-              onClick={onUploadAsset}
-              disabled={!onUploadAsset}
-              loading={assetUploading}
-              loadingLabel={assetUploadProgress || "Uploading…"}
-            />
-          </div>
-          {assetUploadError ? (
-            <p className="mt-3 text-sm text-destructive">{assetUploadError}</p>
-          ) : null}
-        </LauncherPanel>
 
         <LauncherPanel label="Recent" title="Continue where you left off" accent="cyan">
           {recentProjects.length > 0 ? (
@@ -3666,8 +3956,8 @@ function PhotoStudioOpen({
               </span>
               <p className="mt-3 text-sm font-medium text-foreground">No recent projects yet</p>
               <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
-                Your recent Photo Studio projects will appear here once you open a workspace or attach an
-                image from your library.
+                Your recent projects will appear here. Use More in the header to open from your
+                library or upload an image.
               </p>
             </div>
           )}
@@ -3691,6 +3981,7 @@ function PhotoStudioWorkspace({
   assetName,
   assetImageUrl,
   workspaceId,
+  workspaceTabId,
   initialWorkspaceSnapshot,
   onWorkspaceSnapshotChange,
   onLoadDesigns,
@@ -3703,18 +3994,32 @@ function PhotoStudioWorkspace({
   onFetchGeneration,
   generationsLoading = false,
   initialGenerationsFromApi = [],
-  onOpenLibrary,
-  onUploadAsset,
   onGenerate,
   generating = false,
   assetUploading,
+  canvasDraftId = "draft",
+  loadExportedCanvasJson,
+  onRegisterCanvasFileActions,
+  workspaceUploads = [],
+  uploadsLoading = false,
+  uploadsError,
+  onSelectWorkspaceUpload,
+  onRefreshWorkspaceUploads,
+  onOpenLibrary,
+  onUploadImageFile,
 }: {
   assetId?: string | null;
   assetName?: string | null;
   assetImageUrl?: string | null;
   workspaceId?: string | null;
+  workspaceTabId?: string;
   initialWorkspaceSnapshot?: PhotoStudioWorkspaceSnapshot | null;
   onWorkspaceSnapshotChange?: (snapshot: PhotoStudioWorkspaceSnapshot) => void;
+  canvasDraftId?: string;
+  loadExportedCanvasJson?: (params: {
+    workspaceId: string | null;
+    draftId: string;
+  }) => Promise<unknown | null>;
   onLoadDesigns?: (
     workspaceId: string | null,
   ) => Promise<{ templates: PhotoStudioSavedDesign[]; saved: PhotoStudioSavedDesign[] }>;
@@ -3727,11 +4032,17 @@ function PhotoStudioWorkspace({
   onFetchGeneration?: (id: string) => Promise<PhotoStudioGeneratedItem>;
   generationsLoading?: boolean;
   initialGenerationsFromApi?: PhotoStudioGeneratedItem[];
-  onOpenLibrary?: () => void;
-  onUploadAsset?: () => void;
   onGenerate?: PhotoStudioAppProps["onGenerate"];
   generating?: boolean;
   assetUploading?: boolean;
+  onRegisterCanvasFileActions?: (actions: PhotoStudioCanvasFileActions | null) => void;
+  workspaceUploads?: PhotoStudioWorkspaceUpload[];
+  uploadsLoading?: boolean;
+  uploadsError?: string | null;
+  onSelectWorkspaceUpload?: (upload: PhotoStudioWorkspaceUpload) => void;
+  onRefreshWorkspaceUploads?: () => void;
+  onOpenLibrary?: () => void;
+  onUploadImageFile?: (file: File) => void | Promise<void>;
 }) {
   const studioOptions = useMemo(() => resolvePhotoStudioOptions(photoStudioOptions), [photoStudioOptions]);
   const creationTypeOptions = useMemo(
@@ -3746,8 +4057,8 @@ function PhotoStudioWorkspace({
     () => Object.fromEntries(studioOptions.creationTypes.map((type) => [type.id, type.label])),
     [studioOptions],
   );
-  const hydratedWorkspaceIdRef = useRef<string | null>(null);
-  const skipSnapshotEmitRef = useRef(Boolean(initialWorkspaceSnapshot && workspaceId));
+  const hydratedSessionKeyRef = useRef<string | null>(null);
+  const skipSnapshotEmitRef = useRef(false);
   const reloadDesignsRef = useRef<(() => Promise<void>) | null>(null);
   const [prompt, setPrompt] = useState("");
   const [creationType, setCreationType] = useState<PhotoStudioCreationType>("logo");
@@ -3761,8 +4072,18 @@ function PhotoStudioWorkspace({
   const [customCanvasGradientEnd, setCustomCanvasGradientEnd] = useState("#a855f7");
   const [customCanvasGradientEnabled, setCustomCanvasGradientEnabled] = useState(false);
   const [leftPanelTab, setLeftPanelTab] = useState<LeftPanelTab>("assets");
+  const [assetsPanelOpenSection, setAssetsPanelOpenSection] =
+    useState<AssetsPanelSection | null>("background");
   const [projectName, setProjectName] = useState(() => assetName?.trim() ?? "");
+  const [isEditingWorkspaceTitle, setIsEditingWorkspaceTitle] = useState(false);
+  const [workspaceTitleDraft, setWorkspaceTitleDraft] = useState("");
+  const workspaceTitleInputRef = useRef<HTMLInputElement>(null);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+
+  const toggleAssetsPanelSection = useCallback((key: AssetsPanelSection) => {
+    setAssetsPanelOpenSection((current) => (current === key ? null : key));
+  }, []);
+
   const [activeTool, setActiveTool] = useState<WorkspaceTool>("select");
   const [activeShapeType, setActiveShapeType] = useState<PhotoStudioShapeType>("rectangle");
   const [editToolSubPanel, setEditToolSubPanel] = useState<WorkspaceTool | null>(null);
@@ -3783,7 +4104,10 @@ function PhotoStudioWorkspace({
   const paintCanvasRef = useRef<HTMLCanvasElement>(null);
   const lastPaintPointRef = useRef<PaintPoint | null>(null);
   const isPaintingRef = useRef(false);
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
+  const [selectionPanelMoreOpen, setSelectionPanelMoreOpen] = useState(false);
+  const [selectionBounds, setSelectionBounds] = useState<CanvasSelectionBounds | null>(null);
+  const selectedShapeId = selectedShapeIds[0] ?? null;
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [editingShapeTextId, setEditingShapeTextId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -3811,10 +4135,147 @@ function PhotoStudioWorkspace({
     Array<{ id: string; role: "user" | "assistant"; content: string }>
   >([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [canvasImportNotice, setCanvasImportNotice] = useState<string | null>(null);
+  const canvasJsonInputRef = useRef<HTMLInputElement>(null);
+  const autoLoadedCanvasJsonRef = useRef(false);
+
+  const applyCanvasLayersImport = useCallback((parsed: ParsedCanvasLayers) => {
+    setCanvasShapes(structuredClone(parsed.shapes).map(ensureShapeDefaults));
+    setCanvasTexts(structuredClone(parsed.texts) as CanvasTextElement[]);
+    if (parsed.aspectRatio && isAllowedAspectRatio(parsed.aspectRatio, studioOptions)) {
+      setAspectRatio(parsed.aspectRatio as PhotoStudioAspectRatio);
+    }
+    if (
+      parsed.canvasBackgroundId &&
+      (parsed.canvasBackgroundId === "custom" ||
+        canvasBackgroundPresets.some((preset) => preset.id === parsed.canvasBackgroundId) ||
+        parsed.canvasBackgroundId in legacyCanvasSolidColors)
+    ) {
+      setCanvasBackgroundId(parsed.canvasBackgroundId as CanvasBackgroundId);
+    }
+    if (parsed.customCanvasBackgroundColor) {
+      setCustomCanvasBackgroundColor(parsed.customCanvasBackgroundColor);
+    }
+    if (parsed.customCanvasGradientEnd) {
+      setCustomCanvasGradientEnd(parsed.customCanvasGradientEnd);
+    }
+    if (parsed.customCanvasGradientEnabled !== undefined) {
+      setCustomCanvasGradientEnabled(parsed.customCanvasGradientEnabled);
+    }
+    if (parsed.projectName?.trim()) {
+      setProjectName(parsed.projectName.trim());
+    }
+    setSelectedGenerationId(null);
+    setMaterializedGenerationId(null);
+    setActiveSavedDesignId(null);
+    clearShapeSelection();
+    setSelectedTextId(null);
+    setEditingShapeTextId(null);
+    setEditingTextId(null);
+    setActiveTool("select");
+    setEditToolSubPanel(null);
+    setCanvasHasEdits(true);
+  }, [studioOptions]);
+
+  const restoreCanvasFromJson = useCallback(
+    async (source: unknown) => {
+      const parsed = parseCanvasLayersJson(source);
+      if (!parsed) {
+        setCanvasImportNotice("Could not read canvas JSON.");
+        return false;
+      }
+      applyCanvasLayersImport(parsed);
+      setCanvasImportNotice("Canvas restored from JSON.");
+      return true;
+    },
+    [applyCanvasLayersImport],
+  );
+
+  const handleRestoreExportedCanvasJson = useCallback(async () => {
+    if (!loadExportedCanvasJson) {
+      setCanvasImportNotice("Canvas export API is not configured.");
+      return;
+    }
+    const data = await loadExportedCanvasJson({
+      workspaceId: workspaceId ?? null,
+      draftId: canvasDraftId,
+    });
+    if (!data) {
+      setCanvasImportNotice("No saved canvas JSON found yet. Draw a shape first.");
+      return;
+    }
+    await restoreCanvasFromJson(data);
+  }, [canvasDraftId, loadExportedCanvasJson, restoreCanvasFromJson, workspaceId]);
+
+  const handleCanvasJsonFileChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      try {
+        const text = await file.text();
+        await restoreCanvasFromJson(text);
+      } catch {
+        setCanvasImportNotice("Failed to read the JSON file.");
+      }
+    },
+    [restoreCanvasFromJson],
+  );
 
   useEffect(() => {
-    if (!workspaceId || !initialWorkspaceSnapshot) return;
-    if (hydratedWorkspaceIdRef.current === workspaceId) return;
+    if (!loadExportedCanvasJson || autoLoadedCanvasJsonRef.current) return;
+    const hasRestoredSnapshot =
+      Boolean(initialWorkspaceSnapshot) &&
+      (initialWorkspaceSnapshot.canvasShapes.length > 0 ||
+        initialWorkspaceSnapshot.canvasTexts.length > 0);
+    if (hasRestoredSnapshot) {
+      autoLoadedCanvasJsonRef.current = true;
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadExportedCanvasJson({
+        workspaceId: workspaceId ?? null,
+        draftId: canvasDraftId,
+      }).then((data) => {
+        if (!data) return;
+        const parsed = parseCanvasLayersJson(data);
+        if (!parsed || (parsed.shapes.length === 0 && parsed.texts.length === 0)) return;
+        applyCanvasLayersImport(parsed);
+        autoLoadedCanvasJsonRef.current = true;
+        setCanvasImportNotice("Restored your last canvas export.");
+      });
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    applyCanvasLayersImport,
+    canvasDraftId,
+    initialWorkspaceSnapshot,
+    loadExportedCanvasJson,
+    workspaceId,
+  ]);
+
+  useEffect(() => {
+    if (!canvasImportNotice) return;
+    const timer = window.setTimeout(() => setCanvasImportNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [canvasImportNotice]);
+
+  useEffect(() => {
+    if (!onRegisterCanvasFileActions) return;
+    onRegisterCanvasFileActions({
+      openCanvasJsonFile: () => canvasJsonInputRef.current?.click(),
+      restoreExportedCanvasJson: handleRestoreExportedCanvasJson,
+    });
+    return () => onRegisterCanvasFileActions(null);
+  }, [handleRestoreExportedCanvasJson, onRegisterCanvasFileActions]);
+
+  useEffect(() => {
+    if (!workspaceTabId || !initialWorkspaceSnapshot) return;
+
+    const sessionKey = `${workspaceTabId}:${workspaceId ?? "draft"}`;
+    if (hydratedSessionKeyRef.current === sessionKey) return;
 
     const snapshot = initialWorkspaceSnapshot;
     skipSnapshotEmitRef.current = true;
@@ -3829,16 +4290,19 @@ function PhotoStudioWorkspace({
     setCustomCanvasGradientEnd(snapshot.customCanvasGradientEnd);
     setCustomCanvasGradientEnabled(snapshot.customCanvasGradientEnabled);
     setProjectName(snapshot.projectName);
-    setCanvasShapes(structuredClone(snapshot.canvasShapes));
+    setCanvasShapes(structuredClone(snapshot.canvasShapes).map(ensureShapeDefaults));
     setCanvasTexts(structuredClone(snapshot.canvasTexts));
     setGeneratedItems(structuredClone(snapshot.generatedItems));
     setSelectedGenerationId(snapshot.selectedGenerationId);
     setMaterializedGenerationId(snapshot.materializedGenerationId);
-    hydratedWorkspaceIdRef.current = workspaceId;
+    setCanvasHasEdits(
+      snapshot.canvasShapes.length > 0 || snapshot.canvasTexts.length > 0,
+    );
+    hydratedSessionKeyRef.current = sessionKey;
     requestAnimationFrame(() => {
       skipSnapshotEmitRef.current = false;
     });
-  }, [workspaceId, initialWorkspaceSnapshot, studioOptions]);
+  }, [workspaceTabId, workspaceId, initialWorkspaceSnapshot, studioOptions]);
 
   useEffect(() => {
     if (!initialGenerationsFromApi.length) return;
@@ -3883,6 +4347,11 @@ function PhotoStudioWorkspace({
     };
   }, [leftPanelTab, onLoadDesigns, workspaceId]);
 
+  useEffect(() => {
+    if (leftPanelTab !== "uploads") return;
+    onRefreshWorkspaceUploads?.();
+  }, [leftPanelTab, onRefreshWorkspaceUploads]);
+
   const handleCanvasZoomIn = useCallback(() => {
     setCanvasZoom((current) => clampCanvasZoom(current + CANVAS_ZOOM_STEP));
   }, []);
@@ -3897,6 +4366,26 @@ function PhotoStudioWorkspace({
 
   const workspaceTitle = projectName.trim() || "Untitled project";
   const hasAsset = Boolean(assetId);
+
+  const beginWorkspaceTitleEdit = useCallback(() => {
+    setWorkspaceTitleDraft(projectName.trim());
+    setIsEditingWorkspaceTitle(true);
+  }, [projectName]);
+
+  const commitWorkspaceTitleEdit = useCallback(() => {
+    setProjectName(workspaceTitleDraft.trim());
+    setIsEditingWorkspaceTitle(false);
+  }, [workspaceTitleDraft]);
+
+  const cancelWorkspaceTitleEdit = useCallback(() => {
+    setIsEditingWorkspaceTitle(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isEditingWorkspaceTitle) return;
+    workspaceTitleInputRef.current?.focus();
+    workspaceTitleInputRef.current?.select();
+  }, [isEditingWorkspaceTitle]);
   const isGenerating = generating || localGenerating;
 
   useEffect(() => {
@@ -3946,14 +4435,123 @@ function PhotoStudioWorkspace({
   const selectedGeneration =
     generatedItems.find((item) => item.id === selectedGenerationId) ?? null;
   const selectedShape = canvasShapes.find((shape) => shape.id === selectedShapeId) ?? null;
+  const selectedShapes = canvasShapes.filter((shape) => selectedShapeIds.includes(shape.id));
   const selectedText = canvasTexts.find((text) => text.id === selectedTextId) ?? null;
+
+  const resolveShapeSelection = useCallback(
+    (id: string) => {
+      const shape = canvasShapes.find((item) => item.id === id);
+      if (!shape?.groupId) return [id];
+      return canvasShapes.filter((item) => item.groupId === shape.groupId).map((item) => item.id);
+    },
+    [canvasShapes],
+  );
+
+  const selectCanvasShape = useCallback(
+    (id: string, additive: boolean) => {
+      const members = resolveShapeSelection(id);
+      setSelectedShapeIds((current) => {
+        if (additive) {
+          const next = new Set(current);
+          const allSelected = members.every((memberId) => next.has(memberId));
+          for (const memberId of members) {
+            if (allSelected) next.delete(memberId);
+            else next.add(memberId);
+          }
+          return Array.from(next);
+        }
+        return members;
+      });
+      setSelectedTextId(null);
+      setEditingTextId(null);
+      setEditingShapeTextId((current) => (current !== null && current !== id ? null : current));
+    },
+    [resolveShapeSelection],
+  );
+
+  const clearShapeSelection = useCallback(() => {
+    setSelectedShapeIds([]);
+    setEditingShapeTextId(null);
+    setSelectionPanelMoreOpen(false);
+    setSelectionBounds(null);
+  }, []);
+
+  const groupSelectedShapes = useCallback(() => {
+    if (selectedShapeIds.length < 2) return;
+    const groupId = `grp-${Date.now()}`;
+    const ids = new Set(selectedShapeIds);
+    setCanvasShapes((current) =>
+      current.map((shape) => (ids.has(shape.id) ? { ...shape, groupId } : shape)),
+    );
+  }, [selectedShapeIds]);
+
+  const ungroupSelectedShapes = useCallback(() => {
+    if (selectedShapeIds.length === 0) return;
+    const idsToUngroup = new Set<string>();
+    for (const id of selectedShapeIds) {
+      const shape = canvasShapes.find((item) => item.id === id);
+      if (shape?.groupId) {
+        canvasShapes
+          .filter((item) => item.groupId === shape.groupId)
+          .forEach((item) => idsToUngroup.add(item.id));
+      } else {
+        idsToUngroup.add(id);
+      }
+    }
+    setCanvasShapes((current) =>
+      current.map((shape) =>
+        idsToUngroup.has(shape.id) ? { ...shape, groupId: null } : shape,
+      ),
+    );
+  }, [canvasShapes, selectedShapeIds]);
+
+  const duplicateSelectedShapes = useCallback(() => {
+    if (selectedShapeIds.length === 0) return;
+
+    const sourceIds = new Set<string>();
+    for (const id of selectedShapeIds) {
+      for (const memberId of resolveShapeSelection(id)) {
+        sourceIds.add(memberId);
+      }
+    }
+
+    const sources = canvasShapes.filter((shape) => sourceIds.has(shape.id));
+    if (sources.length === 0) return;
+
+    const existingGroupId = sources[0].groupId;
+    const allShareGroup =
+      Boolean(existingGroupId) && sources.every((shape) => shape.groupId === existingGroupId);
+    const nextGroupId =
+      allShareGroup || sources.length > 1 ? `grp-${Date.now()}` : null;
+    const offset = 4;
+    const stamp = Date.now();
+
+    const duplicates = sources.map((shape, index) =>
+      ensureShapeDefaults({
+        ...shape,
+        id: `shape-${stamp}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+        x: Math.min(95, Math.max(5, shape.x + offset)),
+        y: Math.min(95, Math.max(5, shape.y + offset)),
+        groupId: nextGroupId,
+      }),
+    );
+
+    setCanvasShapes((current) => [...current, ...duplicates]);
+    setSelectedShapeIds(duplicates.map((shape) => shape.id));
+    setSelectedTextId(null);
+    setEditingShapeTextId(null);
+  }, [canvasShapes, resolveShapeSelection, selectedShapeIds]);
   const manualCanvasLayers = useMemo((): CanvasLayerListItem[] => {
     const shapeLayers = canvasShapes
       .filter((shape) => !isGenerationLayerId(shape.id))
       .map((shape) => ({
         id: shape.id,
         kind: "shape" as const,
-        label: shape.label || shapeTypes.find((item) => item.id === shape.shapeType)?.label || "Shape",
+        label:
+          shape.label ||
+          (shape.shapeType === "image"
+            ? "Image"
+            : shapeTypes.find((item) => item.id === shape.shapeType)?.label || "Shape"),
         color: shape.strokeColor,
         shapeType: shape.shapeType,
       }));
@@ -4022,7 +4620,7 @@ function PhotoStudioWorkspace({
           ...texts,
         ]);
         setMaterializedGenerationId(resolved.id);
-        setSelectedShapeId(shapes[0]?.id ?? null);
+        setSelectedShapeIds(shapes.length > 0 ? shapes.map((shape) => shape.id) : []);
         setSelectedTextId(null);
         setEditingShapeTextId(null);
         setEditingTextId(null);
@@ -4082,12 +4680,12 @@ function PhotoStudioWorkspace({
   const loadSavedDesign = useCallback((design: SavedCanvasDesign) => {
     setAspectRatio(design.aspectRatio);
     setCanvasBackgroundId(design.canvasBackgroundId);
-    setCanvasShapes(structuredClone(design.shapes));
+    setCanvasShapes(structuredClone(design.shapes).map(ensureShapeDefaults));
     setCanvasTexts(structuredClone(design.texts));
     setSelectedGenerationId(null);
     setMaterializedGenerationId(null);
     setActiveSavedDesignId(design.id);
-    setSelectedShapeId(null);
+    clearShapeSelection();
     setSelectedTextId(null);
     setEditingShapeTextId(null);
     setEditingTextId(null);
@@ -4107,13 +4705,13 @@ function PhotoStudioWorkspace({
 
   const selectCanvasLayer = useCallback((layer: CanvasLayerListItem) => {
     if (layer.kind === "shape") {
-      setSelectedShapeId(layer.id);
+      setSelectedShapeIds([layer.id]);
       setSelectedTextId(null);
       setEditingShapeTextId(null);
       setEditingTextId(null);
     } else {
       setSelectedTextId(layer.id);
-      setSelectedShapeId(null);
+      clearShapeSelection();
       setEditingShapeTextId(null);
       setEditingTextId(null);
     }
@@ -4231,16 +4829,60 @@ function PhotoStudioWorkspace({
     setRightToolbarExpanded(true);
   }, []);
 
-  useEffect(() => {
-    if (!selectedShapeId && !selectedTextId) return;
-    focusSelectionToolbar();
-  }, [selectedShapeId, selectedTextId, focusSelectionToolbar]);
+  const placeUploadOnCanvas = useCallback(
+    (upload: PhotoStudioWorkspaceUpload, position?: { x: number; y: number }) => {
+      const imageUrl = upload.imageUrl?.trim();
+      if (!imageUrl) return;
+
+      const existing = canvasShapes.find(
+        (shape) =>
+          shape.shapeType === "image" &&
+          (shape.assetId === upload.id || shape.imageUrl === imageUrl),
+      );
+      if (existing) {
+        setSelectedShapeIds([existing.id]);
+        setSelectedTextId(null);
+        setEditingShapeTextId(null);
+        setEditingTextId(null);
+        setActiveTool("select");
+        setEditToolSubPanel(null);
+        focusSelectionToolbar();
+        return;
+      }
+
+      const newShape = createCanvasImageShape(
+        imageUrl,
+        upload.id,
+        upload.name,
+        position?.x,
+        position?.y,
+      );
+      setCanvasShapes((current) => [...current, newShape]);
+      setSelectedShapeIds([newShape.id]);
+      setSelectedTextId(null);
+      setEditingShapeTextId(null);
+      setEditingTextId(null);
+      setActiveTool("select");
+      setEditToolSubPanel(null);
+      setCanvasHasEdits(true);
+      focusSelectionToolbar();
+    },
+    [canvasShapes, focusSelectionToolbar],
+  );
+
+  const handleSelectWorkspaceUpload = useCallback(
+    (upload: PhotoStudioWorkspaceUpload) => {
+      placeUploadOnCanvas(upload);
+      onSelectWorkspaceUpload?.(upload);
+    },
+    [onSelectWorkspaceUpload, placeUploadOnCanvas],
+  );
 
   const selectWorkspaceTool = (tool: WorkspaceTool) => {
     setActiveTool(tool);
     setActiveAssistPanel(null);
     if (tool !== "select" && tool !== "shape") {
-      setSelectedShapeId(null);
+      clearShapeSelection();
       setSelectedTextId(null);
       setEditingShapeTextId(null);
       setEditingTextId(null);
@@ -4314,7 +4956,7 @@ function PhotoStudioWorkspace({
     const { x, y } = snapShapeCenterPercents(dropX, dropY);
     const newShape = createCanvasShape(shapeType, x, y);
     setCanvasShapes((current) => [...current, newShape]);
-    setSelectedShapeId(newShape.id);
+    setSelectedShapeIds([newShape.id]);
     setSelectedTextId(null);
     setEditingShapeTextId(null);
     setEditingTextId(null);
@@ -4324,12 +4966,37 @@ function PhotoStudioWorkspace({
     setCanvasHasEdits(true);
   };
 
-  const resizeCanvasShape = (
+  const updateLinePointsShape = (
     id: string,
-    next: Pick<CanvasShapeElement, "x" | "y" | "width" | "height">,
+    patch: Partial<Pick<CanvasShapeElement, "x" | "y" | "width" | "height" | "linePoints">>,
   ) => {
     setCanvasShapes((current) =>
-      current.map((shape) => (shape.id === id ? { ...shape, ...next } : shape)),
+      current.map((shape) => {
+        if (shape.id !== id) return shape;
+        return {
+          ...shape,
+          ...patch,
+          linePoints:
+            patch.linePoints !== undefined ? patch.linePoints : shape.linePoints,
+        };
+      }),
+    );
+  };
+
+  const transformCanvasShape = (id: string, patch: ShapeTransformPatch) => {
+    setCanvasShapes((current) =>
+      current.map((shape) =>
+        shape.id === id
+          ? {
+              ...shape,
+              ...patch,
+              rotation:
+                patch.rotation !== undefined
+                  ? normalizeShapeRotation(patch.rotation)
+                  : shape.rotation ?? DEFAULT_SHAPE_ROTATION,
+            }
+          : shape,
+      ),
     );
   };
 
@@ -4340,10 +5007,33 @@ function PhotoStudioWorkspace({
     );
   };
 
-  const updateShapeCornerRadius = (id: string, cornerRadius: number) => {
+  const updateShapeSideGap = (
+    id: string,
+    side: ShapeSide,
+    gap: SideGapConfig | null,
+  ) => {
     setCanvasShapes((current) =>
       current.map((shape) => {
-        if (shape.id !== id || !shapeSupportsCornerRadius(shape.shapeType)) return shape;
+        if (shape.id !== id || !shapeSupportsSideGaps(shape.shapeType)) return shape;
+        const nextGaps = { ...(shape.sideGaps ?? {}) };
+        if (gap) {
+          nextGaps[side] = gap;
+        } else {
+          delete nextGaps[side];
+        }
+        const sideGaps = normalizeShapeSideGaps(nextGaps);
+        return { ...shape, sideGaps };
+      }),
+    );
+  };
+
+  const updateShapeCornerRadius = (cornerRadius: number) => {
+    const targetIds = new Set(
+      selectedShapeIds.length > 0 ? selectedShapeIds : selectedShapeId ? [selectedShapeId] : [],
+    );
+    setCanvasShapes((current) =>
+      current.map((shape) => {
+        if (!targetIds.has(shape.id) || !shapeSupportsCornerRadius(shape.shapeType)) return shape;
         const maxRadius = getMaxCornerRadius(shape.shapeType);
         const clamped = Math.min(maxRadius, Math.max(MIN_SHAPE_CORNER_RADIUS, cornerRadius));
         return { ...shape, cornerRadius: clamped };
@@ -4351,13 +5041,36 @@ function PhotoStudioWorkspace({
     );
   };
 
+  const updateShapeRotation = (rotation: number) => {
+    const targetIds = new Set(
+      selectedShapeIds.length > 0 ? selectedShapeIds : selectedShapeId ? [selectedShapeId] : [],
+    );
+    const normalized = normalizeShapeRotation(rotation);
+    setCanvasShapes((current) =>
+      current.map((shape) =>
+        targetIds.has(shape.id) ? { ...shape, rotation: normalized } : shape,
+      ),
+    );
+  };
+
+  const getActiveShapeColorTargetIds = (): Set<string> =>
+    new Set(
+      selectedShapeIds.length > 0
+        ? selectedShapeIds
+        : selectedShapeId
+          ? [selectedShapeId]
+          : [],
+    );
+
   const updateShapeColors = (
     id: string,
     next: Partial<Pick<CanvasShapeElement, "strokeColor" | "fillColor" | "fillOpacity">>,
   ) => {
+    const targetIds = getActiveShapeColorTargetIds();
+    const applyTo = targetIds.size > 1 && targetIds.has(id) ? targetIds : new Set([id]);
     setCanvasShapes((current) =>
       current.map((shape) => {
-        if (shape.id !== id) return shape;
+        if (!applyTo.has(shape.id)) return shape;
         const strokeColor = next.strokeColor
           ? normalizeHexColor(next.strokeColor) ?? next.strokeColor
           : shape.strokeColor;
@@ -4424,24 +5137,50 @@ function PhotoStudioWorkspace({
     );
   };
 
-  const handleCanvasTextDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (activeTool !== "text") return;
-    const container = canvasRef.current;
-    if (!container) return;
+  const placeCanvasTextAtPointer = useCallback(
+    (clientX: number, clientY: number) => {
+      const container = canvasRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      const x = ((clientX - rect.left) / rect.width) * 100;
+      const y = ((clientY - rect.top) / rect.height) * 100;
+      const newText = createCanvasText(activeFontStyleId, x, y);
+      setCanvasTexts((current) => [...current, newText]);
+      setSelectedTextId(newText.id);
+      clearShapeSelection();
+      setEditingShapeTextId(null);
+      setEditingTextId(newText.id);
+      setCanvasHasEdits(true);
+    },
+    [activeFontStyleId, clearShapeSelection],
+  );
+
+  const handleCanvasPlaceText = (event: MouseEvent<HTMLDivElement>) => {
+    if (
+      editingTextId ||
+      editingShapeTextId ||
+      activeTool === "brush" ||
+      activeTool === "eraser"
+    ) {
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-canvas-text]")) return;
+    if (!canvasRef.current?.contains(target)) return;
 
     event.preventDefault();
     event.stopPropagation();
-
-    const rect = container.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-    const newText = createCanvasText(activeFontStyleId, x, y);
-    setCanvasTexts((current) => [...current, newText]);
-    setSelectedTextId(newText.id);
-    setSelectedShapeId(null);
-    setEditingTextId(newText.id);
-    setCanvasHasEdits(true);
+    placeCanvasTextAtPointer(event.clientX, event.clientY);
   };
+
+  const removeCanvasTextIfEmpty = useCallback((id: string) => {
+    setCanvasTexts((current) => current.filter((text) => text.id !== id));
+    setSelectedTextId((current) => (current === id ? null : current));
+    setEditingTextId((current) => (current === id ? null : current));
+  }, []);
 
   const eraseShapesAtPoints = useCallback((points: PaintPoint[], radius: number) => {
     const container = canvasRef.current;
@@ -4459,7 +5198,7 @@ function PhotoStudioWorkspace({
       }
       if (removedShapeIds.size === 0) return shapes;
 
-      setSelectedShapeId((current) => (current && removedShapeIds.has(current) ? null : current));
+      setSelectedShapeIds((current) => current.filter((shapeId) => !removedShapeIds.has(shapeId)));
       setEditingShapeTextId((current) => (current && removedShapeIds.has(current) ? null : current));
       return shapes.filter((shape) => !removedShapeIds.has(shape.id));
     });
@@ -4589,11 +5328,19 @@ function PhotoStudioWorkspace({
     ctx.restore();
   };
 
-  const deleteCanvasShape = useCallback((id: string) => {
-    setCanvasShapes((current) => current.filter((shape) => shape.id !== id));
-    setSelectedShapeId((current) => (current === id ? null : current));
-    setEditingShapeTextId((current) => (current === id ? null : current));
-  }, []);
+  const deleteCanvasShape = useCallback(
+    (id: string) => {
+      const deleteIds = new Set(
+        selectedShapeIds.includes(id) && selectedShapeIds.length > 0
+          ? selectedShapeIds
+          : [id],
+      );
+      setCanvasShapes((current) => current.filter((shape) => !deleteIds.has(shape.id)));
+      setSelectedShapeIds((current) => current.filter((shapeId) => !deleteIds.has(shapeId)));
+      setEditingShapeTextId((current) => (current && deleteIds.has(current) ? null : current));
+    },
+    [selectedShapeIds],
+  );
 
   const deleteCanvasText = useCallback((id: string) => {
     setCanvasTexts((current) => current.filter((text) => text.id !== id));
@@ -4601,17 +5348,37 @@ function PhotoStudioWorkspace({
     setEditingTextId((current) => (current === id ? null : current));
   }, []);
 
-  const moveCanvasShape = (id: string, x: number, y: number) => {
+  const moveCanvasShape = (
+    id: string,
+    x: number,
+    y: number,
+    delta: { dx: number; dy: number },
+  ) => {
+    const source = canvasShapes.find((shape) => shape.id === id);
+    const moveIds = new Set<string>([id]);
+
+    if (source?.groupId) {
+      canvasShapes
+        .filter((shape) => shape.groupId === source.groupId)
+        .forEach((shape) => moveIds.add(shape.id));
+    } else if (selectedShapeIds.includes(id) && selectedShapeIds.length > 1) {
+      selectedShapeIds.forEach((shapeId) => moveIds.add(shapeId));
+    }
+
+    const clampPercent = (value: number) => Math.min(95, Math.max(5, value));
+
     setCanvasShapes((current) =>
-      current.map((shape) =>
-        shape.id === id
-          ? {
-              ...shape,
-              x: Math.min(95, Math.max(5, x)),
-              y: Math.min(95, Math.max(5, y)),
-            }
-          : shape,
-      ),
+      current.map((shape) => {
+        if (!moveIds.has(shape.id)) return shape;
+        if (shape.id === id) {
+          return { ...shape, x: clampPercent(x), y: clampPercent(y) };
+        }
+        return {
+          ...shape,
+          x: clampPercent(shape.x + delta.dx),
+          y: clampPercent(shape.y + delta.dy),
+        };
+      }),
     );
   };
 
@@ -4776,29 +5543,111 @@ function PhotoStudioWorkspace({
   };
 
   const canSelectShapes = activeTool === "select" || activeTool === "shape";
-  const canSelectTexts = activeTool === "select";
+  const canSelectTexts = activeTool === "select" || activeTool === "text";
   const canMoveShapes = activeTool === "move";
   const canMoveTexts = activeTool === "move";
   const canDragShapes = canMoveShapes || canSelectShapes;
-  const canDragTexts = canMoveTexts || canSelectTexts;
+  const canDragTexts = canMoveTexts || activeTool === "select";
   const canResizeShapes = activeTool === "select" || activeTool === "shape";
   const canResizeTexts = activeTool === "select";
   const canEditShapeText = activeTool === "select" || activeTool === "shape";
-  const canEditCanvasText = activeTool === "select";
-  const isTextToolActive = activeTool === "text";
   const isBrushToolActive = activeTool === "brush";
   const isEraserToolActive = activeTool === "eraser";
   const isDrawingToolActive = isBrushToolActive || isEraserToolActive;
-  const isCanvasElementToolActive = isDrawingToolActive || isTextToolActive;
+  const canEditCanvasText = !isDrawingToolActive;
+  const isCanvasElementToolActive = isDrawingToolActive;
+  const blockShapeInteraction = isDrawingToolActive;
   const drawingToolMode: DrawingToolMode = isBrushToolActive
     ? "brush"
     : isEraserToolActive
       ? "eraser"
       : "none";
 
+  const selectionPanelAnchor = useMemo(() => {
+    if (
+      !canSelectShapes ||
+      selectedShapes.length === 0 ||
+      editingShapeTextId ||
+      canvasPixelSize.width <= 0 ||
+      canvasPixelSize.height <= 0
+    ) {
+      return null;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    if (selectionBounds) {
+      minX = selectionBounds.minX;
+      minY = selectionBounds.minY;
+      maxX = selectionBounds.maxX;
+      maxY = selectionBounds.maxY;
+    } else {
+      for (const shape of selectedShapes) {
+        const box = shapePercentToBox(shape, canvasPixelSize);
+        minX = Math.min(minX, box.x);
+        minY = Math.min(minY, box.y);
+        maxX = Math.max(maxX, box.x + box.width);
+        maxY = Math.max(maxY, box.y + box.height);
+      }
+    }
+
+    if (!Number.isFinite(minX)) return null;
+
+    const pad = CANVAS_SELECTION_PANEL_PADDING;
+    const panelW = CANVAS_SELECTION_PANEL_COMPACT_WIDTH;
+    const panelH = CANVAS_SELECTION_PANEL_COMPACT_HEIGHT;
+    const gap = 12;
+    const canvasW = canvasPixelSize.width;
+    const canvasH = canvasPixelSize.height;
+
+    let left = maxX + gap;
+    if (left + panelW > canvasW - pad) {
+      left = minX - gap - panelW;
+    }
+    left = Math.max(pad, Math.min(left, canvasW - panelW - pad));
+
+    const selectionCenterY = (minY + maxY) / 2;
+    let top = selectionCenterY - panelH / 2;
+    if (top < pad) {
+      top = maxY + gap;
+    }
+    if (top + panelH > canvasH - pad) {
+      top = minY - gap - panelH;
+    }
+    top = Math.max(pad, Math.min(top, canvasH - panelH - pad));
+
+    return { left, top };
+  }, [canSelectShapes, canvasPixelSize, editingShapeTextId, selectedShapes, selectionBounds]);
+
+  useEffect(() => {
+    setSelectionPanelMoreOpen(false);
+  }, [selectedShapeIds]);
+
+  const canUngroupSelection = selectedShapes.some((shape) => Boolean(shape.groupId));
+  const selectionSharesOneGroup =
+    selectedShapes.length > 0 &&
+    selectedShapes.every((shape) => shape.groupId) &&
+    new Set(selectedShapes.map((shape) => shape.groupId)).size === 1;
+  const canGroupSelection = selectedShapeIds.length >= 2 && !selectionSharesOneGroup;
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (activeTool !== "select") return;
+      const shapeShortcutsActive = activeTool === "select" || activeTool === "shape";
+      if (!shapeShortcutsActive) return;
+
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === "d" &&
+        (selectedShapeIds.length > 0 || selectedShapeId)
+      ) {
+        event.preventDefault();
+        duplicateSelectedShapes();
+        return;
+      }
+
       if (event.key !== "Delete" && event.key !== "Backspace") return;
       if (editingShapeTextId || editingTextId) return;
 
@@ -4813,13 +5662,13 @@ function PhotoStudioWorkspace({
         return;
       }
 
-      if (selectedShapeId) {
+      if (selectedShapeIds.length > 0 || selectedShapeId) {
         event.preventDefault();
-        deleteCanvasShape(selectedShapeId);
+        deleteCanvasShape(selectedShapeId ?? selectedShapeIds[0] ?? "");
         return;
       }
 
-      if (selectedTextId) {
+      if (selectedTextId && activeTool === "select") {
         event.preventDefault();
         deleteCanvasText(selectedTextId);
       }
@@ -4831,9 +5680,11 @@ function PhotoStudioWorkspace({
     activeTool,
     deleteCanvasShape,
     deleteCanvasText,
+    duplicateSelectedShapes,
     editingShapeTextId,
     editingTextId,
     selectedShapeId,
+    selectedShapeIds,
     selectedTextId,
   ]);
 
@@ -5160,66 +6011,81 @@ function PhotoStudioWorkspace({
                         </p>
                       </div>
                     ) : null}
-                    <div
-                      className={cn(
-                        "grid gap-1.5",
-                        rightToolbarExpanded ? "grid-cols-3" : "grid-cols-1",
-                      )}
-                    >
-                      {shapeTypes.map((shape) => {
-                        const ShapeIcon = shape.icon;
-                        const selected = activeShapeType === shape.id;
-                        return (
-                          <WorkspaceTooltip
-                            key={shape.id}
-                            label={shape.label}
-                            enabled={!rightToolbarExpanded}
+                    <div className="space-y-3">
+                      {shapeToolGroups.map((group) => (
+                        <div key={group.title} className="space-y-1.5">
+                          {rightToolbarExpanded ? (
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                              {group.title}
+                            </p>
+                          ) : null}
+                          <div
+                            className={cn(
+                              "grid gap-1.5",
+                              rightToolbarExpanded ? "grid-cols-3" : "grid-cols-1",
+                            )}
                           >
-                            <button
-                              type="button"
-                              draggable
-                              onDragStart={(event) => handleShapeDragStart(event, shape.id)}
-                              onDragEnd={handleShapeDragEnd}
-                              onClick={() => setActiveShapeType(shape.id)}
-                              className={cn(
-                                "flex w-full rounded-lg border transition-all duration-200",
-                                rightToolbarExpanded
-                                  ? "flex-col items-center justify-center gap-1 px-1 py-2 text-center"
-                                  : "items-center justify-center p-2.5",
-                                selected
-                                  ? "border-primary/25 bg-primary/10 text-primary ring-2 ring-primary/10"
-                                  : "border-border/30 bg-background/55 text-foreground hover:bg-background",
-                                "cursor-grab active:cursor-grabbing",
-                              )}
-                              aria-label={`${shape.label} — drag to canvas`}
-                              aria-pressed={selected}
-                            >
-                              <span
-                                className={cn(
-                                  "flex shrink-0 items-center justify-center rounded-md",
-                                  rightToolbarExpanded ? "h-7 w-7" : "h-8 w-8",
-                                  selected
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-muted/60 text-muted-foreground",
-                                )}
-                              >
-                                <ShapeIcon
-                                  className={cn(
-                                    rightToolbarExpanded ? "h-3.5 w-3.5" : "h-4 w-4",
-                                    shape.id === "ellipse" && "scale-x-125",
-                                    shape.id === "line" && "rotate-[-35deg]",
-                                  )}
-                                />
-                              </span>
-                              {rightToolbarExpanded ? (
-                                <span className="block w-full truncate text-[10px] font-semibold leading-tight">
-                                  {shape.label}
-                                </span>
-                              ) : null}
-                            </button>
-                          </WorkspaceTooltip>
-                        );
-                      })}
+                            {group.tools.map((shape) => {
+                              const ShapeIcon = shape.icon;
+                              const selected = activeShapeType === shape.id;
+                              return (
+                                <WorkspaceTooltip
+                                  key={shape.id}
+                                  label={shape.label}
+                                  enabled={!rightToolbarExpanded}
+                                >
+                                  <button
+                                    type="button"
+                                    draggable
+                                    onDragStart={(event) => handleShapeDragStart(event, shape.id)}
+                                    onDragEnd={handleShapeDragEnd}
+                                    onClick={() => setActiveShapeType(shape.id)}
+                                    className={cn(
+                                      "flex w-full rounded-lg border transition-all duration-200",
+                                      rightToolbarExpanded
+                                        ? "flex-col items-center justify-center gap-1 px-1 py-2 text-center"
+                                        : "items-center justify-center p-2.5",
+                                      selected
+                                        ? "border-primary/25 bg-primary/10 text-primary ring-2 ring-primary/10"
+                                        : "border-border/30 bg-background/55 text-foreground hover:bg-background",
+                                      "cursor-grab active:cursor-grabbing",
+                                    )}
+                                    aria-label={`${shape.label} — drag to canvas`}
+                                    aria-pressed={selected}
+                                  >
+                                    <span
+                                      className={cn(
+                                        "flex shrink-0 items-center justify-center rounded-md",
+                                        rightToolbarExpanded ? "h-7 w-7" : "h-8 w-8",
+                                        selected
+                                          ? "bg-primary text-primary-foreground"
+                                          : "bg-muted/60 text-muted-foreground",
+                                      )}
+                                    >
+                                      <ShapeIcon
+                                        className={cn(
+                                          rightToolbarExpanded ? "h-3.5 w-3.5" : "h-4 w-4",
+                                          shape.id === "ellipse" && "scale-x-125",
+                                          (shape.id === "line" ||
+                                            shape.id === "curvedLine" ||
+                                            shape.id === "arc") &&
+                                            "rotate-[-35deg]",
+                                          shape.id === "arc" && "scale-90",
+                                        )}
+                                      />
+                                    </span>
+                                    {rightToolbarExpanded ? (
+                                      <span className="block w-full truncate text-[10px] font-semibold leading-tight">
+                                        {shape.label}
+                                      </span>
+                                    ) : null}
+                                  </button>
+                                </WorkspaceTooltip>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </>
                 ) : editToolSubPanel === "text" ? (
@@ -5230,7 +6096,7 @@ function PhotoStudioWorkspace({
                           Typography
                         </p>
                         <p className="text-[11px] leading-relaxed text-muted-foreground">
-                          Select a typeface, then double-click the canvas to place text.
+                          Pick a typeface, then double-click anywhere on the canvas to add text.
                         </p>
                       </div>
                     ) : null}
@@ -5315,13 +6181,70 @@ function PhotoStudioWorkspace({
                       </div>
                     ) : null}
 
-                    {rightToolbarExpanded && canSelectShapes && selectedShape ? (
+                    {rightToolbarExpanded && canSelectShapes && selectedShapes.length > 0 ? (
                       <div className="mt-3 space-y-3 rounded-xl border border-border/30 bg-background/55 p-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          Shape style
+                          {selectedShapes.length > 1
+                            ? `${selectedShapes.length} shapes selected`
+                            : "Shape style"}
                         </p>
 
-                        {shapeSupportsFill(selectedShape.shapeType) ? (
+                        {selectedShape && isLineLikeShapeType(selectedShape.shapeType) ? (
+                          <p className="rounded-lg border border-border/30 bg-muted/25 px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground">
+                            Drag the <span className="font-medium text-foreground">violet handles</span> on
+                            the canvas: move endpoints to stretch the line.
+                            {lineShapeHasCurveHandle(selectedShape.shapeType)
+                              ? " Drag the middle handle to bend the curve."
+                              : " Straight and arrow lines stay straight."}
+                          </p>
+                        ) : null}
+
+                        {selectedShape && isChatGptSolidIcon(selectedShape) ? (
+                          <p className="rounded-lg border border-border/30 bg-muted/25 px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground">
+                            Use <span className="font-medium text-foreground">Background</span> for the
+                            icon fill and <span className="font-medium text-foreground">Border color</span>{" "}
+                            + <span className="font-medium text-foreground">Thickness</span> for the outline.
+                            Canvas backdrop is under background settings above the canvas.
+                          </p>
+                        ) : null}
+
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={duplicateSelectedShapes}
+                            className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/35 bg-background/80 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted/50"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                            Duplicate
+                          </button>
+                          {selectedShapes.length > 1 ? (
+                            <button
+                              type="button"
+                              onClick={groupSelectedShapes}
+                              disabled={!canGroupSelection}
+                              className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/35 bg-background/80 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-45"
+                            >
+                              <GroupIcon className="h-3.5 w-3.5" />
+                              Group
+                            </button>
+                          ) : null}
+                          {canUngroupSelection ? (
+                            <button
+                              type="button"
+                              onClick={ungroupSelectedShapes}
+                              className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/35 bg-background/80 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted/50"
+                            >
+                              <Ungroup className="h-3.5 w-3.5" />
+                              Ungroup
+                            </button>
+                          ) : null}
+                        </div>
+                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                          Ctrl+click (⌘ on Mac) to multi-select. Use the toolbar beside the
+                          selection for duplicate, group, and delete.
+                        </p>
+
+                        {selectedShape && shapeSupportsFillElement(selectedShape) ? (
                           <div className="space-y-2">
                             <p className="text-[10px] leading-relaxed text-muted-foreground">
                               Double-click the shape to add or edit text (Select or Shape tool).
@@ -5336,15 +6259,17 @@ function PhotoStudioWorkspace({
                           </div>
                         ) : null}
 
-                        <ShapeColorInput
-                          label="Border color"
-                          value={selectedShape.strokeColor}
-                          onChange={(strokeColor) =>
-                            updateShapeColors(selectedShape.id, { strokeColor })
-                          }
-                        />
+                        {selectedShape ? (
+                          <ShapeColorInput
+                            label="Border color"
+                            value={selectedShape.strokeColor}
+                            onChange={(strokeColor) =>
+                              updateShapeColors(selectedShape.id, { strokeColor })
+                            }
+                          />
+                        ) : null}
 
-                        {shapeSupportsFill(selectedShape.shapeType) ? (
+                        {selectedShape && shapeSupportsFillElement(selectedShape) ? (
                           <>
                             <ShapeColorInput
                               label="Background"
@@ -5378,7 +6303,114 @@ function PhotoStudioWorkspace({
                           </>
                         ) : null}
 
-                        {shapeSupportsCornerRadius(selectedShape.shapeType) ? (
+                        {selectedShape && shapeSupportsSideGaps(selectedShape.shapeType) ? (
+                          <div className="space-y-3 border-t border-border/30 pt-3">
+                            <div>
+                              <p className="text-[11px] font-medium text-foreground">Edge gaps (weave)</p>
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                Cut openings on rectangle sides so other shapes can pass through. Stack
+                                layers to build interwoven logos.
+                              </p>
+                            </div>
+                            {SHAPE_SIDES.map((side) => {
+                              const gap = selectedShape.sideGaps?.[side] ?? null;
+                              const enabled = Boolean(gap);
+                              const config = gap ?? DEFAULT_SIDE_GAP;
+                              const sideLabel =
+                                side === "top"
+                                  ? "Top"
+                                  : side === "right"
+                                    ? "Right"
+                                    : side === "bottom"
+                                      ? "Bottom"
+                                      : "Left";
+                              return (
+                                <div
+                                  key={side}
+                                  className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-2"
+                                >
+                                  <label className="flex items-center justify-between gap-2 text-[11px]">
+                                    <span className="font-medium text-foreground">{sideLabel} gap</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={enabled}
+                                      onChange={(event) =>
+                                        updateShapeSideGap(
+                                          selectedShape.id,
+                                          side,
+                                          event.target.checked ? { ...DEFAULT_SIDE_GAP } : null,
+                                        )
+                                      }
+                                      className="accent-violet-600"
+                                    />
+                                  </label>
+                                  {enabled ? (
+                                    <>
+                                      <div className="flex items-center justify-between text-[10px]">
+                                        <span className="text-muted-foreground">Opening width</span>
+                                        <span className="tabular-nums font-semibold">{config.size}%</span>
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min={5}
+                                        max={80}
+                                        step={1}
+                                        value={config.size}
+                                        onChange={(event) =>
+                                          updateShapeSideGap(selectedShape.id, side, {
+                                            ...config,
+                                            size: Number(event.target.value),
+                                          })
+                                        }
+                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                      />
+                                      <div className="flex items-center justify-between text-[10px]">
+                                        <span className="text-muted-foreground">Position</span>
+                                        <span className="tabular-nums font-semibold">{config.position}%</span>
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                        value={config.position}
+                                        onChange={(event) =>
+                                          updateShapeSideGap(selectedShape.id, side, {
+                                            ...config,
+                                            position: Number(event.target.value),
+                                          })
+                                        }
+                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                      />
+                                      <div className="flex items-center justify-between text-[10px]">
+                                        <span className="text-muted-foreground">Cut depth</span>
+                                        <span className="tabular-nums font-semibold">{config.depth}%</span>
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min={5}
+                                        max={50}
+                                        step={1}
+                                        value={config.depth}
+                                        onChange={(event) =>
+                                          updateShapeSideGap(selectedShape.id, side, {
+                                            ...config,
+                                            depth: Number(event.target.value),
+                                          })
+                                        }
+                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                      />
+                                    </>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+
+                        {selectedShape &&
+                        shapeSupportsCornerRadius(selectedShape.shapeType) &&
+                        !shapeHasSideGaps(selectedShape.sideGaps) ? (
                           <div className="space-y-2 border-t border-border/30 pt-3">
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-[11px] font-medium text-foreground">Corner radius</p>
@@ -5393,7 +6425,7 @@ function PhotoStudioWorkspace({
                               step={1}
                               value={selectedShape.cornerRadius}
                               onChange={(event) =>
-                                updateShapeCornerRadius(selectedShape.id, Number(event.target.value))
+                                updateShapeCornerRadius(Number(event.target.value))
                               }
                               aria-label="Corner radius"
                               className="h-1.5 w-full cursor-pointer accent-violet-600"
@@ -5405,34 +6437,62 @@ function PhotoStudioWorkspace({
                           </div>
                         ) : null}
 
-                        <div className="space-y-2 border-t border-border/30 pt-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-[11px] font-medium text-foreground">Thickness</p>
-                            <span className="text-[11px] font-semibold tabular-nums text-foreground">
-                              {selectedShape.strokeWidth}
-                            </span>
+                        {selectedShape && !isLineLikeShapeType(selectedShape.shapeType) ? (
+                          <div className="space-y-2 border-t border-border/30 pt-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-medium text-foreground">Rotation</p>
+                              <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                                {Math.round(selectedShape.rotation ?? 0)}°
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={0}
+                              max={359}
+                              step={1}
+                              value={Math.round(selectedShape.rotation ?? 0)}
+                              onChange={(event) =>
+                                updateShapeRotation(Number(event.target.value))
+                              }
+                              aria-label="Shape rotation"
+                              className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              Or drag the rotate handle on the canvas.
+                            </p>
                           </div>
-                          <input
-                            type="range"
-                            min={MIN_SHAPE_STROKE_WIDTH}
-                            max={MAX_SHAPE_STROKE_WIDTH}
-                            step={1}
-                            value={selectedShape.strokeWidth}
-                            onChange={(event) =>
-                              updateShapeStrokeWidth(selectedShape.id, Number(event.target.value))
-                            }
-                            aria-label="Shape thickness"
-                            className="h-1.5 w-full cursor-pointer accent-violet-600"
-                          />
-                          <div className="flex justify-between text-[10px] text-muted-foreground">
-                            <span>Thin</span>
-                            <span>Thick</span>
+                        ) : null}
+
+                        {selectedShape ? (
+                          <div className="space-y-2 border-t border-border/30 pt-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-medium text-foreground">Thickness</p>
+                              <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                                {selectedShape.strokeWidth}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={MIN_SHAPE_STROKE_WIDTH}
+                              max={MAX_SHAPE_STROKE_WIDTH}
+                              step={1}
+                              value={selectedShape.strokeWidth}
+                              onChange={(event) =>
+                                updateShapeStrokeWidth(selectedShape.id, Number(event.target.value))
+                              }
+                              aria-label="Shape thickness"
+                              className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            />
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>Thin</span>
+                              <span>Thick</span>
+                            </div>
                           </div>
-                        </div>
+                        ) : null}
 
                         <button
                           type="button"
-                          onClick={() => deleteCanvasShape(selectedShape.id)}
+                          onClick={() => deleteCanvasShape(selectedShapeId ?? selectedShapes[0]?.id ?? "")}
                           className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/15"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -5720,11 +6780,13 @@ function PhotoStudioWorkspace({
                 const Icon = tab.icon;
                 const selected = leftPanelTab === tab.id;
                 const badgeCount =
-                  tab.id === "designs"
-                    ? savedDesigns.length
-                    : tab.id === "generations"
-                      ? generatedItems.length
-                      : 0;
+                  tab.id === "uploads"
+                    ? workspaceUploads.length
+                    : tab.id === "designs"
+                      ? savedDesigns.length
+                      : tab.id === "generations"
+                        ? generatedItems.length
+                        : 0;
                 return (
                   <button
                     key={tab.id}
@@ -5777,75 +6839,42 @@ function PhotoStudioWorkspace({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
               {leftPanelTab === "assets" ? (
                 <>
-                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5">
-                    <div className="shrink-0 space-y-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        Project
-                      </p>
-                      <input
-                        type="text"
-                        value={projectName}
-                        onChange={(event) => setProjectName(event.target.value)}
-                        placeholder="Name when you save"
-                        aria-label="Project name"
-                        className="h-9 w-full rounded-xl border border-border/40 bg-background/60 px-3 text-sm font-semibold tracking-tight text-foreground outline-none transition-all placeholder:font-normal placeholder:text-muted-foreground hover:border-border/55 hover:bg-background/80 focus:border-violet-400/45 focus:bg-background focus:ring-4 focus:ring-violet-500/10"
-                      />
+                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
+                    <SidebarCollapsibleSection
+                      id="canvas-format"
+                      title="Canvas format"
+                      hint={canvasDesign.title}
+                      icon={Crop}
+                      accent="cyan"
+                      open={assetsPanelOpenSection === "canvasFormat"}
+                      onToggle={() => toggleAssetsPanelSection("canvasFormat")}
+                    >
                       <p className="text-[10px] leading-relaxed text-muted-foreground">
-                        Use Save project to name and store this workspace in your recents.
+                        Select a ratio that fits your layout before you design or generate.
                       </p>
-                    </div>
-
-                    <div className="shrink-0 space-y-3 rounded-xl border border-border/30 bg-gradient-to-b from-muted/20 via-background/50 to-transparent p-3">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          Canvas format
-                        </p>
-                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                          {canvasDesign.title}. Select a ratio that fits your layout before you design or generate.
-                        </p>
-                      </div>
                       <AspectRatioPicker
                         value={aspectRatio}
                         onChange={setAspectRatio}
                         variant="premium"
                         ratioOptions={aspectRatioPickerOptions}
                       />
-                    </div>
+                    </SidebarCollapsibleSection>
 
-                    {hasAsset ? (
-                      <div className="shrink-0 pb-1">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          Reference
-                        </p>
-                        <div className="overflow-hidden rounded-lg border border-violet-200/60 bg-gradient-to-br from-violet-50/80 to-cyan-50/50 p-2 dark:border-violet-500/20">
-                          <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md bg-muted/40">
-                            {assetImageUrl ? (
-                              <img
-                                src={assetImageUrl}
-                                alt={assetName?.trim() || workspaceTitle}
-                                className="h-full w-full object-contain"
-                              />
-                            ) : (
-                              <ImageIcon className="h-6 w-6 text-violet-500" />
-                            )}
-                          </div>
-                          <p className="mt-1.5 truncate text-[10px] font-semibold text-foreground">
-                            {assetName?.trim() || workspaceTitle}
-                          </p>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="shrink-0 space-y-3 border-t border-border/30 pt-3">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          Preview background
-                        </p>
-                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                          {hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle}
-                        </p>
-                      </div>
-                      <div className="space-y-3 rounded-xl border border-border/35 bg-gradient-to-br from-muted/20 via-background to-violet-500/[0.03] p-2.5">
+                    <SidebarCollapsibleSection
+                      id="color-palette"
+                      title="Color palette"
+                      hint={
+                        hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle
+                      }
+                      icon={Palette}
+                      accent="violet"
+                      open={assetsPanelOpenSection === "background"}
+                      onToggle={() => toggleAssetsPanelSection("background")}
+                    >
+                      <p className="text-[10px] leading-relaxed text-muted-foreground">
+                        {hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle}
+                      </p>
+                      <div className="space-y-3 rounded-xl border border-border/35 bg-gradient-to-br from-muted/20 via-background to-violet-500/[0.04] p-2.5 ring-1 ring-violet-500/10">
                         <div>
                           <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                             Solid colors
@@ -5946,29 +6975,32 @@ function PhotoStudioWorkspace({
                           )}
                         </div>
                       ) : null}
-                    </div>
+                    </SidebarCollapsibleSection>
                   </div>
 
-                  <div className="mt-3 shrink-0 space-y-2 border-t border-border/30 pt-3">
-                    {onOpenLibrary ? (
-                      <button
-                        type="button"
-                        onClick={onOpenLibrary}
-                        className="h-9 w-full rounded-lg border border-border/30 bg-background/80 text-xs font-semibold transition-colors hover:bg-muted/50"
-                      >
-                        Open from library
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={onUploadAsset}
-                      disabled={!onUploadAsset || assetUploading}
-                      className="h-9 w-full rounded-lg border border-primary/20 bg-primary/10 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {assetUploading ? "Uploading…" : hasAsset ? "Replace image" : "Upload image"}
-                    </button>
-                  </div>
+                  {canvasImportNotice ? (
+                    <p className="mt-3 shrink-0 border-t border-border/30 pt-3 text-[11px] leading-snug text-muted-foreground">
+                      {canvasImportNotice}
+                    </p>
+                  ) : null}
+                  <input
+                    ref={canvasJsonInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    className="hidden"
+                    onChange={handleCanvasJsonFileChange}
+                  />
                 </>
+              ) : leftPanelTab === "uploads" ? (
+                <PhotoStudioUploadsPanel
+                  uploads={workspaceUploads}
+                  loading={uploadsLoading}
+                  error={uploadsError}
+                  uploading={assetUploading}
+                  onOpenLibrary={onOpenLibrary}
+                  onUploadFile={onUploadImageFile}
+                  onSelectUpload={handleSelectWorkspaceUpload}
+                />
               ) : leftPanelTab === "designs" ? (
                 <>
                   <div className="relative mb-3 shrink-0">
@@ -6088,26 +7120,59 @@ function PhotoStudioWorkspace({
         ) : null}
 
         <div className="shrink-0 border-b border-border/30 bg-white/95 px-4 py-2 backdrop-blur-xl dark:bg-background md:px-5">
-          <div className="flex items-center gap-3">
+          <div className="flex items-end gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm">
               <Layers className="h-4 w-4" />
             </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold tracking-tight text-foreground">{workspaceTitle}</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                {canvasAspectRatio} ·{" "}
-                {isGenerationMaterialized
-                  ? "Editable layers"
-                  : hasCanvasEdits
-                    ? canvasDesign.navbarEditingStatus
-                    : showAiGeneratedLogo
-                      ? "Transparent logo"
-                      : selectedGeneration
-                        ? selectedGeneration.label
-                        : canvasDesign.navbarStatus}
-              </p>
+            <div className="flex min-h-[2.625rem] min-w-0 flex-1 flex-col items-start justify-end gap-0.5">
+              {!isEditingWorkspaceTitle ? (
+                <p className="truncate text-[11px] text-muted-foreground">
+                  <span className="font-semibold tabular-nums text-foreground">{canvasAspectRatio}</span>
+                  <span aria-hidden> · </span>
+                  {isGenerationMaterialized
+                    ? "Editable layers"
+                    : hasCanvasEdits
+                      ? canvasDesign.navbarEditingStatus
+                      : showAiGeneratedLogo
+                        ? "Transparent logo"
+                        : selectedGeneration
+                          ? selectedGeneration.label
+                          : canvasDesign.navbarStatus}
+                </p>
+              ) : null}
+              {isEditingWorkspaceTitle ? (
+                <input
+                  ref={workspaceTitleInputRef}
+                  type="text"
+                  value={workspaceTitleDraft}
+                  onChange={(event) => setWorkspaceTitleDraft(event.target.value)}
+                  onBlur={commitWorkspaceTitleEdit}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      commitWorkspaceTitleEdit();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelWorkspaceTitleEdit();
+                    }
+                  }}
+                  placeholder="Untitled project"
+                  aria-label="Project name"
+                  size={Math.max(12, workspaceTitleDraft.length + 1)}
+                  className="block w-auto min-w-[10ch] max-w-full border-0 border-b border-violet-400/50 bg-transparent p-0 pb-px text-sm font-semibold tracking-tight text-foreground shadow-none outline-none ring-0 [field-sizing:content] placeholder:font-semibold placeholder:text-muted-foreground/60 focus:border-violet-500 focus:ring-0"
+                />
+              ) : (
+                <p
+                  className="max-w-full cursor-text truncate text-sm font-semibold tracking-tight text-foreground"
+                  title="Double-click to rename"
+                  onDoubleClick={beginWorkspaceTitleEdit}
+                >
+                  {workspaceTitle}
+                </p>
+              )}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2 self-center">
               {onSaveWorkspace ? (
                 <button
                   type="button"
@@ -6233,9 +7298,11 @@ function PhotoStudioWorkspace({
                   <div className="overflow-hidden rounded-[3px] shadow-[0_0_0_1px_rgba(15,23,42,0.1),0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_-4px_rgba(15,23,42,0.12),0_20px_48px_-12px_rgba(15,23,42,0.14)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_12px_40px_rgba(0,0,0,0.55)]">
                     <div
                       ref={canvasRef}
+                      data-canvas-surface=""
                       onDragOver={handleCanvasDragOver}
                       onDragLeave={handleCanvasDragLeave}
                       onDrop={handleCanvasDrop}
+                      onDoubleClick={handleCanvasPlaceText}
                       className={cn(
                         "relative w-full overflow-hidden bg-white dark:bg-[#1c1c1e] [container-type:inline-size]",
                         canvasAspectRatio === "1:1" && "aspect-square",
@@ -6289,32 +7356,26 @@ function PhotoStudioWorkspace({
                   <div
                     className={cn(
                       "absolute inset-0 z-20",
-                      isCanvasElementToolActive && "pointer-events-none",
+                      blockShapeInteraction && "pointer-events-none",
                     )}
                   >
                     <PhotoStudioShapeStage
                       shapes={canvasShapes}
                       canvasSize={canvasPixelSize}
-                      selectedId={selectedShapeId}
+                      selectedIds={selectedShapeIds}
                       selectable={canSelectShapes}
                       movable={canDragShapes}
                       resizable={canResizeShapes}
                       textEditable={canEditShapeText}
                       editingTextId={editingShapeTextId}
                       stageRef={shapeStageRef}
-                      onSelect={(id) => {
-                        setSelectedShapeId(id);
-                        setSelectedTextId(null);
-                        setEditingTextId(null);
-                        setEditingShapeTextId((current) =>
-                          current !== null && current !== id ? null : current,
-                        );
+                      onSelect={(id, additive) => {
+                        selectCanvasShape(id, additive);
                         focusSelectionToolbar();
                       }}
                       onClearSelection={() => {
                         if (canSelectShapes) {
-                          setSelectedShapeId(null);
-                          setEditingShapeTextId(null);
+                          clearShapeSelection();
                         }
                         if (canSelectTexts) {
                           setSelectedTextId(null);
@@ -6322,9 +7383,10 @@ function PhotoStudioWorkspace({
                         }
                       }}
                       onMove={moveCanvasShape}
-                      onResize={resizeCanvasShape}
+                      onTransform={transformCanvasShape}
+                      onLinePointsChange={updateLinePointsShape}
                       onStartEditText={(id) => {
-                        setSelectedShapeId(id);
+                        setSelectedShapeIds([id]);
                         setSelectedTextId(null);
                         setEditingTextId(null);
                         setEditingShapeTextId(id);
@@ -6335,6 +7397,30 @@ function PhotoStudioWorkspace({
                         setEditingShapeTextId(null);
                       }}
                       onCancelEditText={() => setEditingShapeTextId(null)}
+                      onSelectionBoundsChange={setSelectionBounds}
+                    />
+                  </div>
+                ) : null}
+
+                {canSelectShapes &&
+                selectedShapes.length > 0 &&
+                !editingShapeTextId &&
+                selectionPanelAnchor ? (
+                  <div className="pointer-events-none absolute inset-0 z-[35] overflow-hidden">
+                    <PhotoStudioCanvasSelectionPanel
+                      anchor={selectionPanelAnchor}
+                      canvasHostRef={canvasRef}
+                      selectionCount={selectedShapes.length}
+                      canGroup={canGroupSelection}
+                      canUngroup={canUngroupSelection}
+                      moreOpen={selectionPanelMoreOpen}
+                      onMoreOpenChange={setSelectionPanelMoreOpen}
+                      onDuplicate={duplicateSelectedShapes}
+                      onGroup={groupSelectedShapes}
+                      onUngroup={ungroupSelectedShapes}
+                      onDelete={() =>
+                        deleteCanvasShape(selectedShapeId ?? selectedShapeIds[0] ?? "")
+                      }
                     />
                   </div>
                 ) : null}
@@ -6345,7 +7431,11 @@ function PhotoStudioWorkspace({
                     isCanvasElementToolActive && "pointer-events-none",
                   )}
                   onPointerDown={(event) => {
-                    if (canSelectTexts && event.target === event.currentTarget) {
+                    if (
+                      activeTool === "select" &&
+                      canSelectTexts &&
+                      event.target === event.currentTarget
+                    ) {
                       setSelectedTextId(null);
                       setEditingTextId(null);
                     }
@@ -6365,7 +7455,7 @@ function PhotoStudioWorkspace({
                       canvasRef={canvasRef}
                       onSelect={() => {
                         setSelectedTextId(text.id);
-                        setSelectedShapeId(null);
+                        clearShapeSelection();
                         setEditingShapeTextId(null);
                         setEditingTextId(null);
                         focusSelectionToolbar();
@@ -6375,17 +7465,10 @@ function PhotoStudioWorkspace({
                       onStartEdit={() => setEditingTextId(text.id)}
                       onEndEdit={() => setEditingTextId(null)}
                       onUpdateContent={updateTextContent}
+                      onRemoveIfEmpty={removeCanvasTextIfEmpty}
                     />
                   ))}
                 </div>
-
-                {isTextToolActive ? (
-                  <div
-                    className="absolute inset-0 z-[11] cursor-text"
-                    onDoubleClick={handleCanvasTextDoubleClick}
-                    aria-label="Double-click to add text"
-                  />
-                ) : null}
 
                 <CanvasPaintLayer
                   paintCanvasRef={paintCanvasRef}
@@ -6430,6 +7513,12 @@ export function PhotoStudioApp({
   onOpenEmptyWorkspace,
   onResetDraftWorkspace,
   onNewWorkspace,
+  workspaceTabs,
+  activeWorkspaceTabId,
+  onSelectWorkspaceTab,
+  onCloseWorkspaceTab,
+  onNewWorkspaceTab,
+  isPreparingNewWorkspaceTab = false,
   workspaceSessionKey = 0,
   onWorkspaceSnapshotChange,
   onLoadDesigns,
@@ -6450,12 +7539,22 @@ export function PhotoStudioApp({
   assetUploadError,
   onOpenHelp,
   resumedFromLibrary: initialResumedFromLibrary = false,
+  canvasDraftId,
+  loadExportedCanvasJson,
+  workspaceUploads = [],
+  uploadsLoading = false,
+  uploadsError,
+  onSelectWorkspaceUpload,
+  onRefreshWorkspaceUploads,
+  onUploadImageFile,
 }: PhotoStudioAppProps) {
   const hasAsset = Boolean(assetId);
   const [resumedFromLibrary, setResumedFromLibrary] = useState(initialResumedFromLibrary);
   const [activeView, setActiveView] = useState<PhotoStudioView>(
-    initialView === "workspace" || hasAsset ? "workspace" : initialView === "open" ? "open" : "home",
+    initialView === "workspace" || hasAsset ? "workspace" : "home",
   );
+  const canvasFileActionsRef = useRef<PhotoStudioCanvasFileActions | null>(null);
+  const pendingCanvasFileActionRef = useRef<"openJson" | "restore" | null>(null);
   const [isPreparingWorkspace, setIsPreparingWorkspace] = useState(false);
   const [draftSessionActive, setDraftSessionActive] = useState(
     initialView === "workspace" || hasAsset || Boolean(workspaceId),
@@ -6476,10 +7575,6 @@ export function PhotoStudioApp({
       setActiveView("workspace");
       return;
     }
-    if (initialView === "open") {
-      setActiveView("open");
-      return;
-    }
     if (initialView === "home") {
       setActiveView("home");
     }
@@ -6494,8 +7589,52 @@ export function PhotoStudioApp({
     ((openedAt: number) =>
       new Date(openedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }));
 
+  const showWorkspaceView = () => {
+    setResumedFromLibrary(false);
+    setDraftSessionActive(true);
+    setActiveView("workspace");
+  };
+
+  const registerCanvasFileActions = useCallback((actions: PhotoStudioCanvasFileActions | null) => {
+    canvasFileActionsRef.current = actions;
+    if (!actions || !pendingCanvasFileActionRef.current) return;
+    const pending = pendingCanvasFileActionRef.current;
+    pendingCanvasFileActionRef.current = null;
+    if (pending === "openJson") actions.openCanvasJsonFile();
+    else void actions.restoreExportedCanvasJson();
+  }, []);
+
+  const runCanvasFileAction = useCallback((kind: "openJson" | "restore") => {
+    showWorkspaceView();
+    const actions = canvasFileActionsRef.current;
+    if (actions) {
+      if (kind === "openJson") actions.openCanvasJsonFile();
+      else void actions.restoreExportedCanvasJson();
+      return;
+    }
+    pendingCanvasFileActionRef.current = kind;
+  }, []);
+
+  const handleSelectWorkspaceTab = (tabId: string) => {
+    showWorkspaceView();
+    onSelectWorkspaceTab?.(tabId);
+  };
+
+  const handleOpenRecentProject = (project: RecentPhotoProject) => {
+    showWorkspaceView();
+    onOpenRecentProject?.(project);
+  };
+
   const handleNewWorkspace = async () => {
     if (isPreparingWorkspace) return;
+
+    if (onNewWorkspaceTab) {
+      onNewWorkspaceTab();
+      setResumedFromLibrary(false);
+      setDraftSessionActive(true);
+      setActiveView("workspace");
+      return;
+    }
 
     const resetDraft = onResetDraftWorkspace ?? onOpenEmptyWorkspace;
 
@@ -6536,118 +7675,133 @@ export function PhotoStudioApp({
     }
   };
 
-  const navTabs = [
-    {
-      id: "home" as const,
-      label: "Home",
-      hint: "Welcome and quick overview",
-      icon: Home,
-    },
-    {
-      id: "open" as const,
-      label: "Open",
-      hint: "Open a saved project or image from your library",
-      icon: FolderOpen,
-    },
-    {
-      id: "new" as const,
-      label: "New",
-      hint: "Start a new blank workspace",
-      icon: LayoutTemplate,
-    },
-  ];
+  const moreMenuItems = useMemo((): PhotoStudioMoreMenuItem[] => {
+    const items: PhotoStudioMoreMenuItem[] = [
+      {
+        id: "library",
+        label: "Open from library",
+        description: `Browse ${PHOTO_STUDIO_IMAGE_FORMATS_LABEL} images from your library.`,
+        icon: FolderOpen,
+        onClick: () => onOpenLibrary?.(),
+        disabled: !onOpenLibrary,
+      },
+      {
+        id: "upload",
+        label: hasAsset ? "Replace image" : "Upload image",
+        description: `Pick a ${PHOTO_STUDIO_IMAGE_FORMATS_LABEL} image from your device.`,
+        icon: Upload,
+        onClick: () => onUploadAsset?.(),
+        disabled: !onUploadAsset,
+        loading: assetUploading,
+      },
+      {
+        id: "canvas-json",
+        label: "Open canvas JSON…",
+        description: "Import shapes and text from a canvas export file.",
+        icon: FileJson,
+        onClick: () => runCanvasFileAction("openJson"),
+      },
+    ];
+    if (loadExportedCanvasJson) {
+      items.push({
+        id: "restore-export",
+        label: "Restore last export",
+        description: "Reload the most recent auto-saved canvas layers.",
+        icon: RotateCcw,
+        onClick: () => runCanvasFileAction("restore"),
+      });
+    }
+    return items;
+  }, [
+    assetUploading,
+    hasAsset,
+    loadExportedCanvasJson,
+    onOpenLibrary,
+    onUploadAsset,
+    runCanvasFileAction,
+  ]);
+
+  const handleHomeClick = () => {
+    setResumedFromLibrary(false);
+    setActiveView("home");
+  };
+
+  const showWorkspaceChrome =
+    Boolean(
+      workspaceTabs &&
+        activeWorkspaceTabId &&
+        onSelectWorkspaceTab &&
+        onCloseWorkspaceTab &&
+        onNewWorkspaceTab,
+    );
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="relative z-[110] flex shrink-0 items-stretch border-b border-border/40 bg-gradient-to-b from-muted/25 to-transparent backdrop-blur-xl">
-        <nav className="flex min-w-0 flex-1" role="tablist" aria-label="Photo Studio views">
-          {navTabs.map((view) => {
-            const Icon = view.icon;
-            const isNewTab = view.id === "new";
-            const selected = isNewTab
-              ? activeView === "workspace" && !resumedFromLibrary
-              : activeView === view.id ||
-                (resumedFromLibrary && view.id === "open" && activeView === "workspace");
-            return (
+      {showWorkspaceChrome ? (
+        <PhotoStudioWorkspaceChrome
+          tabs={workspaceTabs ?? []}
+          activeTabId={activeWorkspaceTabId!}
+          onSelectTab={handleSelectWorkspaceTab}
+          onCloseTab={onCloseWorkspaceTab!}
+          onNewTab={() => void handleNewWorkspace()}
+          isPreparingNew={isPreparingNewWorkspaceTab || isPreparingWorkspace}
+          homeSelected={activeView === "home"}
+          onHomeClick={handleHomeClick}
+          moreMenuItems={moreMenuItems}
+          onOpenHelp={onOpenHelp}
+        />
+      ) : (
+        <header className="relative z-[110] flex h-11 shrink-0 items-center border-b border-border/40 bg-card/80 px-4 backdrop-blur-md">
+          <nav className="flex flex-1 items-center" aria-label="Clovai Canvas navigation">
+            <div className="inline-flex items-center rounded-lg border border-border/50 bg-muted/25 p-0.5">
               <button
-                key={view.id}
                 type="button"
-                role="tab"
-                aria-selected={selected}
-                aria-label={view.label}
-                title={view.hint}
-                disabled={isNewTab && isPreparingWorkspace}
-                onClick={() => {
-                  if (view.id === "home") {
-                    setResumedFromLibrary(false);
-                    setActiveView("home");
-                    return;
-                  }
-                  if (view.id === "open") {
-                    setActiveView("open");
-                    return;
-                  }
-                  void handleNewWorkspace();
-                }}
+                aria-label="Home"
+                title="Projects and recent work"
+                onClick={handleHomeClick}
                 className={cn(
-                  "group relative flex min-w-0 items-center gap-2 border-b-2 px-4 py-3 transition-all duration-200 sm:px-5",
-                  selected
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/20 hover:text-foreground",
-                  isNewTab && isPreparingWorkspace && "cursor-wait opacity-70",
+                  "relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all duration-150",
+                  activeView === "home"
+                    ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
+                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
                 )}
               >
-                <span
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-200",
-                    selected
-                      ? "bg-primary/12 ring-1 ring-primary/15"
-                      : "bg-transparent group-hover:bg-muted/50",
-                  )}
-                >
-                  {isNewTab && isPreparingWorkspace ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.25} />
-                  ) : (
-                    <Icon className="h-3.5 w-3.5" strokeWidth={selected ? 2.25 : 2} />
-                  )}
-                </span>
-                <span className="truncate text-xs font-semibold tracking-wide">
-                  {isNewTab && isPreparingWorkspace ? "Preparing…" : view.label}
-                </span>
+                <Home className="h-3.5 w-3.5 shrink-0" strokeWidth={activeView === "home" ? 2.25 : 2} />
+                <span className="hidden sm:inline">Home</span>
               </button>
-            );
-          })}
-        </nav>
+              {moreMenuItems.length > 0 ? (
+                <PhotoStudioNavMoreMenu items={moreMenuItems} />
+              ) : null}
+            </div>
+          </nav>
+          <button
+            type="button"
+            onClick={() => onOpenHelp?.()}
+            disabled={!onOpenHelp}
+            title="Help"
+            aria-label="Help"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground disabled:opacity-40"
+          >
+            <CircleHelp className="h-4 w-4" strokeWidth={2} />
+          </button>
+        </header>
+      )}
 
-        <button
-          type="button"
-          onClick={() => onOpenHelp?.()}
-          disabled={!onOpenHelp}
-          title="Photo Studio help"
-          className="flex shrink-0 items-center gap-1.5 border-l border-border/30 px-4 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/20 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
-        >
-          <CircleHelp className="h-3.5 w-3.5" strokeWidth={2.25} />
-          <span className="hidden sm:inline">Help</span>
-        </button>
-      </header>
-
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       {isPreparingWorkspace ? (
         <PhotoStudioWorkspaceShimmer label="Preparing new workspace…" />
       ) : (
         <>
-          {activeView === "home" ? <PhotoStudioHome /> : null}
-          {activeView === "open" ? (
-            <PhotoStudioOpen
+          {activeView === "home" ? (
+            <PhotoStudioHome
               recentProjects={recentProjects}
-              onOpenRecentProject={onOpenRecentProject}
+              onOpenRecentProject={handleOpenRecentProject}
               onDeleteRecentProject={onDeleteRecentProject}
               formatRecentTime={defaultFormatRecentTime}
-              onOpenLibrary={onOpenLibrary}
-              onUploadAsset={onUploadAsset}
-              assetUploading={assetUploading}
-              assetUploadProgress={assetUploadProgress}
-              assetUploadError={assetUploadError}
             />
+          ) : null}
+          {assetUploadError && activeView === "home" ? (
+            <p className="mx-auto max-w-6xl px-4 pb-4 text-sm text-destructive md:px-8">{assetUploadError}</p>
           ) : null}
           {draftSessionActive ? (
             <div
@@ -6657,11 +7811,12 @@ export function PhotoStudioApp({
               )}
             >
               <PhotoStudioWorkspace
-                key={`${workspaceSessionKey}-${workspaceId ?? "draft"}`}
+                key={activeWorkspaceTabId ?? `${workspaceSessionKey}-${workspaceId ?? "draft"}`}
                 assetId={assetId}
                 assetName={assetName}
                 assetImageUrl={assetImageUrl}
                 workspaceId={workspaceId}
+                workspaceTabId={activeWorkspaceTabId ?? undefined}
                 initialWorkspaceSnapshot={initialWorkspaceSnapshot}
                 onWorkspaceSnapshotChange={onWorkspaceSnapshotChange}
                 onLoadDesigns={onLoadDesigns}
@@ -6674,16 +7829,25 @@ export function PhotoStudioApp({
                 onFetchGeneration={onFetchGeneration}
                 generationsLoading={generationsLoading}
                 initialGenerationsFromApi={initialGenerationsFromApi}
-                onOpenLibrary={onOpenLibrary}
-                onUploadAsset={onUploadAsset}
                 onGenerate={onGenerate}
                 generating={generating}
                 assetUploading={assetUploading}
+                canvasDraftId={canvasDraftId}
+                loadExportedCanvasJson={loadExportedCanvasJson}
+                onRegisterCanvasFileActions={registerCanvasFileActions}
+                workspaceUploads={workspaceUploads}
+                uploadsLoading={uploadsLoading}
+                uploadsError={uploadsError}
+                onSelectWorkspaceUpload={onSelectWorkspaceUpload}
+                onRefreshWorkspaceUploads={onRefreshWorkspaceUploads}
+                onOpenLibrary={onOpenLibrary}
+                onUploadImageFile={onUploadImageFile}
               />
             </div>
           ) : null}
         </>
       )}
+      </div>
     </div>
   );
 }

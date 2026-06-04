@@ -104,17 +104,17 @@ export const appsCatalog: CatalogApp[] = [
     id: catalogAppIds.photoGenerator,
     slug: "photo-studio",
     version: "1.0.0",
-    name: "Photo Studio",
+    name: "Clovai Canvas",
     iconKey: "camera",
     category: "Image",
     tag: "Visuals",
     tier: "starter",
-    tagline: "Logos, product shots, and campaign visuals from a single studio.",
+    tagline: "Logos, product shots, and campaign visuals on one canvas.",
     heroGradient: "from-sky-600 via-cyan-600 to-blue-700",
     featured: true,
     shortDescription: "Create logos, product photos, lifestyle scenes, and ad visuals from text prompts.",
     description:
-      "Photo Studio covers the full creative stack — brand logos and marks, e-commerce product shots, lifestyle mockups, social assets, and campaign visuals. Use style presets and aspect controls to keep outputs consistent across channels.",
+      "Clovai Canvas covers the full creative stack — brand logos and marks, e-commerce product shots, lifestyle mockups, social assets, and campaign visuals. Use style presets and aspect controls to keep outputs consistent across channels.",
     monthlyUsers: "31.2k monthly users",
     usageCount: "2.1M images rendered",
     rating: 4.7,
@@ -350,7 +350,7 @@ export const appsCatalog: CatalogApp[] = [
     id: catalogAppIds.researchCompanion,
     slug: "research-companion",
     version: "1.0.0",
-    name: "Research Companion",
+    name: "Clovai Insights",
     iconKey: "book",
     category: "Research",
     tag: "Research",
@@ -359,7 +359,7 @@ export const appsCatalog: CatalogApp[] = [
     heroGradient: "from-teal-600 via-emerald-600 to-lime-700",
     shortDescription: "Multipurpose research assistant for papers, case studies, reports, and document review.",
     description:
-      "Research Companion supports case studies, academic papers, business reports, and analyst workflows. Summarize sources, extract methods and findings, compare evidence, build citation-ready notes, and turn dense material into structured insights.",
+      "Clovai Insights supports case studies, academic papers, business reports, and analyst workflows. Summarize sources, extract methods and findings, compare evidence, build citation-ready notes, and turn dense material into structured insights.",
     monthlyUsers: "11.7k monthly users",
     usageCount: "360k papers reviewed",
     rating: 4.9,
@@ -401,42 +401,42 @@ export const appsCatalog: CatalogApp[] = [
     ],
   },
   {
-    id: catalogAppIds.clovaiProjects,
-    slug: "clovai-projects",
+    id: catalogAppIds.projectPlanning,
+    slug: "project-planning",
     version: "1.0.0",
-    name: "Clovai Projects",
+    name: "Clovai Project Studio",
     iconKey: "layers",
-    category: "Planning",
-    tag: "SDLC",
+    category: "Product",
+    tag: "Planning",
     tier: "pro",
-    tagline: "Turn requirements into editable SDLC workspaces with diagrams and exportable docs.",
-    heroGradient: "from-indigo-600 via-violet-600 to-blue-800",
+    tagline: "Requirements, architecture, and delivery planning in one structured workspace.",
+    heroGradient: "from-slate-600 via-zinc-600 to-neutral-700",
     featured: true,
     shortDescription:
-      "AI project planning from requirements to architecture, APIs, testing strategy, and deployment plans.",
+      "Browse 13 phases and 103 deliverables — from discovery and SRS through UX, backend, AI, security, and DevOps.",
     description:
-      "Clovai Projects converts uploaded requirements or project ideas into a structured SDLC workspace. Select the sections you need, review AI-generated artifacts, edit content and diagrams, collaborate with an AI assistant, and export professional documentation.",
-    monthlyUsers: "8.2k monthly users",
-    usageCount: "140k SDLC sections generated",
-    rating: 4.9,
-    installs: "22k installs",
+      "Clovai Project Studio is a dedicated planning workspace for software and product teams. Navigate the full project lifecycle catalog, search deliverables, and open structured templates for diagrams and documents without mixing research document workflows.",
+    monthlyUsers: "4.2k monthly users",
+    usageCount: "28k plans started",
+    rating: 4.8,
+    installs: "9k installs",
     modelAccess: "Pro model access",
-    badges: ["SDLC workspace", "Mermaid diagrams", "Export center"],
+    badges: ["13 phases", "103 deliverables", "Searchable catalog", "Multi-project tabs"],
     screenshots: [
       {
-        title: "Workspace dashboard",
-        caption: "Create workspaces and track review progress across SDLC artifacts.",
-        gradientClass: "from-indigo-500/35 via-violet-500/25 to-blue-500/20",
+        title: "Phase tree",
+        caption: "Collapse and search the full planning hierarchy.",
+        gradientClass: "from-slate-500/35 via-zinc-500/25 to-neutral-500/20",
       },
       {
-        title: "SDLC selection",
-        caption: "Choose full SDLC packages or custom module sets before generation.",
-        gradientClass: "from-violet-500/35 via-indigo-500/20 to-sky-500/25",
+        title: "Deliverable detail",
+        caption: "Open any artifact with format hints and placeholders.",
+        gradientClass: "from-zinc-500/35 via-slate-500/20 to-stone-500/25",
       },
       {
-        title: "Planning workspace",
-        caption: "Edit requirements, diagrams, and implementation plans in one layout.",
-        gradientClass: "from-blue-500/35 via-indigo-500/20 to-violet-500/25",
+        title: "Multi-project tabs",
+        caption: "Run parallel planning workspaces from the tab bar.",
+        gradientClass: "from-neutral-500/30 via-slate-500/20 to-zinc-500/25",
       },
     ],
   },
@@ -507,17 +507,18 @@ export { getAppHelpContent, getAppHelpHref } from "./app-help-content";
 export type { AppHelpContent, AppHelpSection } from "./app-help-content";
 
 /** Apps with a live workspace route (not the marketing detail page). */
-export type LaunchAppKey = "research-companion" | "photo-studio" | "clovai-projects";
+export type LaunchAppKey = "research-companion" | "photo-studio" | "project-planning";
 
 const launchAppIdByKey: Record<LaunchAppKey, CatalogAppId> = {
   "research-companion": catalogAppIds.researchCompanion,
   "photo-studio": catalogAppIds.photoGenerator,
-  "clovai-projects": catalogAppIds.clovaiProjects,
+  "project-planning": catalogAppIds.projectPlanning,
 };
 
 /** Canonical slug for launch routing (handles legacy aliases). */
 export function normalizeCatalogAppSlug(slug: string): string {
   if (slug === "photo-generator") return "photo-studio";
+  if (slug === "clovai-projects") return "project-planning";
   return slug;
 }
 
@@ -525,7 +526,7 @@ export function normalizeCatalogAppSlug(slug: string): string {
 export function getLaunchAppKey(app: CatalogApp): LaunchAppKey | null {
   if (app.id === launchAppIdByKey["research-companion"]) return "research-companion";
   if (app.id === launchAppIdByKey["photo-studio"]) return "photo-studio";
-  if (app.id === launchAppIdByKey["clovai-projects"]) return "clovai-projects";
+  if (app.id === launchAppIdByKey["project-planning"]) return "project-planning";
   return null;
 }
 

@@ -14,8 +14,12 @@ import {
 import { useEffect, useRef, useState, memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { normalizeAssistantMarkdown } from "@/lib/message-markdown";
+import { ensurePrismLanguages, resolvePrismLanguage } from "@/lib/prism-setup";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+
+ensurePrismLanguages();
 
 type ChatMessagesProps = {
   messages: Message[];
@@ -169,12 +173,35 @@ function MessageBubble({
 
 function CodeBlock({ language, value }: { language: string; value: string }) {
   const [copied, setCopied] = useState(false);
+  const prismLang = language === "text" ? null : language;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(value);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (!prismLang) {
+    return (
+      <div className="relative my-4 overflow-hidden rounded-2xl border border-zinc-200 bg-[#1e1e2e] shadow-sm dark:border-zinc-700/60">
+        <div className="flex items-center justify-between border-b border-zinc-700/50 bg-[#181825] px-4 py-2">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+            code
+          </span>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="text-[11px] text-zinc-400 hover:text-zinc-200"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+        <pre className="overflow-x-auto p-4 font-mono text-[0.8125rem] leading-relaxed text-zinc-200">
+          {value}
+        </pre>
+      </div>
+    );
+  }
 
   return (
     <div className="relative my-4 overflow-hidden rounded-2xl border border-zinc-200 bg-[#1e1e2e] shadow-sm dark:border-zinc-700/60">
@@ -199,7 +226,7 @@ function CodeBlock({ language, value }: { language: string; value: string }) {
       </div>
       <SyntaxHighlighter
         style={oneDark}
-        language={language}
+        language={prismLang}
         PreTag="div"
         showLineNumbers={value.split("\n").length > 3}
         lineNumberStyle={{
@@ -231,6 +258,8 @@ const MarkdownContent = memo(function MarkdownContent({
   content: string;
   isStreaming?: boolean;
 }) {
+  const markdown = normalizeAssistantMarkdown(content);
+
   return (
     <div
       className={cn(
@@ -242,10 +271,12 @@ const MarkdownContent = memo(function MarkdownContent({
         remarkPlugins={[remarkGfm]}
         components={{
           code({ className, children, ...props }) {
-            const match = /language-(\w+)/.exec(className || "");
+            const match = /language-([\w+-]+)/.exec(className || "");
             const value = String(children).replace(/\n$/, "");
-            if (match) {
-              return <CodeBlock language={match[1]} value={value} />;
+            const isBlock = Boolean(match) || value.includes("\n");
+            if (isBlock) {
+              const lang = resolvePrismLanguage(match?.[1], value);
+              return <CodeBlock language={lang} value={value} />;
             }
             return (
               <code
@@ -352,7 +383,7 @@ const MarkdownContent = memo(function MarkdownContent({
           },
         }}
       >
-        {content}
+        {markdown}
       </ReactMarkdown>
       {isStreaming && (
         <span className="animate-cursor ml-0.5 -mb-0.5 inline-block h-4 w-0.5 bg-primary/70" />

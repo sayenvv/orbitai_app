@@ -8,12 +8,18 @@ import {
   type RecentWorkspace,
   type ResearchCompanionGeneratableInsightType,
   type ResearchCompanionView,
+  type ResearchCompanionWorkspaceTab,
   getAppWorkspaceHref,
   getAppHelpHref,
   getMissingInsightTypes,
   mergeInsightTypes,
   normalizeResearchCompanionInsightTypes,
   parseResearchCompanionInsightTypesParam,
+  DEFAULT_WORKSPACE_TYPE_ID,
+  WorkspaceTypePickerModal,
+  getWorkspaceTypeDefinition,
+  parseWorkspaceTypeParam,
+  type ResearchCompanionWorkspaceTypeId,
 } from "@orbit/clovai-apps";
 import { useResearchCompanionSourcePicker } from "@/components/apps/research-companion-source-picker";
 import { ResearchCompanionWorkspaceChat } from "@/components/apps/research-companion-workspace-chat";
@@ -37,6 +43,29 @@ import { ResearchCompanionWorkspaceShimmer } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const WORKSPACE_OPEN_DELAY_MS = 750;
+
+function createWorkspaceTabId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `tab-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function createWorkspaceDraftId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `draft-${Date.now()}`;
+}
+
+function defaultWorkspaceTabTitle(
+  tabCount: number,
+  workspaceTypeId: ResearchCompanionWorkspaceTypeId = DEFAULT_WORKSPACE_TYPE_ID,
+): string {
+  const type = getWorkspaceTypeDefinition(workspaceTypeId);
+  const base = type.shortLabel;
+  return tabCount <= 1 ? base : `${base} ${tabCount}`;
+}
+
+type WorkspaceTabRecord = ResearchCompanionWorkspaceTab;
 
 type WorkspaceContentProps = {
   sourceId?: string | null;
@@ -64,7 +93,19 @@ type WorkspaceContentProps = {
   fileUploadProgress?: string | null;
   fileUploadError?: string | null;
   resumedFromLibrary?: boolean;
+  apiPageCount?: number;
+  workspaceTabs: WorkspaceTabRecord[];
+  activeWorkspaceTabId: string;
+  onSelectWorkspaceTab: (tabId: string) => void;
+  onCloseWorkspaceTab: (tabId: string) => void;
+  onNewWorkspaceTab: () => void;
+  isPreparingNewWorkspaceTab?: boolean;
+  onShellViewChange?: (view: ResearchCompanionView) => void;
+  workspaceTypeId: ResearchCompanionWorkspaceTypeId;
+  onStartWorkspaceWithType?: (typeId: ResearchCompanionWorkspaceTypeId) => void;
 };
+
+type WorkspaceContentPropsWithoutPageCount = Omit<WorkspaceContentProps, "pageCount">;
 
 function ResearchCompanionWorkspaceApp({
   sourceId,
@@ -92,6 +133,141 @@ function ResearchCompanionWorkspaceApp({
   fileUploadProgress,
   fileUploadError,
   resumedFromLibrary = false,
+  workspaceTabs,
+  activeWorkspaceTabId,
+  onSelectWorkspaceTab,
+  onCloseWorkspaceTab,
+  onNewWorkspaceTab,
+  isPreparingNewWorkspaceTab = false,
+  onShellViewChange,
+  apiPageCount,
+  workspaceTypeId,
+  onStartWorkspaceWithType,
+}: WorkspaceContentProps) {
+  if (sourceId) {
+    return (
+      <PdfDocumentProvider documentId={sourceId}>
+        <ResearchCompanionWorkspaceAppWithPdf
+          sourceId={sourceId}
+          sourceName={sourceName}
+          insightId={insightId}
+          generatedInsightTypes={generatedInsightTypes}
+          apiPageCount={apiPageCount}
+          initialTab={initialTab}
+          initialAssistPanel={initialAssistPanel}
+          initialConversationId={initialConversationId}
+          onOpenFile={onOpenFile}
+          onOpenLibrary={onOpenLibrary}
+          onUploadFile={onUploadFile}
+          onNewWorkspace={onNewWorkspace}
+          onResetDraftWorkspace={onResetDraftWorkspace}
+          workspaceSessionKey={workspaceSessionKey}
+          onOpenHelp={onOpenHelp}
+          recentWorkspaces={recentWorkspaces}
+          onOpenRecentWorkspace={onOpenRecentWorkspace}
+          onGenerateInsights={onGenerateInsights}
+          insightsGenerating={insightsGenerating}
+          insightsGenerateError={insightsGenerateError}
+          generatingInsightTypes={generatingInsightTypes}
+          fileUploading={fileUploading}
+          fileUploadProgress={fileUploadProgress}
+          fileUploadError={fileUploadError}
+          resumedFromLibrary={resumedFromLibrary}
+          workspaceTabs={workspaceTabs}
+          activeWorkspaceTabId={activeWorkspaceTabId}
+          onSelectWorkspaceTab={onSelectWorkspaceTab}
+          onCloseWorkspaceTab={onCloseWorkspaceTab}
+          onNewWorkspaceTab={onNewWorkspaceTab}
+          isPreparingNewWorkspaceTab={isPreparingNewWorkspaceTab}
+          onShellViewChange={onShellViewChange}
+          workspaceTypeId={workspaceTypeId}
+          onStartWorkspaceWithType={onStartWorkspaceWithType}
+        />
+      </PdfDocumentProvider>
+    );
+  }
+
+  return (
+    <ResearchCompanionWorkspaceAppCore
+      sourceId={null}
+      sourceName={sourceName}
+      insightId={insightId}
+      generatedInsightTypes={generatedInsightTypes}
+      pageCount={0}
+      initialTab={initialTab}
+      initialAssistPanel={initialAssistPanel}
+      initialConversationId={initialConversationId}
+      onOpenFile={onOpenFile}
+      onOpenLibrary={onOpenLibrary}
+      onUploadFile={onUploadFile}
+      onNewWorkspace={onNewWorkspace}
+      onResetDraftWorkspace={onResetDraftWorkspace}
+      workspaceSessionKey={workspaceSessionKey}
+      onOpenHelp={onOpenHelp}
+      recentWorkspaces={recentWorkspaces}
+      onOpenRecentWorkspace={onOpenRecentWorkspace}
+      onGenerateInsights={onGenerateInsights}
+      insightsGenerating={insightsGenerating}
+      insightsGenerateError={insightsGenerateError}
+      generatingInsightTypes={generatingInsightTypes}
+      fileUploading={fileUploading}
+      fileUploadProgress={fileUploadProgress}
+      fileUploadError={fileUploadError}
+      resumedFromLibrary={resumedFromLibrary}
+      workspaceTabs={workspaceTabs}
+      activeWorkspaceTabId={activeWorkspaceTabId}
+      onSelectWorkspaceTab={onSelectWorkspaceTab}
+      onCloseWorkspaceTab={onCloseWorkspaceTab}
+      onNewWorkspaceTab={onNewWorkspaceTab}
+      isPreparingNewWorkspaceTab={isPreparingNewWorkspaceTab}
+      onShellViewChange={onShellViewChange}
+      workspaceTypeId={workspaceTypeId}
+      onStartWorkspaceWithType={onStartWorkspaceWithType}
+    />
+  );
+}
+
+function ResearchCompanionWorkspaceAppWithPdf(props: WorkspaceContentPropsWithoutPageCount) {
+  const { numPages } = usePdfDocument();
+  const pageCount = Math.max(numPages, props.apiPageCount ?? 0, 1);
+  return <ResearchCompanionWorkspaceAppCore {...props} pageCount={pageCount} />;
+}
+
+function ResearchCompanionWorkspaceAppCore({
+  sourceId,
+  sourceName,
+  insightId,
+  generatedInsightTypes,
+  pageCount,
+  initialTab,
+  initialAssistPanel = null,
+  initialConversationId = null,
+  onOpenFile,
+  onOpenLibrary,
+  onUploadFile,
+  onNewWorkspace,
+  onResetDraftWorkspace,
+  workspaceSessionKey,
+  onOpenHelp,
+  recentWorkspaces,
+  onOpenRecentWorkspace,
+  onGenerateInsights,
+  insightsGenerating,
+  insightsGenerateError,
+  generatingInsightTypes,
+  fileUploading,
+  fileUploadProgress,
+  fileUploadError,
+  resumedFromLibrary = false,
+  workspaceTabs,
+  activeWorkspaceTabId,
+  onSelectWorkspaceTab,
+  onCloseWorkspaceTab,
+  onNewWorkspaceTab,
+  isPreparingNewWorkspaceTab = false,
+  onShellViewChange,
+  workspaceTypeId,
+  onStartWorkspaceWithType,
 }: WorkspaceContentProps) {
   const documentTitle = sourceName?.trim() || "Selected document";
 
@@ -113,10 +289,14 @@ function ResearchCompanionWorkspaceApp({
   );
 
   const showGeneratingOverlay = Boolean(sourceId && insightsGenerating);
+  const appInstanceKey = `${activeWorkspaceTabId}-${workspaceSessionKey}-${workspaceTypeId}`;
 
   return (
     <>
       <ResearchCompanionApp
+        key={appInstanceKey}
+        workspaceTypeId={workspaceTypeId}
+        onStartWorkspaceWithType={onStartWorkspaceWithType}
         sourceId={sourceId}
         sourceName={sourceName}
         insightId={insightId}
@@ -142,6 +322,13 @@ function ResearchCompanionWorkspaceApp({
         onOpenRecentWorkspace={onOpenRecentWorkspace}
         formatRecentWorkspaceTime={formatRecentWorkspaceTime}
         resumedFromLibrary={resumedFromLibrary}
+        workspaceTabs={workspaceTabs}
+        activeWorkspaceTabId={activeWorkspaceTabId}
+        onSelectWorkspaceTab={onSelectWorkspaceTab}
+        onCloseWorkspaceTab={onCloseWorkspaceTab}
+        onNewWorkspaceTab={onNewWorkspaceTab}
+        isPreparingNewWorkspaceTab={isPreparingNewWorkspaceTab}
+        onShellViewChange={onShellViewChange}
         renderPageThumbnail={renderPageThumbnail}
         renderAssistPanel={({ panel, sourceId: docId, activePage, pageCount, onPageChange, onClose }) => {
           if (panel === "chat" && docId) {
@@ -190,13 +377,12 @@ function ResearchCompanionWorkspaceApp({
         }}
         renderDocumentView={
           sourceId
-            ? ({ activePage, pageCount: totalPages, onPageChange, renderToolsPanel }) => (
+            ? ({ activePage, pageCount: totalPages, onPageChange }) => (
                 <ResearchCompanionPdfShell
                   page={activePage}
                   totalPages={totalPages}
                   documentTitle={documentTitle}
                   onPageChange={onPageChange}
-                  toolsPanel={renderToolsPanel()}
                 />
               )
             : undefined
@@ -209,105 +395,22 @@ function ResearchCompanionWorkspaceApp({
   );
 }
 
-function ResearchCompanionWorkspaceWithDocument({
-  sourceId,
-  sourceName,
-  insightId,
-  generatedInsightTypes,
-  apiPageCount,
-  initialTab,
-  initialAssistPanel = null,
-  initialConversationId = null,
-  onOpenFile,
-  onOpenLibrary,
-  onUploadFile,
-  onNewWorkspace,
-  onResetDraftWorkspace,
-  workspaceSessionKey,
-  onOpenHelp,
-  recentWorkspaces,
-  onOpenRecentWorkspace,
-  onGenerateInsights,
-  insightsGenerating,
-  insightsGenerateError,
-  generatingInsightTypes,
-  fileUploading,
-  fileUploadProgress,
-  fileUploadError,
-  resumedFromLibrary = false,
-}: {
-  sourceId: string;
-  sourceName: string | null;
-  insightId: string | null;
-  generatedInsightTypes?: ResearchCompanionGeneratableInsightType[];
-  apiPageCount?: number;
-  initialTab: ResearchCompanionView;
-  initialAssistPanel?: "chat" | "summary" | "flashcards" | "note" | null;
-  initialConversationId?: string | null;
-  onOpenFile: () => void;
-  onOpenLibrary: () => void;
-  onUploadFile: () => void;
-  onNewWorkspace: () => void;
-  onResetDraftWorkspace: () => void | Promise<void>;
-  workspaceSessionKey: number;
-  onOpenHelp: () => void;
-  recentWorkspaces: RecentWorkspace[];
-  onOpenRecentWorkspace: (workspace: RecentWorkspace) => void;
-  onGenerateInsights?: () => void | Promise<void>;
-  insightsGenerating?: boolean;
-  insightsGenerateError?: string | null;
-  generatingInsightTypes?: ResearchCompanionGeneratableInsightType[];
-  fileUploading?: boolean;
-  fileUploadProgress?: string | null;
-  fileUploadError?: string | null;
-  resumedFromLibrary?: boolean;
-}) {
-  const { numPages } = usePdfDocument();
-  const pageCount = Math.max(numPages, apiPageCount ?? 0, 1);
-
-  return (
-    <ResearchCompanionWorkspaceApp
-      sourceId={sourceId}
-      sourceName={sourceName}
-      insightId={insightId}
-      generatedInsightTypes={generatedInsightTypes}
-      pageCount={pageCount}
-      initialTab={initialTab}
-      initialAssistPanel={initialAssistPanel}
-      initialConversationId={initialConversationId}
-      onOpenFile={onOpenFile}
-      onOpenLibrary={onOpenLibrary}
-      onUploadFile={onUploadFile}
-      onNewWorkspace={onNewWorkspace}
-      onResetDraftWorkspace={onResetDraftWorkspace}
-      workspaceSessionKey={workspaceSessionKey}
-      onOpenHelp={onOpenHelp}
-      recentWorkspaces={recentWorkspaces}
-      onOpenRecentWorkspace={onOpenRecentWorkspace}
-      onGenerateInsights={onGenerateInsights}
-      insightsGenerating={insightsGenerating}
-      insightsGenerateError={insightsGenerateError}
-      generatingInsightTypes={generatingInsightTypes}
-      fileUploading={fileUploading}
-      fileUploadProgress={fileUploadProgress}
-      fileUploadError={fileUploadError}
-      resumedFromLibrary={resumedFromLibrary}
-    />
-  );
-}
-
 function buildWorkspaceUrl(
   workspaceHref: string,
   sourceId: string,
   sourceName: string,
   insightId?: string | null,
   insightTypes?: ResearchCompanionGeneratableInsightType[] | null,
+  workspaceType?: ResearchCompanionWorkspaceTypeId | null,
 ) {
   const params = new URLSearchParams({
     sourceId,
     sourceName,
     sourceType: "uploaded-file",
   });
+  if (workspaceType && workspaceType !== DEFAULT_WORKSPACE_TYPE_ID) {
+    params.set("workspaceType", workspaceType);
+  }
   if (insightId) {
     params.set("insightId", insightId);
   }
@@ -315,6 +418,28 @@ function buildWorkspaceUrl(
     params.set("insightTypes", insightTypes.join(","));
   }
   return `${workspaceHref}?${params.toString()}`;
+}
+
+function buildWorkspaceUrlFromTab(workspaceHref: string, tab: WorkspaceTabRecord): string {
+  const workspaceType = tab.workspaceType ?? DEFAULT_WORKSPACE_TYPE_ID;
+  if (!tab.sourceId) {
+    if (workspaceType === DEFAULT_WORKSPACE_TYPE_ID) {
+      return workspaceHref;
+    }
+    const params = new URLSearchParams({ workspaceType });
+    return `${workspaceHref}?${params.toString()}`;
+  }
+  const insightTypes = tab.insightTypesParam
+    ? parseResearchCompanionInsightTypesParam(tab.insightTypesParam)
+    : null;
+  return buildWorkspaceUrl(
+    workspaceHref,
+    tab.sourceId,
+    tab.sourceName?.trim() || "Selected document",
+    tab.insightId,
+    insightTypes,
+    workspaceType,
+  );
 }
 
 export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
@@ -329,6 +454,7 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
   const sourceName = searchParams.get("sourceName");
   const insightId = searchParams.get("insightId");
   const insightTypesParam = searchParams.get("insightTypes");
+  const workspaceTypeParam = parseWorkspaceTypeParam(searchParams.get("workspaceType"));
   const assistPanelParam = searchParams.get("panel");
   const initialConversationId = searchParams.get("chatId");
   const resumedFromLibrary = searchParams.get("origin") === LIBRARY_OPEN_ORIGIN;
@@ -340,19 +466,6 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
     assistPanelParam === "note"
       ? assistPanelParam
       : null;
-
-  const generatedInsightTypes = useMemo(
-    () =>
-      insightId
-        ? normalizeResearchCompanionInsightTypes(parseResearchCompanionInsightTypesParam(insightTypesParam))
-        : [],
-    [insightId, insightTypesParam],
-  );
-
-  const missingInsightTypes = useMemo(
-    () => getMissingInsightTypes(generatedInsightTypes),
-    [generatedInsightTypes],
-  );
 
   const [apiPageCount, setApiPageCount] = useState<number | undefined>();
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
@@ -367,6 +480,63 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(true);
   const [workspaceSessionKey, setWorkspaceSessionKey] = useState(0);
+  const [isPreparingWorkspaceTab, setIsPreparingWorkspaceTab] = useState(false);
+  const [workspaceTypePickerOpen, setWorkspaceTypePickerOpen] = useState(false);
+
+  const initialTabIdRef = useRef(createWorkspaceTabId());
+  const initialDraftIdRef = useRef(createWorkspaceDraftId());
+  const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTabRecord[]>(() => [
+    {
+      id: initialTabIdRef.current,
+      title: sourceName?.trim() || defaultWorkspaceTabTitle(1, workspaceTypeParam),
+      workspaceType: workspaceTypeParam,
+      sourceId,
+      sourceName,
+      insightId,
+      insightTypesParam: insightTypesParam,
+      draftId: initialDraftIdRef.current,
+    },
+  ]);
+  const [activeTabId, setActiveTabId] = useState(initialTabIdRef.current);
+  const activeTabIdRef = useRef(activeTabId);
+  activeTabIdRef.current = activeTabId;
+  const [preferredView, setPreferredView] = useState<ResearchCompanionView>(
+    insightId || sourceId || initialAssistPanel ? "workspace" : "home",
+  );
+
+  const searchParamsKey = searchParams.toString();
+
+  const activeTab = useMemo(() => {
+    const tab = workspaceTabs.find((item) => item.id === activeTabId) ?? workspaceTabs[0];
+    if (!tab) return undefined;
+    return {
+      ...tab,
+      workspaceType:
+        tab.workspaceType ??
+        parseWorkspaceTypeParam(searchParams.get("workspaceType")),
+    };
+  }, [activeTabId, searchParamsKey, workspaceTabs]);
+
+  const resolvedSourceId = activeTab?.sourceId ?? null;
+  const resolvedSourceName = activeTab?.sourceName ?? null;
+  const resolvedInsightId = activeTab?.insightId ?? null;
+  const resolvedInsightTypesParam = activeTab?.insightTypesParam ?? null;
+  const resolvedWorkspaceTypeId = activeTab?.workspaceType ?? DEFAULT_WORKSPACE_TYPE_ID;
+
+  const resolvedGeneratedInsightTypes = useMemo(
+    () =>
+      resolvedInsightId
+        ? normalizeResearchCompanionInsightTypes(
+            parseResearchCompanionInsightTypesParam(resolvedInsightTypesParam),
+          )
+        : [],
+    [resolvedInsightId, resolvedInsightTypesParam],
+  );
+
+  const resolvedMissingInsightTypes = useMemo(
+    () => getMissingInsightTypes(resolvedGeneratedInsightTypes),
+    [resolvedGeneratedInsightTypes],
+  );
 
   useEffect(() => {
     setIsOpening(true);
@@ -374,20 +544,167 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
     return () => clearTimeout(timer);
   }, []);
 
-  const initialTab: ResearchCompanionView =
-    insightId || (sourceId && initialAssistPanel) ? "workspace" : "home";
-  const canGenerateInsights = Boolean(
-    sourceId && (!insightId || missingInsightTypes.length > 0),
+  const syncActiveTabUrl = useCallback(
+    (tab: WorkspaceTabRecord) => {
+      router.replace(buildWorkspaceUrlFromTab(workspaceHref, tab));
+    },
+    [router, workspaceHref],
   );
 
+  const applyWorkspaceTab = useCallback(
+    async (tab: WorkspaceTabRecord) => {
+      setPreferredView("workspace");
+      setActiveTabId(tab.id);
+      setWorkspaceSessionKey((key) => key + 1);
+      syncActiveTabUrl(tab);
+    },
+    [syncActiveTabUrl],
+  );
+
+  const handleSelectWorkspaceTab = useCallback(
+    (tabId: string) => {
+      const tab = workspaceTabs.find((item) => item.id === tabId);
+      if (!tab || tabId === activeTabId) return;
+      void applyWorkspaceTab(tab);
+    },
+    [activeTabId, applyWorkspaceTab, workspaceTabs],
+  );
+
+  const workspaceTabsRef = useRef(workspaceTabs);
+  workspaceTabsRef.current = workspaceTabs;
+
+  // Sync URL → active tab when the address bar gains a document (upload, library, etc.).
+  // Never apply an empty URL onto a tab — that was overwriting new blank tabs with the
+  // previous tab's sourceId while router.replace was still in flight.
+  useEffect(() => {
+    const paramsSourceId = searchParams.get("sourceId");
+    const paramsInsightId = searchParams.get("insightId");
+    const paramsWorkspaceType = searchParams.get("workspaceType");
+    if (!paramsSourceId && !paramsInsightId && !paramsWorkspaceType) return;
+
+    const paramsSourceName = searchParams.get("sourceName");
+    const paramsInsightTypes = searchParams.get("insightTypes");
+    const parsedWorkspaceType = parseWorkspaceTypeParam(paramsWorkspaceType);
+    const tabId = activeTabIdRef.current;
+
+    const existing = paramsSourceId
+      ? workspaceTabsRef.current.find((tab) => tab.sourceId === paramsSourceId)
+      : undefined;
+    if (existing && existing.id !== tabId) {
+      void applyWorkspaceTab(existing);
+      return;
+    }
+
+    setWorkspaceTabs((current) =>
+      current.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              workspaceType: paramsWorkspaceType ? parsedWorkspaceType : tab.workspaceType,
+              sourceId: paramsSourceId,
+              sourceName: paramsSourceName,
+              insightId: paramsInsightId,
+              insightTypesParam: paramsInsightTypes,
+              title: paramsSourceName?.trim() || tab.title,
+            }
+          : tab,
+      ),
+    );
+    setPreferredView("workspace");
+  }, [applyWorkspaceTab, searchParamsKey]);
+
+  const handleCreateWorkspaceTab = useCallback(
+    async (workspaceTypeId: ResearchCompanionWorkspaceTypeId) => {
+      if (isPreparingWorkspaceTab) return;
+      setWorkspaceTypePickerOpen(false);
+      setPreferredView("workspace");
+      setIsPreparingWorkspaceTab(true);
+      try {
+        const newTab: WorkspaceTabRecord = {
+          id: createWorkspaceTabId(),
+          title: defaultWorkspaceTabTitle(workspaceTabs.length + 1, workspaceTypeId),
+          workspaceType: workspaceTypeId,
+          sourceId: null,
+          sourceName: null,
+          insightId: null,
+          insightTypesParam: null,
+          draftId: createWorkspaceDraftId(),
+        };
+        setWorkspaceTabs((current) => [...current, newTab]);
+        await applyWorkspaceTab(newTab);
+      } finally {
+        setIsPreparingWorkspaceTab(false);
+      }
+    },
+    [applyWorkspaceTab, isPreparingWorkspaceTab, workspaceTabs.length],
+  );
+
+  const handleRequestNewWorkspaceTab = useCallback(() => {
+    if (isPreparingWorkspaceTab) return;
+    setWorkspaceTypePickerOpen(true);
+  }, [isPreparingWorkspaceTab]);
+
+  const handleCloseWorkspaceTab = useCallback(
+    (tabId: string) => {
+      if (workspaceTabs.length === 1) {
+        const resetTab: WorkspaceTabRecord = {
+          id: tabId,
+          title: defaultWorkspaceTabTitle(1, DEFAULT_WORKSPACE_TYPE_ID),
+          workspaceType: DEFAULT_WORKSPACE_TYPE_ID,
+          sourceId: null,
+          sourceName: null,
+          insightId: null,
+          insightTypesParam: null,
+          draftId: createWorkspaceDraftId(),
+        };
+        setWorkspaceTabs([resetTab]);
+        void applyWorkspaceTab(resetTab);
+        return;
+      }
+
+      const remaining = workspaceTabs.filter((tab) => tab.id !== tabId);
+      setWorkspaceTabs(remaining);
+
+      if (activeTabId === tabId) {
+        const nextActive = remaining[remaining.length - 1];
+        if (nextActive) void applyWorkspaceTab(nextActive);
+      }
+    },
+    [activeTabId, applyWorkspaceTab, workspaceTabs],
+  );
+  const canGenerateInsights =
+    resolvedWorkspaceTypeId === "academic-research" &&
+    Boolean(
+      resolvedSourceId && (!resolvedInsightId || resolvedMissingInsightTypes.length > 0),
+    );
+
   const handleResetDraftWorkspace = useCallback(async () => {
+    setWorkspaceTabs((current) =>
+      current.map((tab) =>
+        tab.id === activeTabId
+          ? {
+              ...tab,
+              sourceId: null,
+              sourceName: null,
+              insightId: null,
+              insightTypesParam: null,
+              title: defaultWorkspaceTabTitle(
+                current.length,
+                tab.workspaceType ?? DEFAULT_WORKSPACE_TYPE_ID,
+              ),
+              draftId: createWorkspaceDraftId(),
+            }
+          : tab,
+      ),
+    );
     setWorkspaceSessionKey((key) => key + 1);
+    setPreferredView("workspace");
     router.replace(workspaceHref);
-  }, [router, workspaceHref]);
+  }, [activeTabId, router, workspaceHref, workspaceTabs.length]);
 
   const handleNewWorkspace = useCallback(() => {
-    router.replace(workspaceHref);
-  }, [router, workspaceHref]);
+    handleRequestNewWorkspaceTab();
+  }, [handleRequestNewWorkspaceTab]);
 
   const handleOpenHelp = useCallback(() => {
     router.push(getAppHelpHref(app));
@@ -395,9 +712,26 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
 
   const handleOpenRecentWorkspace = useCallback(
     (workspace: RecentWorkspace) => {
-      router.push(buildRecentWorkspaceHref(workspace));
+      const existing = workspaceTabs.find((tab) => tab.sourceId === workspace.sourceId);
+      if (existing) {
+        handleSelectWorkspaceTab(existing.id);
+        return;
+      }
+
+      const newTab: WorkspaceTabRecord = {
+        id: createWorkspaceTabId(),
+        title: workspace.title?.trim() || workspace.sourceName?.trim() || "Document",
+        workspaceType: DEFAULT_WORKSPACE_TYPE_ID,
+        sourceId: workspace.sourceId,
+        sourceName: workspace.sourceName,
+        insightId: workspace.insightId ?? null,
+        insightTypesParam: workspace.insightTypes ?? null,
+        draftId: createWorkspaceDraftId(),
+      };
+      setWorkspaceTabs((current) => [...current, newTab]);
+      void applyWorkspaceTab(newTab);
     },
-    [router],
+    [applyWorkspaceTab, handleSelectWorkspaceTab, workspaceTabs],
   );
 
   const triggerDirectUpload = useCallback(() => {
@@ -420,7 +754,31 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
         const source = await uploadPdfAndWait(file, {
           onProgress: (message) => setFileUploadProgress(message),
         });
-        router.push(buildWorkspaceUrl(workspaceHref, source.id, source.name));
+        setPreferredView("workspace");
+        setWorkspaceTabs((current) =>
+          current.map((tab) =>
+            tab.id === activeTabId
+              ? {
+                  ...tab,
+                  sourceId: source.id,
+                  sourceName: source.name,
+                  title: source.name.trim() || tab.title,
+                  insightId: null,
+                  insightTypesParam: null,
+                }
+              : tab,
+          ),
+        );
+        router.push(
+          buildWorkspaceUrl(
+            workspaceHref,
+            source.id,
+            source.name,
+            null,
+            null,
+            resolvedWorkspaceTypeId,
+          ),
+        );
       } catch (err) {
         if (err instanceof PdfUploadCancelledError) return;
         setFileUploadError(getApiErrorMessage(err, "Upload failed"));
@@ -429,30 +787,45 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
         setFileUploadProgress(null);
       }
     },
-    [router, workspaceHref],
+    [activeTabId, resolvedWorkspaceTypeId, router, workspaceHref],
   );
 
   const handleGenerateInsights = useCallback(
     async (insightTypes: ResearchCompanionGeneratableInsightType[]) => {
-      if (!sourceId || insightsGenerating || insightTypes.length === 0) return;
+      if (!resolvedSourceId || insightsGenerating || insightTypes.length === 0) return;
 
       setGeneratingInsightTypes(insightTypes);
       setInsightsGenerating(true);
       setInsightsGenerateError(null);
 
       try {
-        const generated = await publicApi.generateUploadInsights(sourceId, insightTypes);
-        const mergedTypes = insightId
-          ? mergeInsightTypes(generatedInsightTypes, insightTypes)
+        const generated = await publicApi.generateUploadInsights(resolvedSourceId, insightTypes);
+        const mergedTypes = resolvedInsightId
+          ? mergeInsightTypes(resolvedGeneratedInsightTypes, insightTypes)
           : insightTypes;
+        const mergedTypesParam = mergedTypes.join(",");
+
+        setWorkspaceTabs((current) =>
+          current.map((tab) =>
+            tab.id === activeTabId
+              ? {
+                  ...tab,
+                  insightId: generated.id,
+                  insightTypesParam: mergedTypesParam,
+                }
+              : tab,
+          ),
+        );
+        setPreferredView("workspace");
 
         router.replace(
           buildWorkspaceUrl(
             workspaceHref,
-            sourceId,
-            sourceName || "Selected document",
+            resolvedSourceId,
+            resolvedSourceName || "Selected document",
             generated.id,
             mergedTypes,
+            resolvedWorkspaceTypeId,
           ),
         );
       } catch (err) {
@@ -461,7 +834,17 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
         setInsightsGenerating(false);
       }
     },
-    [generatedInsightTypes, insightId, insightsGenerating, router, sourceId, sourceName, workspaceHref],
+    [
+      activeTabId,
+      insightsGenerating,
+      resolvedGeneratedInsightTypes,
+      resolvedInsightId,
+      resolvedSourceId,
+      resolvedSourceName,
+      resolvedWorkspaceTypeId,
+      router,
+      workspaceHref,
+    ],
   );
 
   const handleOpenGenerateModal = useCallback(() => {
@@ -478,16 +861,29 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
   );
 
   useEffect(() => {
-    if (!sourceId || insightId) return;
+    if (!resolvedSourceId || resolvedInsightId) return;
 
     let cancelled = false;
     void (async () => {
       try {
         const library = await publicApi.library();
         if (cancelled) return;
-        const existing = findExistingInsightForDocument(sourceId, sourceName, library);
+        const existing = findExistingInsightForDocument(
+          resolvedSourceId,
+          resolvedSourceName,
+          library,
+        );
         if (existing) {
-          router.replace(buildWorkspaceUrl(workspaceHref, sourceId, sourceName || "Selected document", existing.id));
+          router.replace(
+            buildWorkspaceUrl(
+              workspaceHref,
+              resolvedSourceId,
+              resolvedSourceName || "Selected document",
+              existing.id,
+              null,
+              resolvedWorkspaceTypeId,
+            ),
+          );
         }
       } catch {
         // Ignore lookup failures — user can still generate manually.
@@ -497,53 +893,81 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
     return () => {
       cancelled = true;
     };
-  }, [sourceId, insightId, sourceName, router, workspaceHref]);
+  }, [
+    resolvedInsightId,
+    resolvedSourceId,
+    resolvedSourceName,
+    resolvedWorkspaceTypeId,
+    router,
+    workspaceHref,
+  ]);
 
   useEffect(() => {
     setRecentWorkspaces(readRecentWorkspaces());
   }, []);
 
   useEffect(() => {
-    if (!sourceId) return;
+    if (!resolvedSourceId) return;
     setRecentWorkspaces(
       recordRecentWorkspace({
-        sourceId,
-        sourceName,
-        insightId,
-        insightTypes: insightTypesParam,
+        sourceId: resolvedSourceId,
+        sourceName: resolvedSourceName,
+        insightId: resolvedInsightId,
+        insightTypes: resolvedInsightTypesParam,
       }),
     );
-  }, [sourceId, sourceName, insightId, insightTypesParam ?? ""]);
+  }, [resolvedInsightId, resolvedInsightTypesParam, resolvedSourceId, resolvedSourceName]);
 
   useEffect(() => {
+    const typeLabel = getWorkspaceTypeDefinition(resolvedWorkspaceTypeId).label;
     setHeader({
-      title: "Research Companion",
-      subtitle: insightId
-        ? sourceName?.trim() || "Workspace"
-        : sourceId
-          ? sourceName?.trim() || "Document attached"
-          : "New workspace",
+      title: app.name,
+      subtitle: resolvedInsightId
+        ? `${typeLabel} · ${resolvedSourceName?.trim() || "Workspace"}`
+        : resolvedSourceId
+          ? `${typeLabel} · ${resolvedSourceName?.trim() || "Document attached"}`
+          : typeLabel,
     });
     return () => setHeader(null);
-  }, [setHeader, sourceName, sourceId, insightId]);
+  }, [
+    app.name,
+    resolvedInsightId,
+    resolvedSourceId,
+    resolvedSourceName,
+    resolvedWorkspaceTypeId,
+    setHeader,
+  ]);
 
   useEffect(() => {
-    if (!sourceId) {
+    if (!resolvedSourceId) {
       setApiPageCount(undefined);
       return;
     }
 
     publicApi
-      .getFile(sourceId)
+      .getFile(resolvedSourceId)
       .then((doc) => setApiPageCount(doc.page_count > 0 ? doc.page_count : 1))
       .catch(() => setApiPageCount(undefined));
-  }, [sourceId]);
+  }, [resolvedSourceId]);
+
+  const tabProps = {
+    workspaceTabs,
+    activeWorkspaceTabId: activeTabId,
+    onSelectWorkspaceTab: handleSelectWorkspaceTab,
+    onCloseWorkspaceTab: handleCloseWorkspaceTab,
+        onNewWorkspaceTab: handleRequestNewWorkspaceTab,
+        onStartWorkspaceWithType: (typeId) => void handleCreateWorkspaceTab(typeId),
+        workspaceTypeId: resolvedWorkspaceTypeId,
+    isPreparingNewWorkspaceTab: isPreparingWorkspaceTab,
+  };
 
   const sharedProps = {
-    sourceName,
-    insightId,
-    generatedInsightTypes: insightId ? generatedInsightTypes : undefined,
-    initialTab,
+    sourceId: resolvedSourceId,
+    sourceName: resolvedSourceName,
+    insightId: resolvedInsightId,
+    generatedInsightTypes: resolvedInsightId ? resolvedGeneratedInsightTypes : undefined,
+    initialTab: preferredView,
+    apiPageCount,
     initialAssistPanel,
     initialConversationId,
     onOpenFile: openFile,
@@ -563,6 +987,8 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
     fileUploadProgress,
     fileUploadError,
     resumedFromLibrary,
+    onShellViewChange: setPreferredView,
+    ...tabProps,
   };
 
   return (
@@ -576,25 +1002,22 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
       />
       {isOpening ? (
         <ResearchCompanionWorkspaceShimmer />
-      ) : sourceId ? (
-        <PdfDocumentProvider documentId={sourceId}>
-          <ResearchCompanionWorkspaceWithDocument
-            sourceId={sourceId}
-            apiPageCount={apiPageCount}
-            {...sharedProps}
-          />
-        </PdfDocumentProvider>
       ) : (
-        <ResearchCompanionWorkspaceApp sourceId={null} pageCount={0} {...sharedProps} />
+        <ResearchCompanionWorkspaceApp {...sharedProps} pageCount={0} />
       )}
       {picker}
+      <WorkspaceTypePickerModal
+        open={workspaceTypePickerOpen}
+        onClose={() => setWorkspaceTypePickerOpen(false)}
+        onConfirm={(typeId) => void handleCreateWorkspaceTab(typeId)}
+      />
       <InsightGenerationConfirmModal
         open={confirmModalOpen}
-        sourceName={sourceName}
+        sourceName={resolvedSourceName}
         confirming={insightsGenerating}
-        mode={insightId ? "additional" : "initial"}
-        lockedTypes={insightId ? generatedInsightTypes : undefined}
-        initialSelection={insightId ? missingInsightTypes : undefined}
+        mode={resolvedInsightId ? "additional" : "initial"}
+        lockedTypes={resolvedInsightId ? resolvedGeneratedInsightTypes : undefined}
+        initialSelection={resolvedInsightId ? resolvedMissingInsightTypes : undefined}
         onClose={() => {
           if (!insightsGenerating) setConfirmModalOpen(false);
         }}

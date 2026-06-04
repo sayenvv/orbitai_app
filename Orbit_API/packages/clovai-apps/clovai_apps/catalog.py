@@ -7,10 +7,10 @@ from pydantic import BaseModel, Field
 from clovai_apps.constants import (
     APP_SLUG_ASSET_REMIX,
     APP_SLUG_CAREER_COACH,
-    APP_SLUG_CLOVAI_PROJECTS,
     APP_SLUG_CREATIVE_EDITOR,
     APP_SLUG_LOGO_STUDIO,
     APP_SLUG_PHOTO_STUDIO,
+    APP_SLUG_PROJECT_PLANNING,
     APP_SLUG_RESEARCH_COMPANION,
     APP_SLUG_VIDEO_SNIPPETS,
     APP_SLUG_VOICE_MAKER,
@@ -30,7 +30,7 @@ CATALOG_APP_IDS = {
     "asset_remix": "a1000001-0006-4000-8000-000000000006",
     "career_coach": "a1000001-0007-4000-8000-000000000007",
     "research_companion": "a1000001-0008-4000-8000-000000000008",
-    "clovai_projects": "a1000001-0009-4000-8000-000000000009",
+    "project_planning": "a1000001-0009-4000-8000-000000000009",
 }
 
 CATALOG_ID_BY_SLUG: dict[str, str] = {
@@ -42,12 +42,12 @@ CATALOG_ID_BY_SLUG: dict[str, str] = {
     APP_SLUG_ASSET_REMIX: CATALOG_APP_IDS["asset_remix"],
     APP_SLUG_CAREER_COACH: CATALOG_APP_IDS["career_coach"],
     APP_SLUG_RESEARCH_COMPANION: CATALOG_APP_IDS["research_companion"],
-    APP_SLUG_CLOVAI_PROJECTS: CATALOG_APP_IDS["clovai_projects"],
+    APP_SLUG_PROJECT_PLANNING: CATALOG_APP_IDS["project_planning"],
 }
 
 # Apps with a live workspace in the chat UI (not just marketing detail pages).
 VISIBLE_APP_SLUGS = frozenset(
-    {APP_SLUG_PHOTO_STUDIO, APP_SLUG_RESEARCH_COMPANION, APP_SLUG_CLOVAI_PROJECTS}
+    {APP_SLUG_PHOTO_STUDIO, APP_SLUG_RESEARCH_COMPANION, APP_SLUG_PROJECT_PLANNING}
 )
 
 
@@ -83,7 +83,7 @@ APPS_CATALOG: tuple[CatalogAppSummary, ...] = (
     CatalogAppSummary(
         id=CATALOG_APP_IDS["photo_studio"],
         slug=APP_SLUG_PHOTO_STUDIO,
-        name="Photo Studio",
+        name="Clovai Canvas",
         category="Image",
         tag="Visuals",
         tier="starter",
@@ -152,7 +152,7 @@ APPS_CATALOG: tuple[CatalogAppSummary, ...] = (
     CatalogAppSummary(
         id=CATALOG_APP_IDS["research_companion"],
         slug=APP_SLUG_RESEARCH_COMPANION,
-        name="Research Companion",
+        name="Clovai Insights",
         category="Research",
         tag="Research",
         tier="pro",
@@ -163,14 +163,14 @@ APPS_CATALOG: tuple[CatalogAppSummary, ...] = (
         launch_available=True,
     ),
     CatalogAppSummary(
-        id=CATALOG_APP_IDS["clovai_projects"],
-        slug=APP_SLUG_CLOVAI_PROJECTS,
-        name="Clovai Projects",
-        category="Planning",
-        tag="SDLC",
+        id=CATALOG_APP_IDS["project_planning"],
+        slug=APP_SLUG_PROJECT_PLANNING,
+        name="Clovai Project Studio",
+        category="Product",
+        tag="Planning",
         tier="pro",
-        tagline="Turn requirements into editable SDLC workspaces with diagrams and exportable docs.",
-        short_description="AI project planning from requirements to architecture, APIs, testing, and deployment plans.",
+        tagline="Requirements, architecture, and delivery planning in one structured workspace.",
+        short_description="13 phases and 103 deliverables from discovery through DevOps.",
         model_access="Pro model access",
         featured=True,
         launch_available=True,

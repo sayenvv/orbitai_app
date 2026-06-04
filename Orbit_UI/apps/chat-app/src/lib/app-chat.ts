@@ -3,7 +3,8 @@ import type { Conversation } from "@/types";
 import { findCatalogApp, getAppLaunchHref, getAppWorkspaceHref } from "@orbit/clovai-apps";
 
 export const APP_SLUG_LABELS: Record<string, string> = {
-  "research-companion": "Research Companion",
+  "research-companion": "Clovai Insights",
+  "project-planning": "Clovai Project Studio",
 };
 
 export function isAppChatConversation(conv: Conversation): boolean {

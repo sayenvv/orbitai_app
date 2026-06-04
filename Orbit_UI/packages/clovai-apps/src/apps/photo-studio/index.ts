@@ -10,6 +10,7 @@ export {
   isPhotoStudioSupportedImageFilename,
   isPhotoStudioSupportedImageMime,
 } from "./image-formats";
+export type { PhotoStudioWorkspaceUpload } from "./photo-studio-uploads-panel";
 export type {
   PhotoStudioAppProps,
   PhotoStudioCreationType,
@@ -19,9 +20,12 @@ export type {
   PhotoStudioWorkspaceSnapshot,
   CanvasBackgroundId,
   RecentPhotoProject,
+  PhotoStudioWorkspaceTab,
 } from "./photo-studio-app";
 export type { PhotoStudioOptionsConfig } from "./photo-studio-options";
 export {
   DEFAULT_PHOTO_STUDIO_OPTIONS,
   resolvePhotoStudioOptions,
 } from "./photo-studio-options";
+export { parseCanvasLayersJson } from "./photo-studio-canvas-import";
+export type { CanvasTextLayer, ParsedCanvasLayers } from "./photo-studio-canvas-import";

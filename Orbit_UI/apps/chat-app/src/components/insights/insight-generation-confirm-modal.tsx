@@ -187,7 +187,7 @@ export function InsightGenerationConfirmModal({
               </span>
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-                  Research Companion
+                  Clovai Insights
                 </p>
                 <h2
                   id="insight-confirm-title"

@@ -455,7 +455,7 @@ export default function HomePage() {
                     tagColor: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
                   },
                   {
-                    title: "Research Companion",
+                    title: "Clovai Insights",
                     description: "Upload papers and reports for structured summaries and insights.",
                     tag: "App",
                     gradient: "from-emerald-500/15 to-teal-500/10",

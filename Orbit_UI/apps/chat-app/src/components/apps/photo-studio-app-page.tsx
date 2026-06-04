@@ -4,12 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   PhotoStudioApp,
+  PHOTO_STUDIO_IMAGE_FORMATS_LABEL,
+  isPhotoStudioSupportedImageFile,
+  isPhotoStudioSupportedImageFilename,
+  isPhotoStudioSupportedImageMime,
   type CatalogApp,
   type PhotoStudioGeneratedItem,
   type PhotoStudioOptionsConfig,
   type PhotoStudioSavedDesign,
   type PhotoStudioView,
   type PhotoStudioWorkspaceSnapshot,
+  type PhotoStudioWorkspaceTab,
+  type PhotoStudioWorkspaceUpload,
   type RecentPhotoProject,
   type CanvasBackgroundId,
   getAppWorkspaceHref,
@@ -17,7 +23,15 @@ import {
 } from "@orbit/clovai-apps";
 import { PhotoStudioAssetPicker } from "@/components/apps/photo-studio-asset-picker";
 import { useAppShell } from "@/components/layout/app-shell-context";
-import { getApiBaseUrl, getApiErrorMessage, photoStudioApi, type ApiPhotoStudioDesignItem, type ApiPhotoStudioGeneratedItem } from "@/lib/orbit-api";
+import {
+  getApiBaseUrl,
+  getApiErrorMessage,
+  photoStudioApi,
+  publicApi,
+  type ApiPhotoStudioDesignItem,
+  type ApiPhotoStudioGeneratedItem,
+  type ApiRagDocument,
+} from "@/lib/orbit-api";
 import {
   buildRecentPhotoProjectHref,
   fetchRecentPhotoProjects,
@@ -26,9 +40,39 @@ import {
   recordRecentPhotoProject,
 } from "@/lib/photo-studio-recent-projects";
 import { LIBRARY_OPEN_ORIGIN } from "@/lib/library-open-in-app";
+import {
+  createDebouncedCanvasJsonExporter,
+  fetchExportedCanvasLayers,
+} from "@/lib/photo-studio-canvas-export";
 import { PhotoStudioLaunchShimmer } from "@/components/ui/skeleton";
 
 const APP_OPEN_DELAY_MS = 750;
+const WORKSPACE_TAB_PREPARE_MS = 450;
+
+function isPhotoStudioLibraryUpload(doc: ApiRagDocument): boolean {
+  if (isPhotoStudioSupportedImageMime(doc.mime_type)) {
+    return true;
+  }
+  return isPhotoStudioSupportedImageFilename(doc.name || doc.original_filename);
+}
+
+function createWorkspaceTabId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `tab-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function createWorkspaceDraftId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `draft-${Date.now()}`;
+}
+
+function defaultWorkspaceTabTitle(tabCount: number): string {
+  return tabCount <= 1 ? "Untitled" : `Untitled ${tabCount}`;
+}
+
+type WorkspaceTabRecord = PhotoStudioWorkspaceTab;
 
 function SaveWorkspaceDialog({
   open,
@@ -128,8 +172,6 @@ function buildWorkspaceUrl(
     search.set("view", "workspace");
   } else if (params.view === "workspace") {
     search.set("view", "workspace");
-  } else if (params.view === "open") {
-    search.set("view", "open");
   } else if (params.view === "home") {
     search.set("view", "home");
   }
@@ -206,14 +248,8 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
   const assetNameParam = searchParams.get("assetName");
   const viewParam = searchParams.get("view");
   const resumedFromLibrary = searchParams.get("origin") === LIBRARY_OPEN_ORIGIN;
-  const normalizedView =
-    viewParam === "overview" ? "home" : viewParam === "open" || viewParam === "home" ? viewParam : null;
   const initialView: PhotoStudioView =
-    workspaceIdParam || assetIdParam
-      ? "workspace"
-      : normalizedView === "open"
-        ? "open"
-        : "home";
+    workspaceIdParam || assetIdParam || viewParam === "workspace" ? "workspace" : "home";
 
   const [isOpening, setIsOpening] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -234,10 +270,49 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [workspaceSessionKey, setWorkspaceSessionKey] = useState(0);
+  const [isPreparingWorkspaceTab, setIsPreparingWorkspaceTab] = useState(false);
+  const [tabUnsavedFlags, setTabUnsavedFlags] = useState<Record<string, boolean>>({});
+  const [workspaceUploads, setWorkspaceUploads] = useState<PhotoStudioWorkspaceUpload[]>([]);
+  const [uploadsLoading, setUploadsLoading] = useState(false);
+  const [uploadsError, setUploadsError] = useState<string | null>(null);
+  const [assetUploading, setAssetUploading] = useState(false);
+  const [assetUploadError, setAssetUploadError] = useState<string | null>(null);
+
+  const initialTabIdRef = useRef(createWorkspaceTabId());
+  const initialDraftIdRef = useRef(createWorkspaceDraftId());
+  const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTabRecord[]>(() => [
+    {
+      id: initialTabIdRef.current,
+      title:
+        assetNameParam?.trim() ||
+        (workspaceIdParam ? "Project" : defaultWorkspaceTabTitle(1)),
+      workspaceId: workspaceIdParam,
+      assetId: assetIdParam,
+      assetName: assetNameParam,
+      draftId: initialDraftIdRef.current,
+    },
+  ]);
+  const [activeTabId, setActiveTabId] = useState(initialTabIdRef.current);
 
   const latestSnapshotRef = useRef<PhotoStudioWorkspaceSnapshot | null>(null);
   const savedSnapshotKeyRef = useRef<string | null>(null);
   const workspaceRequestRef = useRef(0);
+  const tabSnapshotsRef = useRef<Map<string, PhotoStudioWorkspaceSnapshot>>(new Map());
+  const tabSavedKeysRef = useRef<Map<string, string>>(new Map());
+  const draftExportIdRef = useRef(initialDraftIdRef.current);
+  const canvasJsonExporterRef = useRef(
+    createDebouncedCanvasJsonExporter({
+      workspaceId: workspaceId,
+      draftId: draftExportIdRef.current,
+    }),
+  );
+
+  useEffect(() => {
+    canvasJsonExporterRef.current = createDebouncedCanvasJsonExporter({
+      workspaceId,
+      draftId: draftExportIdRef.current,
+    });
+  }, [workspaceId]);
 
   useEffect(() => {
     setHeader({
@@ -323,10 +398,25 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
     const workspaceIdToLoad = workspaceIdParam;
     if (!workspaceIdToLoad) {
       setWorkspaceLoading(false);
-      setWorkspaceId(null);
-      setWorkspaceSnapshot(null);
-      savedSnapshotKeyRef.current = null;
-      setHasUnsavedChanges(false);
+      return;
+    }
+
+    const activeTab = workspaceTabs.find((tab) => tab.id === activeTabId);
+    if (activeTab?.workspaceId && activeTab.workspaceId !== workspaceIdToLoad) {
+      return;
+    }
+
+    const cachedSnapshot = tabSnapshotsRef.current.get(activeTabId);
+    if (cachedSnapshot) {
+      const snapshot = structuredClone(cachedSnapshot);
+      setWorkspaceId(workspaceIdToLoad);
+      setWorkspaceSnapshot(snapshot);
+      latestSnapshotRef.current = snapshot;
+      savedSnapshotKeyRef.current =
+        tabSavedKeysRef.current.get(activeTabId) ?? JSON.stringify(snapshot);
+      setHasUnsavedChanges(tabUnsavedFlags[activeTabId] ?? false);
+      setWorkspaceLoading(false);
+      setWorkspaceError(null);
       return;
     }
 
@@ -344,6 +434,25 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         const snapshot = mapApiWorkspaceToSnapshot(workspace);
         setWorkspaceId(workspace.id);
         setWorkspaceSnapshot(snapshot);
+        tabSnapshotsRef.current.set(activeTabId, snapshot);
+        tabSavedKeysRef.current.set(activeTabId, JSON.stringify(snapshot));
+        setWorkspaceTabs((current) =>
+          current.map((tab) =>
+            tab.id === activeTabId
+              ? {
+                  ...tab,
+                  workspaceId: workspace.id,
+                  assetId: snapshot.assetId ?? tab.assetId,
+                  assetName: snapshot.assetName ?? tab.assetName,
+                  title:
+                    snapshot.projectName?.trim() ||
+                    snapshot.title?.trim() ||
+                    workspace.title ||
+                    tab.title,
+                }
+              : tab,
+          ),
+        );
         setResolvedAssetId(snapshot.assetId ?? assetIdParam);
         setResolvedAssetName(snapshot.assetName ?? assetNameParam);
         latestSnapshotRef.current = snapshot;
@@ -364,7 +473,7 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
     return () => {
       cancelled = true;
     };
-  }, [assetIdParam, assetNameParam, workspaceIdParam]);
+  }, [activeTabId, assetIdParam, assetNameParam, workspaceIdParam, workspaceTabs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -406,15 +515,182 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
     setRecentProjects(projects);
   }, []);
 
-  const handleWorkspaceSnapshotChange = useCallback((snapshot: PhotoStudioWorkspaceSnapshot) => {
-    latestSnapshotRef.current = snapshot;
-    if (!workspaceId) {
-      setHasUnsavedChanges(true);
-      return;
+  const persistActiveTabSnapshot = useCallback(() => {
+    const snapshot =
+      latestSnapshotRef.current ?? tabSnapshotsRef.current.get(activeTabId) ?? null;
+    if (!snapshot) return;
+    const cloned = structuredClone(snapshot);
+    tabSnapshotsRef.current.set(activeTabId, cloned);
+    const activeTab = workspaceTabs.find((tab) => tab.id === activeTabId);
+    if (activeTab?.workspaceId) {
+      tabSavedKeysRef.current.set(activeTabId, JSON.stringify(cloned));
     }
-    const savedKey = savedSnapshotKeyRef.current;
-    setHasUnsavedChanges(savedKey ? JSON.stringify(snapshot) !== savedKey : true);
-  }, [workspaceId]);
+  }, [activeTabId, workspaceTabs]);
+
+  const syncActiveTabUrl = useCallback(
+    (tab: WorkspaceTabRecord) => {
+      router.replace(
+        buildWorkspaceUrl(workspaceHref, {
+          workspaceId: tab.workspaceId,
+          assetId: tab.assetId,
+          assetName: tab.assetName,
+          view: "workspace",
+        }),
+      );
+    },
+    [router, workspaceHref],
+  );
+
+  const applyWorkspaceTab = useCallback(
+    async (tab: WorkspaceTabRecord) => {
+      setActiveTabId(tab.id);
+      draftExportIdRef.current = tab.draftId;
+      canvasJsonExporterRef.current = createDebouncedCanvasJsonExporter({
+        workspaceId: tab.workspaceId,
+        draftId: tab.draftId,
+      });
+
+      const cachedSnapshot = tabSnapshotsRef.current.get(tab.id) ?? null;
+      const snapshotForTab = cachedSnapshot ? structuredClone(cachedSnapshot) : null;
+      setWorkspaceId(tab.workspaceId);
+      setResolvedAssetId(tab.assetId);
+      setResolvedAssetName(tab.assetName);
+      setWorkspaceSnapshot(snapshotForTab);
+      latestSnapshotRef.current = snapshotForTab;
+      savedSnapshotKeyRef.current = tab.workspaceId
+        ? tabSavedKeysRef.current.get(tab.id) ??
+          (snapshotForTab ? JSON.stringify(snapshotForTab) : null)
+        : null;
+      setHasUnsavedChanges(tabUnsavedFlags[tab.id] ?? false);
+      setWorkspaceError(null);
+
+      if (tab.workspaceId && !snapshotForTab) {
+        setWorkspaceLoading(true);
+      } else {
+        setWorkspaceLoading(false);
+      }
+
+      syncActiveTabUrl(tab);
+    },
+    [syncActiveTabUrl, tabUnsavedFlags],
+  );
+
+  const handleSelectWorkspaceTab = useCallback(
+    (tabId: string) => {
+      const tab = workspaceTabs.find((item) => item.id === tabId);
+      if (!tab) return;
+      if (tabId !== activeTabId) {
+        persistActiveTabSnapshot();
+      }
+      void applyWorkspaceTab(tab);
+    },
+    [activeTabId, applyWorkspaceTab, persistActiveTabSnapshot, workspaceTabs],
+  );
+
+  const handleAddWorkspaceTab = useCallback(async () => {
+    if (isPreparingWorkspaceTab) return;
+    setIsPreparingWorkspaceTab(true);
+    persistActiveTabSnapshot();
+    try {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, WORKSPACE_TAB_PREPARE_MS);
+      });
+      const newTab: WorkspaceTabRecord = {
+        id: createWorkspaceTabId(),
+        title: defaultWorkspaceTabTitle(workspaceTabs.length + 1),
+        workspaceId: null,
+        assetId: null,
+        assetName: null,
+        draftId: createWorkspaceDraftId(),
+      };
+      setWorkspaceTabs((current) => [...current, newTab]);
+      await applyWorkspaceTab(newTab);
+    } finally {
+      setIsPreparingWorkspaceTab(false);
+    }
+  }, [
+    applyWorkspaceTab,
+    isPreparingWorkspaceTab,
+    persistActiveTabSnapshot,
+    workspaceTabs.length,
+  ]);
+
+  const handleCloseWorkspaceTab = useCallback(
+    (tabId: string) => {
+      persistActiveTabSnapshot();
+      tabSnapshotsRef.current.delete(tabId);
+      tabSavedKeysRef.current.delete(tabId);
+      setTabUnsavedFlags((current) => {
+        const next = { ...current };
+        delete next[tabId];
+        return next;
+      });
+
+      if (workspaceTabs.length === 1) {
+        const resetTab: WorkspaceTabRecord = {
+          id: tabId,
+          title: defaultWorkspaceTabTitle(1),
+          workspaceId: null,
+          assetId: null,
+          assetName: null,
+          draftId: createWorkspaceDraftId(),
+        };
+        setWorkspaceTabs([resetTab]);
+        void applyWorkspaceTab(resetTab);
+        return;
+      }
+
+      const remaining = workspaceTabs.filter((tab) => tab.id !== tabId);
+      setWorkspaceTabs(remaining);
+
+      if (activeTabId === tabId) {
+        const nextActive = remaining[remaining.length - 1];
+        if (nextActive) void applyWorkspaceTab(nextActive);
+      }
+    },
+    [
+      activeTabId,
+      applyWorkspaceTab,
+      persistActiveTabSnapshot,
+      workspaceTabs,
+    ],
+  );
+
+  const handleWorkspaceSnapshotChange = useCallback(
+    (snapshot: PhotoStudioWorkspaceSnapshot) => {
+      const cloned = structuredClone(snapshot);
+      latestSnapshotRef.current = cloned;
+      canvasJsonExporterRef.current(cloned);
+      tabSnapshotsRef.current.set(activeTabId, cloned);
+
+      const title = snapshot.projectName?.trim() || snapshot.title?.trim();
+      if (title) {
+        setWorkspaceTabs((current) =>
+          current.map((tab) => (tab.id === activeTabId ? { ...tab, title } : tab)),
+        );
+      }
+
+      let unsaved = false;
+      if (!workspaceId) {
+        unsaved = true;
+      } else {
+        const savedKey = savedSnapshotKeyRef.current;
+        unsaved = savedKey ? JSON.stringify(snapshot) !== savedKey : true;
+      }
+      setHasUnsavedChanges(unsaved);
+      setTabUnsavedFlags((current) => ({ ...current, [activeTabId]: unsaved }));
+    },
+    [activeTabId, workspaceId],
+  );
+
+  useEffect(() => {
+    if (!workspaceSnapshot) return;
+    const title = workspaceSnapshot.projectName?.trim() || workspaceSnapshot.title?.trim();
+    if (!title) return;
+    setWorkspaceTabs((current) =>
+      current.map((tab) => (tab.id === activeTabId ? { ...tab, title } : tab)),
+    );
+  }, [activeTabId, workspaceSnapshot]);
 
   const handleOpenSaveDialog = useCallback(() => {
     setSaveError(null);
@@ -471,6 +747,13 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
           setWorkspaceSnapshot(nextSnapshot);
           latestSnapshotRef.current = nextSnapshot;
           savedSnapshotKeyRef.current = JSON.stringify(nextSnapshot);
+          tabSnapshotsRef.current.set(activeTabId, nextSnapshot);
+          tabSavedKeysRef.current.set(activeTabId, JSON.stringify(nextSnapshot));
+          setWorkspaceTabs((current) =>
+            current.map((tab) =>
+              tab.id === activeTabId ? { ...tab, title: trimmedName } : tab,
+            ),
+          );
         } else {
           const created = await photoStudioApi.createWorkspace({
             title: trimmedName,
@@ -483,6 +766,21 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
           setWorkspaceSnapshot(nextSnapshot);
           latestSnapshotRef.current = nextSnapshot;
           savedSnapshotKeyRef.current = JSON.stringify(nextSnapshot);
+          tabSnapshotsRef.current.set(activeTabId, nextSnapshot);
+          tabSavedKeysRef.current.set(activeTabId, JSON.stringify(nextSnapshot));
+          setWorkspaceTabs((current) =>
+            current.map((tab) =>
+              tab.id === activeTabId
+                ? {
+                    ...tab,
+                    workspaceId: created.id,
+                    title: trimmedName,
+                    assetId: nextSnapshot.assetId ?? tab.assetId,
+                    assetName: nextSnapshot.assetName ?? tab.assetName,
+                  }
+                : tab,
+            ),
+          );
           router.replace(
             buildWorkspaceUrl(workspaceHref, {
               workspaceId: created.id,
@@ -492,6 +790,7 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         }
 
         setHasUnsavedChanges(false);
+        setTabUnsavedFlags((current) => ({ ...current, [activeTabId]: false }));
         setSaveDialogOpen(false);
         await refreshRecents();
       } catch (error) {
@@ -500,7 +799,7 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         setIsSavingWorkspace(false);
       }
     },
-    [refreshRecents, resolvedAssetId, resolvedAssetName, router, workspaceHref, workspaceId],
+    [activeTabId, refreshRecents, resolvedAssetId, resolvedAssetName, router, workspaceHref, workspaceId],
   );
 
   const handleLoadDesigns = useCallback(async (activeWorkspaceId: string | null) => {
@@ -519,32 +818,174 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
     setWorkspaceError(null);
     latestSnapshotRef.current = null;
     savedSnapshotKeyRef.current = null;
+    tabSnapshotsRef.current.delete(activeTabId);
+    tabSavedKeysRef.current.delete(activeTabId);
     setHasUnsavedChanges(false);
+    setTabUnsavedFlags((current) => ({ ...current, [activeTabId]: false }));
+    setWorkspaceTabs((current) =>
+      current.map((tab) =>
+        tab.id === activeTabId
+          ? {
+              ...tab,
+              workspaceId: null,
+              assetId: null,
+              assetName: null,
+              title: defaultWorkspaceTabTitle(current.length),
+              draftId: createWorkspaceDraftId(),
+            }
+          : tab,
+      ),
+    );
     setWorkspaceSessionKey((key) => key + 1);
     router.replace(buildWorkspaceUrl(workspaceHref, { view: "workspace" }));
-  }, [router, workspaceHref]);
+  }, [activeTabId, router, workspaceHref, workspaceTabs.length]);
 
   const handleNewWorkspace = useCallback(() => {
-    router.push(buildWorkspaceUrl(workspaceHref, { view: "home" }));
-  }, [router, workspaceHref]);
+    void handleAddWorkspaceTab();
+  }, [handleAddWorkspaceTab]);
 
   const handleOpenRecentProject = useCallback(
     (project: RecentPhotoProject) => {
-      router.push(buildRecentPhotoProjectHref(project));
+      if (project.workspaceId) {
+        const existing = workspaceTabs.find(
+          (tab) => tab.workspaceId === project.workspaceId,
+        );
+        if (existing) {
+          handleSelectWorkspaceTab(existing.id);
+          return;
+        }
+      }
+
+      persistActiveTabSnapshot();
+      const newTab: WorkspaceTabRecord = {
+        id: createWorkspaceTabId(),
+        title: project.title?.trim() || project.assetName?.trim() || "Project",
+        workspaceId: project.workspaceId ?? null,
+        assetId: project.assetId ?? null,
+        assetName: project.assetName ?? null,
+        draftId: createWorkspaceDraftId(),
+      };
+      setWorkspaceTabs((current) => [...current, newTab]);
+      void applyWorkspaceTab(newTab);
     },
-    [router],
+    [
+      applyWorkspaceTab,
+      handleSelectWorkspaceTab,
+      persistActiveTabSnapshot,
+      workspaceTabs,
+    ],
+  );
+
+  const refreshWorkspaceUploads = useCallback(async () => {
+    setUploadsLoading(true);
+    setUploadsError(null);
+    try {
+      const [assets, library] = await Promise.all([
+        photoStudioApi.assets(),
+        publicApi.library().catch(() => ({ uploads: [] as ApiRagDocument[], generated: [] })),
+      ]);
+      const merged = new Map<string, PhotoStudioWorkspaceUpload>();
+      for (const asset of assets) {
+        merged.set(asset.id, {
+          id: asset.id,
+          name: asset.name,
+          status: "ready",
+          imageUrl: asset.downloadUrl || `${getApiBaseUrl()}/files/${asset.id}/download`,
+          createdAt: asset.createdAt ?? null,
+        });
+      }
+      for (const doc of library.uploads || []) {
+        if (!isPhotoStudioLibraryUpload(doc)) continue;
+        merged.set(doc.id, {
+          id: doc.id,
+          name: doc.name || doc.original_filename,
+          status: doc.status,
+          imageUrl: `${getApiBaseUrl()}/files/${doc.id}/download`,
+        });
+      }
+      setWorkspaceUploads(Array.from(merged.values()));
+    } catch (err) {
+      setUploadsError(getApiErrorMessage(err, "Failed to load uploads"));
+    } finally {
+      setUploadsLoading(false);
+    }
+  }, []);
+
+  const handleApplyWorkspaceUpload = useCallback(
+    (upload: PhotoStudioWorkspaceUpload) => {
+      if (upload.status && upload.status !== "ready") return;
+      persistActiveTabSnapshot();
+      const activeTab = workspaceTabs.find((tab) => tab.id === activeTabId);
+      if (!activeTab) return;
+      const nextTab: WorkspaceTabRecord = {
+        ...activeTab,
+        assetId: upload.id,
+        assetName: upload.name,
+      };
+      setWorkspaceTabs((tabs) =>
+        tabs.map((tab) => (tab.id === activeTabId ? nextTab : tab)),
+      );
+      setResolvedAssetId(upload.id);
+      setResolvedAssetName(upload.name);
+      const snapshot =
+        latestSnapshotRef.current ?? tabSnapshotsRef.current.get(activeTabId) ?? null;
+      if (snapshot) {
+        const nextSnapshot = {
+          ...snapshot,
+          assetId: upload.id,
+          assetName: upload.name,
+        };
+        latestSnapshotRef.current = nextSnapshot;
+        setWorkspaceSnapshot(nextSnapshot);
+        tabSnapshotsRef.current.set(activeTabId, nextSnapshot);
+      }
+      syncActiveTabUrl(nextTab);
+    },
+    [activeTabId, persistActiveTabSnapshot, syncActiveTabUrl, workspaceTabs],
+  );
+
+  const handleUploadImageFile = useCallback(
+    async (file: File) => {
+      if (!isPhotoStudioSupportedImageFile(file)) {
+        setAssetUploadError(`Use ${PHOTO_STUDIO_IMAGE_FORMATS_LABEL} images only.`);
+        return;
+      }
+      setAssetUploading(true);
+      setAssetUploadError(null);
+      try {
+        const doc = await publicApi.uploadFile(file);
+        await refreshWorkspaceUploads();
+        handleApplyWorkspaceUpload({
+          id: doc.id,
+          name: doc.name || doc.original_filename || file.name,
+          status: doc.status,
+          imageUrl: `${getApiBaseUrl()}/files/${doc.id}/download`,
+        });
+      } catch (err) {
+        setAssetUploadError(getApiErrorMessage(err, "Upload failed"));
+      } finally {
+        setAssetUploading(false);
+      }
+    },
+    [handleApplyWorkspaceUpload, refreshWorkspaceUploads],
   );
 
   const handleSelectAsset = useCallback(
     (asset: { id: string; name: string }) => {
-      router.push(
-        buildWorkspaceUrl(workspaceHref, {
-          assetId: asset.id,
-          assetName: asset.name,
-        }),
-      );
+      persistActiveTabSnapshot();
+      const newTab: WorkspaceTabRecord = {
+        id: createWorkspaceTabId(),
+        title: asset.name.trim() || "Untitled",
+        workspaceId: null,
+        assetId: asset.id,
+        assetName: asset.name,
+        draftId: createWorkspaceDraftId(),
+      };
+      setWorkspaceTabs((current) => [...current, newTab]);
+      void applyWorkspaceTab(newTab);
+      void refreshWorkspaceUploads();
     },
-    [router, workspaceHref],
+    [applyWorkspaceTab, persistActiveTabSnapshot, refreshWorkspaceUploads],
   );
 
   const handleGenerate = useCallback(
@@ -586,12 +1027,15 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
     async (project: RecentPhotoProject) => {
       if (!project.workspaceId) return;
       await photoStudioApi.deleteWorkspace(project.workspaceId);
-      if (workspaceId === project.workspaceId) {
-        router.push(workspaceHref);
+      const tabToClose = workspaceTabs.find(
+        (tab) => tab.workspaceId === project.workspaceId,
+      );
+      if (tabToClose) {
+        handleCloseWorkspaceTab(tabToClose.id);
       }
       await refreshRecents();
     },
-    [refreshRecents, router, workspaceHref, workspaceId],
+    [handleCloseWorkspaceTab, refreshRecents, workspaceTabs],
   );
 
   const handleOpenHelp = useCallback(() => {
@@ -631,8 +1075,25 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         onDeleteRecentProject={handleDeleteRecentProject}
         formatRecentTime={formatRecentPhotoProjectTime}
         onOpenLibrary={() => setPickerOpen(true)}
+        workspaceUploads={workspaceUploads}
+        uploadsLoading={uploadsLoading}
+        uploadsError={uploadsError}
+        onSelectWorkspaceUpload={handleApplyWorkspaceUpload}
+        onRefreshWorkspaceUploads={refreshWorkspaceUploads}
+        onUploadImageFile={handleUploadImageFile}
+        assetUploading={assetUploading}
+        assetUploadError={assetUploadError}
         onResetDraftWorkspace={handleResetDraftWorkspace}
         onNewWorkspace={handleNewWorkspace}
+        workspaceTabs={workspaceTabs.map((tab) => ({
+          ...tab,
+          hasUnsavedChanges: Boolean(tabUnsavedFlags[tab.id]),
+        }))}
+        activeWorkspaceTabId={activeTabId}
+        onSelectWorkspaceTab={handleSelectWorkspaceTab}
+        onCloseWorkspaceTab={handleCloseWorkspaceTab}
+        onNewWorkspaceTab={() => void handleAddWorkspaceTab()}
+        isPreparingNewWorkspaceTab={isPreparingWorkspaceTab}
         workspaceSessionKey={workspaceSessionKey}
         onWorkspaceSnapshotChange={handleWorkspaceSnapshotChange}
         onSaveWorkspace={handleOpenSaveDialog}
@@ -648,6 +1109,10 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
         onFetchGeneration={handleFetchGeneration}
         onOpenHelp={handleOpenHelp}
         resumedFromLibrary={resumedFromLibrary}
+        canvasDraftId={draftExportIdRef.current}
+        loadExportedCanvasJson={async ({ workspaceId: wsId, draftId }) =>
+          fetchExportedCanvasLayers({ workspaceId: wsId, draftId })
+        }
       />
       <PhotoStudioAssetPicker
         open={pickerOpen}

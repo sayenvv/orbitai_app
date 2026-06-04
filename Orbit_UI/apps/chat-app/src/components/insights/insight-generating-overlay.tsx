@@ -62,7 +62,7 @@ export function InsightGeneratingOverlay({
           </div>
 
           <StudySectionLabel className="mt-6 block text-center">
-            Research Companion
+            Clovai Insights
           </StudySectionLabel>
           <h2 className="mt-2 text-center text-base font-semibold tracking-tight text-foreground">
             Generating document insights
@@ -117,7 +117,7 @@ export function InsightGeneratingOverlay({
           </div>
 
           <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground">
-            This usually takes a moment. Keep this open while Research Companion prepares the file.
+            This usually takes a moment. Keep this open while Clovai Insights prepares the file.
           </p>
         </div>
       </div>

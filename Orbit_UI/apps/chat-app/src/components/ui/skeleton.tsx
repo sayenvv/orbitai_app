@@ -98,7 +98,7 @@ export function PhotoStudioLaunchShimmer() {
     <div
       className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
       aria-busy="true"
-      aria-label="Opening Photo Studio"
+      aria-label="Opening Clovai Canvas"
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-violet-400/15 blur-3xl" />
@@ -114,7 +114,7 @@ export function PhotoStudioLaunchShimmer() {
           <Skeleton className="h-36 w-full rounded-[1.35rem]" />
         </div>
       </div>
-      <p className="relative pb-4 text-center text-xs font-medium text-muted-foreground">Opening Photo Studio…</p>
+      <p className="relative pb-4 text-center text-xs font-medium text-muted-foreground">Opening Clovai Canvas…</p>
     </div>
   );
 }

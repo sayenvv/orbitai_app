@@ -1,3 +1,5 @@
-# Install from Orbit_API directory (clovai + clovai-apps pulled via pyproject.toml path deps):
-#   pip install -r requirements-local.txt
+# Install from Orbit_API directory (path deps: clovai, clovai-apps, orbit-orchestration):
+#   python -m pip install -r requirements-local.txt
+#
+# After pulling changes that add packages under packages/, re-run the command above.
 -e .[dev]

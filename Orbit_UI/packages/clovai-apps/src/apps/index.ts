@@ -23,14 +23,21 @@ export type {
   PhotoStudioWorkspaceSnapshot,
   CanvasBackgroundId,
   RecentPhotoProject,
+  PhotoStudioWorkspaceTab,
 } from "./photo-studio";
 export type { PhotoStudioOptionsConfig } from "./photo-studio";
-export { DEFAULT_PHOTO_STUDIO_OPTIONS, resolvePhotoStudioOptions } from "./photo-studio";
+export { DEFAULT_PHOTO_STUDIO_OPTIONS, resolvePhotoStudioOptions, parseCanvasLayersJson } from "./photo-studio";
+export type { ParsedCanvasLayers, CanvasTextLayer } from "./photo-studio";
 export {
   appSlug as researchCompanionSlug,
   ResearchCompanionApp,
 } from "./research-companion";
-export type { ResearchCompanionAppProps, RecentWorkspace, ResearchCompanionView } from "./research-companion";
+export type {
+  ResearchCompanionAppProps,
+  RecentWorkspace,
+  ResearchCompanionView,
+  ResearchCompanionWorkspaceTab,
+} from "./research-companion";
 export type {
   ResearchCompanionGeneratableInsightType,
   ResearchCompanionInsightOption,
@@ -43,26 +50,42 @@ export {
   normalizeResearchCompanionInsightTypes,
   parseResearchCompanionInsightTypesParam,
   serializeResearchCompanionInsightTypes,
+  DEFAULT_WORKSPACE_TYPE_ID,
+  RESEARCH_COMPANION_WORKSPACE_TYPES,
+  getDefaultWorksheetTabId,
+  getWorkspaceTypeDefinition,
+  parseWorkspaceTypeParam,
+  WorkspaceTypePicker,
+  WorkspaceTypePickerModal,
+} from "./research-companion";
+export type {
+  ResearchCompanionWorkspaceTypeDefinition,
+  ResearchCompanionWorkspaceTypeId,
+  WorksheetTabDefinition,
 } from "./research-companion";
 export {
-  appSlug as clovaiProjectsSlug,
-  ClovaiProjectsApp,
-  buildDemoArtifacts,
-  resolvePresetModules,
-  SDLC_MODULES,
-  SDLC_SELECTION_PRESETS,
-  CLOVAI_PROJECTS_PROCESSING_STEPS,
-} from "./clovai-projects";
+  appSlug as projectPlanningSlug,
+  ProjectPlanningApp,
+  ProjectPlanningHeaderNav,
+} from "./project-planning";
 export type {
-  ClovaiProjectsAppProps,
-  ClovaiProjectsView,
-  RecentProjectWorkspace,
-  ProjectWorkspace,
-  SdlcArtifact,
-  SdlcModuleId,
-  SdlcSelectionPresetId,
-  ArtifactReviewStatus,
-  GenerationStatus,
-  OutputStyle,
-  ProcessingStep,
-} from "./clovai-projects";
+  ProjectPlanningAppProps,
+  ProjectPlanningView,
+  ProjectPlanningWorkspaceTab,
+  ProjectPlanningDocument,
+  ProjectPlanningPersistence,
+  ProjectPlanningDeliverableChatProps,
+} from "./project-planning";
+export {
+  CRIMINAL_DETECTION_PROJECT_ID,
+  PROJECT_PLANNING_PHASES,
+  PROJECT_PLANNING_ARTIFACT_COUNT,
+  PROJECT_PLANNING_ROOT_LABEL,
+  ProjectPlanningWorkspace,
+} from "./project-planning";
+export type {
+  PlanningArtifact,
+  PlanningPhase,
+  PlanningWorksheetContent,
+  WorksheetTextSelection,
+} from "./project-planning";

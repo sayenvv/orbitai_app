@@ -239,6 +239,10 @@ export function ResearchCompanionWorkspaceChat({
             setConversationId(event.conversation_id);
             writeStoredConversationId(sourceId, event.conversation_id);
             void useChatStore.getState().refreshConversationsList();
+          } else if (event.type === "meta" || event.type === "message") {
+            // Orchestration metadata only — not message body.
+          } else if (event.type === "error") {
+            streamBufferRef.current += event.detail;
           } else if (event.type === "token") {
             streamBufferRef.current += event.content;
           }

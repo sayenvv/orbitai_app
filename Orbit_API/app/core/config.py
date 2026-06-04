@@ -57,6 +57,11 @@ class Settings(BaseSettings):
 
     # RAG / document upload
     rag_upload_dir: str = "data/rag_uploads"
+    # Auto-write Photo Studio canvas shapes/texts to JSON while editing (local dev).
+    photo_studio_canvas_export_enabled: bool = True
+    photo_studio_canvas_export_dir: str = "data/photo_studio_canvas_exports"
+    project_planning_persistence_enabled: bool = True
+    project_planning_data_dir: str = "data/project_planning"
     rag_max_file_bytes: int = 20 * 1024 * 1024  # 20 MB
     rag_free_max_pages: int = 20
     rag_chunk_size: int = 900

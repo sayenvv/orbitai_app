@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
   const cookie = req.headers.get("cookie") ?? "";
 
-  const upstream = await fetch(`${apiProxy}/api/chat/message/stream`, {
+  const upstream = await fetch(`${apiProxy}/api/multi-agent/runs/stream`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

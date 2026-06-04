@@ -8,7 +8,7 @@ export const catalogAppIds = {
   assetRemix: "a1000001-0006-4000-8000-000000000006",
   careerCoach: "a1000001-0007-4000-8000-000000000007",
   researchCompanion: "a1000001-0008-4000-8000-000000000008",
-  clovaiProjects: "a1000001-0009-4000-8000-000000000009",
+  projectPlanning: "a1000001-0009-4000-8000-000000000009",
 } as const;
 
 export type CatalogAppId = (typeof catalogAppIds)[keyof typeof catalogAppIds];
@@ -23,7 +23,8 @@ const catalogAppIdBySlug: Record<string, CatalogAppId> = {
   "asset-remix": catalogAppIds.assetRemix,
   "career-coach": catalogAppIds.careerCoach,
   "research-companion": catalogAppIds.researchCompanion,
-  "clovai-projects": catalogAppIds.clovaiProjects,
+  "project-planning": catalogAppIds.projectPlanning,
+  "clovai-projects": catalogAppIds.projectPlanning,
 };
 
 export function getCatalogAppIdForSlug(slug: string): CatalogAppId | undefined {

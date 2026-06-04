@@ -238,8 +238,20 @@ def load_conversation_history(db: Session, conversation_id) -> list[tuple[str, s
     return [(m.role, m.content) for m in rows]
 
 
-def save_message(db: Session, conversation_id, role: str, content: str) -> Message:
-    msg = Message(conversation_id=conversation_id, role=role, content=content)
+def save_message(
+    db: Session,
+    conversation_id,
+    role: str,
+    content: str,
+    *,
+    widget_payload: dict | None = None,
+) -> Message:
+    msg = Message(
+        conversation_id=conversation_id,
+        role=role,
+        content=content,
+        widget_payload=widget_payload,
+    )
     db.add(msg)
     db.commit()
     db.refresh(msg)
