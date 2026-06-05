@@ -238,7 +238,8 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="home-page-canvas pointer-events-none absolute inset-0 -z-10" aria-hidden />
       <HomeDesktopHero
           chatInput={chatInput}
           onChatInputChange={setChatInput}

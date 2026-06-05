@@ -401,7 +401,9 @@ export function HomeDesktopHero({
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
               Quick start
             </p>
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+
+            {/* Mobile: floating wrap chips — no scroll */}
+            <div className="flex flex-wrap justify-center gap-2 sm:hidden">
               {QUICK_START.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -409,14 +411,36 @@ export function HomeDesktopHero({
                     key={item.title}
                     type="button"
                     onClick={() => handleQuickStart(item)}
-                    className="glass-surface glass-card glass-card-interactive group flex items-start gap-2.5 rounded-2xl p-3 text-left sm:gap-3 sm:p-4"
+                    className="glass-chip glass-card inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-left transition active:scale-[0.98]"
+                  >
+                    <span className="glass-icon-well flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="whitespace-nowrap text-[13px] font-medium text-foreground">
+                      {item.title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Desktop: full cards */}
+            <div className="hidden gap-3 sm:grid sm:grid-cols-2">
+              {QUICK_START.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.title}
+                    type="button"
+                    onClick={() => handleQuickStart(item)}
+                    className="glass-surface glass-card glass-card-interactive group flex items-start gap-3 rounded-2xl p-4 text-left"
                   >
                     <span className="glass-icon-well mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
                       <Icon className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-[13px] font-semibold text-foreground sm:text-sm">{item.title}</span>
-                      <span className="mt-1 line-clamp-3 block text-xs leading-relaxed text-muted-foreground sm:line-clamp-none sm:text-[13px]">
+                      <span className="block text-sm font-semibold text-foreground">{item.title}</span>
+                      <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">
                         {item.description}
                       </span>
                     </span>

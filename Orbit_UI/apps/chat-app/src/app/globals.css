@@ -550,17 +550,133 @@
   }
 }
 
-/* Home + Chat — plain canvas with a small, subtle grey gradient */
+/* Home + Chat — soft grey canvas gradient */
 .home-warm-canvas {
-  background:
-    radial-gradient(ellipse 100% 55% at 50% -10%, oklch(0.95 0.002 264 / 0.6), transparent 62%),
-    linear-gradient(180deg, oklch(0.99 0.002 264) 0%, oklch(0.975 0.003 264) 100%);
+  background-color: oklch(0.94 0.004 264);
+  background-image:
+    radial-gradient(ellipse 110% 70% at 50% -12%, oklch(0.86 0.005 264 / 0.7), transparent 58%),
+    radial-gradient(ellipse 55% 45% at 92% 88%, oklch(0.82 0.006 264 / 0.45), transparent 52%),
+    linear-gradient(168deg, oklch(0.98 0.002 264) 0%, oklch(0.92 0.004 264) 50%, oklch(0.86 0.006 264) 100%);
 }
 
 .dark .home-warm-canvas {
+  background-color: oklch(0.17 0.008 264);
+  background-image:
+    radial-gradient(ellipse 110% 70% at 50% -12%, oklch(0.30 0.012 264 / 0.75), transparent 58%),
+    radial-gradient(ellipse 55% 45% at 92% 88%, oklch(0.22 0.01 264 / 0.55), transparent 52%),
+    linear-gradient(168deg, oklch(0.26 0.01 264) 0%, oklch(0.18 0.008 264) 50%, oklch(0.12 0.008 264) 100%);
+}
+
+/* Home page — full-bleed grey gradient behind hero */
+.home-page-canvas {
+  overflow: hidden;
+  isolation: isolate;
+  background-color: oklch(0.93 0.004 264);
+  background-image: linear-gradient(
+    180deg,
+    oklch(0.97 0.003 264) 0%,
+    oklch(0.90 0.005 264) 55%,
+    oklch(0.84 0.006 264) 100%
+  );
+}
+
+.home-page-canvas::before,
+.home-page-canvas::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Slow drifting grey blobs */
+.home-page-canvas::before {
+  inset: -25%;
+  filter: blur(72px) saturate(110%);
+  opacity: 0.72;
+  will-change: transform;
+  animation: home-gradient-drift 32s ease-in-out infinite alternate;
   background:
-    radial-gradient(ellipse 100% 55% at 50% -10%, oklch(0.26 0.004 264 / 0.5), transparent 62%),
-    linear-gradient(180deg, oklch(0.205 0.006 264) 0%, oklch(0.185 0.006 264) 100%);
+    radial-gradient(ellipse 55% 45% at 50% 8%, oklch(0.80 0.006 264 / 0.85), transparent 62%),
+    radial-gradient(ellipse 40% 35% at 12% 88%, oklch(0.86 0.005 264 / 0.55), transparent 58%),
+    radial-gradient(ellipse 45% 40% at 88% 72%, oklch(0.82 0.006 264 / 0.65), transparent 60%);
+}
+
+/* Soft shine sweep */
+.home-page-canvas::after {
+  inset: -40% -60%;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    oklch(1 0 0 / 0.14) 48%,
+    oklch(1 0 0 / 0.22) 50%,
+    oklch(1 0 0 / 0.14) 52%,
+    transparent 62%
+  );
+  mix-blend-mode: overlay;
+  will-change: transform;
+  animation: home-gradient-shine 11s ease-in-out infinite;
+}
+
+.dark .home-page-canvas {
+  background-color: oklch(0.15 0.008 264);
+  background-image: linear-gradient(
+    180deg,
+    oklch(0.28 0.012 264) 0%,
+    oklch(0.17 0.008 264) 55%,
+    oklch(0.11 0.008 264) 100%
+  );
+}
+
+.dark .home-page-canvas::before {
+  opacity: 0.65;
+  background:
+    radial-gradient(ellipse 55% 45% at 50% 6%, oklch(0.36 0.014 264 / 0.9), transparent 62%),
+    radial-gradient(ellipse 40% 35% at 10% 90%, oklch(0.24 0.01 264 / 0.7), transparent 58%),
+    radial-gradient(ellipse 45% 40% at 90% 70%, oklch(0.26 0.012 264 / 0.75), transparent 60%);
+}
+
+.dark .home-page-canvas::after {
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    oklch(1 0 0 / 0.06) 48%,
+    oklch(1 0 0 / 0.12) 50%,
+    oklch(1 0 0 / 0.06) 52%,
+    transparent 62%
+  );
+}
+
+@keyframes home-gradient-drift {
+  0% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+  }
+  35% {
+    transform: translate3d(2.5%, -2%, 0) scale(1.04);
+  }
+  70% {
+    transform: translate3d(-2%, 2.5%, 0) scale(1.02);
+  }
+  100% {
+    transform: translate3d(1.5%, 1.5%, 0) scale(1.03);
+  }
+}
+
+@keyframes home-gradient-shine {
+  0%,
+  72%,
+  100% {
+    transform: translate3d(-55%, 0, 0) skewX(-12deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  38% {
+    transform: translate3d(55%, 0, 0) skewX(-12deg);
+    opacity: 1;
+  }
+  48% {
+    opacity: 0;
+  }
 }
 
 /* Navbar tab track — top bar tablist, chat sidebar, assistant message cards */
@@ -926,6 +1042,7 @@
 /* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {
   .aurora::before, .aurora::after,
+  .home-page-canvas::before, .home-page-canvas::after,
   .float-slow, .text-gradient, .brand-text-gradient,
   .gradient-border::before, .dot-live::before {
     animation: none !important;
