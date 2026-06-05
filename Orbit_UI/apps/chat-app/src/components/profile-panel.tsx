@@ -117,8 +117,8 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
         <div className="px-6 pt-5 pb-4 border-b shrink-0">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/25 to-primary/5 flex items-center justify-center ring-2 ring-border shadow-sm">
-                <span className="text-lg font-bold text-primary">{initials}</span>
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--workspace-tab-active-bg)] to-[color-mix(in_oklab,var(--workspace-tab-active-bg)_65%,var(--foreground)_35%)] shadow-[var(--workspace-tab-shadow)] ring-1 ring-[var(--workspace-tab-border)]">
+                <span className="text-lg font-bold text-[var(--workspace-tab-active-fg)]">{initials}</span>
               </div>
               <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-emerald-500 ring-2 ring-card flex items-center justify-center">
                 <CheckCircle2 className="h-2.5 w-2.5 text-white" />

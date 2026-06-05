@@ -28,7 +28,7 @@ function ProfileAvatar({ initials, size = "md" }: { initials: string; size?: "md
   return (
     <div
       className={cn(
-        "flex aspect-square shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary via-violet-500 to-pink-500 font-bold uppercase leading-none text-white shadow-[0_2px_12px_-2px_rgba(99,102,241,0.45)]",
+        "flex aspect-square shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--workspace-tab-active-bg)] to-[color-mix(in_oklab,var(--workspace-tab-active-bg)_68%,var(--foreground)_32%)] font-bold uppercase leading-none text-[var(--workspace-tab-active-fg)] shadow-[var(--workspace-tab-active-shadow)] ring-1 ring-[var(--workspace-tab-border)]",
         dim,
         text,
       )}
