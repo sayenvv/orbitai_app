@@ -95,8 +95,7 @@ export function PdfPageLimitDialogHost() {
         aria-labelledby="pdf-limit-title"
         aria-describedby="pdf-limit-description"
         className={cn(
-          "relative w-full max-w-[420px] overflow-hidden rounded-2xl border border-border/50",
-          "bg-background shadow-2xl shadow-black/20",
+          "glass-surface glass-modal glass-composer relative w-full max-w-[420px] overflow-hidden rounded-2xl",
           "animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200",
         )}
       >
@@ -157,7 +156,7 @@ export function PdfPageLimitDialogHost() {
             <Link
               href="/plans"
               onClick={() => close(false)}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-primary to-[oklch(0.58_0.20_330)] px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:scale-[1.01] hover:shadow-lg hover:shadow-primary/25"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:scale-[1.01] hover:bg-primary/90"
             >
               View upgrade options
               <ArrowUpRight className="h-4 w-4 opacity-90" />

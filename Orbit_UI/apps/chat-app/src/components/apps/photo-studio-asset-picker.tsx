@@ -57,7 +57,7 @@ function AssetRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center gap-3 rounded-xl border border-border/30 bg-background/70 px-3 py-2.5 text-left transition-all hover:border-black/[0.12] hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:border-white/[0.14] dark:hover:bg-white/[0.04]"
+      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all hover:bg-[var(--workspace-tab-inactive-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-background shadow-sm">
         <ImageIcon className="h-4 w-4" />
@@ -176,7 +176,7 @@ export function PhotoStudioAssetPicker({ open, onClose, onSelect }: PhotoStudioA
         role="dialog"
         aria-modal="true"
         aria-label="Clovai Canvas library"
-        className="fixed left-1/2 top-1/2 z-[9999] flex max-h-[min(80vh,36rem)] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-black/[0.08] bg-card shadow-[0_24px_60px_rgba(15,23,42,0.16)] dark:border-white/[0.1]"
+        className="glass-surface glass-modal fixed left-1/2 top-1/2 z-[9999] flex max-h-[min(80vh,36rem)] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl"
       >
         <div className="relative flex items-center justify-between border-b border-border/40 bg-gradient-to-r from-stone-100/80 via-background to-zinc-100/60 px-4 py-3 dark:from-zinc-900/40 dark:via-background dark:to-zinc-800/30">
           <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-zinc-300 via-zinc-400 to-zinc-300 dark:from-zinc-600 dark:via-zinc-500 dark:to-zinc-600" />
@@ -195,7 +195,7 @@ export function PhotoStudioAssetPicker({ open, onClose, onSelect }: PhotoStudioA
         </div>
 
         <div className="border-b border-border/30 px-4 py-3">
-          <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-background px-3 py-2">
+          <div className="glass-input flex items-center gap-2 rounded-xl px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
               type="text"

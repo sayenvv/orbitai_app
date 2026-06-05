@@ -56,7 +56,7 @@ export function InsightGeneratingOverlay({
       </div>
 
       <div className="relative mx-auto w-full max-w-sm px-6">
-        <div className="overflow-hidden rounded-3xl border border-border/45 bg-card/80 p-8 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur-sm">
+        <div className="glass-surface glass-composer overflow-hidden rounded-3xl p-8">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/15">
             <Sparkles className="h-5 w-5 text-primary" />
           </div>

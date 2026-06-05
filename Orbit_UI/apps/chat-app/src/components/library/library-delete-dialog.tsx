@@ -40,8 +40,7 @@ export function LibraryDeleteDialog({
         aria-labelledby="library-delete-title"
         aria-describedby="library-delete-description"
         className={cn(
-          "relative w-full max-w-[400px] overflow-hidden rounded-2xl border border-border/50",
-          "bg-background shadow-2xl shadow-black/20",
+          "glass-surface glass-modal glass-composer relative w-full max-w-[400px] overflow-hidden rounded-2xl",
           "animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200",
         )}
       >

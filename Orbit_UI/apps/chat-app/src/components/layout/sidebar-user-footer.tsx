@@ -67,7 +67,7 @@ export function SidebarUserFooter({
             aria-label="Settings & Help"
             className={cn(
               SIDEBAR_ICON_SLOT_CLASS,
-              "rounded-lg bg-gradient-to-br from-slate-500/15 to-slate-500/5 text-muted-foreground transition-colors hover:from-primary/15 hover:to-violet-500/10 hover:text-primary",
+              "rounded-lg bg-[var(--workspace-tab-inactive-bg-hover)] text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground",
             )}
           >
             <Settings className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
@@ -103,7 +103,7 @@ export function SidebarUserFooter({
             type="button"
             onClick={onSettings}
             aria-label="Settings & Help"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-500/15 to-slate-500/5 text-muted-foreground transition-colors hover:from-primary/15 hover:to-violet-500/10 hover:text-primary"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--workspace-tab-inactive-bg-hover)] text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
           >
             <Settings className="h-4 w-4" strokeWidth={1.75} />
           </button>

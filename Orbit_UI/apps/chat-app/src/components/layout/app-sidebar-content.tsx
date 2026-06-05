@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Crown,
   Folders,
-  LogIn,
   MessageCirclePlus,
   type LucideIcon,
 } from "lucide-react";
@@ -16,8 +15,11 @@ import {
   type SidebarSection,
 } from "@/components/home/app-sidebar-panels";
 import { SettingsHelpFooterTab } from "@/components/home/support-modal";
+import { SidebarAuthFooter } from "@/components/layout/sidebar-auth-footer";
 import { SidebarUserFooter } from "@/components/layout/sidebar-user-footer";
 import { useSidebarChats } from "@/hooks/use-sidebar-chats";
+import { useTokenUsage } from "@/hooks/use-token-usage";
+import { useUsageStore } from "@/store/usage-store";
 import { navigateToNewChat, conversationPath } from "@/lib/chat-navigation";
 import { routes, homeWithSection } from "@/lib/routes";
 import {
@@ -59,18 +61,12 @@ function SidebarNavRow({
       className={cn(
         sidebarNavRowClassName("w-full rounded-full text-[13px] font-medium transition-all"),
         active
-          ? "workspace-tab-active text-foreground"
+          ? "workspace-tab-active"
           : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground dark:hover:bg-white/[0.06]",
       )}
     >
       <span className={SIDEBAR_ICON_SLOT_CLASS}>
-        <Icon
-          className={cn(
-            SIDEBAR_NAV_GLYPH_CLASS,
-            active ? "text-foreground" : "text-muted-foreground",
-          )}
-          strokeWidth={1.75}
-        />
+        <Icon className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
       </span>
       <span className={cn("truncate", labelClassName)}>{label}</span>
     </button>
@@ -98,6 +94,9 @@ export function AppSidebarContent({
   const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  useTokenUsage();
+  const plan = useUsageStore((s) => s.usage?.plan ?? "free");
+  const planLabel = `${plan.charAt(0).toUpperCase()}${plan.slice(1)} plan`;
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const { section, setSection, openLogin, openSupport, setProfileOpen } = useAppShell();
   const [focusSearch, setFocusSearch] = useState(false);
@@ -269,27 +268,19 @@ export function AppSidebarContent({
         </div>
       )}
 
-      {expanded && !isAuthenticated && (
-        <div className="mt-auto px-3 py-3">
-          <button
-            type="button"
-            onClick={() => {
-              openLogin("login");
-              onNavigate?.();
-            }}
-            className="flex w-full items-center gap-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-violet-500/5 to-pink-500/10 px-3 py-2.5 text-left transition-all hover:from-primary/15 hover:via-violet-500/10 hover:to-pink-500/15"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
-              <LogIn className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-            </span>
-            <span>
-              <span className="block text-[13px] font-medium">Sign in</span>
-              <span className="text-[11px] text-muted-foreground">
-                Save chats and library
-              </span>
-            </span>
-          </button>
-        </div>
+      {!isAuthenticated && (
+        <SidebarAuthFooter
+          expanded={expanded}
+          labelClassName={labelClassName}
+          onSignIn={() => {
+            openLogin("login");
+            onNavigate?.();
+          }}
+          onSignUp={() => {
+            openLogin("register");
+            onNavigate?.();
+          }}
+        />
       )}
 
       {isAuthenticated ? (
@@ -297,7 +288,7 @@ export function AppSidebarContent({
           expanded={expanded}
           name={user?.name ?? "Account"}
           initials={initials}
-          subtitle={user?.email}
+          subtitle={planLabel}
           labelClassName={labelClassName}
           onProfile={() => {
             setProfileOpen(true);

@@ -116,7 +116,7 @@ export function SidebarCollapsedNav({
               aria-label={label}
               className={cn(
                 collapsedNavBtnClass,
-                active && "workspace-tab-active text-foreground",
+                active && "workspace-tab-active",
               )}
             >
               <Icon className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
@@ -216,6 +216,7 @@ export function SidebarRecentsList({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Conversation[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [openingConversationId, setOpeningConversationId] = useState<string | null>(null);
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -285,6 +286,28 @@ export function SidebarRecentsList({
   const hasHistoryItems = recentGroups.some((group) => group.items.length > 0);
 
   useEffect(() => {
+    if (!openingConversationId) return;
+    if (activeId !== openingConversationId) return;
+
+    const openingConversation = conversations.find((conv) => conv.id === openingConversationId);
+    if ((openingConversation?.messages.length ?? 0) > 0) {
+      setOpeningConversationId(null);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setOpeningConversationId(null);
+    }, 12000);
+
+    return () => window.clearTimeout(timeout);
+  }, [activeId, conversations, openingConversationId]);
+
+  const handleSelectConversation = (id: string) => {
+    setOpeningConversationId(id);
+    onSelect(id);
+  };
+
+  useEffect(() => {
     if (!onLoadMore || !hasMore || loading || loadingMore || trimmedSearch.length > 0) return;
 
     const root = useOuterScroll ? null : scrollRootRef.current;
@@ -318,7 +341,7 @@ export function SidebarRecentsList({
         <div
           className={cn(
             "relative mb-2 w-full shrink-0",
-            useOuterScroll && "sticky top-0 z-10 bg-sidebar pb-2",
+            useOuterScroll && "sticky top-0 z-10 bg-[var(--workspace-tab-bg)] pb-2 backdrop-blur-xl",
           )}
         >
           <Search
@@ -370,7 +393,8 @@ export function SidebarRecentsList({
                       key={conv.id}
                       conversation={conv}
                       isActive={activeId === conv.id}
-                      onSelect={onSelect}
+                      isOpening={openingConversationId === conv.id}
+                      onSelect={handleSelectConversation}
                       onDelete={onDelete}
                       onOpenWorkspaceChat={onOpenWorkspaceChat}
                       workspaceSourceId={workspaceSourceId}
@@ -386,7 +410,8 @@ export function SidebarRecentsList({
                         key={conv.id}
                         conversation={conv}
                         isActive={activeId === conv.id}
-                        onSelect={onSelect}
+                        isOpening={openingConversationId === conv.id}
+                        onSelect={handleSelectConversation}
                         onDelete={onDelete}
                         onOpenWorkspaceChat={onOpenWorkspaceChat}
                         workspaceSourceId={workspaceSourceId}
@@ -411,6 +436,7 @@ export function SidebarRecentsList({
 function RecentChatItem({
   conversation,
   isActive,
+  isOpening = false,
   onSelect,
   onDelete,
   onOpenWorkspaceChat,
@@ -418,6 +444,7 @@ function RecentChatItem({
 }: {
   conversation: Conversation;
   isActive: boolean;
+  isOpening?: boolean;
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
   onOpenWorkspaceChat?: (conversation: Conversation) => void;
@@ -441,14 +468,17 @@ function RecentChatItem({
       <button
         type="button"
         onClick={() => onSelect(conversation.id)}
+        disabled={isOpening}
         className={cn(
           "flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left",
           isActive ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
+          isOpening && "opacity-70",
         )}
       >
         <span className="min-w-0 flex-1 truncate text-[13px] leading-snug">
           {conversation.title || "Untitled chat"}
         </span>
+        {isOpening && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />}
         {agentLabel && !showWorkspaceChatAction && (
           <span className="hidden max-w-[5rem] shrink-0 truncate text-[10px] text-muted-foreground group-hover:inline">
             {agentLabel}
@@ -585,7 +615,7 @@ function OpenInAppPicker({
         <div className="grid-dots absolute inset-0 opacity-25" />
       </div>
 
-      <div className="relative w-full max-w-[24rem] overflow-hidden rounded-[1.75rem] border border-border/55 bg-card/92 p-4 shadow-[0_22px_70px_rgba(15,23,42,0.2)] ring-1 ring-white/10 backdrop-blur-2xl">
+      <div className="glass-surface glass-composer glass-card relative w-full max-w-[24rem] overflow-hidden rounded-[1.75rem] p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -615,10 +645,10 @@ function OpenInAppPicker({
                 disabled={!compatible}
                 title={compatible ? `Open in ${app.name}` : "Uploaded files are not compatible with this app"}
                 className={cn(
-                  "group flex w-full items-center gap-3 rounded-2xl border border-border/50 bg-background/70 p-3 text-left transition-all",
+                  "group flex w-full items-center gap-3 rounded-2xl p-3 text-left",
                   compatible
-                    ? "hover:-translate-y-0.5 hover:border-primary/30 hover:bg-background"
-                    : "cursor-not-allowed opacity-55",
+                    ? "glass-surface glass-card glass-card-interactive"
+                    : "glass-surface cursor-not-allowed opacity-55",
                 )}
               >
                 <span
@@ -850,8 +880,9 @@ function LibraryItemCard({
   return (
     <article
       className={cn(
-        "group rounded-xl border border-border/40 bg-card/50 p-4 transition-colors hover:border-border/70 hover:bg-card",
-        expanded && "border-border/70 bg-card",
+        "glass-surface glass-card group rounded-xl p-4",
+        !expanded && "glass-card-interactive",
+        expanded && "border-[color-mix(in_oklab,var(--workspace-tab-border)_55%,var(--foreground)_45%)]",
       )}
     >
       <div className="flex gap-3.5">
@@ -1130,15 +1161,13 @@ export function MainLibraryPanel({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-xl border border-border/60 bg-muted/30 p-1">
+        <div className="workspace-tab-surface inline-flex rounded-xl p-1">
           <button
             type="button"
             onClick={() => setTab("uploads")}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-              tab === "uploads"
-                ? "bg-background text-foreground"
-                : "text-muted-foreground hover:text-foreground",
+              tab === "uploads" && "workspace-tab-active",
             )}
           >
             <Upload className="h-3.5 w-3.5" />
@@ -1154,9 +1183,7 @@ export function MainLibraryPanel({
             onClick={() => setTab("generated")}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-              tab === "generated"
-                ? "bg-background text-foreground"
-                : "text-muted-foreground hover:text-foreground",
+              tab === "generated" && "workspace-tab-active",
             )}
           >
             <Sparkles className="h-3.5 w-3.5" />
@@ -1176,13 +1203,13 @@ export function MainLibraryPanel({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={tab === "uploads" ? "Search uploads…" : "Search generated files…"}
-            className="w-full rounded-xl border bg-background/80 py-2.5 pl-10 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="glass-surface w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
           />
         </div>
       </div>
 
       {!isAuthenticated ? (
-        <div className="rounded-2xl border border-dashed border-border/60 py-16 text-center">
+        <div className="glass-surface glass-empty rounded-2xl py-16 text-center">
           <FolderOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">Sign in to view your library</p>
         </div>
@@ -1191,7 +1218,7 @@ export function MainLibraryPanel({
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : activeItems.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 py-16 text-center">
+        <div className="glass-surface glass-empty rounded-2xl py-16 text-center">
           {tab === "uploads" ? (
             <Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
           ) : (

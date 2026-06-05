@@ -7,6 +7,7 @@ export type PendingChatLaunch = {
   prompt?: string;
   sendKey?: string;
   source?: StudySource | null;
+  conversationId?: string;
 };
 
 type ChatSessionState = {

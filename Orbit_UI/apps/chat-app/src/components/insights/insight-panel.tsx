@@ -48,7 +48,7 @@ export function InsightSectionTabs({
   return (
     <div
       className={cn(
-        "flex flex-wrap gap-1 rounded-xl border border-border/40 bg-muted/30 p-1",
+        "workspace-tab-surface flex flex-wrap gap-1 rounded-xl p-1",
         className,
       )}
       role="tablist"
@@ -67,9 +67,7 @@ export function InsightSectionTabs({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-lg font-medium transition-colors",
               size === "sm" ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-xs",
-              active
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+              active && "workspace-tab-active",
             )}
           >
             <Icon className={cn("shrink-0", size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5")} />

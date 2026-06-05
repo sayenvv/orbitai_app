@@ -19,7 +19,7 @@ export default function Error({
 
   return (
     <div className="flex min-h-[50vh] items-center justify-center bg-background px-4">
-      <div className="max-w-md rounded-2xl border border-border/60 bg-card p-8 text-center">
+      <div className="glass-surface max-w-md rounded-2xl p-8 text-center">
         <h1 className="text-lg font-semibold">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           An unexpected error occurred. You can try again or return home.

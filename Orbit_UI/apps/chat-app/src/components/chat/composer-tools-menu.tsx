@@ -233,7 +233,7 @@ export function ComposerToolsMenu({
                     ? "translateY(-6px)"
                     : "translateY(6px)",
               }}
-              className="fixed z-[9999] overflow-hidden rounded-2xl border border-border/50 bg-card/95 shadow-[0_28px_70px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl transition-[opacity,transform] duration-150 ease-out"
+              className="glass-surface fixed z-[9999] overflow-hidden rounded-2xl transition-[opacity,transform] duration-150 ease-out"
             >
               <div className="relative border-b border-border/40 px-4 py-3.5">
                 <div
@@ -272,7 +272,7 @@ export function ComposerToolsMenu({
                         "group/tool shimmer hover-lift flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-all duration-200",
                         tool.active
                           ? "border-primary/30 bg-primary/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                          : "border-border/40 bg-background/60 hover:border-primary/25 hover:bg-background/90",
+                          : "border-border/40 bg-transparent hover:border-primary/25 hover:bg-[var(--workspace-tab-inactive-bg-hover)]",
                         tool.disabled && "cursor-not-allowed opacity-50",
                       )}
                     >

@@ -131,7 +131,7 @@ const MessageBubble = memo(function MessageBubble({
     return (
       <div className="flex justify-end">
         <div className="chat-user-bubble max-w-[min(85%,42rem)] px-4 py-3 sm:px-5 sm:py-3.5">
-          <p className="whitespace-pre-wrap text-[15px] leading-[1.65] tracking-[-0.011em] text-foreground">
+          <p className="whitespace-pre-wrap text-[15px] leading-[1.65] tracking-[-0.011em]">
             {message.content}
           </p>
         </div>

@@ -30,7 +30,7 @@ export function SidebarTooltip({
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute z-[200] min-w-[7rem] max-w-[14rem] rounded-xl border border-primary/20 bg-popover/95 px-3 py-2 opacity-0 shadow-[0_8px_24px_-8px_rgba(59,130,246,0.35)] backdrop-blur-md transition-all duration-150",
+          "glass-surface pointer-events-none absolute z-[200] min-w-[7rem] max-w-[14rem] rounded-xl px-3 py-2 opacity-0 transition-all duration-150",
           side === "right" &&
             "left-[calc(100%+0.625rem)] top-1/2 -translate-y-1/2 translate-x-1 group-hover/sidebar-tip:translate-x-0 group-hover/sidebar-tip:opacity-100 group-focus-within/sidebar-tip:translate-x-0 group-focus-within/sidebar-tip:opacity-100",
           side === "top" &&

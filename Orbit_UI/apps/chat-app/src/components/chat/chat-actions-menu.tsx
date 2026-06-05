@@ -64,7 +64,7 @@ function ActionButton({
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-lg bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 backdrop-blur-sm transition-all duration-150 group-hover/action:opacity-100 group-focus-within/action:opacity-100",
+          "glass-surface pointer-events-none absolute top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 transition-all duration-150 group-hover/action:opacity-100 group-focus-within/action:opacity-100",
           compact && "hidden",
           tooltipSide === "left"
             ? "right-[calc(100%+0.5rem)] -translate-x-1 group-hover/action:translate-x-0 group-focus-within/action:translate-x-0"
@@ -196,7 +196,7 @@ export function ChatActionsMenu({
       className={cn(
         "flex items-center overflow-visible",
         variant === "floating"
-          ? "flex-col gap-2 rounded-2xl border border-border/50 bg-card/80 p-1.5 shadow-mac backdrop-blur-xl"
+          ? "glass-surface flex-col gap-2 rounded-2xl p-1.5"
           : variant === "header"
             ? "gap-0.5 md:hidden"
             : "flex-col gap-1 p-0",

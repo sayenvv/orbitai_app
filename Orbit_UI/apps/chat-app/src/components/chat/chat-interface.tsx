@@ -9,7 +9,7 @@ import { ChatActionsMenu } from "./chat-actions-menu";
 import { ChatThreadShimmer } from "@/components/ui/skeleton";
 import { ChatInput, type ChatInputHandle } from "./chat-input";
 import { Message, StudySource, type Conversation } from "@/types";
-import { ApiError, chatApi, mapMessage, publicApi } from "@/lib/orbit-api";
+import { ApiError, chatApi, mapConversationSummary, mapMessage, publicApi } from "@/lib/orbit-api";
 import { streamOrbitAssistantReply } from "@/lib/orbit-assistant-stream";
 import { messageToUIMessage } from "@/lib/orbit-ui-message";
 import { chatContentClass } from "@/lib/chat-layout";
@@ -95,6 +95,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   const agentGreetingRef = useRef<Message | null>(null);
   const routeConversationIdRef = useRef(conversationId);
   const conversationLoadSeqRef = useRef(0);
+  const skipInitialLoadRef = useRef(false);
   routeConversationIdRef.current = conversationId;
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
@@ -147,6 +148,21 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     if (conversationId) {
       setActiveConversation(conversationId);
       setAgentGreeting(null);
+
+      const pending = consumePending();
+      if (pending?.conversationId === conversationId) {
+        if (pending.agentSlug) {
+          setDraftAgentSlug(pending.agentSlug);
+        }
+        if (pending.source) {
+          setSelectedSource(pending.source);
+        }
+        if (pending.prompt?.trim()) {
+          skipInitialLoadRef.current = true;
+          setPendingPrompt(pending.prompt.trim());
+          setPendingLaunchKey(pending.sendKey ?? pending.prompt.trim());
+        }
+      }
       return;
     }
 
@@ -162,6 +178,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       setSelectedSource(pending.source);
     }
     if (pending.prompt?.trim()) {
+      skipInitialLoadRef.current = true;
       setPendingPrompt(pending.prompt.trim());
       setPendingLaunchKey(pending.sendKey ?? pending.prompt.trim());
     }
@@ -386,6 +403,12 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       return;
     }
 
+    if (skipInitialLoadRef.current) {
+      skipInitialLoadRef.current = false;
+      setActiveConversation(conversationId);
+      return;
+    }
+
     if (isLoading) return;
 
     void loadConversationMessages(conversationId);
@@ -447,27 +470,37 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           setLoading(false);
           const errorText =
             err instanceof ApiError ? err.message : "Document is still processing. Try again shortly.";
-          const existingId = activeConversationId;
-          const tempId = existingId ?? randomId();
+          let errorConversationId = activeConversationId;
           const assistantMsgId = randomId();
-          const opening = greeting
-            ? [greeting, { id: randomId(), role: "user" as const, content, timestamp: new Date() }]
-            : [{ id: randomId(), role: "user" as const, content, timestamp: new Date() }];
-          if (!existingId) {
-            addConversation({
-              id: tempId,
+          const userMsg = { id: randomId(), role: "user" as const, content, timestamp: new Date() };
+          const opening = greeting ? [greeting, userMsg] : [userMsg];
+          if (!errorConversationId) {
+            const created = await chatApi.createConversation({
               title: content.slice(0, 50),
+              agent_id: effectiveAgentSlug,
+            });
+            errorConversationId = created.id;
+            const mapped = mapConversationSummary(created);
+            if (activeSource) {
+              mapped.sourceId = activeSource.id;
+              mapped.contextSource = activeSource;
+            }
+            addConversation({
+              ...mapped,
               messages: [
                 ...opening,
                 { id: assistantMsgId, role: "assistant", content: errorText, timestamp: new Date() },
               ],
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              ...(effectiveAgentSlug ? { agentSlug: effectiveAgentSlug } : {}),
             });
+            syncConversationToUrl(errorConversationId);
           } else {
-            addMessage(existingId, { id: randomId(), role: "user", content, timestamp: new Date() });
-            addMessage(existingId, { id: assistantMsgId, role: "assistant", content: errorText, timestamp: new Date() });
+            addMessage(errorConversationId, userMsg);
+            addMessage(errorConversationId, {
+              id: assistantMsgId,
+              role: "assistant",
+              content: errorText,
+              timestamp: new Date(),
+            });
           }
           return;
         } finally {
@@ -482,9 +515,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         timestamp: new Date(),
       };
 
-      const existingId = activeConversationId;
-      const isNewConversation = !existingId;
-      const tempId = isNewConversation ? randomId() : existingId;
+      const isNewConversation = !activeConversationId;
       const assistantMsgId = randomId();
       const assistantMessage: Message = {
         id: assistantMsgId,
@@ -493,25 +524,35 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         timestamp: new Date(),
       };
 
-      let streamConversationId = tempId;
-
       const openingMessages = greeting
         ? [greeting, userMessage, assistantMessage]
         : [userMessage, assistantMessage];
 
+      let conversationIdForSend: string;
+
       if (isNewConversation) {
-        addConversation({
-          id: tempId,
+        const created = await chatApi.createConversation({
           title: content.slice(0, 50),
-          messages: openingMessages,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ...(effectiveAgentSlug ? { agentSlug: effectiveAgentSlug } : {}),
+          agent_id: effectiveAgentSlug,
         });
+        conversationIdForSend = created.id;
+        const mapped = mapConversationSummary(created);
+        if (activeSource) {
+          mapped.sourceId = activeSource.id;
+          mapped.contextSource = activeSource;
+        }
+        addConversation({
+          ...mapped,
+          messages: openingMessages,
+        });
+        syncConversationToUrl(conversationIdForSend);
       } else {
-        addMessage(existingId, userMessage);
-        addMessage(existingId, assistantMessage);
+        conversationIdForSend = activeConversationId;
+        addMessage(conversationIdForSend, userMessage);
+        addMessage(conversationIdForSend, assistantMessage);
       }
+
+      let streamConversationId = conversationIdForSend;
 
       setStreamingMsgId(assistantMsgId);
       setStreamingText("");
@@ -527,7 +568,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           assistantMessageId: assistantMsgId,
           messages: [messageToUIMessage(userMessage)],
           body: {
-            conversation_id: isNewConversation ? null : existingId,
+            conversation_id: conversationIdForSend,
             source_id: activeSource?.id || null,
             source_type: activeSource?.type || null,
             agent_id: effectiveAgentSlug,
@@ -539,12 +580,12 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           },
           onSideEffect: (effect) => {
             if (effect.type === "start" && effect.conversation_id) {
-              if (isNewConversation) {
-                updateConversationId(tempId, effect.conversation_id);
-                streamConversationId = effect.conversation_id;
-              } else if (effect.conversation_id !== streamConversationId) {
+              if (effect.conversation_id !== streamConversationId) {
                 updateConversationId(streamConversationId, effect.conversation_id);
                 streamConversationId = effect.conversation_id;
+                if (routeConversationIdRef.current !== effect.conversation_id) {
+                  syncConversationToUrl(effect.conversation_id);
+                }
               }
             } else if (effect.type === "done" && effect.usage) {
               const current = useUsageStore.getState().usage;
@@ -559,9 +600,6 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         });
 
         updateMessage(streamConversationId, assistantMsgId, streamedText);
-        if (isNewConversation) {
-          syncConversationToUrl(streamConversationId);
-        }
         void refreshConversationsList();
       } catch (err) {
         if (err instanceof ApiError && err.status === 429) {

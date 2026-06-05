@@ -218,7 +218,7 @@ export function ProjectPlanningWorkspaceChat({
                   key={suggestion}
                   type="button"
                   onClick={() => void handleSend(suggestion)}
-                  className="flex w-full items-start gap-2 rounded-lg border border-border/40 bg-background px-2.5 py-2 text-left text-[10px] leading-relaxed text-foreground transition-colors hover:bg-muted/40"
+                  className="glass-surface glass-card glass-card-interactive flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] leading-relaxed text-foreground"
                 >
                   <Sparkles className="mt-0.5 h-3 w-3 shrink-0" />
                   <span>{suggestion}</span>
@@ -230,7 +230,7 @@ export function ProjectPlanningWorkspaceChat({
       />
 
       <div className="shrink-0 border-t border-border/40 p-2">
-        <div className="rounded-lg border border-border/40 bg-background p-1">
+        <div className="glass-surface glass-composer rounded-lg p-1">
           <textarea
             ref={textareaRef}
             value={input}

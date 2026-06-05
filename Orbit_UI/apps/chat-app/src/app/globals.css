@@ -62,8 +62,8 @@
   --card-foreground: oklch(0.20 0.014 264);
   --popover: oklch(0.995 0.002 264);
   --popover-foreground: oklch(0.20 0.014 264);
-  --primary: oklch(0.62 0.19 256);
-  --primary-foreground: oklch(1 0 0);
+  --primary: oklch(0.26 0.01 264);
+  --primary-foreground: oklch(0.985 0.003 264);
   --secondary: oklch(0.955 0.006 264);
   --secondary-foreground: oklch(0.24 0.018 264);
   --muted: oklch(0.955 0.006 264);
@@ -73,27 +73,39 @@
   --destructive: oklch(0.62 0.22 25);
   --border: oklch(0.88 0.006 264 / 0.65);
   --input: oklch(0.93 0.005 264);
-  --ring: oklch(0.62 0.19 256);
+  --ring: oklch(0.30 0.01 264);
   --chart-1: oklch(0.62 0.19 256);
   --chart-2: oklch(0.72 0.17 152);
   --chart-3: oklch(0.78 0.15 75);
   --chart-4: oklch(0.62 0.22 350);
   --chart-5: oklch(0.70 0.14 220);
   --radius: 0.875rem;
-  /* Navbar tab track — shared with sidebar + assistant bubbles */
-  --workspace-tab-bg: rgb(255 255 255 / 0.6);
-  --workspace-tab-border: rgb(0 0 0 / 0.05);
-  --workspace-tab-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-  --workspace-tab-active-bg: #ffffff;
-  --workspace-tab-active-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  /* Navbar tab track — light: Apple-style glass */
+  --workspace-tab-bg: rgb(255 255 255 / 0.58);
+  --workspace-tab-border: rgb(255 255 255 / 0.42);
+  --workspace-tab-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 4px 16px -6px rgb(0 0 0 / 0.06),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.65);
+  --workspace-tab-inactive-bg: transparent;
+  --workspace-tab-inactive-border: transparent;
+  --workspace-tab-inactive-bg-hover: rgb(0 0 0 / 0.04);
+  --workspace-tab-inactive-fg: rgb(0 0 0 / 0.5);
+  --workspace-tab-inactive-fg-hover: rgb(0 0 0 / 0.88);
+  --workspace-tab-active-bg: oklch(0.26 0.01 264);
+  --workspace-tab-active-fg: #ffffff;
+  --workspace-tab-active-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --workspace-tab-active-fg-hover: #ffffff;
+  --glass-modal-bg: rgb(255 255 255 / 0.72);
+  --glass-modal-blur: 28px;
   --sidebar: var(--workspace-tab-bg);
   --sidebar-foreground: oklch(0.20 0.014 264);
-  --sidebar-primary: oklch(0.62 0.19 256);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary: oklch(0.26 0.01 264);
+  --sidebar-primary-foreground: oklch(0.985 0.003 264);
   --sidebar-accent: oklch(0.965 0.004 264);    /* subtle hover on white */
   --sidebar-accent-foreground: oklch(0.24 0.018 264);
   --sidebar-border: oklch(0.92 0.004 264 / 0.95);
-  --sidebar-ring: oklch(0.62 0.19 256);
+  --sidebar-ring: oklch(0.30 0.01 264);
   --sidebar-collapse-duration: 260ms;
   --sidebar-expand-duration: 260ms;
   --sidebar-collapse-easing: cubic-bezier(0.22, 1, 0.36, 1);
@@ -108,8 +120,8 @@
   --card-foreground: oklch(0.95 0.004 264);
   --popover: oklch(0.25 0.010 264);
   --popover-foreground: oklch(0.95 0.004 264);
-  --primary: oklch(0.68 0.19 256);
-  --primary-foreground: oklch(1 0 0);
+  --primary: oklch(0.92 0.004 264);
+  --primary-foreground: oklch(0.20 0.01 264);
   --secondary: oklch(0.26 0.010 264);
   --secondary-foreground: oklch(0.93 0.004 264);
   --muted: oklch(0.26 0.010 264);
@@ -119,7 +131,7 @@
   --destructive: oklch(0.66 0.22 25);
   --border: oklch(0.32 0.008 264 / 0.65);
   --input: oklch(0.28 0.010 264);
-  --ring: oklch(0.68 0.19 256);
+  --ring: oklch(0.72 0.008 264);
   --chart-1: oklch(0.68 0.19 256);
   --chart-2: oklch(0.76 0.17 152);
   --chart-3: oklch(0.80 0.15 75);
@@ -127,17 +139,29 @@
   --chart-5: oklch(0.74 0.14 220);
   --workspace-tab-bg: rgb(255 255 255 / 0.06);
   --workspace-tab-border: rgb(255 255 255 / 0.08);
-  --workspace-tab-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --workspace-tab-shadow:
+    0 1px 2px rgb(0 0 0 / 0.25),
+    0 10px 28px -10px rgb(0 0 0 / 0.4),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.07);
+  --workspace-tab-inactive-bg: transparent;
+  --workspace-tab-inactive-border: transparent;
+  --workspace-tab-inactive-bg-hover: rgb(255 255 255 / 0.06);
+  --workspace-tab-inactive-fg: oklch(0.66 0.008 264);
+  --workspace-tab-inactive-fg-hover: oklch(0.95 0.004 264);
   --workspace-tab-active-bg: rgb(255 255 255 / 0.14);
+  --workspace-tab-active-fg: oklch(0.95 0.004 264);
   --workspace-tab-active-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  --workspace-tab-active-fg-hover: oklch(0.95 0.004 264);
+  --glass-modal-bg: rgb(255 255 255 / 0.11);
+  --glass-modal-blur: 32px;
   --sidebar: var(--workspace-tab-bg);
   --sidebar-foreground: oklch(0.92 0.004 264);
-  --sidebar-primary: oklch(0.68 0.19 256);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary: oklch(0.92 0.004 264);
+  --sidebar-primary-foreground: oklch(0.20 0.01 264);
   --sidebar-accent: oklch(0.29 0.012 264);
   --sidebar-accent-foreground: oklch(0.94 0.004 264);
   --sidebar-border: oklch(0.32 0.008 264 / 0.75);
-  --sidebar-ring: oklch(0.68 0.19 256);
+  --sidebar-ring: oklch(0.72 0.008 264);
 }
 
 @layer base {
@@ -335,6 +359,7 @@
   border-radius: 1.25rem 1.25rem 0.5rem 1.25rem;
   border: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
   background: var(--workspace-tab-active-bg);
+  color: var(--workspace-tab-active-fg);
   box-shadow:
     0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent),
     0 4px 14px -4px color-mix(in oklab, var(--foreground) 8%, transparent);
@@ -543,12 +568,186 @@
   background: var(--workspace-tab-bg);
   border: 1px solid var(--workspace-tab-border);
   box-shadow: var(--workspace-tab-shadow);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 .workspace-tab-active {
   background: var(--workspace-tab-active-bg);
   box-shadow: var(--workspace-tab-active-shadow);
+  color: var(--workspace-tab-active-fg);
+}
+
+.workspace-tab-active .text-foreground,
+.workspace-tab-active .text-muted-foreground,
+.workspace-tab-active svg {
+  color: var(--workspace-tab-active-fg);
+}
+
+.auth-nav-sign-in svg,
+.auth-nav-sign-up svg {
+  color: currentColor;
+}
+
+.workspace-tab-surface button:not(.workspace-tab-active),
+.workspace-tab-surface a:not(.workspace-tab-active) {
+  background: var(--workspace-tab-inactive-bg);
+  border: 1px solid var(--workspace-tab-inactive-border);
+  color: var(--workspace-tab-inactive-fg);
+}
+
+.workspace-tab-surface button:not(.workspace-tab-active):hover,
+.workspace-tab-surface a:not(.workspace-tab-active):hover {
+  background: var(--workspace-tab-inactive-bg-hover);
+  color: var(--workspace-tab-inactive-fg-hover);
+}
+
+.auth-nav-sign-in {
+  border: 1px solid var(--workspace-tab-inactive-border);
+  background: var(--workspace-tab-inactive-bg);
+  color: var(--workspace-tab-inactive-fg);
+}
+
+.auth-nav-sign-in:hover {
+  background: var(--workspace-tab-inactive-bg-hover);
+  color: var(--workspace-tab-inactive-fg-hover);
+}
+
+.auth-nav-sign-in,
+.workspace-tab-glass {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.auth-nav-sign-up {
+  background: var(--workspace-tab-active-bg);
+  box-shadow: var(--workspace-tab-active-shadow);
+  color: var(--workspace-tab-active-fg);
+}
+
+.auth-nav-sign-up:hover {
+  filter: brightness(1.08);
+}
+
+.dark .auth-nav-sign-up:hover {
+  background: rgb(255 255 255 / 0.18);
+  filter: none;
+}
+
+/* Premium glass surfaces — home cards, library, panels */
+.glass-surface {
+  background: var(--workspace-tab-bg);
+  border: 1px solid var(--workspace-tab-border);
+  box-shadow: var(--workspace-tab-shadow);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Sidebar — same frosted glass as home quick-start cards */
+.sidebar-glass {
+  background: var(--workspace-tab-bg);
+  border: 1px solid var(--workspace-tab-border);
+  border-top: none;
+  border-left: none;
+  border-bottom: none;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    var(--workspace-tab-shadow),
+    2px 0 14px -6px rgb(0 0 0 / 0.07);
+}
+
+.dark .sidebar-glass {
+  box-shadow:
+    var(--workspace-tab-shadow),
+    2px 0 16px -6px rgb(0 0 0 / 0.42);
+}
+
+.glass-card {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glass-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--workspace-tab-border) 55%, var(--foreground) 45%);
+  box-shadow:
+    0 2px 6px rgb(0 0 0 / 0.05),
+    0 16px 40px -14px rgb(0 0 0 / 0.14),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.72);
+}
+
+.dark .glass-card-interactive:hover {
+  border-color: rgb(255 255 255 / 0.14);
+  background: rgb(255 255 255 / 0.09);
+  box-shadow:
+    0 4px 24px -8px rgb(0 0 0 / 0.5),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.1);
+}
+
+.glass-chip {
+  background: var(--workspace-tab-bg);
+  border: 1px solid var(--workspace-tab-border);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+
+.glass-icon-well {
+  background: var(--workspace-tab-inactive-bg-hover);
+  color: color-mix(in oklab, var(--foreground) 72%, transparent);
+  transition:
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glass-card-interactive:hover .glass-icon-well {
+  background: color-mix(in oklab, var(--primary) 12%, var(--workspace-tab-inactive-bg-hover) 88%);
+  color: var(--primary);
+}
+
+.glass-input {
+  background: transparent;
+  border: 1px solid var(--workspace-tab-border);
+  box-shadow: var(--workspace-tab-shadow);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-input:focus-visible {
+  outline: none;
+  border-color: color-mix(in oklab, var(--ring) 45%, var(--workspace-tab-border) 55%);
+  box-shadow:
+    var(--workspace-tab-shadow),
+    0 0 0 3px color-mix(in oklab, var(--ring) 14%, transparent);
+}
+
+.glass-empty {
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--workspace-tab-border) 80%, transparent);
+}
+
+.glass-composer {
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.04),
+    0 22px 56px -18px rgb(0 0 0 / 0.14),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.75);
+}
+
+.dark .glass-composer {
+  box-shadow:
+    0 2px 12px rgb(0 0 0 / 0.3),
+    0 24px 60px -20px rgb(0 0 0 / 0.55),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.08);
+}
+
+.glass-modal {
+  background: var(--glass-modal-bg);
+  backdrop-filter: blur(var(--glass-modal-blur)) saturate(190%);
+  -webkit-backdrop-filter: blur(var(--glass-modal-blur)) saturate(190%);
 }
 
 /* Subtle dotted grid overlay */
@@ -764,4 +963,16 @@
 
 .dark .rc-viewer-chrome {
   box-shadow: none;
+}
+
+/* Auth page — uses global theme tokens */
+.auth-page {
+  background-color: var(--background);
+  color: var(--foreground);
+  isolation: isolate;
+}
+
+.auth-page-header {
+  border-bottom: 1px solid var(--border);
+  background-color: var(--background);
 }

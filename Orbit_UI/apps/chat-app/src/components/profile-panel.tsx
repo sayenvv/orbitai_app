@@ -98,7 +98,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
       />
 
       {/* Panel */}
-      <div className="relative mx-auto flex w-full max-w-xl max-h-[min(85dvh,640px)] flex-col rounded-2xl border bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div className="glass-surface glass-composer glass-modal relative mx-auto flex w-full max-w-xl max-h-[min(85dvh,640px)] flex-col rounded-2xl animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <div>
@@ -178,7 +178,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-shadow"
+                    className="glass-input flex h-10 w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none transition-shadow"
                     placeholder="Enter your full name"
                   />
                 </div>
@@ -290,7 +290,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                   <label className="text-sm font-medium">Current Password</label>
                   <input
                     type="password"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-shadow"
+                    className="glass-input flex h-10 w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none transition-shadow"
                     placeholder="Enter current password"
                   />
                 </div>
@@ -298,7 +298,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                   <label className="text-sm font-medium">New Password</label>
                   <input
                     type="password"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-shadow"
+                    className="glass-input flex h-10 w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none transition-shadow"
                     placeholder="Enter new password"
                   />
                 </div>
@@ -306,7 +306,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                   <label className="text-sm font-medium">Confirm New Password</label>
                   <input
                     type="password"
-                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-shadow"
+                    className="glass-input flex h-10 w-full rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none transition-shadow"
                     placeholder="Confirm new password"
                   />
                 </div>

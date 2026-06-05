@@ -135,7 +135,7 @@ export function AppHelpPage({ app }: { app: CatalogApp }) {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
             <div className="space-y-6">
               {help.workflowSteps && help.workflowSteps.length > 0 ? (
-                <article className="rounded-2xl bg-card/75 p-5 backdrop-blur-sm md:p-6">
+                <article className="glass-surface glass-card rounded-2xl p-5 md:p-6">
                   <SectionLabel>Recommended workflow</SectionLabel>
                   <ol className="relative mt-5 space-y-0">
                     {help.workflowSteps.map((step, index) => (
@@ -156,7 +156,7 @@ export function AppHelpPage({ app }: { app: CatalogApp }) {
                 </article>
               ) : null}
 
-              <article className="rounded-2xl bg-card/75 p-5 backdrop-blur-sm md:p-6">
+              <article className="glass-surface glass-card rounded-2xl p-5 md:p-6">
                 <SectionLabel>Guide</SectionLabel>
                 <ul className="mt-5 divide-y divide-border/40">
                   {help.sections.map((section) => (
@@ -173,7 +173,7 @@ export function AppHelpPage({ app }: { app: CatalogApp }) {
             </div>
 
             <aside className="space-y-6 lg:sticky lg:top-6">
-              <article className="rounded-2xl bg-card/75 p-5 backdrop-blur-sm">
+              <article className="glass-surface glass-card rounded-2xl p-5">
                 <SectionLabel>App information</SectionLabel>
                 <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
                   <MetadataField label="App" value={app.name} />
@@ -190,13 +190,13 @@ export function AppHelpPage({ app }: { app: CatalogApp }) {
               </article>
 
               {app.badges.length > 0 ? (
-                <article className="rounded-2xl bg-card/75 p-5 backdrop-blur-sm">
+                <article className="glass-surface glass-card rounded-2xl p-5">
                   <SectionLabel>Included features</SectionLabel>
                   <ul className="mt-4 grid gap-2">
                     {app.badges.map((feature) => (
                       <li
                         key={feature}
-                        className="flex items-center gap-2 rounded-xl bg-background/60 px-3 py-2.5 text-sm"
+                        className="flex items-center gap-2 rounded-xl bg-[var(--workspace-tab-inactive-bg-hover)] px-3 py-2.5 text-sm"
                       >
                         <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
                         {feature}
@@ -206,7 +206,7 @@ export function AppHelpPage({ app }: { app: CatalogApp }) {
                 </article>
               ) : null}
 
-              <article className="rounded-2xl bg-card/75 p-5 backdrop-blur-sm">
+              <article className="glass-surface glass-card rounded-2xl p-5">
                 <SectionLabel>About</SectionLabel>
                 <p className="mt-3 text-sm font-medium leading-snug text-foreground">{app.tagline}</p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{app.description}</p>

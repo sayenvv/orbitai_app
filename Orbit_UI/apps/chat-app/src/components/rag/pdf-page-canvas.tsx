@@ -280,7 +280,7 @@ export function PdfPageCanvas({
     >
       {showLoader && (
         <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-[1px]">
-          <div className="flex items-center gap-2.5 rounded-full bg-background/90 px-4 py-2 backdrop-blur-md">
+          <div className="glass-chip flex items-center gap-2.5 rounded-full px-4 py-2">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
             <span className="text-xs font-medium text-muted-foreground">Rendering page…</span>
           </div>
@@ -289,7 +289,7 @@ export function PdfPageCanvas({
 
       {(error || renderError) && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-6 text-center">
-          <div className="rounded-2xl bg-background/95 p-6 backdrop-blur-md">
+          <div className="glass-surface rounded-2xl p-6">
             <AlertCircle className="mx-auto h-8 w-8 text-muted-foreground/70" />
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">{error || renderError}</p>
           </div>
@@ -478,7 +478,7 @@ function usePdfPageViewerState({
       : null;
 
   const chrome = (
-    <div className="rc-viewer-chrome w-full shrink-0 border-b border-border/40 bg-white px-3 py-2 backdrop-blur-xl dark:bg-background md:px-4">
+    <div className="rc-viewer-chrome glass-surface w-full shrink-0 px-3 py-2 md:px-4">
       <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(12rem,28rem)_minmax(0,1fr)] items-center gap-2 md:gap-3">
         <div className="flex min-w-0 items-center gap-2 justify-self-start md:gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
@@ -494,7 +494,7 @@ function usePdfPageViewerState({
           </div>
         </div>
 
-        <div className="flex h-8 w-full min-w-0 items-center justify-self-center gap-1 rounded-lg border border-border/40 bg-muted/20 px-2 py-0.5">
+        <div className="flex h-8 w-full min-w-0 items-center justify-self-center gap-1 rounded-lg border border-border/40 bg-[var(--workspace-tab-inactive-bg-hover)] px-2 py-0.5">
             <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
             <input
               ref={searchInputRef}
@@ -523,7 +523,7 @@ function usePdfPageViewerState({
               </span>
             ) : null}
             {debouncedQuery && matches.length > 0 ? (
-              <div className="flex shrink-0 items-center rounded-md border border-border/30 bg-background/80 p-px">
+              <div className="flex shrink-0 items-center rounded-md border border-border/30 bg-[var(--workspace-tab-inactive-bg-hover)] p-px">
                 <button
                   type="button"
                   onClick={goToPreviousMatch}
@@ -559,7 +559,7 @@ function usePdfPageViewerState({
         </div>
 
         <div className="flex shrink-0 items-center justify-self-end gap-1.5">
-          <div className="flex h-8 items-center gap-0.5 rounded-lg border border-border/40 bg-muted/20 px-0.5">
+          <div className="flex h-8 items-center gap-0.5 rounded-lg border border-border/40 bg-[var(--workspace-tab-inactive-bg-hover)] px-0.5">
             <button
               type="button"
               onClick={zoomOut}

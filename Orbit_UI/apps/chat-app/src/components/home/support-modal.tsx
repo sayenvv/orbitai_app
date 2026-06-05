@@ -60,7 +60,7 @@ export function SupportModal({
       <button
         type="button"
         aria-label="Close"
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/45 backdrop-blur-md"
         onClick={onClose}
       />
 
@@ -68,9 +68,9 @@ export function SupportModal({
         role="dialog"
         aria-modal="true"
         aria-label="Settings & Help"
-        className="relative z-10 flex max-h-[min(85dvh,540px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl"
+        className="glass-surface glass-composer glass-modal relative z-10 flex max-h-[min(85dvh,540px)] w-full max-w-md flex-col overflow-hidden rounded-2xl"
       >
-        <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-[color:var(--workspace-tab-border)] px-4 py-3">
           <div>
             <p className="text-sm font-semibold text-foreground">Settings & Help</p>
             <div className="mt-1.5 flex gap-1 rounded-lg bg-muted/60 p-1">
@@ -241,9 +241,9 @@ export function SettingsHelpFooterTab({
           onClick={onOpen}
           aria-label="Settings & Help"
           className={cn(
-            "flex items-center text-muted-foreground transition-all hover:bg-gradient-to-r hover:from-primary/10 hover:to-violet-500/10 hover:text-primary",
+            "flex items-center text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground",
             collapsed
-              ? "h-9 w-9 shrink-0 justify-center rounded-xl bg-gradient-to-br from-slate-500/15 to-slate-500/5"
+              ? "h-9 w-9 shrink-0 justify-center rounded-xl bg-[var(--workspace-tab-inactive-bg-hover)]"
               : "h-9 w-full gap-2.5 rounded-xl px-2.5 justify-start",
           )}
         >

@@ -63,7 +63,7 @@ export function TokenUsageMeter({
     return (
       <div
         className={cn(
-          "rounded-xl border border-destructive/15 bg-sidebar-accent/40 px-3 py-3",
+          "glass-surface glass-card rounded-xl px-3 py-3",
           className,
         )}
       >

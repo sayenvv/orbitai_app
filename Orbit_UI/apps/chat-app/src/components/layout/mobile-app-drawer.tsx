@@ -68,7 +68,7 @@ export function MobileAppDrawer() {
         aria-modal="true"
         aria-label="Navigation menu"
         className={cn(
-          "sidebar-edge-shadow workspace-tab-surface absolute inset-y-0 left-0 flex w-[min(280px,88vw)] flex-col transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] safe-top safe-bottom",
+          "sidebar-glass absolute inset-y-0 left-0 flex w-[min(280px,88vw)] flex-col transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] safe-top safe-bottom",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >

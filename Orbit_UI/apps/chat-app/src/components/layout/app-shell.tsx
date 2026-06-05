@@ -13,6 +13,7 @@ import { InvalidChatModal } from "@/components/chat/invalid-chat-modal";
 import { ProfilePanel } from "@/components/profile-panel";
 import { SupportModal } from "@/components/home/support-modal";
 import { AppShellProvider, useAppShell } from "@/components/layout/app-shell-context";
+import { AuthNavTabs } from "@/components/layout/auth-nav-tabs";
 import { WorkspaceTopBar } from "@/components/layout/workspace-top-bar";
 import { ChatHistoryRail } from "@/components/chat/chat-history-rail";
 import { NavbarBrand } from "@/components/layout/navbar-brand";
@@ -155,22 +156,10 @@ function AppShellLayout({ children }: { children: ReactNode }) {
           {isAuthenticated ? (
             <NavbarUpgradeLink />
           ) : (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => openLogin("login")}
-                className="inline-flex h-9 items-center rounded-full border border-border px-3.5 text-xs font-medium transition-colors hover:bg-accent"
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => openLogin("register")}
-                className="inline-flex h-9 items-center rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Sign Up
-              </button>
-            </div>
+            <AuthNavTabs
+              onSignIn={() => openLogin("login")}
+              onSignUp={() => openLogin("register")}
+            />
           )}
         </div>
       </header>
@@ -178,7 +167,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       <MobileAppDrawer />
 
       <main
-        className="app-shell app-shell-grid relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background md:grid"
+        className="app-shell app-shell-grid home-warm-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden md:grid"
         data-sidebar={sidebarHydrated ? (sidebarOpen ? "expanded" : "collapsed") : undefined}
         style={
           {
@@ -195,7 +184,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
             <WorkspaceTopBar />
           </div>
 
-          <div className="home-warm-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden">
               {showSectionPanel ? (
                 <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6 md:py-8">
@@ -207,7 +196,9 @@ function AppShellLayout({ children }: { children: ReactNode }) {
                       onRefresh={refreshLibrary}
                       onRequireAuth={() => openLogin("login")}
                       onSelectUpload={(upload) => {
-                        navigateToChatLaunch(router, {
+                        void navigateToChatLaunch(router, {
+                          prompt: "Summarize this document",
+                          sendKey: upload.id,
                           source: {
                             id: upload.id,
                             name: upload.title,

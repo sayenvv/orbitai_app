@@ -62,7 +62,7 @@ export function CollapsibleRail({
   return (
     <aside
       className={cn(
-        "sidebar-edge-shadow workspace-tab-surface flex h-full min-h-0 w-full flex-col will-change-transform",
+        "sidebar-glass flex h-full min-h-0 w-full flex-col will-change-transform",
         showExpanded ? "overflow-hidden" : "overflow-visible",
         className,
       )}

@@ -137,11 +137,19 @@ export default function HomePage() {
     }
 
     if (attachedLibrarySource) {
-      navigateToChatLaunch(router, {
-        prompt: trimmed || "Summarize this document",
-        sendKey: randomId(),
-        source: attachedLibrarySource,
-      });
+      setHeroUploading(true);
+      setHeroUploadError("");
+      try {
+        await navigateToChatLaunch(router, {
+          prompt: trimmed || "Summarize this document",
+          sendKey: randomId(),
+          source: attachedLibrarySource,
+        });
+      } catch (err) {
+        setHeroUploadError(err instanceof Error ? err.message : "Could not start chat");
+      } finally {
+        setHeroUploading(false);
+      }
       return;
     }
 
@@ -150,7 +158,7 @@ export default function HomePage() {
       setHeroUploadError("");
       try {
         const source = await importWebpageUrl(attachedWebpage.url);
-        navigateToChatLaunch(router, {
+        await navigateToChatLaunch(router, {
           prompt: trimmed || `Summarize and answer questions about ${attachedWebpage.label}`,
           sendKey: randomId(),
           source,
@@ -168,7 +176,7 @@ export default function HomePage() {
       setHeroUploadError("");
       try {
         const source = await uploadPdfAndWait(attachedFiles[0]);
-        navigateToChatLaunch(router, {
+        await navigateToChatLaunch(router, {
           prompt: trimmed || "Summarize this document",
           sendKey: randomId(),
           source,
@@ -182,10 +190,18 @@ export default function HomePage() {
       return;
     }
 
-    navigateToChatLaunch(router, {
-      prompt: trimmed,
-      sendKey: randomId(),
-    });
+    setHeroUploading(true);
+    setHeroUploadError("");
+    try {
+      await navigateToChatLaunch(router, {
+        prompt: trimmed,
+        sendKey: randomId(),
+      });
+    } catch (err) {
+      setHeroUploadError(err instanceof Error ? err.message : "Could not start chat");
+    } finally {
+      setHeroUploading(false);
+    }
   };
 
   const libraryComposerItems = buildLibraryComposerItems(libraryUploads);

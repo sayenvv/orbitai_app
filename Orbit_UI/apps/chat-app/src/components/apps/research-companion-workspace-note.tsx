@@ -210,7 +210,7 @@ export function ResearchCompanionWorkspaceNote({
           onChange={(event) => setDraft(event.target.value)}
           placeholder="Write your note here…"
           rows={4}
-          className="mt-2 w-full resize-none rounded-xl border border-border/30 bg-background/55 px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/15"
+          className="glass-input mt-2 w-full resize-none rounded-xl px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
           aria-label="Note text"
         />
 
@@ -250,7 +250,7 @@ export function ResearchCompanionWorkspaceNote({
                 <li
                   key={note.id}
                   className={cn(
-                    "rounded-xl border border-border/30 bg-background/55",
+                    "glass-surface glass-card glass-card-interactive rounded-xl",
                     selectedNoteId === note.id && "border-primary/25 ring-1 ring-primary/10",
                   )}
                 >

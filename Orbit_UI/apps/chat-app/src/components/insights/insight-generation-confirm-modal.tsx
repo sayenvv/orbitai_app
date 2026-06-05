@@ -175,7 +175,7 @@ export function InsightGenerationConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="insight-confirm-title"
-        className="relative flex max-h-[min(42rem,92vh)] w-full max-w-xl flex-col overflow-hidden rounded-[1.75rem] border border-border/50 bg-card shadow-[0_24px_80px_rgba(15,23,42,0.14)]"
+        className="glass-surface glass-modal glass-composer relative flex max-h-[min(42rem,92vh)] w-full max-w-xl flex-col overflow-hidden rounded-[1.75rem]"
       >
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" />
 
@@ -214,7 +214,7 @@ export function InsightGenerationConfirmModal({
           </div>
 
           {sourceName?.trim() && (
-            <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-border/40 bg-muted/30 px-3 py-1.5">
+            <div className="glass-chip mt-4 inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5">
               <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate text-xs font-medium text-foreground">{sourceName.trim()}</span>
             </div>

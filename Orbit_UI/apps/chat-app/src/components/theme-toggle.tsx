@@ -17,7 +17,7 @@ export function ThemeSelect({ className = "" }: { className?: string }) {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <div className={`h-9 w-[7.5rem] rounded-lg border border-border/70 bg-background/90 ${className}`} />;
+    return <div className={`glass-input h-9 w-[7.5rem] rounded-lg ${className}`} />;
   }
 
   return (
@@ -25,7 +25,7 @@ export function ThemeSelect({ className = "" }: { className?: string }) {
       <select
         value={theme ?? "system"}
         onChange={(e) => setTheme(e.target.value)}
-        className="w-full min-w-[7.5rem] appearance-none rounded-lg border border-border/70 bg-background/90 py-2 pl-3 pr-8 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="glass-input w-full min-w-[7.5rem] appearance-none rounded-lg py-2 pl-3 pr-8 text-xs font-semibold text-foreground transition-colors focus:outline-none"
         aria-label="Theme"
       >
         {THEME_OPTIONS.map(({ value, label }) => (
@@ -62,7 +62,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={cycleTheme}
-      className="inline-flex items-center rounded-full border border-border/70 bg-background/90 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-accent"
+      className="glass-chip inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-foreground transition-colors"
       aria-label="Cycle theme mode"
     >
       {label}

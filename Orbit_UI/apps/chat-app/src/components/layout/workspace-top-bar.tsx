@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { catalogAppIds, getAppWorkspaceHref } from "@orbit/clovai-apps";
 
+import { AuthNavTabs } from "@/components/layout/auth-nav-tabs";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
 import { routes } from "@/lib/routes";
@@ -60,9 +61,7 @@ export function WorkspaceTopBar() {
                 }}
                 className={cn(
                   "rounded-full px-4 py-1.5 text-[13px] font-medium transition-all",
-                  active
-                    ? "workspace-tab-active text-foreground"
-                    : "text-muted-foreground/70 hover:text-foreground",
+                  active && "workspace-tab-active",
                 )}
               >
                 {tab.label}
@@ -79,22 +78,10 @@ export function WorkspaceTopBar() {
             {header.title}
           </span>
         ) : !isAuthenticated ? (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => openLogin("login")}
-              className="inline-flex items-center rounded-full border border-black/[0.08] px-4 py-1.5 text-sm font-medium transition-colors hover:bg-black/[0.04] dark:border-white/[0.12] dark:hover:bg-white/[0.06]"
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => openLogin("register")}
-              className="inline-flex items-center rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
-            >
-              Sign Up
-            </button>
-          </div>
+          <AuthNavTabs
+            onSignIn={() => openLogin("login")}
+            onSignUp={() => openLogin("register")}
+          />
         ) : null}
       </div>
     </header>

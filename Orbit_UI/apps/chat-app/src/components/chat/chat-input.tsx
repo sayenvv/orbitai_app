@@ -197,10 +197,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         <form onSubmit={handleSubmit} className="w-full">
           <div
             className={cn(
-              "w-full rounded-[1.5rem] border px-4 pb-3 pt-3 transition-all",
-              mobileBottom
-                ? "border-black/[0.07] bg-card/90 shadow-none backdrop-blur-xl dark:border-white/[0.08]"
-                : "border-black/[0.07] bg-white/95 shadow-[0_6px_30px_-10px_rgba(15,23,42,0.12)] backdrop-blur-sm dark:border-white/[0.08] dark:bg-card/80 dark:shadow-[0_6px_30px_-10px_rgba(0,0,0,0.5)]",
+              "glass-surface glass-composer w-full rounded-[1.5rem] px-4 pb-3 pt-3 transition-all",
             )}
           >
             {webpageInputMode ? (

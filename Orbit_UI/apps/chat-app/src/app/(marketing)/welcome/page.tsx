@@ -217,7 +217,7 @@ export default function WelcomePage() {
             <Link
               key={app.id}
               href={getAppDetailHref(app)}
-              className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-[0_14px_40px_-18px_rgba(15,23,42,0.25)]"
+              className="glass-surface glass-card glass-card-interactive group relative overflow-hidden rounded-2xl p-5"
             >
               <div
                 className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${app.heroGradient} text-white shadow-sm`}

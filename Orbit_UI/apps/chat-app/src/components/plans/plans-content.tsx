@@ -47,7 +47,7 @@ type PlansContentProps = {
 
 function PlanCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-mac">
+    <div className="glass-surface glass-card rounded-2xl p-6">
       <div className="space-y-4">
         <div className="h-10 w-10 animate-pulse rounded-xl bg-muted/70" />
         <div className="h-5 w-24 animate-pulse rounded-md bg-muted/70" />
@@ -108,7 +108,7 @@ export function PlansContent({
   return (
     <div className={cn("space-y-10", className)}>
       {usage?.tokens_limit != null && (
-        <div className="glass shadow-mac rounded-2xl border border-border/60 p-5 md:p-6">
+        <div className="glass-surface glass-card rounded-2xl p-5 md:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -146,7 +146,7 @@ export function PlansContent({
             >
               {isHighlighted && (
                 <div className="pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-card px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800 shadow-mac ring-1 ring-amber-500/20 dark:text-amber-300">
+                  <span className="glass-chip inline-flex items-center gap-1 rounded-full border-amber-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-500/20 dark:text-amber-300">
                     Most popular
                   </span>
                 </div>
@@ -154,10 +154,9 @@ export function PlansContent({
 
               <div
               className={cn(
-                "gradient-border hover-lift relative flex flex-col rounded-2xl border bg-card/80 p-6 shadow-mac backdrop-blur-sm transition-all",
+                "gradient-border glass-surface glass-card glass-card-interactive relative flex flex-col rounded-2xl p-6 transition-all",
                 isCurrent && "border-primary/40 ring-2 ring-primary/15",
                 isHighlighted && "border-primary/30 shadow-mac-lg",
-                !isCurrent && !isHighlighted && "border-border/60",
               )}
             >
               <div className="mb-5 flex items-start justify-between gap-3">
@@ -165,7 +164,7 @@ export function PlansContent({
                   className={cn(
                     "flex h-10 w-10 items-center justify-center rounded-xl shadow-sm",
                     isHighlighted
-                      ? "bg-gradient-to-br from-primary to-[oklch(0.58_0.20_330)] text-primary-foreground shadow-primary/25"
+                      ? "bg-primary text-primary-foreground shadow-primary/25"
                       : "bg-primary/10 text-primary",
                   )}
                 >
@@ -216,7 +215,7 @@ export function PlansContent({
                     className={cn(
                       "w-full rounded-xl py-2.5 text-sm font-semibold transition-all press",
                       isHighlighted
-                        ? "bg-gradient-to-r from-primary to-[oklch(0.58_0.20_330)] text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30"
+                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
                         : "border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15",
                     )}
                   >
@@ -246,7 +245,7 @@ export function PlansContent({
         })}
       </div>
 
-      <div className="rounded-2xl border border-border/50 bg-muted/20 px-6 py-8 text-center">
+      <div className="glass-surface glass-card rounded-2xl px-6 py-8 text-center">
         <p className="text-sm font-medium text-foreground">Need a custom arrangement?</p>
         <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-muted-foreground">
           Enterprise plans include dedicated support, custom SLAs, and volume pricing for teams.

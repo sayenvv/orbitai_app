@@ -129,21 +129,21 @@ export default function AppsPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search apps..."
-                  className="w-full rounded-full border border-border/60 bg-card/80 py-2.5 pl-10 pr-4 text-sm shadow-mac outline-none backdrop-blur-sm transition focus:border-primary/40 focus:ring-2 focus:ring-primary/20 sm:py-3"
+                  className="glass-input w-full rounded-full py-2.5 pl-10 pr-4 text-sm outline-none transition sm:py-3"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2 pt-1 sm:max-w-xl sm:gap-3 sm:pt-2">
-              <div className="rounded-xl border border-border/60 bg-card/60 p-2.5 backdrop-blur-sm sm:rounded-2xl sm:p-3">
+              <div className="glass-surface glass-card rounded-xl p-2.5 sm:rounded-2xl sm:p-3">
                 <p className="text-base font-semibold tracking-tight sm:text-lg">{visibleAppsCatalog.length}</p>
                 <p className="text-[11px] text-muted-foreground">AI apps</p>
               </div>
-              <div className="rounded-xl border border-border/60 bg-card/60 p-2.5 backdrop-blur-sm sm:rounded-2xl sm:p-3">
+              <div className="glass-surface glass-card rounded-xl p-2.5 sm:rounded-2xl sm:p-3">
                 <p className="text-base font-semibold tracking-tight sm:text-lg">{proApps}</p>
                 <p className="text-[11px] text-muted-foreground">Pro tools</p>
               </div>
-              <div className="rounded-xl border border-border/60 bg-card/60 p-2.5 backdrop-blur-sm sm:rounded-2xl sm:p-3">
+              <div className="glass-surface glass-card rounded-xl p-2.5 sm:rounded-2xl sm:p-3">
                 <p className="text-base font-semibold tracking-tight sm:text-lg">{totalInstalls}</p>
                 <p className="text-[11px] text-muted-foreground">Trusted launches</p>
               </div>
@@ -338,10 +338,10 @@ export default function AppsPage() {
                 type="button"
                 onClick={() => setCategory(cat)}
                 className={cn(
-                  "shrink-0 rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition",
+                  "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition",
                   category === cat
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border/60 bg-card/70 text-muted-foreground backdrop-blur-sm hover:border-primary/40 hover:text-foreground",
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "glass-chip text-muted-foreground hover:text-foreground",
                 )}
               >
                 {cat}
@@ -381,7 +381,7 @@ export default function AppsPage() {
             </div>
 
             {filteredApps.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-border/60 py-14 text-center">
+              <div className="glass-surface glass-empty rounded-2xl py-14 text-center">
                 <Search className="mx-auto h-6 w-6 text-muted-foreground/60" />
                 <p className="mt-2 text-sm text-muted-foreground">
                   No apps match your search. Try a different keyword.
@@ -399,7 +399,7 @@ export default function AppsPage() {
                   Curated partner tools that work well beside Clovai workflows.
                 </p>
               </div>
-              <span className="hidden rounded-full border border-border/60 bg-card/70 px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
+              <span className="glass-chip hidden rounded-full px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
                 Promoted
               </span>
             </div>
@@ -407,7 +407,7 @@ export default function AppsPage() {
               {sponsoredApps.map((ad) => (
                 <article
                   key={ad.name}
-                  className="group relative overflow-hidden rounded-3xl border border-border/60 bg-card/75 p-6 shadow-mac backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg"
+                  className="group glass-surface glass-card glass-card-interactive relative overflow-hidden rounded-3xl p-6"
                 >
                   <div
                     className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${ad.gradientClass}`}
@@ -415,14 +415,14 @@ export default function AppsPage() {
                   />
                   <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/15 blur-2xl" />
                   <div className="relative space-y-3">
-                    <span className="inline-flex rounded-full border border-border/50 bg-background/75 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="glass-chip inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                       {ad.label}
                     </span>
                     <h3 className="text-lg font-semibold tracking-tight">{ad.name}</h3>
                     <p className="max-w-md text-sm leading-relaxed text-muted-foreground">{ad.pitch}</p>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-full bg-background/80 px-3 py-1.5 text-sm font-semibold text-primary shadow-sm transition group-hover:translate-x-0.5"
+                      className="glass-chip inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold text-primary transition group-hover:translate-x-0.5"
                     >
                       {ad.cta}
                       <ArrowRight className="h-4 w-4" />
@@ -459,7 +459,7 @@ export default function AppsPage() {
           </section>
 
           {!isAuthenticated && (
-            <div className="mx-auto max-w-2xl rounded-2xl border border-border/60 bg-card/70 p-5 text-center shadow-mac backdrop-blur-sm">
+            <div className="glass-surface glass-card mx-auto max-w-2xl rounded-2xl p-5 text-center">
               <p className="text-sm text-muted-foreground">
                 Sign in to use free apps, save your work, and sync generated outputs across devices.
               </p>

@@ -48,7 +48,7 @@ function SourceRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center gap-3 rounded-xl border border-border/30 bg-background/70 px-3 py-2.5 text-left transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[var(--workspace-tab-inactive-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <BookOpen className="h-4 w-4" />
@@ -167,7 +167,7 @@ export function ResearchCompanionSourcePicker({
         onClick={onClose}
       />
 
-      <div className="relative flex max-h-[min(32rem,85vh)] w-full max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-border/40 bg-card shadow-lg">
+      <div className="glass-surface glass-modal relative flex max-h-[min(32rem,85vh)] w-full max-w-md flex-col overflow-hidden rounded-[1.5rem]">
         <div className="flex items-start justify-between gap-3 px-4 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">File</p>
@@ -215,7 +215,7 @@ export function ResearchCompanionSourcePicker({
         </div>
 
         <div className="px-4 pb-3">
-          <div className="flex items-center gap-2 rounded-xl border border-border/30 bg-muted/25 px-3 py-2">
+          <div className="glass-input flex items-center gap-2 rounded-xl px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
               type="search"

@@ -165,6 +165,10 @@ export function HomeDesktopHero({
 
   const displayName = user?.name?.trim().split(" ")[0] || "there";
   const planLabel = `${plan.charAt(0).toUpperCase()}${plan.slice(1)} Plan`;
+  const hasAttachments =
+    attachedFiles.length > 0 || Boolean(attachedWebpage) || Boolean(attachedLibrarySource);
+  const showUploadProgress =
+    heroUploading && (Boolean(attachedWebpage) || attachedFiles.length > 0);
 
   const handleQuickStart = (item: (typeof QUICK_START)[number]) => {
     if (!isAuthenticated) {
@@ -195,7 +199,7 @@ export function HomeDesktopHero({
               <button
                 type="button"
                 onClick={plan === "free" ? openUpgrade : openUpgrade}
-                className="inline-flex items-center gap-2 rounded-full border border-black/[0.06] bg-white/80 px-3.5 py-1 text-[13px] shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition hover:border-black/[0.1] dark:border-white/[0.08] dark:bg-white/[0.06] dark:hover:border-white/[0.16]"
+                className="glass-chip glass-card inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[13px] transition hover:border-[color-mix(in_oklab,var(--workspace-tab-border)_55%,var(--foreground)_45%)]"
               >
                 <span className="font-medium text-foreground/80">{planLabel}</span>
                 <span className="text-muted-foreground/40">·</span>
@@ -204,7 +208,7 @@ export function HomeDesktopHero({
             ) : (
               <Link
                 href={routes.plans}
-                className="inline-flex items-center gap-2 rounded-full border border-black/[0.06] bg-white/80 px-3.5 py-1 text-[13px] shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition hover:border-black/[0.1] dark:border-white/[0.08] dark:bg-white/[0.06] dark:hover:border-white/[0.16]"
+                className="glass-chip glass-card inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[13px] transition hover:border-[color-mix(in_oklab,var(--workspace-tab-border)_55%,var(--foreground)_45%)]"
               >
                 <span className="font-medium text-foreground/80">Free Plan</span>
                 <span className="text-muted-foreground/40">·</span>
@@ -223,10 +227,10 @@ export function HomeDesktopHero({
 
           {/* Composer */}
           <motion.div variants={heroItem} className="mt-8 sm:mt-10">
-            {(attachedFiles.length > 0 || attachedWebpage || attachedLibrarySource || heroUploading) && (
+            {(hasAttachments || showUploadProgress) && (
               <div className="mb-3 flex flex-wrap justify-center gap-2">
-                {heroUploading ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-white/90 px-3 py-1 text-xs shadow-sm dark:bg-card/80">
+                {showUploadProgress ? (
+                  <span className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs">
                     <Loader2 className="h-3 w-3 animate-spin text-primary" />
                     {attachedWebpage ? "Importing webpage…" : "Indexing PDF…"}
                   </span>
@@ -237,7 +241,7 @@ export function HomeDesktopHero({
                 {attachedFiles.map((file, idx) => (
                   <span
                     key={`${file.name}-${idx}`}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-white/90 px-3 py-1 text-xs shadow-sm dark:bg-card/80"
+                    className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs"
                   >
                     <Paperclip className="h-3 w-3 text-orange-500" />
                     <span className="max-w-[180px] truncate">{file.name}</span>
@@ -252,7 +256,7 @@ export function HomeDesktopHero({
                   </span>
                 ))}
                 {attachedLibrarySource && !heroUploading ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-white/90 px-3 py-1 text-xs shadow-sm dark:bg-card/80">
+                  <span className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs">
                     <FolderOpen className="h-3 w-3 text-violet-500" />
                     <span className="max-w-[200px] truncate">{attachedLibrarySource.name}</span>
                     <button
@@ -268,7 +272,7 @@ export function HomeDesktopHero({
               </div>
             )}
 
-            <div className="rounded-[1.5rem] border border-black/[0.07] bg-white/95 px-4 pb-3 pt-4 shadow-[0_6px_30px_-10px_rgba(15,23,42,0.12)] dark:border-white/[0.08] dark:bg-card/80 dark:shadow-[0_6px_30px_-10px_rgba(0,0,0,0.5)]">
+            <div className="glass-surface glass-composer glass-card rounded-[1.5rem] px-4 pb-3 pt-4">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -405,9 +409,9 @@ export function HomeDesktopHero({
                     key={item.title}
                     type="button"
                     onClick={() => handleQuickStart(item)}
-                    className="group flex items-start gap-2.5 rounded-2xl border border-black/[0.06] bg-white/70 p-3 text-left shadow-[0_2px_14px_-8px_rgba(15,23,42,0.1)] transition hover:-translate-y-0.5 hover:border-black/[0.1] hover:bg-white hover:shadow-[0_10px_28px_-12px_rgba(15,23,42,0.14)] dark:border-white/[0.07] dark:bg-white/[0.04] dark:hover:border-white/[0.14] dark:hover:bg-white/[0.07] sm:gap-3 sm:p-4"
+                    className="glass-surface glass-card glass-card-interactive group flex items-start gap-2.5 rounded-2xl p-3 text-left sm:gap-3 sm:p-4"
                   >
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/[0.04] text-foreground/70 transition group-hover:bg-violet-500/10 group-hover:text-violet-600 dark:bg-white/[0.06] dark:group-hover:bg-violet-400/15 dark:group-hover:text-violet-400">
+                    <span className="glass-icon-well mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
                       <Icon className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">

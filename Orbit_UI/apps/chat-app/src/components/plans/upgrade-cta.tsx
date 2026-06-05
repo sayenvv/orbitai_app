@@ -3,7 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const premiumCtaClass =
-  "inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-primary to-[oklch(0.58_0.20_330)] px-4 py-2 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/30 shimmer press";
+  "inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:scale-[1.02] hover:bg-primary/90 press";
 
 type UpgradeCtaProps = {
   className?: string;
@@ -62,7 +62,7 @@ export function NavbarUpgradeLink({ className }: { className?: string }) {
     <Link
       href="/plans"
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-gradient-to-r from-primary/12 to-[oklch(0.58_0.20_330/0.08)] px-3.5 py-1.5 text-xs font-semibold text-primary shadow-sm shadow-primary/5 transition-all hover:border-primary/35 hover:from-primary/18 hover:to-[oklch(0.58_0.20_330/0.12)] hover:shadow-md hover:shadow-primary/10 press",
+        "inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary shadow-sm transition-all hover:border-primary/35 hover:bg-primary/15 press",
         className,
       )}
     >

@@ -324,7 +324,7 @@ export function ResearchCompanionWorkspaceChat({
                   key={suggestion.id}
                   type="button"
                   onClick={() => void handleSend(suggestion.prompt)}
-                  className="flex w-full items-start gap-2 rounded-xl border border-border/30 bg-background/80 px-3 py-2.5 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-muted/50"
+                  className="glass-surface glass-card glass-card-interactive flex w-full items-start gap-2 rounded-xl px-3 py-2.5 text-left text-xs leading-relaxed text-foreground"
                 >
                   <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                   <span>{suggestion.label}</span>
@@ -342,7 +342,7 @@ export function ResearchCompanionWorkspaceChat({
             Loading document context…
           </div>
         ) : (
-          <div className="rounded-xl border border-border/30 bg-background/55 p-1.5">
+          <div className="glass-surface glass-composer rounded-xl p-1.5">
             <textarea
               ref={textareaRef}
               value={input}

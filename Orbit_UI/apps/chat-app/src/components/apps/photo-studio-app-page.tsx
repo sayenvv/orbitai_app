@@ -109,7 +109,7 @@ function SaveWorkspaceDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="save-workspace-title"
-        className="relative z-10 w-full max-w-md rounded-2xl border border-border/60 bg-card p-6 shadow-xl"
+        className="glass-surface glass-modal relative z-10 w-full max-w-md rounded-2xl p-6"
       >
         <h2 id="save-workspace-title" className="text-lg font-semibold tracking-tight text-foreground">
           Save project
@@ -125,7 +125,7 @@ function SaveWorkspaceDialog({
             onChange={(event) => setName(event.target.value)}
             placeholder="e.g. Summer campaign logo"
             autoFocus
-            className="mt-2 h-10 w-full rounded-xl border border-border/50 bg-background px-3 text-sm font-medium text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-black/20 focus:ring-4 focus:ring-black/[0.06] dark:focus:border-white/20 dark:focus:ring-white/10"
+            className="glass-input mt-2 h-10 w-full rounded-xl px-3 text-sm font-medium text-foreground outline-none transition-colors placeholder:text-muted-foreground"
             onKeyDown={(event) => {
               if (event.key === "Enter" && name.trim() && !isSaving) {
                 onConfirm(name.trim());

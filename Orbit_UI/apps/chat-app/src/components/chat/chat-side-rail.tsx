@@ -57,7 +57,7 @@ function RailSectionLabel({ children }: { children: ReactNode }) {
 function RailAdCard({ ad }: { ad: ChatSideRailAd }) {
   const isExternal = ad.href.startsWith("http");
   const className =
-    "group block overflow-hidden rounded-xl bg-card/80 transition-colors hover:bg-card";
+    "glass-surface glass-card glass-card-interactive group block overflow-hidden rounded-xl";
 
   const content = (
     <>
@@ -172,7 +172,7 @@ export function ChatSideRail({
             ) : (
           <div className="flex flex-col gap-4 p-4">
             {showUpgrade && (
-              <section className="overflow-hidden rounded-xl bg-card">
+              <section className="glass-surface glass-card overflow-hidden rounded-xl">
                 <div className="relative h-[88px] overflow-hidden bg-muted">
                   <Image
                     src={upgrade.imageUrl}
@@ -230,7 +230,7 @@ export function ChatSideRail({
 
             <section>
               <RailSectionLabel>Shortcuts</RailSectionLabel>
-              <ul className="mt-2 space-y-1 overflow-hidden rounded-xl bg-card">
+              <ul className="glass-surface glass-card mt-2 space-y-1 overflow-hidden rounded-xl">
                 {CHAT_SIDE_RAIL_LINKS.map((link) => {
                   const Icon = link.icon;
                   return (
@@ -258,7 +258,7 @@ export function ChatSideRail({
               </ul>
             </section>
 
-            <section className="rounded-xl bg-card p-3.5">
+            <section className="glass-surface glass-card rounded-xl p-3.5">
               <div className="flex items-start gap-2.5">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                   <TipIcon className="h-4 w-4 text-primary" />

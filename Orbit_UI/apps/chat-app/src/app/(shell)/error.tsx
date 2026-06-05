@@ -19,7 +19,7 @@ export default function ShellError({
 
   return (
     <div className="flex min-h-[40vh] items-center justify-center px-4">
-      <div className="max-w-md rounded-2xl border border-border/60 bg-card p-8 text-center">
+      <div className="glass-surface max-w-md rounded-2xl p-8 text-center">
         <h1 className="text-lg font-semibold">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           This section failed to load. Try again or return home.

@@ -20,7 +20,7 @@ export function AuthPromptModal({ open, onClose, onSignIn }: AuthPromptModalProp
         aria-hidden="true"
       />
 
-      <div className="relative w-full max-w-[320px] overflow-hidden rounded-xl border border-border/50 bg-background shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-200">
+      <div className="glass-surface glass-modal relative w-full max-w-[320px] overflow-hidden rounded-xl animate-in fade-in slide-in-from-bottom-3 duration-200">
         <button
           type="button"
           onClick={onClose}

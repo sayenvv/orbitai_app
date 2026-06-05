@@ -196,7 +196,7 @@ export function AppDetailView({ app }: { app: CatalogApp }) {
               {app.screenshots.map((shot) => (
                 <article
                   key={shot.title}
-                  className="w-[82%] shrink-0 snap-center overflow-hidden rounded-2xl bg-card/75 backdrop-blur-sm sm:w-[58%] lg:w-[44%]"
+                  className="glass-surface glass-card w-[82%] shrink-0 snap-center overflow-hidden rounded-2xl sm:w-[58%] lg:w-[44%]"
                 >
                   <div className={`relative aspect-video bg-gradient-to-br ${shot.gradientClass}`}>
                     <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
@@ -223,7 +223,7 @@ export function AppDetailView({ app }: { app: CatalogApp }) {
           </section>
 
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <article className="rounded-2xl bg-card/75 p-5 backdrop-blur-sm">
+            <article className="glass-surface glass-card rounded-2xl p-5">
               <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Included features
               </h3>
@@ -231,7 +231,7 @@ export function AppDetailView({ app }: { app: CatalogApp }) {
                 {app.badges.map((feature) => (
                   <li
                     key={feature}
-                    className="flex items-center gap-2 rounded-xl bg-background/60 px-3 py-2.5 text-sm"
+                    className="flex items-center gap-2 rounded-xl bg-[var(--workspace-tab-inactive-bg-hover)] px-3 py-2.5 text-sm"
                   >
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
                     {feature}
@@ -240,7 +240,7 @@ export function AppDetailView({ app }: { app: CatalogApp }) {
               </ul>
             </article>
 
-            <article className="rounded-2xl bg-card/75 p-5 backdrop-blur-sm">
+            <article className="glass-surface glass-card rounded-2xl p-5">
               <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Model access
               </h3>

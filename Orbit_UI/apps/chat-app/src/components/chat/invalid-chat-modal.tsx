@@ -22,7 +22,7 @@ export function InvalidChatModal({ open, onClose }: InvalidChatModalProps) {
         role="alertdialog"
         aria-labelledby="invalid-chat-title"
         aria-describedby="invalid-chat-description"
-        className="relative w-full max-w-[340px] overflow-hidden rounded-xl border border-border/50 bg-background shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-200"
+        className="glass-surface glass-modal relative w-full max-w-[340px] overflow-hidden rounded-xl animate-in fade-in slide-in-from-bottom-3 duration-200"
       >
         <button
           type="button"

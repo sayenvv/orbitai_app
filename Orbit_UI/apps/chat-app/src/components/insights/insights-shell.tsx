@@ -3,7 +3,7 @@ import type { ReactNode, RefObject } from "react";
 
 /** Shared surface styles for document study views. */
 export const studyPanelClass =
-  "overflow-hidden rounded-3xl border border-border/45 bg-card/75 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] backdrop-blur-sm dark:bg-card/60";
+  "glass-surface glass-card overflow-hidden rounded-3xl";
 
 export const studyPanelHeaderClass =
   "flex items-start justify-between gap-3 border-b border-border/40 px-5 py-4 md:px-6 md:py-4";
@@ -65,7 +65,7 @@ export function StudyTabStrip({
   return (
     <div
       className={cn(
-        "flex gap-0.5 overflow-x-auto rounded-xl border border-border/40 bg-muted/25 p-1 [scrollbar-width:thin]",
+        "workspace-tab-surface flex gap-0.5 overflow-x-auto rounded-xl p-1 [scrollbar-width:thin]",
         className,
       )}
     >
@@ -91,9 +91,7 @@ export function StudyTabButton({
       onClick={onClick}
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-200",
-        active
-          ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
-          : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+        active && "workspace-tab-active",
       )}
     >
       {children}
@@ -123,10 +121,10 @@ export function StudyContentCard({
   return (
     <div
       className={cn(
-        "rounded-xl border px-4 py-4 md:px-5 md:py-5",
-        variant === "default" && "border-border/40 bg-background/50",
-        variant === "muted" && "border-border/35 bg-muted/20",
-        variant === "accent" && "border-primary/15 bg-primary/[0.04]",
+        "rounded-xl px-4 py-4 md:px-5 md:py-5",
+        variant === "default" && "glass-surface glass-card",
+        variant === "muted" && "border border-border/35 bg-muted/20",
+        variant === "accent" && "border border-primary/15 bg-primary/[0.04]",
         className,
       )}
     >
@@ -145,7 +143,7 @@ export function StudyEmptyState({
   message: string;
 }) {
   return (
-    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/50 bg-muted/10 px-8 py-12 text-center">
+    <div className="glass-surface glass-empty flex min-h-[220px] flex-col items-center justify-center rounded-2xl px-8 py-12 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/40">
         <Icon className="h-5 w-5 text-muted-foreground/70" />
       </div>
@@ -165,10 +163,10 @@ export function StudyMetaPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
         accent
-          ? "border-primary/25 bg-primary/8 text-primary"
-          : "border-border/40 bg-background/60 text-muted-foreground",
+          ? "border border-primary/25 bg-primary/8 text-primary"
+          : "glass-chip text-muted-foreground",
       )}
     >
       {children}

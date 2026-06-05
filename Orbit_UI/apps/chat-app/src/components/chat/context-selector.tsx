@@ -84,7 +84,7 @@ function SourceListModal({
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/30 backdrop-blur-[1px]" onClick={close} />
 
-      <div className="relative w-full max-w-xs bg-card rounded-lg shadow-xl border overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="glass-surface glass-modal relative w-full max-w-xs rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between px-3 py-2 border-b">
           <h3 className="text-xs font-semibold">{title}</h3>
           <button
@@ -131,7 +131,7 @@ function SourceListModal({
         )}
 
         <div className="px-2 pt-2">
-          <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border bg-background">
+          <div className="glass-input flex items-center gap-1.5 px-2 py-1.5 rounded-md">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input
               type="text"
@@ -299,7 +299,7 @@ export function ContextSelector({
       <>
         <div className="mb-2 flex items-center gap-1.5">
           {locked ? (
-            <span className="inline-flex items-center gap-1 border border-foreground/10 bg-foreground/[0.03] py-1 pl-2 pr-2 rounded-md">
+            <span className="glass-chip inline-flex items-center gap-1 py-1 pl-2 pr-2 rounded-md">
               <SelectedIcon className={cn("h-2.5 w-2.5", visual.chipClass)} />
               <span className="text-[10px] font-medium text-foreground/80 max-w-[150px] truncate">
                 {selectedSource.name}
@@ -309,7 +309,7 @@ export function ContextSelector({
           ) : (
             <button
               onClick={() => onSelect(null)}
-              className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-md bg-foreground/[0.03] border border-foreground/10 hover:border-destructive/40 hover:bg-destructive/5 transition-all group"
+              className="glass-chip inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-md hover:border-destructive/40 hover:bg-destructive/5 transition-all group"
             >
               <SelectedIcon className={cn("h-2.5 w-2.5", visual.chipClass)} />
               <span className="text-[10px] font-medium text-foreground/80 max-w-[150px] truncate">
