@@ -72,6 +72,8 @@ def done_event(session: OrchestrationSession, *, run_factory) -> dict[str, Any]:
         "human_prompt": run.human_prompt,
         "result": run.result,
         "error": run.error,
+        "images": list(getattr(run, "images", None) or []),
+        "cards": list(getattr(run, "cards", None) or []),
     }
 
 

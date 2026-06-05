@@ -74,6 +74,12 @@ python -m pip install -r requirements-local.txt
 
 If you see `ModuleNotFoundError: No module named 'orbit_orchestration'`, re-run `python -m pip install -r requirements-local.txt` (the `orbit-orchestration` path package was added after an older install).
 
+If pip reports `ResolutionImpossible` for `orbit-api` and `orbit-orchestration`, you likely ran both `pip install -e packages/orbit_orchestration` and `pip install -e .` together. Use **only**:
+
+```bash
+python -m pip install -r requirements-local.txt
+```
+
 ### 3. Migrate & seed
 
 ```bash

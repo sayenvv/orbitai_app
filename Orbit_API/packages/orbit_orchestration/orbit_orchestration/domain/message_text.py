@@ -91,7 +91,11 @@ def strip_autogen_artifacts(raw: str) -> str:
 
 def clean_line(line: str) -> str:
     line = line.strip()
-    line = re.sub(r"^\[(summarizer|image_generator|assistant|human)\]\s*", "", line)
+    line = re.sub(
+        r"^\[(web_search_agent|research_agent|job_search_agent|math_agent|assistant)\]\s*",
+        "",
+        line,
+    )
     return line.strip()
 
 

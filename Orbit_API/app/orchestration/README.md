@@ -1,10 +1,12 @@
-# App orchestration layer
+# App orchestration wiring
 
 | Path | Role |
 |------|------|
-| `runner.py` | Conversation DB helpers + legacy single-agent streaming (unused by `/api/chat`) |
-| `multi_agent/` | Factory wiring Orbit settings → `orbit_orchestration` package |
+| `multi_agent/factory.py` | Maps app `.env` → `OrchestrationSettings`; singleton `LangGraphOrchestrator` |
+| `runner.py` | Legacy single-agent streaming for library insights |
 
-Business logic for multi-agent group chat lives in **`packages/orbit_orchestration/`**.
+Business logic lives in `packages/orbit_orchestration/`.
 
-HTTP routes: `app/api/v1/public/chat.py` (primary), `app/api/v1/public/multi_agent.py` (standalone)
+**Streaming endpoint:** `POST /api/chat/message/stream` (SSE).
+
+Specialist agents: `web_search_agent`, `research_agent`, `job_search_agent`, `math_agent`.

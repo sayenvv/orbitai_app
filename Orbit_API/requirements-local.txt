@@ -1,5 +1,9 @@
-# Install from Orbit_API directory (path deps: clovai, clovai-apps, orbit-orchestration):
+# Install from Orbit_API directory:
 #   python -m pip install -r requirements-local.txt
 #
-# After pulling changes that add packages under packages/, re-run the command above.
+# This installs orbit-api plus path deps (clovai, clovai-apps, orbit-orchestration).
+# Do NOT also run `pip install -e packages/orbit_orchestration` in the same command —
+# pip treats that as a duplicate requirement and fails with ResolutionImpossible.
+#
+# After pulling orchestration changes, re-run the command above.
 -e .[dev]

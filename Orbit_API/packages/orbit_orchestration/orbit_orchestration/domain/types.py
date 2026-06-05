@@ -7,7 +7,22 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from orbit_orchestration.domain.routing import TaskRouting
 
-AgentName = Literal["human", "summarizer", "image_generator", "assistant"]
+AgentName = Literal[
+    "assistant",
+    "web_search_agent",
+    "research_agent",
+    "job_search_agent",
+    "math_agent",
+]
+
+SPECIALIST_AGENTS: frozenset[AgentName] = frozenset(
+    {
+        "web_search_agent",
+        "research_agent",
+        "job_search_agent",
+        "math_agent",
+    }
+)
 
 
 class OrchestrationStatus(str, Enum):
@@ -34,3 +49,5 @@ class OrchestrationRun:
     human_prompt: str | None = None
     result: str | None = None
     error: str | None = None
+    images: list[dict[str, str]] = field(default_factory=list)
+    cards: list[dict[str, Any]] = field(default_factory=list)

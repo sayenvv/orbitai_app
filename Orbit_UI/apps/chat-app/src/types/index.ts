@@ -1,3 +1,33 @@
+export type WebSearchImage = {
+  imageUrl: string;
+  thumbnailUrl?: string | null;
+  pageUrl?: string | null;
+  title?: string | null;
+  alt?: string | null;
+  source?: string | null;
+};
+
+export type AdaptiveCard = {
+  type: "place" | "job" | "web_result" | "image" | string;
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
+  url?: string | null;
+  address?: string | null;
+  rating?: string | null;
+  price?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  company?: string | null;
+  salary?: string | null;
+  experienceLevel?: string | null;
+  source?: string | null;
+  badges?: string[];
+};
+
 export type MessageRoutingMetadata = {
   routing?: {
     primary_agent: string;
@@ -8,6 +38,8 @@ export type MessageRoutingMetadata = {
   } | null;
   orchestration_status?: string | null;
   human_prompt?: string | null;
+  images?: WebSearchImage[];
+  cards?: AdaptiveCard[];
 };
 
 export type Message = {

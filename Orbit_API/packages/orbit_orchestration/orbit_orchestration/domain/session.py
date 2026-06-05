@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from typing import Any
 
 from orbit_orchestration.domain.routing import TaskRouting
 from orbit_orchestration.domain.types import OrchestrationMessage, OrchestrationStatus
@@ -18,6 +19,8 @@ class OrchestrationSession:
     pending_human_input: str | None = None
     result: str | None = None
     error: str | None = None
+    images: list[dict[str, str]] = field(default_factory=list)
+    cards: list[dict[str, Any]] = field(default_factory=list)
 
 
 class SessionStore:

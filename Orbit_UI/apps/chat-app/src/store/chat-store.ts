@@ -57,7 +57,12 @@ type ChatState = {
   addConversation: (conversation: Conversation) => void;
   addMessage: (conversationId: string, message: Message, options?: { touchUpdatedAt?: boolean }) => void;
   setConversationMessages: (conversationId: string, messages: Message[]) => void;
-  updateMessage: (conversationId: string, messageId: string, content: string) => void;
+  updateMessage: (
+    conversationId: string,
+    messageId: string,
+    content: string,
+    metadata?: Message["metadata"],
+  ) => void;
   updateConversationId: (oldId: string, newId: string) => void;
   setConversations: (conversations: Conversation[]) => void;
   appendConversationsPage: (conversations: Conversation[]) => void;
@@ -113,14 +118,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     })),
 
-  updateMessage: (conversationId, messageId, content) =>
+  updateMessage: (conversationId, messageId, content, metadata) =>
     set((state) => ({
       conversations: state.conversations.map((conv) =>
         conv.id === conversationId
           ? {
               ...conv,
               messages: conv.messages.map((msg) =>
-                msg.id === messageId ? { ...msg, content } : msg
+                msg.id === messageId
+                  ? {
+                      ...msg,
+                      content,
+                      ...(metadata ? { metadata: { ...msg.metadata, ...metadata } } : {}),
+                    }
+                  : msg,
               ),
               updatedAt: new Date(),
             }

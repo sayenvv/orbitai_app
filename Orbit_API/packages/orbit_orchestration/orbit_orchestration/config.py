@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class OrchestrationSettings(BaseSettings):
-    """LLM settings for multi-agent orchestration (AutoGen + LangChain)."""
+    """LLM settings for LangGraph + LangChain multi-agent orchestration."""
 
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", populate_by_name=True
@@ -34,6 +34,10 @@ class OrchestrationSettings(BaseSettings):
     )
 
     orchestration_temperature: float = 0.4
+    orchestration_fast_search: bool = Field(
+        default=True,
+        validation_alias="ORCHESTRATION_FAST_SEARCH",
+    )
     max_team_turns: int = 12
     image_default_aspect_ratio: str = "1:1"
     image_default_style: str = "modern"

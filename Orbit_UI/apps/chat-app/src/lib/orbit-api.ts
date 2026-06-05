@@ -163,10 +163,42 @@ export type ApiMultiAgentRouting = {
   reasoning: string;
 };
 
+export type ApiWebSearchImage = {
+  image_url: string;
+  thumbnail_url?: string | null;
+  page_url?: string | null;
+  title?: string | null;
+  alt?: string | null;
+  source?: string | null;
+};
+
+export type ApiAdaptiveCard = {
+  type: string;
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  description?: string | null;
+  image_url?: string | null;
+  thumbnail_url?: string | null;
+  url?: string | null;
+  address?: string | null;
+  rating?: string | null;
+  price?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  company?: string | null;
+  salary?: string | null;
+  experience_level?: string | null;
+  source?: string | null;
+  badges?: string[];
+};
+
 export type ApiMessageMetadata = {
   routing?: ApiMultiAgentRouting | null;
   orchestration_status?: string | null;
   human_prompt?: string | null;
+  images?: ApiWebSearchImage[];
+  cards?: ApiAdaptiveCard[];
 };
 
 export type ApiMessage = {
@@ -235,12 +267,16 @@ export type StreamEvent =
   | { type: "routing"; routing: ApiMultiAgentRouting }
   | { type: "awaiting_human"; human_prompt: string }
   | { type: "token"; content: string }
+  | { type: "images"; images: ApiWebSearchImage[] }
+  | { type: "cards"; cards: ApiAdaptiveCard[] }
   | { type: "error"; detail: string }
   | {
       type: "done";
       conversation_id?: string;
       session_id?: string;
       orchestration_status?: string;
+      images?: ApiWebSearchImage[];
+      cards?: ApiAdaptiveCard[];
       usage?: {
         tokens_used: number;
         tokens_limit: number | null;
@@ -688,12 +724,12 @@ export const chatApi = {
       history?: { role: string; content: string }[];
     },
   ): AsyncGenerator<StreamEvent> {
-    const response = await fetch(`${getApiBaseUrl()}/multi-agent/runs/stream`, {
+    const response = await fetch(`${getApiBaseUrl()}/chat/message/stream`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        task: body.message,
+        message: body.message,
         conversation_id: body.conversation_id ?? null,
         agent_id: body.agent_id ?? null,
         app_slug: body.app_slug ?? null,
@@ -833,12 +869,57 @@ export function mapConversationSummary(raw: ApiConversationSummary): Conversatio
   };
 }
 
+function mapWebSearchImage(raw: ApiWebSearchImage) {
+  return {
+    imageUrl: raw.image_url,
+    thumbnailUrl: raw.thumbnail_url ?? null,
+    pageUrl: raw.page_url ?? null,
+    title: raw.title ?? null,
+    alt: raw.alt ?? null,
+    source: raw.source ?? null,
+  };
+}
+
+function mapAdaptiveCard(raw: ApiAdaptiveCard) {
+  return {
+    type: raw.type,
+    id: raw.id,
+    title: raw.title,
+    subtitle: raw.subtitle ?? null,
+    description: raw.description ?? null,
+    imageUrl: raw.image_url ?? null,
+    thumbnailUrl: raw.thumbnail_url ?? null,
+    url: raw.url ?? null,
+    address: raw.address ?? null,
+    rating: raw.rating ?? null,
+    price: raw.price ?? null,
+    phone: raw.phone ?? null,
+    email: raw.email ?? null,
+    company: raw.company ?? null,
+    salary: raw.salary ?? null,
+    experienceLevel: raw.experience_level ?? null,
+    source: raw.source ?? null,
+    badges: raw.badges ?? [],
+  };
+}
+
+function mapMessageMetadata(raw: ApiMessageMetadata | null | undefined) {
+  if (!raw) return undefined;
+  return {
+    routing: raw.routing ?? null,
+    orchestration_status: raw.orchestration_status ?? null,
+    human_prompt: raw.human_prompt ?? null,
+    images: raw.images?.map(mapWebSearchImage),
+    cards: raw.cards?.map(mapAdaptiveCard),
+  };
+}
+
 export function mapMessage(raw: ApiMessage): Message {
   return {
     id: raw.id,
     role: raw.role as "user" | "assistant",
     content: raw.content,
     timestamp: new Date(raw.timestamp),
-    metadata: raw.metadata ?? undefined,
+    metadata: mapMessageMetadata(raw.metadata),
   };
 }

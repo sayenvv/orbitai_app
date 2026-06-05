@@ -159,5 +159,5 @@ async def stream_message(
     db: Session = Depends(get_db),
     user: User = Depends(require_chat_user),
 ):
-    """Chat SSE — delegates to ``POST /api/multi-agent/runs/stream`` with conversation context."""
+    """Single SSE orchestration endpoint (LangGraph multi-agent + tools)."""
     return chat_streaming_response(db, user, body, request)

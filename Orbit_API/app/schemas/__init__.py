@@ -117,10 +117,42 @@ class MultiAgentRoutingResponse(BaseModel):
     reasoning: str = ""
 
 
+class WebSearchImageResponse(BaseModel):
+    image_url: str
+    thumbnail_url: str | None = None
+    page_url: str | None = None
+    title: str | None = None
+    alt: str | None = None
+    source: str | None = None
+
+
+class AdaptiveCardResponse(BaseModel):
+    type: str
+    id: str
+    title: str
+    subtitle: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    thumbnail_url: str | None = None
+    url: str | None = None
+    address: str | None = None
+    rating: str | None = None
+    price: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    company: str | None = None
+    salary: str | None = None
+    experience_level: str | None = None
+    source: str | None = None
+    badges: list[str] = Field(default_factory=list)
+
+
 class MessageMetadataResponse(BaseModel):
     routing: MultiAgentRoutingResponse | None = None
     orchestration_status: str | None = None
     human_prompt: str | None = None
+    images: list[WebSearchImageResponse] = Field(default_factory=list)
+    cards: list[AdaptiveCardResponse] = Field(default_factory=list)
 
 
 class MessageResponse(BaseModel):

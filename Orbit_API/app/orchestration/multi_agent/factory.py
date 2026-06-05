@@ -2,7 +2,7 @@ from functools import lru_cache
 
 from orbit_orchestration.config import OrchestrationSettings
 from orbit_orchestration.domain.session import SessionStore
-from orbit_orchestration.orchestrator import GroupChatOrchestrator
+from orbit_orchestration.orchestrator import LangGraphOrchestrator
 
 from app.core.config import settings as app_settings
 
@@ -39,5 +39,10 @@ def get_orchestration_settings() -> OrchestrationSettings:
 
 
 @lru_cache
-def get_group_chat_orchestrator() -> GroupChatOrchestrator:
-    return GroupChatOrchestrator(settings=_orchestration_settings(), store=_ORCHESTRATION_STORE)
+def get_orchestrator() -> LangGraphOrchestrator:
+    return LangGraphOrchestrator(settings=_orchestration_settings(), store=_ORCHESTRATION_STORE)
+
+
+def get_group_chat_orchestrator() -> LangGraphOrchestrator:
+    """Backward-compatible alias."""
+    return get_orchestrator()

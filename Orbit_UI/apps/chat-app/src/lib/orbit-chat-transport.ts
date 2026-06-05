@@ -1,5 +1,12 @@
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
-import { ApiError, getApiBaseUrl, type StreamEvent } from "@/lib/orbit-api";
+import {
+  ApiError,
+  getApiBaseUrl,
+  type ApiAdaptiveCard,
+  type ApiWebSearchImage,
+  type StreamEvent,
+} from "@/lib/orbit-api";
+import type { AdaptiveCard, WebSearchImage } from "@/types";
 import { textFromUIMessage } from "@/lib/orbit-ui-message";
 import { transformTextToUiMessageStream } from "@/lib/transform-text-to-ui-message-stream";
 
@@ -13,9 +20,50 @@ export type OrbitChatRequestBody = {
 
 type DoneStreamEvent = Extract<StreamEvent, { type: "done" }>;
 
+function mapStreamImage(raw: ApiWebSearchImage): WebSearchImage {
+  return {
+    imageUrl: raw.image_url,
+    thumbnailUrl: raw.thumbnail_url ?? null,
+    pageUrl: raw.page_url ?? null,
+    title: raw.title ?? null,
+    alt: raw.alt ?? null,
+    source: raw.source ?? null,
+  };
+}
+
+function mapStreamCard(raw: ApiAdaptiveCard): AdaptiveCard {
+  return {
+    type: raw.type,
+    id: raw.id,
+    title: raw.title,
+    subtitle: raw.subtitle ?? null,
+    description: raw.description ?? null,
+    imageUrl: raw.image_url ?? null,
+    thumbnailUrl: raw.thumbnail_url ?? null,
+    url: raw.url ?? null,
+    address: raw.address ?? null,
+    rating: raw.rating ?? null,
+    price: raw.price ?? null,
+    phone: raw.phone ?? null,
+    email: raw.email ?? null,
+    company: raw.company ?? null,
+    salary: raw.salary ?? null,
+    experienceLevel: raw.experience_level ?? null,
+    source: raw.source ?? null,
+    badges: raw.badges ?? [],
+  };
+}
+
 export type OrbitStreamSideEffect =
   | { type: "start"; conversation_id?: string; session_id?: string }
-  | { type: "done"; usage?: DoneStreamEvent["usage"] }
+  | {
+      type: "done";
+      usage?: DoneStreamEvent["usage"];
+      images?: WebSearchImage[];
+      cards?: AdaptiveCard[];
+    }
+  | { type: "images"; images: WebSearchImage[] }
+  | { type: "cards"; cards: AdaptiveCard[] }
   | { type: "meta"; event: StreamEvent }
   | { type: "error"; detail: string };
 
@@ -68,8 +116,23 @@ async function* parseOrbitSse(
           conversation_id: event.conversation_id,
           session_id: event.session_id,
         });
+      } else if (event.type === "images") {
+        onSideEffect?.({
+          type: "images",
+          images: event.images.map(mapStreamImage),
+        });
+      } else if (event.type === "cards") {
+        onSideEffect?.({
+          type: "cards",
+          cards: event.cards.map(mapStreamCard),
+        });
       } else if (event.type === "done") {
-        onSideEffect?.({ type: "done", usage: event.usage });
+        onSideEffect?.({
+          type: "done",
+          usage: event.usage,
+          images: event.images?.map(mapStreamImage),
+          cards: event.cards?.map(mapStreamCard),
+        });
       } else if (event.type === "meta" || event.type === "message" || event.type === "routing") {
         onSideEffect?.({ type: "meta", event });
       } else if (event.type === "token") {
@@ -102,14 +165,14 @@ export class OrbitChatTransport implements ChatTransport<UIMessage> {
       ...this.options.getRequestBody?.(),
       ...((body ?? {}) as OrbitChatRequestBody),
     };
-    const api = this.options.api ?? `${getApiBaseUrl()}/multi-agent/runs/stream`;
+    const api = this.options.api ?? `${getApiBaseUrl()}/chat/message/stream`;
 
     const response = await fetch(api, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        task,
+        message: task,
         conversation_id: orbitBody.conversation_id ?? null,
         agent_id: orbitBody.agent_id ?? null,
         app_slug: orbitBody.app_slug ?? null,

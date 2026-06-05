@@ -8,7 +8,13 @@ import { ChatSideRail } from "./chat-side-rail";
 import { ChatActionsMenu } from "./chat-actions-menu";
 import { ChatThreadShimmer } from "@/components/ui/skeleton";
 import { ChatInput, type ChatInputHandle } from "./chat-input";
-import { Message, StudySource, type Conversation } from "@/types";
+import {
+  Message,
+  StudySource,
+  type AdaptiveCard,
+  type Conversation,
+  type WebSearchImage,
+} from "@/types";
 import { ApiError, chatApi, mapConversationSummary, mapMessage, publicApi } from "@/lib/orbit-api";
 import { streamOrbitAssistantReply } from "@/lib/orbit-assistant-stream";
 import { messageToUIMessage } from "@/lib/orbit-ui-message";
@@ -87,6 +93,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   const [mobileComposerHeight, setMobileComposerHeight] = useState(0);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState("");
+  const [streamingImages, setStreamingImages] = useState<WebSearchImage[]>([]);
+  const [streamingCards, setStreamingCards] = useState<AdaptiveCard[]>([]);
   const [upgradeMessageId, setUpgradeMessageId] = useState<string | null>(null);
   const handleSendMessageRef = useRef<(content: string) => Promise<void>>(async () => {});
   const streamingConversationRef = useRef(false);
@@ -108,9 +116,28 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
 
   const displayMessages = useMemo(() => {
     let msgs = activeConversation?.messages ?? [];
-    if (streamingMsgId && streamingText) {
+    if (
+      streamingMsgId &&
+      (streamingText || streamingImages.length || streamingCards.length)
+    ) {
       msgs = msgs.map((msg) =>
-        msg.id === streamingMsgId ? { ...msg, content: streamingText } : msg,
+        msg.id === streamingMsgId
+          ? {
+              ...msg,
+              content: streamingText || msg.content,
+              metadata:
+                streamingImages.length || streamingCards.length
+                  ? {
+                      ...msg.metadata,
+                      ...(streamingCards.length
+                        ? { cards: streamingCards }
+                        : streamingImages.length
+                          ? { images: streamingImages }
+                          : {}),
+                    }
+                  : msg.metadata,
+            }
+          : msg,
       );
     }
     const base =
@@ -125,7 +152,15 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       if (msg.content.trim()) seenContent.add(contentKey);
       return true;
     });
-  }, [activeConversation?.messages, agentGreeting, conversationId, streamingMsgId, streamingText]);
+  }, [
+    activeConversation?.messages,
+    agentGreeting,
+    conversationId,
+    streamingMsgId,
+    streamingText,
+    streamingImages,
+    streamingCards,
+  ]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -556,12 +591,45 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
 
       setStreamingMsgId(assistantMsgId);
       setStreamingText("");
+      setStreamingImages([]);
+      setStreamingCards([]);
       setUpgradeMessageId(null);
       streamingConversationRef.current = true;
 
       setLoading(true);
 
       let streamedText = "";
+      let streamedImages: WebSearchImage[] = [];
+      let streamedCards: AdaptiveCard[] = [];
+
+      const mergeImages = (existing: WebSearchImage[], incoming: WebSearchImage[]) => {
+        const seen = new Set(existing.map((image) => image.imageUrl));
+        const merged = [...existing];
+        for (const image of incoming) {
+          if (!image.imageUrl || seen.has(image.imageUrl)) continue;
+          seen.add(image.imageUrl);
+          merged.push(image);
+        }
+        return merged.slice(0, 12);
+      };
+
+      const mergeCards = (existing: AdaptiveCard[], incoming: AdaptiveCard[]) => {
+        const seenUrls = new Set(
+          existing.map((card) => card.url || card.imageUrl || "").filter(Boolean),
+        );
+        const seenTitles = new Set(existing.map((card) => card.title.toLowerCase()));
+        const merged = [...existing];
+        for (const card of incoming) {
+          const url = card.url || card.imageUrl || "";
+          const titleKey = card.title.toLowerCase();
+          if (url && seenUrls.has(url)) continue;
+          if (!url && titleKey && seenTitles.has(titleKey) && card.type !== "image") continue;
+          if (url) seenUrls.add(url);
+          if (titleKey) seenTitles.add(titleKey);
+          merged.push(card);
+        }
+        return merged.slice(0, 12);
+      };
 
       try {
         streamedText = await streamOrbitAssistantReply({
@@ -587,19 +655,44 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
                   syncConversationToUrl(effect.conversation_id);
                 }
               }
-            } else if (effect.type === "done" && effect.usage) {
-              const current = useUsageStore.getState().usage;
-              useUsageStore.getState().setUsage({
-                plan: current?.plan ?? "free",
-                period_start: current?.period_start,
-                period_end: current?.period_end,
-                ...effect.usage,
-              });
+            } else if (effect.type === "images") {
+              streamedImages = mergeImages(streamedImages, effect.images);
+              setStreamingImages(streamedImages);
+            } else if (effect.type === "cards") {
+              streamedCards = mergeCards(streamedCards, effect.cards);
+              setStreamingCards(streamedCards);
+            } else if (effect.type === "done") {
+              if (effect.images?.length) {
+                streamedImages = mergeImages(streamedImages, effect.images);
+                setStreamingImages(streamedImages);
+              }
+              if (effect.cards?.length) {
+                streamedCards = mergeCards(streamedCards, effect.cards);
+                setStreamingCards(streamedCards);
+              }
+              if (effect.usage) {
+                const current = useUsageStore.getState().usage;
+                useUsageStore.getState().setUsage({
+                  plan: current?.plan ?? "free",
+                  period_start: current?.period_start,
+                  period_end: current?.period_end,
+                  ...effect.usage,
+                });
+              }
             }
           },
         });
 
-        updateMessage(streamConversationId, assistantMsgId, streamedText);
+        updateMessage(
+          streamConversationId,
+          assistantMsgId,
+          streamedText,
+          streamedCards.length
+            ? { cards: streamedCards }
+            : streamedImages.length
+              ? { images: streamedImages }
+              : undefined,
+        );
         void refreshConversationsList();
       } catch (err) {
         if (err instanceof ApiError && err.status === 429) {
@@ -618,6 +711,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         streamingConversationRef.current = false;
         setStreamingMsgId(null);
         setStreamingText("");
+        setStreamingImages([]);
+        setStreamingCards([]);
         setLoading(false);
       }
     },

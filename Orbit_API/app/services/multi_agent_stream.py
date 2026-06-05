@@ -142,6 +142,8 @@ async def stream_chat_orchestration(
         )
 
     token_parts: list[str] = []
+    image_results: list[dict[str, Any]] = []
+    card_results: list[dict[str, Any]] = []
     conv_id = str(conv.id)
 
     async for event in event_source:
@@ -174,6 +176,24 @@ async def stream_chat_orchestration(
         if etype == "message":
             continue
 
+        if etype == "images":
+            batch = event.get("images")
+            if isinstance(batch, list):
+                for item in batch:
+                    if isinstance(item, dict) and item.get("image_url"):
+                        image_results.append(item)
+            yield event
+            continue
+
+        if etype == "cards":
+            batch = event.get("cards")
+            if isinstance(batch, list):
+                for item in batch:
+                    if isinstance(item, dict) and item.get("title"):
+                        card_results.append(item)
+            yield event
+            continue
+
         if etype == "token":
             content = event.get("content") or ""
             accumulated = "".join(token_parts)
@@ -201,6 +221,8 @@ async def stream_chat_orchestration(
                 "conversation_id": conv_id,
                 "session_id": event.get("session_id"),
                 "orchestration_status": turn.status,
+                "images": image_results or event.get("images") or turn.images,
+                "cards": card_results or event.get("cards") or turn.cards,
             }
             continue
 
@@ -245,6 +267,8 @@ async def stream_orchestration_events(
         history = load_conversation_history(db, conv.id)
 
         full = ""
+        streamed_images: list[dict[str, Any]] = []
+        streamed_cards: list[dict[str, Any]] = []
         done_event: dict[str, Any] | None = None
 
         try:
@@ -259,6 +283,22 @@ async def stream_orchestration_events(
                 if event.get("type") == "done":
                     done_event = event
                     continue
+                if event.get("type") == "images":
+                    batch = event.get("images")
+                    if isinstance(batch, list):
+                        for item in batch:
+                            if isinstance(item, dict) and item.get("image_url"):
+                                streamed_images.append(item)
+                    yield event
+                    continue
+                if event.get("type") == "cards":
+                    batch = event.get("cards")
+                    if isinstance(batch, list):
+                        for item in batch:
+                            if isinstance(item, dict) and item.get("title"):
+                                streamed_cards.append(item)
+                    yield event
+                    continue
                 if event.get("type") == "token":
                     full += event.get("content") or ""
                 yield event
@@ -268,16 +308,28 @@ async def stream_orchestration_events(
             full = err_text
             done_event = {"type": "done", "status": "failed", "error": str(exc)}
 
+        if done_event:
+            if streamed_images and not done_event.get("images"):
+                done_event = {**done_event, "images": streamed_images}
+            if streamed_cards and not done_event.get("cards"):
+                done_event = {**done_event, "cards": streamed_cards}
+
         turn = (
             turn_from_stream_done(done_event, streamed_text=full)
             if done_event
             else turn_from_stream_done(
-                {"type": "done", "status": "failed", "result": full},
+                {
+                    "type": "done",
+                    "status": "failed",
+                    "result": full,
+                    "images": streamed_images,
+                    "cards": streamed_cards,
+                },
                 streamed_text=full,
             )
         )
 
-        if not is_valid_chat_ui_content(turn.content or full):
+        if not is_valid_chat_ui_content(turn.content or full) and not streamed_cards:
             prior = prior_turns_for_llm(history, body.task)
             fallback = await _chat_llm_answer(
                 body.task,
@@ -309,6 +361,8 @@ async def stream_orchestration_events(
             "type": "done",
             "conversation_id": str(conv.id),
             "orchestration_status": turn.status,
+            "images": turn.images or streamed_images or None,
+            "cards": turn.cards or streamed_cards or None,
             "usage": TokenUsageResponse(
                 tokens_used=snapshot.tokens_used,
                 tokens_limit=snapshot.tokens_limit,

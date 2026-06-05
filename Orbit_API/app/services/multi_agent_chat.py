@@ -12,7 +12,7 @@ from orbit_orchestration.domain.message_text import (
     is_valid_chat_ui_content,
     sanitize_for_chat_ui,
 )
-from orbit_orchestration.domain.routing import TaskRouting, is_general_chat, requires_human_in_loop
+from orbit_orchestration.domain.routing import TaskRouting, is_general_chat
 from orbit_orchestration.domain.types import OrchestrationRun, OrchestrationStatus
 from orbit_orchestration.langchain.direct_chat import direct_chat_reply
 from orbit_orchestration.langchain.intent_router import analyze_task_intent
@@ -28,6 +28,8 @@ class ChatTurnResult:
     human_prompt: str | None
     orchestration_session_id: str | None
     error: str | None = None
+    images: list[dict[str, str]] | None = None
+    cards: list[dict[str, str]] | None = None
 
 
 def task_routing_from_payload(raw: dict | None) -> TaskRouting | None:
@@ -88,6 +90,19 @@ def turn_from_stream_done(
         content = "Sorry, I could not generate a response. Please try again."
         status = OrchestrationStatus.failed.value
 
+    images_raw = done.get("images")
+    images = (
+        [item for item in images_raw if isinstance(item, dict)]
+        if isinstance(images_raw, list)
+        else None
+    )
+    cards_raw = done.get("cards")
+    cards = (
+        [item for item in cards_raw if isinstance(item, dict)]
+        if isinstance(cards_raw, list)
+        else None
+    )
+
     return ChatTurnResult(
         content=content,
         routing=routing,
@@ -95,6 +110,8 @@ def turn_from_stream_done(
         human_prompt=human_prompt,
         orchestration_session_id=session_id,
         error=done.get("error"),
+        images=images,
+        cards=cards,
     )
 
 
@@ -108,27 +125,6 @@ def routing_payload_for_stream(routing: TaskRouting | None) -> dict | None:
         "topics": list(routing.topics),
         "reasoning": routing.reasoning,
     }
-
-
-def _extract_summarizer_output(run: OrchestrationRun | None) -> str:
-    if not run:
-        return ""
-    for msg in reversed(run.messages):
-        if msg.source != "summarizer":
-            continue
-        cleaned = sanitize_for_chat_ui(msg.content)
-        if cleaned and len(cleaned) > 40:
-            return cleaned
-    return sanitize_for_chat_ui(run.result or "")
-
-
-def _image_approval_display(human_prompt: str | None) -> str:
-    if human_prompt and human_prompt.strip() and human_prompt.strip() != "Enter your response:":
-        return (
-            "I have a draft image prompt ready. Reply in chat with any edits, or say "
-            f'approve to continue.\n\n**Prompt:** {human_prompt.strip()}'
-        )
-    return "I can generate the image once you confirm or edit the prompt in your next message."
 
 
 async def _chat_llm_answer(
@@ -147,25 +143,13 @@ def _resolve_ui_content(
     status: str,
     human_prompt: str | None,
 ) -> str:
-    """Pick one string for the chat UI — never raw AutoGen internals."""
-    if status == OrchestrationStatus.awaiting_human.value and requires_human_in_loop(routing):
-        if is_valid_chat_ui_content(llm_answer):
-            return llm_answer
-        return _image_approval_display(human_prompt)
-
-    if routing.intent in ("content_summarization", "summarize_then_image"):
-        summary = _extract_summarizer_output(run)
-        if is_valid_chat_ui_content(summary):
-            return summary
-
+    _ = (routing, status, human_prompt)
     if is_valid_chat_ui_content(llm_answer):
         return llm_answer
-
     if run:
         from_orchestrator = sanitize_for_chat_ui(run.result or "")
         if is_valid_chat_ui_content(from_orchestrator):
             return from_orchestrator
-
     return llm_answer or "Sorry, I could not generate a response. Please try again."
 
 
@@ -187,11 +171,6 @@ def _finalize_turn_status(
     )
     session_id = run.session_id if run else None
     human_prompt = run.human_prompt if run else None
-
-    if status == OrchestrationStatus.awaiting_human.value and not requires_human_in_loop(routing):
-        status = OrchestrationStatus.completed.value
-        session_id = None
-        human_prompt = None
 
     content = _resolve_ui_content(
         routing=routing,
@@ -324,16 +303,9 @@ async def run_chat_turn(
             orchestration_session_id=None,
         )
 
-    if (
-        awaiting
-        and conv.orchestration_session_id
-        and requires_human_in_loop(routing)
-    ):
-        run = await orchestrator.resume(conv.orchestration_session_id, effective)
-    else:
-        if awaiting:
-            _clear_awaiting_human(conv)
-        run = await orchestrator.start(build_orchestration_task(effective, history))
+    if awaiting:
+        _clear_awaiting_human(conv)
+    run = await orchestrator.start(build_orchestration_task(effective, history))
 
     content, status, human_prompt, session_id = _finalize_turn_status(
         routing=routing,
@@ -374,11 +346,20 @@ def assistant_message_metadata(turn: ChatTurnResult) -> dict | None:
         meta["routing"] = routing
     if turn.human_prompt and turn.status == OrchestrationStatus.awaiting_human.value:
         meta["human_prompt"] = turn.human_prompt
+    if turn.images:
+        meta["images"] = turn.images
+    if turn.cards:
+        meta["cards"] = turn.cards
     return meta
 
 
 def metadata_from_message(msg: Message):
-    from app.schemas import MessageMetadataResponse, MultiAgentRoutingResponse
+    from app.schemas import (
+        AdaptiveCardResponse,
+        MessageMetadataResponse,
+        MultiAgentRoutingResponse,
+        WebSearchImageResponse,
+    )
 
     payload = msg.widget_payload
     if not payload or not isinstance(payload, dict):
@@ -395,11 +376,72 @@ def metadata_from_message(msg: Message):
             reasoning=str(routing_raw.get("reasoning", "")),
         )
 
+    images_raw = payload.get("images")
+    images: list[WebSearchImageResponse] = []
+    if isinstance(images_raw, list):
+        for row in images_raw:
+            if not isinstance(row, dict):
+                continue
+            image_url = str(row.get("image_url") or "").strip()
+            if not image_url:
+                continue
+            images.append(
+                WebSearchImageResponse(
+                    image_url=image_url,
+                    thumbnail_url=row.get("thumbnail_url"),
+                    page_url=row.get("page_url"),
+                    title=row.get("title"),
+                    alt=row.get("alt"),
+                    source=row.get("source"),
+                )
+            )
+
+    cards_raw = payload.get("cards")
+    cards: list[AdaptiveCardResponse] = []
+    if isinstance(cards_raw, list):
+        for row in cards_raw:
+            if not isinstance(row, dict):
+                continue
+            card_id = str(row.get("id") or "").strip()
+            title = str(row.get("title") or "").strip()
+            if not card_id or not title:
+                continue
+            cards.append(
+                AdaptiveCardResponse(
+                    type=str(row.get("type") or "web_result"),
+                    id=card_id,
+                    title=title,
+                    subtitle=row.get("subtitle"),
+                    description=row.get("description"),
+                    image_url=row.get("image_url"),
+                    thumbnail_url=row.get("thumbnail_url"),
+                    url=row.get("url"),
+                    address=row.get("address"),
+                    rating=row.get("rating"),
+                    price=row.get("price"),
+                    phone=row.get("phone"),
+                    email=row.get("email"),
+                    company=row.get("company"),
+                    salary=row.get("salary"),
+                    experience_level=row.get("experience_level"),
+                    source=row.get("source"),
+                    badges=list(row.get("badges") or []),
+                )
+            )
+
     meta = MessageMetadataResponse(
         routing=routing,
         orchestration_status=payload.get("orchestration_status"),
         human_prompt=payload.get("human_prompt"),
+        images=images,
+        cards=cards,
     )
-    if meta.routing is None and meta.orchestration_status is None and meta.human_prompt is None:
+    if (
+        meta.routing is None
+        and meta.orchestration_status is None
+        and meta.human_prompt is None
+        and not meta.images
+        and not meta.cards
+    ):
         return None
     return meta
