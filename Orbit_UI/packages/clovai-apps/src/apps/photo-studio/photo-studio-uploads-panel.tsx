@@ -95,7 +95,7 @@ export function PhotoStudioUploadsPanel({
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search uploads…"
           aria-label="Search uploads"
-          className="h-9 w-full rounded-lg border border-border/60 bg-background/80 pl-8 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+          className="h-9 w-full rounded-lg border border-border/60 bg-background/80 pl-8 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-black/20 focus:ring-4 focus:ring-black/[0.06] dark:focus:border-white/20 dark:focus:ring-white/10"
         />
       </div>
 
@@ -108,8 +108,8 @@ export function PhotoStudioUploadsPanel({
         ) : error ? (
           <p className="py-8 text-center text-xs text-destructive">{error}</p>
         ) : filteredUploads.length === 0 ? (
-          <div className="rounded-[1.15rem] border border-dashed border-cyan-300/40 bg-gradient-to-br from-cyan-50/70 via-white to-violet-50/50 px-4 py-8 text-center dark:border-cyan-500/20 dark:from-cyan-950/20 dark:via-background dark:to-violet-950/10">
-            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 text-white shadow-md shadow-cyan-500/20">
+          <div className="rounded-[1.15rem] border border-dashed border-black/[0.1] bg-gradient-to-br from-stone-50/80 via-white to-zinc-50/70 px-4 py-8 text-center dark:border-white/[0.12] dark:from-zinc-950/25 dark:via-background dark:to-zinc-900/15">
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background shadow-sm">
               <ImagePlus className="h-4 w-4" />
             </span>
             <p className="mt-3 text-sm font-medium text-foreground">No uploads yet</p>
@@ -128,7 +128,7 @@ export function PhotoStudioUploadsPanel({
                   disabled={!ready || !onSelectUpload}
                   onClick={() => onSelectUpload?.(item)}
                   className={cn(
-                    "group relative overflow-hidden rounded-xl border border-border/40 text-left transition-all duration-200 hover:border-violet-300/50 hover:shadow-sm",
+                    "group relative overflow-hidden rounded-xl border border-border/40 text-left transition-all duration-200 hover:border-black/[0.12] hover:shadow-sm dark:hover:border-white/[0.16]",
                     !ready && "cursor-not-allowed opacity-50",
                   )}
                 >

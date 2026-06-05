@@ -198,6 +198,10 @@ export type PhotoStudioCanvasFileActions = {
 };
 
 export type CanvasBackgroundId =
+  | "warm-paper"
+  | "soft-stone"
+  | "slate-haze"
+  | "deep-charcoal"
   | "violet-sunset"
   | "cyan-ocean"
   | "fuchsia-pop"
@@ -437,7 +441,7 @@ function AspectRatioFrame({
         "block shrink-0 rounded-[4px] border transition-colors duration-200",
         frameSizes[ratio],
         selected
-          ? "border-violet-500/50 bg-violet-500/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
+          ? "border-foreground/30 bg-foreground/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:bg-white/[0.12]"
           : "border-border/50 bg-muted/40 group-hover:border-border/70 group-hover:bg-muted/55",
       )}
       aria-hidden
@@ -474,7 +478,7 @@ function AspectRatioPicker({
             className={cn(
               "inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-semibold transition-colors",
               value === ratio
-                ? "bg-violet-600 text-white shadow-sm shadow-violet-500/20"
+                ? "bg-foreground text-background shadow-sm"
                 : "bg-muted/70 text-muted-foreground hover:bg-muted",
             )}
           >
@@ -499,12 +503,12 @@ function AspectRatioPicker({
             className={cn(
               "group relative flex flex-col items-center gap-2.5 rounded-xl border px-2 py-3 text-center transition-all duration-200",
               selected
-                ? "border-violet-400/30 bg-gradient-to-b from-violet-500/[0.07] via-violet-500/[0.03] to-transparent shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5)] ring-1 ring-violet-500/20"
-                : "border-border/35 bg-background/50 hover:border-border/60 hover:bg-background/80",
+                ? "border-black/[0.1] bg-white/80 shadow-[0_1px_4px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.04] dark:border-white/[0.14] dark:bg-white/[0.08] dark:ring-white/[0.06]"
+                : "border-black/[0.06] bg-white/50 hover:border-black/[0.1] hover:bg-white/70 dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]",
             )}
           >
             {selected ? (
-              <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-white shadow-sm">
+              <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-background shadow-sm">
                 <Check className="h-2.5 w-2.5" strokeWidth={3} />
               </span>
             ) : (
@@ -546,67 +550,42 @@ type AccentTheme = {
   glow: string;
 };
 
+// Unified, chat-page–aligned surface: warm white cards, soft neutral borders.
+const sharedAccentTheme: AccentTheme = {
+  badge:
+    "bg-foreground/[0.06] text-muted-foreground ring-1 ring-black/[0.06] dark:bg-white/[0.08] dark:text-foreground/80 dark:ring-white/[0.08]",
+  icon: "bg-foreground text-background shadow-sm",
+  card: "border border-black/[0.06] bg-white/70 hover:-translate-y-0.5 hover:border-black/[0.1] hover:bg-white hover:shadow-[0_10px_28px_-12px_rgba(15,23,42,0.14)] dark:border-white/[0.12] dark:bg-white/[0.04] dark:hover:border-white/[0.14] dark:hover:bg-white/[0.07]",
+  panelHeader: "from-foreground/[0.04] via-foreground/[0.02] to-transparent",
+  glow: "bg-primary/20",
+};
+
 const accentThemes = {
-  violet: {
-    badge: "bg-violet-500/15 text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-300",
-    icon: "bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/25",
-    card: "border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/60 hover:border-violet-300 hover:shadow-[0_12px_32px_rgba(124,58,237,0.12)] dark:border-violet-500/20 dark:from-violet-950/30 dark:via-background dark:to-indigo-950/20",
-    panelHeader: "from-violet-500/10 via-indigo-500/5 to-transparent",
-    glow: "bg-violet-400/30",
-  },
-  cyan: {
-    badge: "bg-cyan-500/15 text-cyan-800 ring-1 ring-cyan-500/20 dark:text-cyan-300",
-    icon: "bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/25",
-    card: "border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/60 hover:border-cyan-300 hover:shadow-[0_12px_32px_rgba(6,182,212,0.12)] dark:border-cyan-500/20 dark:from-cyan-950/30 dark:via-background dark:to-sky-950/20",
-    panelHeader: "from-cyan-500/10 via-sky-500/5 to-transparent",
-    glow: "bg-cyan-400/30",
-  },
-  fuchsia: {
-    badge: "bg-fuchsia-500/15 text-fuchsia-700 ring-1 ring-fuchsia-500/20 dark:text-fuchsia-300",
-    icon: "bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/25",
-    card: "border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/90 via-white to-pink-50/60 hover:border-fuchsia-300 hover:shadow-[0_12px_32px_rgba(217,70,239,0.12)] dark:border-fuchsia-500/20 dark:from-fuchsia-950/30 dark:via-background dark:to-pink-950/20",
-    panelHeader: "from-fuchsia-500/10 via-pink-500/5 to-transparent",
-    glow: "bg-fuchsia-400/30",
-  },
-  amber: {
-    badge: "bg-amber-500/15 text-amber-800 ring-1 ring-amber-500/20 dark:text-amber-300",
-    icon: "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25",
-    card: "border-amber-200/70 bg-gradient-to-br from-amber-50/90 via-white to-orange-50/60 hover:border-amber-300 hover:shadow-[0_12px_32px_rgba(245,158,11,0.12)] dark:border-amber-500/20 dark:from-amber-950/30 dark:via-background dark:to-orange-950/20",
-    panelHeader: "from-amber-500/10 via-orange-500/5 to-transparent",
-    glow: "bg-amber-400/30",
-  },
-  emerald: {
-    badge: "bg-emerald-500/15 text-emerald-800 ring-1 ring-emerald-500/20 dark:text-emerald-300",
-    icon: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25",
-    card: "border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/60 hover:border-emerald-300 hover:shadow-[0_12px_32px_rgba(16,185,129,0.12)] dark:border-emerald-500/20 dark:from-emerald-950/30 dark:via-background dark:to-teal-950/20",
-    panelHeader: "from-emerald-500/10 via-teal-500/5 to-transparent",
-    glow: "bg-emerald-400/30",
-  },
-  rose: {
-    badge: "bg-rose-500/15 text-rose-800 ring-1 ring-rose-500/20 dark:text-rose-300",
-    icon: "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/25",
-    card: "border-rose-200/70 bg-gradient-to-br from-rose-50/90 via-white to-red-50/60 hover:border-rose-300 hover:shadow-[0_12px_32px_rgba(244,63,94,0.12)] dark:border-rose-500/20 dark:from-rose-950/30 dark:via-background dark:to-red-950/20",
-    panelHeader: "from-rose-500/10 via-red-500/5 to-transparent",
-    glow: "bg-rose-400/30",
-  },
+  neutral: sharedAccentTheme,
+  violet: sharedAccentTheme,
+  cyan: sharedAccentTheme,
+  fuchsia: sharedAccentTheme,
+  amber: sharedAccentTheme,
+  emerald: sharedAccentTheme,
+  rose: sharedAccentTheme,
 } as const satisfies Record<string, AccentTheme>;
 
-const recentAccentKeys = ["violet", "cyan", "fuchsia", "emerald", "amber", "rose"] as const;
+const recentAccentKeys = ["neutral"] as const;
 
 const creationTypeAccents: Record<PhotoStudioCreationType, keyof typeof accentThemes> = {
-  logo: "violet",
-  product: "amber",
-  lifestyle: "emerald",
-  campaign: "rose",
+  logo: "neutral",
+  product: "neutral",
+  lifestyle: "neutral",
+  campaign: "neutral",
 };
 
 const GENERATION_BATCH_SIZE = 4;
 
 const generationPreviewGradients = [
-  "from-violet-500 via-fuchsia-500 to-indigo-600",
-  "from-cyan-500 via-sky-500 to-blue-600",
-  "from-fuchsia-500 via-pink-500 to-rose-600",
-  "from-emerald-500 via-teal-500 to-cyan-600",
+  "from-zinc-300 via-zinc-200 to-stone-200",
+  "from-stone-300 via-zinc-300 to-neutral-200",
+  "from-neutral-300 via-stone-200 to-zinc-300",
+  "from-slate-300 via-zinc-200 to-stone-300",
 ] as const;
 
 const canvasBackgroundPresets: Array<{
@@ -618,6 +597,49 @@ const canvasBackgroundPresets: Array<{
   checkerboard?: boolean;
   exportStops?: Array<{ offset: number; color: string }>;
 }> = [
+  {
+    id: "warm-paper",
+    label: "Warm paper",
+    css: "linear-gradient(180deg, #fafaf9 0%, #f4f4f5 100%)",
+    tailwind: "from-stone-50 to-zinc-100",
+    exportStops: [
+      { offset: 0, color: "#fafaf9" },
+      { offset: 1, color: "#f4f4f5" },
+    ],
+  },
+  {
+    id: "soft-stone",
+    label: "Soft stone",
+    css: "linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 50%, #d6d3d1 100%)",
+    tailwind: "from-stone-100 via-stone-200 to-stone-300",
+    exportStops: [
+      { offset: 0, color: "#f5f5f4" },
+      { offset: 0.5, color: "#e7e5e4" },
+      { offset: 1, color: "#d6d3d1" },
+    ],
+  },
+  {
+    id: "slate-haze",
+    label: "Slate haze",
+    css: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)",
+    tailwind: "from-slate-50 via-slate-200 to-slate-300",
+    exportStops: [
+      { offset: 0, color: "#f8fafc" },
+      { offset: 0.5, color: "#e2e8f0" },
+      { offset: 1, color: "#cbd5e1" },
+    ],
+  },
+  {
+    id: "deep-charcoal",
+    label: "Deep charcoal",
+    css: "linear-gradient(135deg, #27272a 0%, #3f3f46 50%, #52525b 100%)",
+    tailwind: "from-zinc-800 via-zinc-700 to-zinc-600",
+    exportStops: [
+      { offset: 0, color: "#27272a" },
+      { offset: 0.5, color: "#3f3f46" },
+      { offset: 1, color: "#52525b" },
+    ],
+  },
   {
     id: "violet-sunset",
     label: "Violet sunset",
@@ -676,12 +698,12 @@ const canvasBackgroundPresets: Array<{
   {
     id: "midnight",
     label: "Midnight",
-    css: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)",
-    tailwind: "from-indigo-950 via-indigo-900 to-violet-900",
+    css: "linear-gradient(135deg, #18181b 0%, #27272a 50%, #3f3f46 100%)",
+    tailwind: "from-zinc-900 via-zinc-800 to-zinc-700",
     exportStops: [
-      { offset: 0, color: "#1e1b4b" },
-      { offset: 0.5, color: "#312e81" },
-      { offset: 1, color: "#4c1d95" },
+      { offset: 0, color: "#18181b" },
+      { offset: 0.5, color: "#27272a" },
+      { offset: 1, color: "#3f3f46" },
     ],
   },
   {
@@ -713,20 +735,31 @@ const legacyCanvasSolidColors: Partial<Record<CanvasBackgroundId, string>> = {
   rose: "#f43f5e",
 };
 
+const DEFAULT_CUSTOM_CANVAS_BACKGROUND = "#a8a29e";
+
+const premiumCanvasGradientIds: CanvasBackgroundId[] = [
+  "warm-paper",
+  "soft-stone",
+  "slate-haze",
+  "deep-charcoal",
+  "midnight",
+];
+
 const canvasGradientBackgroundPresets = canvasBackgroundPresets.filter(
-  (preset) => preset.exportStops && !preset.checkerboard,
+  (preset) =>
+    preset.exportStops &&
+    !preset.checkerboard &&
+    premiumCanvasGradientIds.includes(preset.id as CanvasBackgroundId),
 );
 const canvasSpecialBackgroundPresets = canvasBackgroundPresets.filter(
   (preset) => preset.id === "custom" || preset.checkerboard,
 );
 
-const DEFAULT_CUSTOM_CANVAS_BACKGROUND = "#6366f1";
-
 const defaultCanvasBackgroundIds: CanvasBackgroundId[] = [
-  "violet-sunset",
-  "cyan-ocean",
-  "fuchsia-pop",
-  "emerald-fresh",
+  "warm-paper",
+  "soft-stone",
+  "slate-haze",
+  "white",
 ];
 
 const checkerboardBackgroundStyle: CSSProperties = {
@@ -736,8 +769,8 @@ const checkerboardBackgroundStyle: CSSProperties = {
   backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
 };
 
-const canvasWorkspaceClasses =
-  "bg-[#e8e9ec] [background-image:radial-gradient(circle,rgba(15,23,42,0.09)_1px,transparent_1px)] [background-size:20px_20px] dark:bg-[#121214] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.06)_1px,transparent_1px)]";
+/** Theme-aware dot grid + surface — defined in chat-app globals.css */
+const canvasWorkspaceClasses = "canvas-workspace-premium";
 
 const CANVAS_ZOOM_MIN = 0.5;
 const CANVAS_ZOOM_MAX = 2;
@@ -765,7 +798,7 @@ function CanvasZoomControls({
 
   return (
     <div className="pointer-events-none absolute right-5 top-5 z-30 md:right-6 md:top-6">
-      <div className="pointer-events-auto inline-flex items-center gap-0.5 rounded-xl border border-border/40 bg-background/95 p-0.5 shadow-[0_4px_18px_rgba(15,23,42,0.08)] backdrop-blur-md ring-1 ring-black/[0.04] dark:bg-background/90 dark:ring-white/[0.06]">
+      <div className="pointer-events-auto inline-flex items-center gap-0.5 rounded-full border border-black/[0.06] bg-white/80 p-0.5 shadow-[0_4px_18px_rgba(15,23,42,0.08)] backdrop-blur-md dark:border-white/[0.12] dark:bg-white/[0.08]">
         <button
           type="button"
           onClick={onZoomOut}
@@ -786,7 +819,7 @@ function CanvasZoomControls({
             "min-w-[2.85rem] rounded-md px-2 py-1 text-center text-[10px] font-semibold tabular-nums transition-colors",
             isDefaultZoom
               ? "text-foreground"
-              : "text-violet-700 hover:bg-violet-500/10 dark:text-violet-300",
+              : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground",
           )}
         >
           {Math.round(zoom * 100)}%
@@ -818,7 +851,7 @@ function getCanvasBackgroundPreset(id: CanvasBackgroundId) {
 
   return (
     canvasBackgroundPresets.find((preset) => preset.id === id) ??
-    canvasBackgroundPresets.find((preset) => preset.id === "violet-sunset") ??
+    canvasBackgroundPresets.find((preset) => preset.id === "warm-paper") ??
     canvasBackgroundPresets[0]
   );
 }
@@ -869,8 +902,8 @@ function CanvasBackgroundPresetButton({
         "group relative overflow-hidden rounded-xl border-2 transition-all duration-200",
         variant === "solid" ? "aspect-square" : "aspect-square",
         selected
-          ? "border-violet-500/55 shadow-[0_0_0_3px_rgba(124,58,237,0.14)]"
-          : "border-border/30 hover:border-border/55 hover:shadow-md",
+          ? "border-foreground/25 shadow-[0_0_0_3px_rgba(15,23,42,0.08)] dark:border-white/25 dark:shadow-[0_0_0_3px_rgba(255,255,255,0.06)]"
+          : "border-black/[0.08] hover:border-black/[0.14] hover:shadow-md dark:border-white/[0.1] dark:hover:border-white/[0.16]",
         isSolid && isLight && !selected && "border-border/45",
       )}
     >
@@ -898,7 +931,7 @@ function CanvasBackgroundPresetButton({
         <span
           className={cn(
             "absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full shadow-sm",
-            isSolid && isLight ? "bg-violet-600 text-white" : "bg-violet-600 text-white",
+            "bg-foreground text-background",
           )}
         >
           <Check className="h-2.5 w-2.5" strokeWidth={3} />
@@ -1028,7 +1061,7 @@ function GeneratedLogoPreview({
             {initials}
           </span>
         </div>
-        <p className="w-full truncate text-[clamp(0.75rem,4.5cqi,1.35rem)] font-semibold leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.35)]">
+        <p className="w-full truncate text-[clamp(0.75rem,4.5cqi,1.35rem)] font-semibold leading-tight text-zinc-900 drop-shadow-sm dark:text-zinc-100">
           {wordmark}
         </p>
       </div>
@@ -1192,7 +1225,7 @@ function GeneratedItemsGrid({
 }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border/40 bg-muted/15 px-3 py-6 text-center">
+      <div className="rounded-lg border border-dashed border-black/[0.1] bg-muted/15 dark:border-white/[0.18] dark:bg-white/[0.03] px-3 py-6 text-center">
         <Sparkles className="mx-auto h-5 w-5 text-muted-foreground" />
         <p className="mt-2 text-xs font-semibold text-foreground">No generations yet</p>
         <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
@@ -1253,12 +1286,12 @@ function GeneratedItemsGrid({
                   <div
                     className="absolute inset-0"
                     style={resolveCanvasBackgroundStyle(
-                      item.canvasBackgroundId ?? "violet-sunset",
+                      item.canvasBackgroundId ?? "warm-paper",
                       DEFAULT_CUSTOM_CANVAS_BACKGROUND,
                     )}
                   />
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[11px] font-bold text-violet-600 shadow-md">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[11px] font-bold text-primary shadow-md">
                       {getLogoInitials(item.prompt)}
                     </div>
                     <span className="max-w-full truncate text-[8px] font-semibold text-white drop-shadow">
@@ -1371,7 +1404,7 @@ function DesignsPanelSkeleton() {
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
-              className="aspect-[4/5] animate-pulse rounded-xl bg-gradient-to-br from-violet-200/50 to-fuchsia-200/35 dark:from-violet-900/25 dark:to-fuchsia-900/15"
+              className="aspect-[4/5] animate-pulse rounded-xl bg-muted/40 dark:bg-white/[0.06]"
             />
           ))}
         </div>
@@ -1382,7 +1415,7 @@ function DesignsPanelSkeleton() {
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={`template-${index}`}
-              className="aspect-[4/5] animate-pulse rounded-xl bg-gradient-to-br from-cyan-200/45 to-violet-200/35 dark:from-cyan-900/20 dark:to-violet-900/15"
+              className="aspect-[4/5] animate-pulse rounded-xl bg-muted/35 dark:bg-white/[0.05]"
             />
           ))}
         </div>
@@ -1425,7 +1458,7 @@ function OwnDesignsGrid({
 
   if (items.filter((design) => design.aspectRatio === filterAspectRatio).length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/40 bg-muted/15 px-3 py-6 text-center">
+      <div className="rounded-xl border border-dashed border-black/[0.1] bg-muted/15 dark:border-white/[0.18] dark:bg-white/[0.03] px-3 py-6 text-center">
         <Layers className="mx-auto h-5 w-5 text-muted-foreground" />
         <p className="mt-2 text-xs font-semibold text-foreground">No templates yet</p>
         <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
@@ -1437,7 +1470,7 @@ function OwnDesignsGrid({
 
   if (visibleItems.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/40 bg-muted/15 px-3 py-6 text-center">
+      <div className="rounded-xl border border-dashed border-black/[0.1] bg-muted/15 dark:border-white/[0.18] dark:bg-white/[0.03] px-3 py-6 text-center">
         <Search className="mx-auto h-5 w-5 text-muted-foreground" />
         <p className="mt-2 text-xs font-semibold text-foreground">No templates found</p>
         <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
@@ -1504,7 +1537,7 @@ function CanvasLayersList({
 }) {
   if (layers.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border/35 bg-muted/10 px-3 py-4 text-center">
+      <div className="rounded-lg border border-dashed border-black/[0.1] bg-muted/10 dark:border-white/[0.18] dark:bg-white/[0.03] px-3 py-4 text-center">
         <p className="text-[10px] leading-relaxed text-muted-foreground">
           Canvas layers will appear here as you add shapes and text.
         </p>
@@ -1535,7 +1568,7 @@ function CanvasLayersList({
             className={cn(
               "flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-all",
               selected
-                ? "border-violet-400/30 bg-violet-500/[0.07] ring-1 ring-violet-500/15"
+                ? "border-primary/30 bg-foreground/[0.07] ring-1 ring-primary/15"
                 : "border-border/30 bg-background/50 hover:bg-background",
             )}
           >
@@ -1549,7 +1582,7 @@ function CanvasLayersList({
               <span className="block truncate text-[11px] font-semibold text-foreground">{layer.label}</span>
               <span className="block text-[9px] capitalize text-muted-foreground">{layer.kind}</span>
             </span>
-            {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-violet-600" /> : null}
+            {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
           </button>
         );
       })}
@@ -1649,19 +1682,19 @@ const SHAPE_VIEWBOX_SIZE = 100 - SHAPE_VIEWBOX_INSET * 2;
 const DEFAULT_SHAPE_STROKE_WIDTH = 5;
 const MIN_SHAPE_STROKE_WIDTH = 1;
 const MAX_SHAPE_STROKE_WIDTH = 16;
-const DEFAULT_SHAPE_STROKE_COLOR = "#7c3aed";
-const DEFAULT_SHAPE_FILL_COLOR = "#8b5cf6";
-const DEFAULT_SHAPE_FILL_OPACITY = 0.2;
+const DEFAULT_SHAPE_STROKE_COLOR = "#000000";
+const DEFAULT_SHAPE_FILL_COLOR = "#ffffff";
+const DEFAULT_SHAPE_FILL_OPACITY = 1;
 const DEFAULT_SHAPE_CORNER_RADIUS = 3;
 const MIN_SHAPE_CORNER_RADIUS = 0;
 
-const DEFAULT_BRUSH_COLOR = "#7c3aed";
+const DEFAULT_BRUSH_COLOR = "#000000";
 const DEFAULT_BRUSH_SIZE = 8;
 const MIN_BRUSH_SIZE = 2;
 const MAX_BRUSH_SIZE = 32;
 const DEFAULT_BRUSH_OPACITY = 1;
 
-const DEFAULT_TEXT_COLOR = "#1e1b4b";
+const DEFAULT_TEXT_COLOR = "#18181b";
 const DEFAULT_TEXT_FONT_SIZE = 28;
 const MIN_TEXT_FONT_SIZE = 12;
 const MAX_TEXT_FONT_SIZE = 96;
@@ -2268,6 +2301,7 @@ function ensureShapeDefaults(shape: CanvasShapeElement): CanvasShapeElement {
 
 function createCanvasShape(shapeType: PhotoStudioShapeType, x: number, y: number): CanvasShapeElement {
   const size = getDefaultShapeSize(shapeType);
+  const isLine = isLineLikeShapeType(shapeType);
   return {
     id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     shapeType,
@@ -2277,8 +2311,8 @@ function createCanvasShape(shapeType: PhotoStudioShapeType, x: number, y: number
     height: size.height,
     strokeWidth: DEFAULT_SHAPE_STROKE_WIDTH,
     strokeColor: DEFAULT_SHAPE_STROKE_COLOR,
-    fillColor: DEFAULT_SHAPE_FILL_COLOR,
-    fillOpacity: DEFAULT_SHAPE_FILL_OPACITY,
+    fillColor: isLine ? "transparent" : DEFAULT_SHAPE_FILL_COLOR,
+    fillOpacity: isLine ? 0 : DEFAULT_SHAPE_FILL_OPACITY,
     rotation: DEFAULT_SHAPE_ROTATION,
     groupId: null,
     pathData: undefined,
@@ -2332,9 +2366,9 @@ function PremiumColorPicker({
         aria-label={`Select color ${color}`}
         aria-pressed={selected}
         className={cn(
-          "relative shrink-0 overflow-hidden rounded-full border border-black/10 shadow-sm transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40",
+          "relative shrink-0 overflow-hidden rounded-full border border-black/10 shadow-sm transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20/40",
           size === "sm" ? "h-5 w-5" : "h-6 w-6",
-          selected && "ring-2 ring-violet-500 ring-offset-2 ring-offset-background scale-110",
+          selected && "ring-2 ring-primary/40 ring-offset-2 ring-offset-background scale-110",
         )}
         style={{ background: color }}
       >
@@ -2420,7 +2454,7 @@ function PremiumColorPicker({
                 }
               }}
               spellCheck={false}
-              className="h-8 min-w-0 flex-1 rounded-lg border border-border/40 bg-background/90 px-2 font-mono text-[10px] uppercase tracking-wide text-foreground outline-none focus:border-violet-400/50 focus:ring-2 focus:ring-violet-500/10"
+              className="h-8 min-w-0 flex-1 rounded-lg border border-border/40 bg-background/90 px-2 font-mono text-[10px] uppercase tracking-wide text-foreground outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
               aria-label={`${label} hex value`}
             />
             {hiddenColorInput}
@@ -2436,7 +2470,7 @@ function PremiumColorPicker({
   return (
     <div className="space-y-2.5">
       <p className="text-[11px] font-semibold text-foreground">{label}</p>
-      <div className="overflow-hidden rounded-xl border border-border/35 bg-gradient-to-br from-muted/30 via-background/80 to-violet-500/[0.03] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:from-muted/15 dark:via-background dark:to-violet-500/[0.05]">
+      <div className="overflow-hidden rounded-xl border border-black/[0.06] bg-white/60 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-white/[0.1] dark:bg-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -2464,7 +2498,7 @@ function PremiumColorPicker({
                 }
               }}
               spellCheck={false}
-              className="h-9 w-full rounded-lg border border-border/40 bg-background/95 px-2.5 font-mono text-xs uppercase tracking-wide text-foreground shadow-sm outline-none transition-colors focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+              className="h-9 w-full rounded-lg border border-border/40 bg-background/95 px-2.5 font-mono text-xs uppercase tracking-wide text-foreground shadow-sm outline-none transition-colors focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
               aria-label={`${label} hex value`}
             />
           </div>
@@ -3060,7 +3094,7 @@ function CanvasShapeItem({
         movable && "cursor-grab active:cursor-grabbing",
         selectable && !movable && !isEditingText && "cursor-pointer",
         textEditable && canHaveText && selected && !isEditingText && "cursor-text",
-        selected && "ring-2 ring-violet-500/60 ring-offset-1 rounded-sm",
+        selected && "ring-2 ring-primary/40/60 ring-offset-1 rounded-sm",
       )}
       style={{
         left: `${shape.x}%`,
@@ -3123,7 +3157,7 @@ function CanvasShapeItem({
           }}
           placeholder="Add text…"
           rows={2}
-          className="absolute inset-[10%] z-20 resize-none rounded border border-transparent bg-transparent p-1 text-center text-[clamp(7px,1.1em,13px)] font-semibold leading-tight text-foreground outline-none focus:border-violet-400/40 focus:ring-2 focus:ring-violet-400/25"
+          className="absolute inset-[10%] z-20 resize-none rounded border border-transparent bg-transparent p-1 text-center text-[clamp(7px,1.1em,13px)] font-semibold leading-tight text-foreground outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
         />
       ) : null}
 
@@ -3135,7 +3169,7 @@ function CanvasShapeItem({
               aria-label={`Resize ${shape.shapeType} from ${handle.id}`}
               onPointerDown={(event) => startResize(handle.id, event)}
               className={cn(
-                "absolute z-10 h-2.5 w-2.5 rounded-full border border-violet-400 bg-white shadow-sm",
+                "absolute z-10 h-2.5 w-2.5 rounded-full border border-primary/40 bg-white shadow-sm",
                 handle.className,
               )}
             />
@@ -3211,7 +3245,7 @@ function FontStyleList({
                   className={cn(
                     "group relative flex w-full flex-col gap-1.5 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
                     selected
-                      ? "border-violet-400/40 bg-violet-500/[0.07] shadow-[inset_3px_0_0_0] shadow-violet-500"
+                      ? "border-primary/40 bg-foreground/[0.07] shadow-[inset_3px_0_0_0] shadow-primary/30"
                       : "border-border/35 bg-background/60 hover:border-border/60 hover:bg-background",
                   )}
                   aria-label={style.label}
@@ -3222,7 +3256,7 @@ function FontStyleList({
                       {style.label}
                     </span>
                     {selected ? (
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white">
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
                         <Check className="h-2.5 w-2.5" strokeWidth={3} />
                       </span>
                     ) : (
@@ -3408,7 +3442,7 @@ function CanvasTextItem({
         movable && !isEditing && "cursor-grab active:cursor-grabbing",
         selectable && !movable && !isEditing && "cursor-pointer",
         editable && !isEditing && "cursor-text",
-        selected && !isEditing && "ring-2 ring-violet-500/60 ring-offset-1 rounded-sm",
+        selected && !isEditing && "ring-2 ring-primary/40 ring-offset-1 rounded-sm",
       )}
       style={{
         left: `${text.x}%`,
@@ -3436,7 +3470,7 @@ function CanvasTextItem({
           }}
           placeholder="Add text…"
           rows={2}
-          className="w-full resize-none rounded border border-transparent bg-transparent p-1 text-center text-[clamp(12px,1.1em,13px)] font-semibold leading-tight text-foreground outline-none focus:border-violet-400/40 focus:ring-2 focus:ring-violet-400/25"
+          className="w-full resize-none rounded border border-transparent bg-transparent p-1 text-center text-[clamp(12px,1.1em,13px)] font-semibold leading-tight outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
           style={textStyle}
         />
       ) : text.content ? (
@@ -3453,7 +3487,7 @@ function CanvasTextItem({
           type="button"
           aria-label="Resize text width"
           onPointerDown={startResize}
-          className="absolute bottom-0 right-0 z-10 h-2.5 w-2.5 translate-x-1/2 translate-y-1/2 rounded-full border border-violet-400 bg-white shadow-sm cursor-ew-resize"
+          className="absolute bottom-0 right-0 z-10 h-2.5 w-2.5 translate-x-1/2 translate-y-1/2 rounded-full border border-primary/40 bg-white shadow-sm cursor-ew-resize"
         />
       ) : null}
     </div>
@@ -3555,7 +3589,7 @@ function SidebarCollapsibleSection({
   icon: Icon,
   open,
   onToggle,
-  accent = "violet",
+  accent = "neutral",
   children,
 }: {
   id: string;
@@ -3569,25 +3603,14 @@ function SidebarCollapsibleSection({
 }) {
   const theme = accentThemes[accent];
   const panelId = `sidebar-section-${id}`;
-  const openRingClass =
-    accent === "cyan"
-      ? "ring-cyan-500/15"
-      : accent === "fuchsia"
-        ? "ring-fuchsia-500/15"
-        : accent === "amber"
-          ? "ring-amber-500/15"
-          : "ring-violet-500/15";
 
   return (
     <section
       className={cn(
         "overflow-hidden rounded-[1.15rem] border transition-all duration-200",
         open
-          ? cn(
-              "border-border/40 bg-card/90 shadow-[0_4px_20px_rgba(15,23,42,0.04)] ring-1",
-              openRingClass,
-            )
-          : "border-border/30 bg-muted/10 hover:border-border/45 hover:bg-muted/20",
+          ? "border-black/[0.06] bg-white/80 shadow-[0_4px_20px_rgba(15,23,42,0.04)] ring-1 ring-primary/10 dark:border-white/[0.12] dark:bg-white/[0.04]"
+          : "border-black/[0.05] bg-white/40 hover:border-black/[0.08] hover:bg-white/60 dark:border-white/[0.1] dark:bg-white/[0.02] dark:hover:bg-white/[0.04]",
       )}
     >
       <button
@@ -3719,7 +3742,7 @@ function cn(...classes: Array<string | false | null | undefined>): string {
 function LauncherPanel({
   label,
   title,
-  accent = "violet",
+  accent = "neutral",
   children,
 }: {
   label: string;
@@ -3729,14 +3752,14 @@ function LauncherPanel({
 }) {
   const theme = accentThemes[accent];
   return (
-    <section className="overflow-hidden rounded-[1.35rem] border border-border/40 bg-card/90 shadow-[0_8px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+    <section className="overflow-hidden rounded-[1.5rem] border border-black/[0.07] bg-white/80 shadow-[0_8px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm dark:border-white/[0.12] dark:bg-card/80">
       <div
         className={cn(
-          "relative border-b border-border/30 bg-gradient-to-r px-5 py-4 md:px-6",
+          "relative border-b border-black/[0.05] bg-gradient-to-r px-5 py-4 dark:border-white/[0.1] md:px-6",
           theme.panelHeader,
         )}
       >
-        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 opacity-80" />
+        <div className="absolute inset-x-0 top-0 h-px bg-foreground/10 dark:bg-white/15" />
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {label}
         </p>
@@ -3835,54 +3858,42 @@ function PhotoStudioHome({
   return (
     <div className="relative min-h-0 flex-1 overflow-y-auto">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" />
-        <div className="absolute right-0 top-32 h-80 w-80 rounded-full bg-fuchsia-400/15 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
+        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-primary/[0.06] blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-foreground/[0.04] blur-3xl" />
       </div>
 
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 md:px-8 md:py-7">
-        <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-600 to-cyan-600 p-6 text-white shadow-[0_20px_60px_rgba(124,58,237,0.25)] md:p-8">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(56,189,248,0.35),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.1),transparent_50%)]" />
-          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-16 left-1/4 h-44 w-44 rounded-full bg-cyan-300/20 blur-3xl" />
-
+        <section className="relative overflow-hidden rounded-[1.5rem] border border-black/[0.07] bg-white/80 p-6 shadow-[0_6px_30px_-10px_rgba(15,23,42,0.12)] backdrop-blur-sm dark:border-white/[0.12] dark:bg-card/80 md:p-8">
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 ring-1 ring-white/20 backdrop-blur-sm">
-                <Sparkles className="h-3.5 w-3.5" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-black/[0.06] bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:border-white/[0.12] dark:bg-white/[0.06]">
+                <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
                 Clovai Canvas
               </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-[2.65rem] md:leading-tight">
+              <h1 className="brand-text-gradient mt-4 text-3xl font-bold tracking-tight md:text-[2.65rem] md:leading-tight">
                 Start creating visuals
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 md:text-base">
-                Use <span className="font-semibold text-white">More</span> in the header to open
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+                Use <span className="font-semibold text-foreground">More</span> in the header to open
                 from your library, upload an image, or import canvas JSON. Pick a recent project
-                below, or start a new tab with <span className="font-semibold text-white">+</span>.
+                below, or start a new tab with <span className="font-semibold text-foreground">+</span>.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2 lg:max-w-xs lg:justify-end">
-              {[
-                { label: "Logos", className: "bg-white/15 ring-white/20" },
-                { label: "Product shots", className: "bg-cyan-400/20 ring-cyan-200/30" },
-                { label: "Campaigns", className: "bg-fuchsia-400/20 ring-fuchsia-200/30" },
-              ].map((chip) => (
+              {["Logos", "Product shots", "Campaigns"].map((label) => (
                 <span
-                  key={chip.label}
-                  className={cn(
-                    "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold text-white ring-1 backdrop-blur-sm",
-                    chip.className,
-                  )}
+                  key={label}
+                  className="inline-flex rounded-full border border-black/[0.06] bg-white/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground ring-1 ring-black/[0.03] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-foreground/80 dark:ring-white/[0.06]"
                 >
-                  {chip.label}
+                  {label}
                 </span>
               ))}
             </div>
           </div>
         </section>
 
-        <LauncherPanel label="Recent" title="Continue where you left off" accent="cyan">
+        <LauncherPanel label="Recent" title="Continue where you left off" accent="neutral">
           {recentProjects.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {recentProjects.slice(0, 6).map((project, index) => {
@@ -3950,8 +3961,8 @@ function PhotoStudioHome({
               })}
             </div>
           ) : (
-            <div className="rounded-[1.15rem] border border-dashed border-cyan-300/40 bg-gradient-to-br from-cyan-50/70 via-white to-violet-50/50 px-5 py-8 text-center dark:border-cyan-500/20 dark:from-cyan-950/20 dark:via-background dark:to-violet-950/10">
-              <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-violet-600 text-white shadow-lg shadow-cyan-500/20">
+            <div className="rounded-[1.15rem] border border-dashed border-black/[0.1] bg-white/50 px-5 py-8 text-center dark:border-white/[0.18] dark:bg-white/[0.03]">
+              <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-foreground text-background shadow-sm">
                 <ImageIcon className="h-5 w-5" />
               </span>
               <p className="mt-3 text-sm font-medium text-foreground">No recent projects yet</p>
@@ -4065,11 +4076,11 @@ function PhotoStudioWorkspace({
   const [aspectRatio, setAspectRatio] = useState<PhotoStudioAspectRatio>("1:1");
   const [stylePreset, setStylePreset] = useState("studio");
   const [logoTransparentBackground, setLogoTransparentBackground] = useState(true);
-  const [canvasBackgroundId, setCanvasBackgroundId] = useState<CanvasBackgroundId>("violet-sunset");
+  const [canvasBackgroundId, setCanvasBackgroundId] = useState<CanvasBackgroundId>("warm-paper");
   const [customCanvasBackgroundColor, setCustomCanvasBackgroundColor] = useState(
     DEFAULT_CUSTOM_CANVAS_BACKGROUND,
   );
-  const [customCanvasGradientEnd, setCustomCanvasGradientEnd] = useState("#a855f7");
+  const [customCanvasGradientEnd, setCustomCanvasGradientEnd] = useState("#71717a");
   const [customCanvasGradientEnabled, setCustomCanvasGradientEnabled] = useState(false);
   const [leftPanelTab, setLeftPanelTab] = useState<LeftPanelTab>("assets");
   const [assetsPanelOpenSection, setAssetsPanelOpenSection] =
@@ -5706,7 +5717,7 @@ function PhotoStudioWorkspace({
             onChange={(event) => setPrompt(event.target.value)}
             rows={5}
             placeholder="Describe your logo, product shot, or campaign visual…"
-            className="mt-2 w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+            className="mt-2 w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
           />
         </div>
 
@@ -5753,7 +5764,7 @@ function PhotoStudioWorkspace({
         </div>
 
         {creationType === "logo" ? (
-          <div className="rounded-xl border border-violet-400/25 bg-violet-500/[0.06] p-3">
+          <div className="rounded-xl border border-primary/25 bg-foreground/[0.06] p-3">
             <OptionSegmentedControl
               label="Logo background"
               hint="Transparent PNG removes the backdrop for overlays. Solid bakes a background into the generated logo."
@@ -5801,7 +5812,7 @@ function PhotoStudioWorkspace({
                 className={cn(
                   "inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors",
                   stylePreset === preset.id
-                    ? "bg-cyan-500/15 text-cyan-800 ring-1 ring-cyan-500/25 dark:text-cyan-300"
+                    ? "bg-foreground/[0.08] text-foreground ring-1 ring-black/[0.06] dark:ring-white/[0.1]"
                     : "bg-muted/50 text-muted-foreground hover:bg-muted",
                 )}
               >
@@ -5817,7 +5828,7 @@ function PhotoStudioWorkspace({
           type="button"
           onClick={() => void handleGenerate()}
           disabled={!prompt.trim() || isGenerating}
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-sm font-semibold text-background shadow-sm transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {isGenerating ? "Generating…" : creationType === "logo" && logoTransparentBackground ? "Generate logo" : "Generate image"}
@@ -5836,7 +5847,7 @@ function PhotoStudioWorkspace({
           </p>
         </div>
         {chatMessages.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/40 bg-muted/15 px-3 py-6 text-center">
+          <div className="rounded-xl border border-dashed border-black/[0.1] bg-muted/15 dark:border-white/[0.18] dark:bg-white/[0.03] px-3 py-6 text-center">
             <MessageCircle className="mx-auto h-5 w-5 text-muted-foreground" />
             <p className="mt-2 text-xs font-semibold text-foreground">Start a conversation</p>
             <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
@@ -5867,7 +5878,7 @@ function PhotoStudioWorkspace({
           onChange={(event) => setChatDraft(event.target.value)}
           rows={3}
           placeholder="Ask about your canvas…"
-          className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+          className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
         />
         <button
           type="button"
@@ -5892,7 +5903,7 @@ function PhotoStudioWorkspace({
             setChatDraft("");
           }}
           disabled={!chatDraft.trim()}
-          className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-sm font-semibold text-background shadow-sm transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <MessageCircle className="h-4 w-4" />
           Send
@@ -6171,7 +6182,7 @@ function PhotoStudioWorkspace({
                     </div>
 
                     {rightToolbarExpanded && canSelectShapes && !selectedShape && !selectedText && isGenerationMaterialized ? (
-                      <div className="mt-3 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3">
+                      <div className="mt-3 rounded-xl border border-primary/20 bg-foreground/[0.06] p-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                           Generated layers
                         </p>
@@ -6191,7 +6202,7 @@ function PhotoStudioWorkspace({
 
                         {selectedShape && isLineLikeShapeType(selectedShape.shapeType) ? (
                           <p className="rounded-lg border border-border/30 bg-muted/25 px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground">
-                            Drag the <span className="font-medium text-foreground">violet handles</span> on
+                            Drag the <span className="font-medium text-foreground">selection handles</span> on
                             the canvas: move endpoints to stretch the line.
                             {lineShapeHasCurveHandle(selectedShape.shapeType)
                               ? " Drag the middle handle to bend the curve."
@@ -6297,7 +6308,7 @@ function PhotoStudioWorkspace({
                                   })
                                 }
                                 aria-label="Background opacity"
-                                className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                className="h-1.5 w-full cursor-pointer accent-primary"
                               />
                             </div>
                           </>
@@ -6341,7 +6352,7 @@ function PhotoStudioWorkspace({
                                           event.target.checked ? { ...DEFAULT_SIDE_GAP } : null,
                                         )
                                       }
-                                      className="accent-violet-600"
+                                      className="accent-primary"
                                     />
                                   </label>
                                   {enabled ? (
@@ -6362,7 +6373,7 @@ function PhotoStudioWorkspace({
                                             size: Number(event.target.value),
                                           })
                                         }
-                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                        className="h-1.5 w-full cursor-pointer accent-primary"
                                       />
                                       <div className="flex items-center justify-between text-[10px]">
                                         <span className="text-muted-foreground">Position</span>
@@ -6380,7 +6391,7 @@ function PhotoStudioWorkspace({
                                             position: Number(event.target.value),
                                           })
                                         }
-                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                        className="h-1.5 w-full cursor-pointer accent-primary"
                                       />
                                       <div className="flex items-center justify-between text-[10px]">
                                         <span className="text-muted-foreground">Cut depth</span>
@@ -6398,7 +6409,7 @@ function PhotoStudioWorkspace({
                                             depth: Number(event.target.value),
                                           })
                                         }
-                                        className="h-1.5 w-full cursor-pointer accent-violet-600"
+                                        className="h-1.5 w-full cursor-pointer accent-primary"
                                       />
                                     </>
                                   ) : null}
@@ -6428,7 +6439,7 @@ function PhotoStudioWorkspace({
                                 updateShapeCornerRadius(Number(event.target.value))
                               }
                               aria-label="Corner radius"
-                              className="h-1.5 w-full cursor-pointer accent-violet-600"
+                              className="h-1.5 w-full cursor-pointer accent-primary"
                             />
                             <div className="flex justify-between text-[10px] text-muted-foreground">
                               <span>Sharp</span>
@@ -6455,7 +6466,7 @@ function PhotoStudioWorkspace({
                                 updateShapeRotation(Number(event.target.value))
                               }
                               aria-label="Shape rotation"
-                              className="h-1.5 w-full cursor-pointer accent-violet-600"
+                              className="h-1.5 w-full cursor-pointer accent-primary"
                             />
                             <p className="text-[10px] text-muted-foreground">
                               Or drag the rotate handle on the canvas.
@@ -6481,7 +6492,7 @@ function PhotoStudioWorkspace({
                                 updateShapeStrokeWidth(selectedShape.id, Number(event.target.value))
                               }
                               aria-label="Shape thickness"
-                              className="h-1.5 w-full cursor-pointer accent-violet-600"
+                              className="h-1.5 w-full cursor-pointer accent-primary"
                             />
                             <div className="flex justify-between text-[10px] text-muted-foreground">
                               <span>Thin</span>
@@ -6543,7 +6554,7 @@ function PhotoStudioWorkspace({
                               updateTextFontSize(selectedText.id, Number(event.target.value))
                             }
                             aria-label="Text size"
-                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            className="h-1.5 w-full cursor-pointer accent-primary"
                           />
                           <div className="flex justify-between text-[10px] text-muted-foreground">
                             <span>Small</span>
@@ -6598,7 +6609,7 @@ function PhotoStudioWorkspace({
                               }))
                             }
                             aria-label="Brush thickness"
-                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            className="h-1.5 w-full cursor-pointer accent-primary"
                           />
                           <div className="flex justify-between text-[10px] text-muted-foreground">
                             <span>Thin</span>
@@ -6626,7 +6637,7 @@ function PhotoStudioWorkspace({
                               }))
                             }
                             aria-label="Brush opacity"
-                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            className="h-1.5 w-full cursor-pointer accent-primary"
                           />
                         </div>
 
@@ -6668,7 +6679,7 @@ function PhotoStudioWorkspace({
                               setEraserSettings({ size: Number(event.target.value) })
                             }
                             aria-label="Eraser size"
-                            className="h-1.5 w-full cursor-pointer accent-violet-600"
+                            className="h-1.5 w-full cursor-pointer accent-primary"
                           />
                           <div className="flex justify-between text-[10px] text-muted-foreground">
                             <span>Small</span>
@@ -6724,42 +6735,6 @@ function PhotoStudioWorkspace({
                   );
                 })}
               </section>
-            </div>
-
-            <div className={cn(rightToolbarExpanded ? "p-3" : "p-2")}>
-              <div className={cn("grid gap-2", rightToolbarExpanded ? "grid-cols-2" : "grid-cols-1")}>
-                <WorkspaceTooltip label="Export" hint="Export canvas" enabled={!rightToolbarExpanded}>
-                  <button
-                    type="button"
-                    onClick={() => void handleExportCanvas("composite")}
-                    disabled={isExporting}
-                    className={cn(
-                      "inline-flex h-10 w-full items-center justify-center rounded-xl border border-border/30 bg-background/70 text-xs font-semibold transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50",
-                      rightToolbarExpanded && "gap-2",
-                    )}
-                  >
-                    {isExporting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    {rightToolbarExpanded ? <span>Export</span> : null}
-                  </button>
-                </WorkspaceTooltip>
-                <WorkspaceTooltip label="Generate" hint="Open prompt panel" enabled={!rightToolbarExpanded}>
-                  <button
-                    type="button"
-                    onClick={() => openAssistPanel("prompt")}
-                    className={cn(
-                      "inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-xs font-semibold text-white transition-opacity hover:opacity-95",
-                      rightToolbarExpanded && "gap-2",
-                    )}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    {rightToolbarExpanded ? <span>Generate</span> : null}
-                  </button>
-                </WorkspaceTooltip>
-              </div>
             </div>
           </>
         )}
@@ -6845,7 +6820,7 @@ function PhotoStudioWorkspace({
                       title="Canvas format"
                       hint={canvasDesign.title}
                       icon={Crop}
-                      accent="cyan"
+                      accent="neutral"
                       open={assetsPanelOpenSection === "canvasFormat"}
                       onToggle={() => toggleAssetsPanelSection("canvasFormat")}
                     >
@@ -6867,14 +6842,14 @@ function PhotoStudioWorkspace({
                         hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle
                       }
                       icon={Palette}
-                      accent="violet"
+                      accent="neutral"
                       open={assetsPanelOpenSection === "background"}
                       onToggle={() => toggleAssetsPanelSection("background")}
                     >
                       <p className="text-[10px] leading-relaxed text-muted-foreground">
                         {hasCanvasEdits ? canvasDesign.previewHintActive : canvasDesign.previewHintIdle}
                       </p>
-                      <div className="space-y-3 rounded-xl border border-border/35 bg-gradient-to-br from-muted/20 via-background to-violet-500/[0.04] p-2.5 ring-1 ring-violet-500/10">
+                      <div className="space-y-3 rounded-xl border border-black/[0.06] bg-white/50 p-2.5 ring-1 ring-black/[0.03] dark:border-white/[0.1] dark:bg-white/[0.03] dark:ring-white/[0.06]">
                         <div>
                           <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                             Solid colors
@@ -7012,7 +6987,7 @@ function PhotoStudioWorkspace({
                       onChange={(event) => setDesignSearchQuery(event.target.value)}
                       placeholder="Search templates…"
                       aria-label="Search templates"
-                      className="h-9 w-full rounded-lg border border-border/60 bg-background/80 pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+                      className="h-9 w-full rounded-lg border border-border/60 bg-background/80 pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
                     />
                     {designSearchQuery ? (
                       <button
@@ -7075,7 +7050,7 @@ function PhotoStudioWorkspace({
                       </p>
                     </div>
                     {generatedItems.length > 0 ? (
-                      <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-700 dark:text-violet-300">
+                      <span className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[10px] font-semibold text-muted-foreground dark:bg-white/[0.08]">
                         {generatedItems.length}
                       </span>
                     ) : null}
@@ -7086,7 +7061,7 @@ function PhotoStudioWorkspace({
                         {Array.from({ length: studioOptions.batchSize }).map((_, index) => (
                           <div
                             key={index}
-                            className="aspect-square animate-pulse rounded-xl bg-gradient-to-br from-violet-200/60 to-fuchsia-200/40 dark:from-violet-900/30 dark:to-fuchsia-900/20"
+                            className="aspect-square animate-pulse rounded-xl bg-muted/40 dark:bg-white/[0.06]"
                           />
                         ))}
                       </div>
@@ -7121,7 +7096,7 @@ function PhotoStudioWorkspace({
 
         <div className="shrink-0 border-b border-border/30 bg-white/95 px-4 py-2 backdrop-blur-xl dark:bg-background md:px-5">
           <div className="flex items-end gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground text-background shadow-sm">
               <Layers className="h-4 w-4" />
             </span>
             <div className="flex min-h-[2.625rem] min-w-0 flex-1 flex-col items-start justify-end gap-0.5">
@@ -7160,7 +7135,7 @@ function PhotoStudioWorkspace({
                   placeholder="Untitled project"
                   aria-label="Project name"
                   size={Math.max(12, workspaceTitleDraft.length + 1)}
-                  className="block w-auto min-w-[10ch] max-w-full border-0 border-b border-violet-400/50 bg-transparent p-0 pb-px text-sm font-semibold tracking-tight text-foreground shadow-none outline-none ring-0 [field-sizing:content] placeholder:font-semibold placeholder:text-muted-foreground/60 focus:border-violet-500 focus:ring-0"
+                  className="block w-auto min-w-[10ch] max-w-full border-0 border-b border-black/[0.12] bg-transparent p-0 pb-px text-sm font-semibold tracking-tight text-foreground shadow-none outline-none ring-0 [field-sizing:content] placeholder:font-semibold placeholder:text-muted-foreground/60 focus:border-primary focus:ring-0 dark:border-white/[0.2]"
                 />
               ) : (
                 <p
@@ -7249,7 +7224,7 @@ function PhotoStudioWorkspace({
               onZoomOut={handleCanvasZoomOut}
               onReset={handleCanvasZoomReset}
             />
-            <div className="flex min-h-full w-full items-center justify-center p-6 md:p-10 lg:p-12">
+            <div className="flex min-h-full w-full items-center justify-center p-8 md:p-12 lg:p-14">
               <div
                 className="relative shrink-0"
                 style={
@@ -7275,11 +7250,11 @@ function PhotoStudioWorkspace({
                   }}
                 >
                 <div className="flex flex-wrap items-center justify-center gap-2 px-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-background/95 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-foreground shadow-sm backdrop-blur-sm">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.55)]" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white/90 px-3 py-1 text-[10px] font-semibold tabular-nums text-foreground shadow-[0_1px_4px_rgba(15,23,42,0.06)] backdrop-blur-sm dark:border-white/[0.12] dark:bg-white/[0.1]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
                     {canvasAspectRatio}
                   </span>
-                  <span className="rounded-md border border-border/40 bg-background/80 px-2.5 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
+                  <span className="rounded-full border border-black/[0.06] bg-white/80 px-3 py-1 text-[10px] font-medium text-muted-foreground shadow-[0_1px_4px_rgba(15,23,42,0.05)] backdrop-blur-sm dark:border-white/[0.1] dark:bg-white/[0.08]">
                     {canvasDesign.navbarStatus}
                   </span>
                 </div>
@@ -7292,10 +7267,10 @@ function PhotoStudioWorkspace({
                     canvasAspectRatio === "16:9" && "max-w-full",
                     canvasAspectRatio === "9:16" && "max-w-[min(100%,320px)]",
                     canvasDragOver &&
-                      "ring-2 ring-violet-500/45 ring-offset-4 ring-offset-[#e8e9ec] dark:ring-offset-[#121214]",
+                      "ring-2 ring-primary/35 ring-offset-4 ring-offset-muted/30 dark:ring-offset-background/80",
                   )}
                 >
-                  <div className="overflow-hidden rounded-[3px] shadow-[0_0_0_1px_rgba(15,23,42,0.1),0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_-4px_rgba(15,23,42,0.12),0_20px_48px_-12px_rgba(15,23,42,0.14)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_12px_40px_rgba(0,0,0,0.55)]">
+                  <div className="canvas-artboard-frame overflow-hidden">
                     <div
                       ref={canvasRef}
                       data-canvas-surface=""
@@ -7304,7 +7279,7 @@ function PhotoStudioWorkspace({
                       onDrop={handleCanvasDrop}
                       onDoubleClick={handleCanvasPlaceText}
                       className={cn(
-                        "relative w-full overflow-hidden bg-white dark:bg-[#1c1c1e] [container-type:inline-size]",
+                        "relative w-full overflow-hidden bg-white dark:bg-card [container-type:inline-size]",
                         canvasAspectRatio === "1:1" && "aspect-square",
                         canvasAspectRatio === "4:5" && "aspect-[4/5]",
                         canvasAspectRatio === "16:9" && "aspect-video",
@@ -7314,7 +7289,7 @@ function PhotoStudioWorkspace({
                     >
                 {isGenerating ? (
                   <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 p-6 text-center dark:bg-background/80">
-                    <Loader2 className="h-10 w-10 animate-spin text-violet-600" />
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
                     <p className="mt-4 text-sm font-semibold text-foreground">Generating visuals…</p>
                     <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                       {creationType === "logo" && logoTransparentBackground
@@ -7341,12 +7316,14 @@ function PhotoStudioWorkspace({
                     </div>
                   </div>
                 ) : showEmptyCanvasOverlay ? (
-                  <div className="pointer-events-none absolute inset-0 z-0 flex flex-col items-center justify-center p-6 text-center">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-foreground/15 bg-background/60 text-muted-foreground shadow-sm backdrop-blur-sm">
+                  <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-black/[0.12] bg-white/60 text-stone-500 shadow-sm backdrop-blur-sm dark:border-white/[0.2] dark:bg-white/[0.06] dark:text-zinc-400">
                       <Sparkles className="h-5 w-5" />
                     </span>
-                    <p className="mt-4 text-sm font-semibold text-foreground">{canvasDesign.title}</p>
-                    <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                    <p className="mt-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                      {canvasDesign.title}
+                    </p>
+                    <p className="mt-1 max-w-xs text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
                       {canvasDesign.emptyDescription}
                     </p>
                   </div>
@@ -7736,7 +7713,7 @@ export function PhotoStudioApp({
     );
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div className="home-warm-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden">
       {showWorkspaceChrome ? (
         <PhotoStudioWorkspaceChrome
           tabs={workspaceTabs ?? []}
@@ -7751,19 +7728,19 @@ export function PhotoStudioApp({
           onOpenHelp={onOpenHelp}
         />
       ) : (
-        <header className="relative z-[110] flex h-11 shrink-0 items-center border-b border-border/40 bg-card/80 px-4 backdrop-blur-md">
+        <header className="relative z-[110] flex h-11 shrink-0 items-center border-b border-black/[0.06] bg-white/70 px-4 backdrop-blur-md dark:border-white/[0.12] dark:bg-card/70">
           <nav className="flex flex-1 items-center" aria-label="Clovai Canvas navigation">
-            <div className="inline-flex items-center rounded-lg border border-border/50 bg-muted/25 p-0.5">
+            <div className="inline-flex items-center rounded-full border border-black/[0.06] bg-white/60 p-0.5 dark:border-white/[0.12] dark:bg-white/[0.06]">
               <button
                 type="button"
                 aria-label="Home"
                 title="Projects and recent work"
                 onClick={handleHomeClick}
                 className={cn(
-                  "relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all duration-150",
+                  "relative flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all",
                   activeView === "home"
-                    ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
-                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+                    ? "bg-white text-foreground shadow-[0_1px_4px_rgba(15,23,42,0.08)] dark:bg-white/[0.14]"
+                    : "text-muted-foreground/70 hover:text-foreground",
                 )}
               >
                 <Home className="h-3.5 w-3.5 shrink-0" strokeWidth={activeView === "home" ? 2.25 : 2} />

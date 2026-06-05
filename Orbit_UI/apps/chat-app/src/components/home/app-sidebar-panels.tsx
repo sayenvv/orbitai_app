@@ -73,7 +73,7 @@ function sidebarNavItemClass(active: boolean) {
   return cn(
     sidebarNavRowClassName("w-full text-[13px] transition-colors"),
     active
-      ? "bg-sidebar-accent font-medium text-foreground"
+      ? "workspace-tab-active font-medium text-foreground"
       : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
   );
 }
@@ -135,7 +135,7 @@ export function SidebarCollapsedNav({
               aria-label={label}
               className={cn(
                 collapsedNavBtnClass,
-                active && "bg-foreground/[0.07] text-foreground dark:bg-white/[0.14]",
+                active && "workspace-tab-active text-foreground",
               )}
             >
               <Icon className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
@@ -524,7 +524,7 @@ function RecentChatItem({
     <div
       className={cn(
         "group flex w-full items-center gap-0.5 rounded-lg pr-1 transition-colors",
-        isActive ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/50",
+        isActive ? "workspace-tab-active" : "hover:bg-sidebar-accent/50",
       )}
     >
       <button

@@ -23,7 +23,14 @@ const nextConfig: NextConfig = withSecurityHeaders({
       konva: "./apps/chat-app/node_modules/konva",
     },
   },
-  transpilePackages: ["@orbit/ui", "@orbit/types", "@orbit/clovai-apps", "@orbit/security"],
+  transpilePackages: [
+    "@orbit/ui",
+    "@orbit/types",
+    "@orbit/clovai-apps",
+    "@orbit/security",
+    "streamdown",
+    "@streamdown/code",
+  ],
   async rewrites() {
     return [
       {

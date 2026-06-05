@@ -59,7 +59,7 @@ function SidebarNavRow({
       className={cn(
         sidebarNavRowClassName("w-full rounded-full text-[13px] font-medium transition-all"),
         active
-          ? "bg-foreground/[0.07] text-foreground dark:bg-white/[0.14]"
+          ? "workspace-tab-active text-foreground"
           : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground dark:hover:bg-white/[0.06]",
       )}
     >

@@ -43,24 +43,24 @@ export function PhotoStudioWorkspaceChrome({
   onOpenHelp,
 }: PhotoStudioWorkspaceChromeProps) {
   return (
-    <header className="relative z-[110] shrink-0 border-b border-border/40 bg-card/80 backdrop-blur-md">
+    <header className="relative z-[110] shrink-0 border-b border-black/[0.06] bg-white/70 backdrop-blur-md dark:border-white/[0.12] dark:bg-card/70">
       <div className="flex h-11 items-stretch gap-0 px-3 sm:px-4">
         {/* Primary navigation */}
         <nav
           className="flex shrink-0 items-center"
           aria-label="Clovai Canvas navigation"
         >
-          <div className="inline-flex items-center rounded-lg border border-border/50 bg-muted/25 p-0.5">
+          <div className="inline-flex items-center rounded-full border border-black/[0.06] bg-white/60 p-0.5 dark:border-white/[0.12] dark:bg-white/[0.06]">
             <button
               type="button"
               aria-label="Home"
               title="Projects and recent work"
               onClick={onHomeClick}
               className={cn(
-                "relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all duration-150",
+                "relative flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all",
                 homeSelected
-                  ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
-                  : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+                  ? "bg-white text-foreground shadow-[0_1px_4px_rgba(15,23,42,0.08)] dark:bg-white/[0.14]"
+                  : "text-muted-foreground/70 hover:text-foreground",
               )}
             >
               <Home className="h-3.5 w-3.5 shrink-0" strokeWidth={homeSelected ? 2.25 : 2} />
@@ -72,7 +72,10 @@ export function PhotoStudioWorkspaceChrome({
           </div>
         </nav>
 
-        <div className="mx-3 hidden h-5 w-px shrink-0 self-center bg-border/50 sm:block" aria-hidden />
+        <div
+          className="mx-3 hidden h-5 w-px shrink-0 self-center bg-black/[0.08] sm:block dark:bg-white/[0.14]"
+          aria-hidden
+        />
 
         {/* Workspace tabs */}
         {tabs.length > 0 ? (
@@ -104,10 +107,10 @@ export function PhotoStudioWorkspaceChrome({
                       title={label}
                       onClick={() => onSelectTab(tab.id)}
                       className={cn(
-                        "flex min-w-0 flex-1 items-center gap-1.5 rounded-md border py-0 text-left font-medium transition-colors duration-150",
+                        "flex min-w-0 flex-1 items-center gap-1.5 rounded-full border py-0 text-left font-medium transition-colors duration-150",
                         selected
-                          ? "border-border/50 bg-background px-2.5 pr-7 text-[13px] text-foreground shadow-sm"
-                          : "border-transparent bg-transparent px-2 pr-6 text-[11px] text-muted-foreground hover:border-border/30 hover:bg-muted/40 hover:text-foreground",
+                          ? "border-transparent bg-white px-2.5 pr-7 text-[13px] text-foreground shadow-[0_1px_4px_rgba(15,23,42,0.08)] dark:bg-white/[0.14]"
+                          : "border-transparent bg-transparent px-2 pr-6 text-[11px] text-muted-foreground/70 hover:bg-white/50 hover:text-foreground dark:hover:bg-white/[0.06]",
                       )}
                     >
                       <LayoutTemplate
@@ -154,8 +157,10 @@ export function PhotoStudioWorkspaceChrome({
                 title="New workspace"
                 aria-label="New workspace"
                 className={cn(
-                  "ml-0.5 flex h-8 w-8 shrink-0 flex-none items-center justify-center rounded-md border border-dashed border-border/50",
-                  "text-muted-foreground transition-colors hover:border-primary/35 hover:bg-primary/5 hover:text-primary",
+                  "ml-0.5 flex h-8 w-8 shrink-0 flex-none items-center justify-center rounded-md border border-dashed",
+                  "border-black/[0.12] bg-transparent text-muted-foreground/70",
+                  "transition-colors hover:border-black/[0.18] hover:bg-white/50 hover:text-foreground",
+                  "dark:border-white/[0.2] dark:hover:border-white/[0.28] dark:hover:bg-white/[0.06]",
                   "disabled:cursor-wait disabled:opacity-50",
                 )}
               >

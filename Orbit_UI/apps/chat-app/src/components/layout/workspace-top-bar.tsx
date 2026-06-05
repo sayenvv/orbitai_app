@@ -43,7 +43,7 @@ export function WorkspaceTopBar() {
 
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <div
-          className="pointer-events-auto inline-flex items-center rounded-full border border-black/[0.05] bg-white/60 p-0.5 shadow-[0_1px_3px_rgba(15,23,42,0.05)] backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.06]"
+          className="workspace-tab-surface pointer-events-auto inline-flex items-center rounded-full p-0.5"
           role="tablist"
           aria-label="Workspace sections"
         >
@@ -61,7 +61,7 @@ export function WorkspaceTopBar() {
                 className={cn(
                   "rounded-full px-4 py-1.5 text-[13px] font-medium transition-all",
                   active
-                    ? "bg-white text-foreground shadow-[0_1px_4px_rgba(15,23,42,0.08)] dark:bg-white/[0.14]"
+                    ? "workspace-tab-active text-foreground"
                     : "text-muted-foreground/70 hover:text-foreground",
                 )}
               >

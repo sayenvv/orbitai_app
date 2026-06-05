@@ -1,10 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "streamdown/styles.css";
 @import "@orbit/ui/src/agent-appearance.css";
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../../../../packages/clovai-apps/src/**/*.{ts,tsx}";
+@source "../../node_modules/streamdown/**/*.{js,mjs,cjs,ts,tsx}";
+@source "../../node_modules/@streamdown/code/**/*.{js,mjs,cjs,ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -78,7 +81,13 @@
   --chart-4: oklch(0.62 0.22 350);
   --chart-5: oklch(0.70 0.14 220);
   --radius: 0.875rem;
-  --sidebar: oklch(1 0 0);                     /* white sidebar */
+  /* Navbar tab track — shared with sidebar + assistant bubbles */
+  --workspace-tab-bg: rgb(255 255 255 / 0.6);
+  --workspace-tab-border: rgb(0 0 0 / 0.05);
+  --workspace-tab-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --workspace-tab-active-bg: #ffffff;
+  --workspace-tab-active-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  --sidebar: var(--workspace-tab-bg);
   --sidebar-foreground: oklch(0.20 0.014 264);
   --sidebar-primary: oklch(0.62 0.19 256);
   --sidebar-primary-foreground: oklch(1 0 0);
@@ -117,7 +126,12 @@
   --chart-3: oklch(0.80 0.15 75);
   --chart-4: oklch(0.68 0.20 350);
   --chart-5: oklch(0.74 0.14 220);
-  --sidebar: oklch(0.24 0.010 264);            /* sidebar — one step above page */
+  --workspace-tab-bg: rgb(255 255 255 / 0.06);
+  --workspace-tab-border: rgb(255 255 255 / 0.08);
+  --workspace-tab-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --workspace-tab-active-bg: rgb(255 255 255 / 0.14);
+  --workspace-tab-active-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  --sidebar: var(--workspace-tab-bg);
   --sidebar-foreground: oklch(0.92 0.004 264);
   --sidebar-primary: oklch(0.68 0.19 256);
   --sidebar-primary-foreground: oklch(1 0 0);
@@ -312,6 +326,142 @@
   animation: cursor-blink 0.8s ease-in-out infinite;
 }
 
+/* ─── Chat thread + Streamdown markdown ─────────────────────────── */
+
+.chat-thread {
+  letter-spacing: -0.011em;
+}
+
+.chat-user-bubble {
+  border-radius: 1.25rem 1.25rem 0.5rem 1.25rem;
+  border: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
+  background: var(--workspace-tab-active-bg);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent),
+    0 4px 14px -4px color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.dark .chat-user-bubble {
+  border-color: color-mix(in oklab, var(--foreground) 10%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, #000 25%, transparent),
+    0 6px 18px -6px color-mix(in oklab, #000 45%, transparent);
+}
+
+.chat-assistant-avatar {
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--primary) 10%, var(--card));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 2px 8px -2px color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.chat-message-action {
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--card) 85%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.chat-message-action:hover {
+  color: var(--foreground);
+  background: var(--card);
+}
+
+.chat-markdown {
+  --sidebar: oklch(0.97 0.002 264);
+  --sidebar-border: oklch(0.9 0.006 264 / 0.5);
+  --sidebar-accent: oklch(0.945 0.004 264);
+  font-size: 15px;
+  line-height: 1.65;
+  letter-spacing: -0.011em;
+}
+.dark .chat-markdown {
+  --sidebar: oklch(0.2 0.01 264);
+  --sidebar-border: oklch(0.34 0.008 264 / 0.75);
+  --sidebar-accent: oklch(0.26 0.01 264);
+}
+
+@layer components {
+  .chat-markdown [data-streamdown="heading-1"] {
+    @apply mt-7 mb-3 text-[1.35rem] font-semibold tracking-tight text-foreground;
+  }
+  .chat-markdown [data-streamdown="heading-2"] {
+    @apply mt-6 mb-2.5 text-[1.2rem] font-semibold tracking-tight text-foreground;
+  }
+  .chat-markdown [data-streamdown="heading-3"] {
+    @apply mt-5 mb-2 text-[1.05rem] font-semibold tracking-tight text-foreground;
+  }
+  .chat-markdown [data-streamdown="heading-4"],
+  .chat-markdown [data-streamdown="heading-5"],
+  .chat-markdown [data-streamdown="heading-6"] {
+    @apply mt-4 mb-2 text-base font-semibold text-foreground;
+  }
+  .chat-markdown [data-streamdown="unordered-list"],
+  .chat-markdown [data-streamdown="ordered-list"] {
+    @apply my-3 ml-1 space-y-1.5 pl-5;
+  }
+  .chat-markdown [data-streamdown="list-item"] {
+    @apply leading-[1.65] text-foreground/95;
+  }
+  .chat-markdown [data-streamdown="link"] {
+    @apply font-medium text-primary underline-offset-[3px] transition-colors hover:underline;
+  }
+  .chat-markdown [data-streamdown="blockquote"] {
+    @apply my-4 border-l-[3px] border-primary/35 py-0.5 pl-4 text-[15px] leading-[1.65] text-muted-foreground;
+  }
+  .chat-markdown [data-streamdown="horizontal-rule"] {
+    @apply my-7 border-0 border-t border-border/80;
+  }
+  .chat-markdown [data-streamdown="table-wrapper"] {
+    @apply my-4 overflow-x-auto rounded-xl border border-border/80 shadow-sm;
+  }
+  .chat-markdown [data-streamdown="strong"] {
+    @apply font-semibold text-foreground;
+  }
+  .chat-markdown [data-streamdown="code-block"] {
+    @apply my-5 flex w-full flex-col gap-0 overflow-hidden rounded-2xl border border-border/80 bg-sidebar p-0 shadow-sm;
+    contain: none;
+  }
+  .chat-markdown [data-streamdown="code-block-header"] {
+    @apply flex h-9 items-center border-b border-border/60 px-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground;
+    white-space: normal;
+  }
+  .chat-markdown [data-streamdown="code-block-header"] span {
+    @apply ml-0 font-mono text-[11px] normal-case tracking-normal lowercase;
+  }
+  .chat-markdown [data-streamdown="code-block-body"] {
+    @apply overflow-x-auto rounded-none border-0 bg-background/80 p-4 text-sm sm:p-5;
+  }
+  .chat-markdown [data-streamdown="code-block-body"] pre {
+    @apply m-0 block bg-transparent;
+    overflow-x: auto;
+    white-space: pre !important;
+  }
+  .chat-markdown [data-streamdown="code-block-body"] code {
+    @apply block font-mono text-[13px] leading-relaxed;
+    tab-size: 4;
+    white-space: pre !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+  }
+  .chat-markdown [data-streamdown="code-block-body"] code > span {
+    display: block !important;
+    min-height: 1.35em;
+    white-space: pre !important;
+  }
+  .chat-markdown [data-streamdown="code-block-body"] code > span > span {
+    display: inline !important;
+  }
+  .chat-markdown [data-streamdown="code-block-body"] code span {
+    text-shadow: none !important;
+    -webkit-text-stroke: 0 transparent !important;
+  }
+  .chat-markdown [data-streamdown="inline-code"] {
+    @apply rounded-md border border-border/50 bg-muted/80 px-1.5 py-0.5 font-mono text-[0.9em] text-foreground;
+  }
+}
+
 /* ─── Stylish background & motion utilities ─────────────────────── */
 
 /* Aurora / mesh background — clipped, no layout overflow */
@@ -389,12 +539,61 @@
     linear-gradient(180deg, oklch(0.205 0.006 264) 0%, oklch(0.185 0.006 264) 100%);
 }
 
+/* Navbar tab track — top bar tablist, chat sidebar, assistant message cards */
+.workspace-tab-surface {
+  background: var(--workspace-tab-bg);
+  border: 1px solid var(--workspace-tab-border);
+  box-shadow: var(--workspace-tab-shadow);
+  backdrop-filter: blur(4px);
+}
+
+.workspace-tab-active {
+  background: var(--workspace-tab-active-bg);
+  box-shadow: var(--workspace-tab-active-shadow);
+}
+
 /* Subtle dotted grid overlay */
 .grid-dots {
   background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 8%, transparent) 1px, transparent 0);
   background-size: 22px 22px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 80%);
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 80%);
+}
+
+/* Clovai Canvas — premium editor workspace (theme-aware dot grid) */
+.canvas-workspace-premium {
+  background-color: oklch(0.955 0.005 264);
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--foreground) 11%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 20px 20px;
+}
+
+.dark .canvas-workspace-premium {
+  background-color: oklch(0.165 0.006 264);
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--foreground) 26%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 20px 20px;
+}
+
+.canvas-artboard-frame {
+  border-radius: 0.5rem;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--foreground) 8%, transparent),
+    0 2px 8px color-mix(in oklab, var(--foreground) 4%, transparent),
+    0 24px 48px -12px color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+.dark .canvas-artboard-frame {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--foreground) 14%, transparent),
+    0 4px 16px rgba(0, 0, 0, 0.35),
+    0 28px 56px -8px rgba(0, 0, 0, 0.55);
 }
 
 /* Animated conic gradient border (for premium cards / pricing) */

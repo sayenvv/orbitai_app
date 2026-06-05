@@ -9,13 +9,13 @@ function ShimmerBlock({ className }: { className?: string }) {
 export function PhotoStudioWorkspaceShimmer({ label = "Preparing workspace…" }: { label?: string }) {
   return (
     <div
-      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      className="home-warm-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden"
       aria-busy="true"
       aria-label={label}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-violet-400/10 blur-3xl" />
-        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-fuchsia-400/10 blur-3xl" />
+        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-foreground/[0.03] blur-3xl" />
+        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-primary/[0.04] blur-3xl" />
       </div>
 
       <div className="relative shrink-0 border-b border-border/30 bg-background/95 px-4 py-2.5 md:px-5">
@@ -45,7 +45,7 @@ export function PhotoStudioWorkspaceShimmer({ label = "Preparing workspace…" }
           <div className="w-full max-w-2xl space-y-4">
             <ShimmerBlock className="mx-auto aspect-square w-full max-w-md rounded-[1.75rem]" />
             <div className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin text-violet-500" />
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               <span>{label}</span>
             </div>
           </div>

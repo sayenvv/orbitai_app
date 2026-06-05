@@ -327,7 +327,7 @@ export function PhotoStudioCanvasSelectionPanel({
             ? `${selectionCount} shapes selected`
             : "Shape actions"
         }
-        className="pointer-events-auto absolute z-[35] flex w-11 flex-col gap-0.5 rounded-xl border border-violet-500/20 bg-background/98 p-1 shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-violet-500/10 backdrop-blur-md dark:bg-card/98"
+        className="pointer-events-auto absolute z-[35] flex w-11 flex-col gap-0.5 rounded-xl border border-black/[0.08] bg-background/98 p-1 shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-black/[0.05] backdrop-blur-md dark:border-white/[0.1] dark:bg-card/98 dark:ring-white/[0.06]"
         style={{
           left: anchor.left,
           top: anchor.top,
@@ -335,7 +335,7 @@ export function PhotoStudioCanvasSelectionPanel({
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="px-1 pb-0.5 text-center text-[8px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+        <p className="px-1 pb-0.5 text-center text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
           {selectionCount > 1 ? `${selectionCount}` : "Edit"}
         </p>
         {quickActions.map((action) => (

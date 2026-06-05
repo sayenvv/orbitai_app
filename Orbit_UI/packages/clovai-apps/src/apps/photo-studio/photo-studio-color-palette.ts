@@ -21,8 +21,8 @@ export const photoStudioColorPaletteGroups: PhotoStudioColorPaletteGroup[] = [
     ],
   },
   {
-    name: "Studio violet",
-    swatches: ["#ede9fe", "#c4b5fd", "#8b5cf6", "#7c3aed", "#6d28d9", "#4f46e5", "#6366f1", "#a855f7"],
+    name: "Cool greys",
+    swatches: ["#fafafa", "#f4f4f5", "#e4e4e7", "#d4d4d8", "#a1a1aa", "#71717a", "#52525b", "#3f3f46"],
   },
   {
     name: "Ocean & sky",
@@ -61,6 +61,6 @@ export function isLightHexColor(hex: string): boolean {
   return luminance > 0.72;
 }
 
-export function getReadableColorInputValue(value: string, fallback = "#7c3aed"): string {
+export function getReadableColorInputValue(value: string, fallback = "#000000"): string {
   return normalizeHexColor(value) ?? fallback;
 }

@@ -10,6 +10,8 @@ import { ChatThreadShimmer } from "@/components/ui/skeleton";
 import { ChatInput, type ChatInputHandle } from "./chat-input";
 import { Message, StudySource, type Conversation } from "@/types";
 import { ApiError, chatApi, mapMessage, publicApi } from "@/lib/orbit-api";
+import { streamOrbitAssistantReply } from "@/lib/orbit-assistant-stream";
+import { messageToUIMessage } from "@/lib/orbit-ui-message";
 import { chatContentClass } from "@/lib/chat-layout";
 import { randomId } from "@/lib/utils";
 import {
@@ -70,6 +72,9 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   const chatInputRef = useRef<ChatInputHandle>(null);
   const mobileComposerRef = useRef<HTMLDivElement>(null);
   const agentGreetingRef = useRef<Message | null>(null);
+  const routeConversationIdRef = useRef(conversationId);
+  const conversationLoadSeqRef = useRef(0);
+  routeConversationIdRef.current = conversationId;
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
   const isFileContextLocked = Boolean(activeConversation?.appSlug && activeConversation?.sourceId);
@@ -254,6 +259,10 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     async (id: string) => {
       if (streamingConversationRef.current) return;
 
+      const loadSeq = ++conversationLoadSeqRef.current;
+      const isCurrentLoad = () =>
+        conversationLoadSeqRef.current === loadSeq && routeConversationIdRef.current === id;
+
       const conv = useChatStore.getState().conversations.find((c) => c.id === id);
       if (conv && conv.messages.length > 0) {
         setActiveConversation(id);
@@ -271,6 +280,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         const summary = useChatStore.getState().conversations.find((c) => c.id === id);
 
         const data = await chatApi.getConversation(id);
+        if (!isCurrentLoad()) return;
+
         const messages = data.messages.map(mapMessage);
         const latest = useChatStore.getState().conversations.find((c) => c.id === id);
         if (latest && latest.messages.length > 0) {
@@ -307,6 +318,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         if (summary?.sourceId) void hydrateSourceForConversation(summary as Conversation);
         else setSelectedSource(null);
       } catch (err) {
+        if (!isCurrentLoad()) return;
+
         const isMissing =
           err instanceof ApiError && (err.status === 404 || err.status === 422 || err.status === 403);
         if (isMissing) {
@@ -321,7 +334,9 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           setConversationError(true);
         }
       } finally {
-        setLoadingMessages(false);
+        if (isCurrentLoad()) {
+          setLoadingMessages(false);
+        }
       }
     },
     [setActiveConversation, addConversation, setConversationMessages, setDraftAgentSlug, refreshConversationsList, deleteConversation, hydrateSourceForConversation],
@@ -361,8 +376,6 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
 
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [upgradeMessageId, setUpgradeMessageId] = useState<string | null>(null);
-  const streamBufferRef = useRef("");
-  const rafRef = useRef<number | null>(null);
 
   const syncConversationToUrl = useCallback(
     (id: string) => {
@@ -480,64 +493,53 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       setStreamingMsgId(assistantMsgId);
       setUpgradeMessageId(null);
       streamingConversationRef.current = true;
-      streamBufferRef.current = "";
 
       setLoading(true);
 
-      let lastFlushed = "";
-      const flushBuffer = () => {
-        if (streamBufferRef.current !== lastFlushed) {
-          lastFlushed = streamBufferRef.current;
-          updateMessage(streamConversationId, assistantMsgId, lastFlushed);
-        }
-        rafRef.current = requestAnimationFrame(flushBuffer);
-      };
-      rafRef.current = requestAnimationFrame(flushBuffer);
+      let streamedText = "";
 
       try {
-        for await (const event of chatApi.streamMessage({
-          message: content,
-          conversation_id: isNewConversation ? null : existingId,
-          source_id: activeSource?.id || null,
-          source_type: activeSource?.type || null,
-          agent_id: effectiveAgentSlug,
-          app_slug: activeConversation?.appSlug ?? null,
-        })) {
-          if (event.type === "start" && event.conversation_id) {
-            if (isNewConversation) {
-              updateConversationId(tempId, event.conversation_id);
-              streamConversationId = event.conversation_id;
-              // Defer URL change until the stream finishes so we don't remount mid-turn
-              // and lose the in-memory messages / sidebar row.
-            } else if (event.conversation_id !== streamConversationId) {
-              updateConversationId(streamConversationId, event.conversation_id);
-              streamConversationId = event.conversation_id;
+        streamedText = await streamOrbitAssistantReply({
+          assistantMessageId: assistantMsgId,
+          messages: [messageToUIMessage(userMessage)],
+          body: {
+            conversation_id: isNewConversation ? null : existingId,
+            source_id: activeSource?.id || null,
+            source_type: activeSource?.type || null,
+            agent_id: effectiveAgentSlug,
+            app_slug: activeConversation?.appSlug ?? null,
+          },
+          onTextUpdate: (text) => {
+            streamedText = text;
+            updateMessage(streamConversationId, assistantMsgId, text);
+          },
+          onSideEffect: (effect) => {
+            if (effect.type === "start" && effect.conversation_id) {
+              if (isNewConversation) {
+                updateConversationId(tempId, effect.conversation_id);
+                streamConversationId = effect.conversation_id;
+              } else if (effect.conversation_id !== streamConversationId) {
+                updateConversationId(streamConversationId, effect.conversation_id);
+                streamConversationId = effect.conversation_id;
+              }
+            } else if (effect.type === "done" && effect.usage) {
+              const current = useUsageStore.getState().usage;
+              useUsageStore.getState().setUsage({
+                plan: current?.plan ?? "free",
+                period_start: current?.period_start,
+                period_end: current?.period_end,
+                ...effect.usage,
+              });
             }
-          } else if (event.type === "meta" || event.type === "message") {
-            // Orchestration metadata / agent steps — not appended to message body.
-          } else if (event.type === "error") {
-            streamBufferRef.current += event.detail;
-          } else if (event.type === "token") {
-            streamBufferRef.current += event.content;
-          } else if (event.type === "done" && event.usage) {
-            const current = useUsageStore.getState().usage;
-            useUsageStore.getState().setUsage({
-              plan: current?.plan ?? "free",
-              period_start: current?.period_start,
-              period_end: current?.period_end,
-              ...event.usage,
-            });
-          }
-        }
+          },
+        });
 
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        updateMessage(streamConversationId, assistantMsgId, streamBufferRef.current);
+        updateMessage(streamConversationId, assistantMsgId, streamedText);
         if (isNewConversation) {
           syncConversationToUrl(streamConversationId);
         }
         void refreshConversationsList();
       } catch (err) {
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
         if (err instanceof ApiError && err.status === 429) {
           publicApi
             .subscription()
@@ -548,7 +550,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
         const errorText =
           err instanceof ApiError && err.status === 429
             ? err.message
-            : streamBufferRef.current || "Sorry, I encountered an error. Please try again.";
+            : streamedText || "Sorry, I encountered an error. Please try again.";
         updateMessage(streamConversationId, assistantMsgId, errorText);
       } finally {
         streamingConversationRef.current = false;

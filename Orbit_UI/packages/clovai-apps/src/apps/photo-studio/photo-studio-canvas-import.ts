@@ -108,8 +108,8 @@ function normalizeShape(raw: unknown): CanvasShapeElement | null {
     rotation: asNumber(item.rotation, 0),
     groupId: asString(item.groupId ?? item.group_id) || null,
     strokeWidth: asNumber(item.strokeWidth ?? item.stroke_width, 3),
-    strokeColor: asString(item.strokeColor ?? item.stroke_color, "#7c3aed"),
-    fillColor: asString(item.fillColor ?? item.fill_color, "#8b5cf6"),
+    strokeColor: asString(item.strokeColor ?? item.stroke_color, "#000000"),
+    fillColor: asString(item.fillColor ?? item.fill_color, "#ffffff"),
     fillOpacity: asNumber(item.fillOpacity ?? item.fill_opacity, 0.8),
     cornerRadius: asNumber(item.cornerRadius ?? item.corner_radius, 0),
     sideGaps: normalizeShapeSideGaps(item.sideGaps ?? item.side_gaps),
@@ -136,7 +136,7 @@ function normalizeText(raw: unknown): CanvasTextLayer | null {
     content: asString(item.content, "Text"),
     fontStyleId,
     fontSize: asNumber(item.fontSize ?? item.font_size, 16),
-    color: asString(item.color, "#1e1b4b"),
+    color: asString(item.color, "#18181b"),
   };
 }
 

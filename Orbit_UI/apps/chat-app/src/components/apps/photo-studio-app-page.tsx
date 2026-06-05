@@ -125,7 +125,7 @@ function SaveWorkspaceDialog({
             onChange={(event) => setName(event.target.value)}
             placeholder="e.g. Summer campaign logo"
             autoFocus
-            className="mt-2 h-10 w-full rounded-xl border border-border/50 bg-background px-3 text-sm font-medium text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-violet-400/50 focus:ring-4 focus:ring-violet-500/10"
+            className="mt-2 h-10 w-full rounded-xl border border-border/50 bg-background px-3 text-sm font-medium text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-black/20 focus:ring-4 focus:ring-black/[0.06] dark:focus:border-white/20 dark:focus:ring-white/10"
             onKeyDown={(event) => {
               if (event.key === "Enter" && name.trim() && !isSaving) {
                 onConfirm(name.trim());
@@ -712,9 +712,9 @@ export function PhotoStudioAppPage({ app }: { app: CatalogApp }) {
           creationType: "logo",
           stylePreset: "studio",
           logoTransparentBackground: true,
-          canvasBackgroundId: "violet-sunset",
-          customCanvasBackgroundColor: "#6366f1",
-          customCanvasGradientEnd: "#a855f7",
+          canvasBackgroundId: "warm-paper",
+          customCanvasBackgroundColor: "#a8a29e",
+          customCanvasGradientEnd: "#71717a",
           customCanvasGradientEnabled: false,
           projectName: trimmedName,
           canvasShapes: [],

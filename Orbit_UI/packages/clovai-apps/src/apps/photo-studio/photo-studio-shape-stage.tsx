@@ -62,7 +62,13 @@ import {
 } from "./photo-studio-canvas-types";
 
 const MIN_SHAPE_PX = 8;
-const GUIDE_STROKE = "#ec4899";
+const GUIDE_STROKE = "#71717a";
+const CANVAS_SELECTION_STROKE = "#52525b";
+const CANVAS_SELECTION_FILL = "rgba(39, 39, 42, 0.1)";
+const CANVAS_SELECTION_FILL_LINE = "rgba(39, 39, 42, 0.06)";
+const CANVAS_SELECTION_FILL_MULTI = "rgba(39, 39, 42, 0.08)";
+const CANVAS_SELECTION_GROUP_TAG = "rgba(39, 39, 42, 0.92)";
+const CANVAS_SELECTION_HANDLE_STROKE = "#52525b";
 const GUIDE_LAYER_NAME = "alignment-guides";
 
 export type ShapeTransformPatch = Pick<
@@ -396,9 +402,8 @@ function KonvaShapeLabelEditor({
   );
 }
 
-const LINE_SELECT_STROKE = "#8b5cf6";
 const LINE_HANDLE_FILL = "#ffffff";
-const LINE_HANDLE_STROKE = "#7c3aed";
+const LINE_HANDLE_STROKE = CANVAS_SELECTION_HANDLE_STROKE;
 
 type LinePointsPatch = Partial<
   Pick<CanvasShapeElement, "x" | "y" | "width" | "height" | "linePoints">
@@ -1215,8 +1220,8 @@ export function PhotoStudioShapeStage({
                 <Rect
                   width={box.width}
                   height={box.height}
-                  fill="rgba(124, 58, 237, 0.1)"
-                  stroke="#7c3aed"
+                  fill={CANVAS_SELECTION_FILL}
+                  stroke={CANVAS_SELECTION_STROKE}
                   strokeWidth={2}
                   listening={false}
                 />
@@ -1227,8 +1232,8 @@ export function PhotoStudioShapeStage({
                 <Rect
                   width={box.width}
                   height={box.height}
-                  fill="rgba(124, 58, 237, 0.06)"
-                  stroke="#7c3aed"
+                  fill={CANVAS_SELECTION_FILL_LINE}
+                  stroke={CANVAS_SELECTION_STROKE}
                   strokeWidth={2}
                   dash={[5, 4]}
                   listening={false}
@@ -1256,16 +1261,16 @@ export function PhotoStudioShapeStage({
         <Group ref={multiSelectOverlayRef} visible={false} listening={false}>
           <Rect
             name="selection-bounds-box"
-            stroke="#7c3aed"
+            stroke={CANVAS_SELECTION_STROKE}
             strokeWidth={2}
             dash={[7, 5]}
-            fill="rgba(124, 58, 237, 0.08)"
+            fill={CANVAS_SELECTION_FILL_MULTI}
             listening={false}
           />
           <Group name="selection-group-label" visible={false} listening={false}>
             <Rect
               name="selection-group-tag"
-              fill="rgba(124, 58, 237, 0.92)"
+              fill={CANVAS_SELECTION_GROUP_TAG}
               cornerRadius={4}
               listening={false}
             />
@@ -1302,8 +1307,8 @@ export function PhotoStudioShapeStage({
               return newBox;
             }}
             anchorSize={8}
-            borderStroke="#8b5cf6"
-            anchorStroke="#8b5cf6"
+            borderStroke={CANVAS_SELECTION_HANDLE_STROKE}
+            anchorStroke={CANVAS_SELECTION_HANDLE_STROKE}
             anchorFill="#ffffff"
             padding={2}
             onTransformEnd={handleTransformerEnd}

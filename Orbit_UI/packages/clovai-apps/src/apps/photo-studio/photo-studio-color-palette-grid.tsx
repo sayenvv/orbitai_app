@@ -45,9 +45,9 @@ export function PhotoStudioColorPaletteGrid({
                   aria-label={`Select color ${color}`}
                   aria-pressed={selected}
                   className={cn(
-                    "relative shrink-0 overflow-hidden rounded-full border border-black/10 shadow-sm transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40",
+                    "relative shrink-0 overflow-hidden rounded-full border border-black/10 shadow-sm transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25",
                     sizeClass,
-                    selected && "ring-2 ring-violet-500 ring-offset-2 ring-offset-background scale-110",
+                    selected && "ring-2 ring-foreground/40 ring-offset-2 ring-offset-background scale-110",
                   )}
                   style={{ background: color }}
                 >
