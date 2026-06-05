@@ -96,7 +96,8 @@ export function AppSidebarContent({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const { section, setSection, openLogin, openSupport, setProfileOpen } = useAppShell();
   const [focusSearch, setFocusSearch] = useState(false);

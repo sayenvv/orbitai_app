@@ -12,7 +12,8 @@ type AppLaunchAuthGateProps = {
 };
 
 export function AppLaunchAuthGate({ app }: AppLaunchAuthGateProps) {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
   const { openLogin } = useAppShell();
 
   useEffect(() => {

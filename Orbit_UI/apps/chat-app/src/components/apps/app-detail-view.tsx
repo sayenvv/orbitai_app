@@ -50,7 +50,7 @@ const iconMap = {
 
 export function AppDetailView({ app }: { app: CatalogApp }) {
   const { setHeader, openUpgrade, openLogin } = useAppShell();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const launchHref = getAppLaunchHref(app);
   const blockReason = getAppLaunchBlockReason(app, isAuthenticated);

@@ -52,7 +52,7 @@ export function ResearchCompanionWorkspaceChat({
   onClose,
 }: ResearchCompanionWorkspaceChatProps) {
   const { openAuthPrompt } = useAppShell();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [selectedSource, setSelectedSource] = useState<StudySource | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);

@@ -26,7 +26,7 @@ interface ProfilePanelProps {
 }
 
 export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
-  const { user, setUser } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const handleSignOut = useServerLogout();
   const { usage, loading: usageLoading } = useTokenUsage();
   const [name, setName] = useState(user?.name || "");
@@ -68,7 +68,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
     setSuccessMsg("");
     try {
       const data = await authApi.updateProfile(name.trim());
-      setUser(mapApiUser(data));
+      useAuthStore.getState().setUser(mapApiUser(data));
       setSuccessMsg("Profile updated successfully!");
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
@@ -76,7 +76,7 @@ export function ProfilePanel({ open, onClose }: ProfilePanelProps) {
     } finally {
       setSaving(false);
     }
-  }, [name, user?.name, setUser]);
+  }, [name, user?.name]);
 
   // Close on Escape
   useEffect(() => {

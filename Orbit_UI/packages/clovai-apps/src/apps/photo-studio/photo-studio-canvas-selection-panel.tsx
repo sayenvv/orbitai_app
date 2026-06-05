@@ -277,7 +277,7 @@ export function PhotoStudioCanvasSelectionPanel({
       label: "More options",
       hint: "Opens outside the canvas",
       icon: MoreHorizontal,
-      onClick: () => setMoreOpen((open) => !open),
+      onClick: () => setMoreOpen(!moreOpen),
     },
   ];
 

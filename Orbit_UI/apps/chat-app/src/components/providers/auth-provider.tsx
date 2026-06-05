@@ -4,7 +4,7 @@ import { useCurrentUser } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth-store";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { isLoading } = useAuthStore();
+  const isLoading = useAuthStore((state) => state.isLoading);
   useCurrentUser();
 
   if (isLoading) {

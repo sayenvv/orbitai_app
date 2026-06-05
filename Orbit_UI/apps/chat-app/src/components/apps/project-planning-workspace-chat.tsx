@@ -47,7 +47,7 @@ export function ProjectPlanningWorkspaceChat({
   textSelection = null,
 }: ProjectPlanningWorkspaceChatProps) {
   const { openAuthPrompt } = useAppShell();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);

@@ -2,15 +2,15 @@ import {
   ApiError,
   createApiClient,
   getApiErrorMessage,
+  parseApiError,
   type ApiUser,
 } from "@orbit/api";
 import type { User } from "@/store/auth-store";
 import type { Conversation, Message } from "@/types";
 
-export { ApiError, getApiErrorMessage };
+export { ApiError, getApiErrorMessage, parseApiError };
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api";
-const DEFAULT_CHAT_API_BASE_URL = "http://localhost:8000/api/chat";
 
 function resolveApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;

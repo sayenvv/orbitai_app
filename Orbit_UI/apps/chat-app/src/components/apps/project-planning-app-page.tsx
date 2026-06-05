@@ -61,10 +61,12 @@ export function ProjectPlanningAppPage({ app }: { app: CatalogApp }) {
     () => ({
       loadProject: (projectId) =>
         projectPlanningApi.getProject(projectId) as Promise<ProjectPlanningDocument>,
-      saveProject: (document) =>
-        projectPlanningApi.saveProject(document.id, document as Parameters<
-          typeof projectPlanningApi.saveProject
-        >[1]),
+      saveProject: async (document) => {
+        await projectPlanningApi.saveProject(
+          document.id,
+          document as Parameters<typeof projectPlanningApi.saveProject>[1],
+        );
+      },
     }),
     [],
   );

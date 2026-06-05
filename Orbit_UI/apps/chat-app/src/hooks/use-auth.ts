@@ -8,7 +8,8 @@ import { useUsageStore } from "@/store/usage-store";
 const AUTH_TIMEOUT_MS = 8_000;
 
 export function useCurrentUser() {
-  const { setUser, setLoading } = useAuthStore();
+  const setUser = useAuthStore((state) => state.setUser);
+  const setLoading = useAuthStore((state) => state.setLoading);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -51,14 +52,13 @@ export function useCurrentUser() {
 
 /** Clears local auth state only — chat session cookie is cleared via authApi.logout(). */
 export function useLogout() {
-  const { logout } = useAuthStore();
   return async () => {
     try {
       await authApi.logout();
     } catch {
       // still clear local state
     }
-    logout();
+    useAuthStore.getState().logout();
     useUsageStore.getState().clearUsage();
   };
 }

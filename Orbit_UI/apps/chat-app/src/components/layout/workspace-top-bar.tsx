@@ -32,7 +32,7 @@ function resolveActiveTab(pathname: string): WorkspaceTab {
  */
 export function WorkspaceTopBar() {
   const { header, openLogin } = useAppShell();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const router = useRouter();
   const pathname = usePathname();
   const activeTab = resolveActiveTab(pathname);

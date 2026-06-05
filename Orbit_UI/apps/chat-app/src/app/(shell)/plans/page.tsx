@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/auth-store";
 
 export default function PlansPage() {
   const { setHeader, openLogin } = useAppShell();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { usage, loading: usageLoading } = useTokenUsage();
 
   useEffect(() => {

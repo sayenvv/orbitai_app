@@ -21,7 +21,6 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { setUser } = useAuthStore();
   const emailRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -69,7 +68,7 @@ export function LoginModal({ open, onClose, defaultMode = "login" }: LoginModalP
         await authApi.login(parsed.data.email, parsed.data.password);
       }
       const me = await authApi.me();
-      setUser(mapApiUser(me));
+      useAuthStore.getState().setUser(mapApiUser(me));
       resetForm();
       onClose();
     } catch (err: unknown) {

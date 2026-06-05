@@ -1,13 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Suspense, useEffect, type CSSProperties, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
 import { PdfPageLimitDialogHost } from "@/components/rag/pdf-page-limit-dialog";
 import { NavbarUpgradeLink } from "@/components/plans/upgrade-cta";
-import {
-  MainLibraryPanel,
-} from "@/components/home/app-sidebar-panels";
+import { SidebarRecentsShimmer } from "@/components/ui/skeleton";
 import { LoginModal } from "@/components/login-modal";
 import { AuthPromptModal } from "@/components/auth-prompt-modal";
 import { InvalidChatModal } from "@/components/chat/invalid-chat-modal";
@@ -36,6 +35,20 @@ import {
 } from "@/components/layout/collapsible-rail";
 import { routes } from "@/lib/routes";
 
+const MainLibraryPanel = dynamic(
+  () =>
+    import("@/components/home/app-sidebar-panels").then((m) => ({
+      default: m.MainLibraryPanel,
+    })),
+  {
+    loading: () => (
+      <div className="mx-auto w-full max-w-5xl py-8">
+        <SidebarRecentsShimmer rows={8} />
+      </div>
+    ),
+  },
+);
+
 function ShellSectionSync() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -55,7 +68,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const handleLogout = useLogout();
   const invalidChatNoticeOpen = useChatSessionStore((s) => s.invalidChatNoticeOpen);
   const dismissInvalidChatNotice = useChatSessionStore((s) => s.dismissInvalidChatNotice);
@@ -111,7 +124,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <Suspense fallback={null}>
+      <Suspense fallback={null /* ShellSectionSync renders null */}>
         <ShellSectionSync />
       </Suspense>
 

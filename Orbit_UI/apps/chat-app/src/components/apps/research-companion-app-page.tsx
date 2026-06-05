@@ -956,7 +956,8 @@ export function ResearchCompanionAppPage({ app }: { app: CatalogApp }) {
     onSelectWorkspaceTab: handleSelectWorkspaceTab,
     onCloseWorkspaceTab: handleCloseWorkspaceTab,
         onNewWorkspaceTab: handleRequestNewWorkspaceTab,
-        onStartWorkspaceWithType: (typeId) => void handleCreateWorkspaceTab(typeId),
+        onStartWorkspaceWithType: (typeId: ResearchCompanionWorkspaceTypeId) =>
+          void handleCreateWorkspaceTab(typeId),
         workspaceTypeId: resolvedWorkspaceTypeId,
     isPreparingNewWorkspaceTab: isPreparingWorkspaceTab,
   };

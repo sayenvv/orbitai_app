@@ -30,7 +30,7 @@ export function buildLibraryComposerItems(uploads: LibraryUpload[]): LibraryComp
     subtitle: [
       formatFileSize(upload.fileSizeBytes),
       formatRelativeDate(upload.createdAt),
-      upload.status !== "completed" ? upload.status : null,
+      upload.status !== "ready" ? upload.status : null,
     ]
       .filter(Boolean)
       .join(" · "),

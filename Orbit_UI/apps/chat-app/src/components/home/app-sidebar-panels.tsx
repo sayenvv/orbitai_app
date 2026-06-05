@@ -50,33 +50,14 @@ import { isAiInsight } from "@/lib/insights";
 import { useRagUpload } from "@/hooks/use-rag-upload";
 import type { LibraryGeneratedFile, LibraryUpload } from "@/hooks/use-library";
 import type { Conversation } from "@/types";
-import type { HomeAgent } from "@/lib/home-data";
 import { catalogAppIds, getAppWorkspaceHref, visibleAppsCatalog, type CatalogApp } from "@orbit/clovai-apps";
 
 export type SidebarSection = "home" | "library" | "agents" | "apps" | "plans";
-
-type SidebarSectionNavProps = {
-  expanded: boolean;
-  section: SidebarSection;
-  onSectionChange: (section: SidebarSection) => void;
-  onNewChat: () => void;
-  isAuthenticated?: boolean;
-  labelClassName?: string;
-};
 
 const collapsedNavBtnClass = cn(
   SIDEBAR_ICON_SLOT_CLASS,
   "rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground",
 );
-
-function sidebarNavItemClass(active: boolean) {
-  return cn(
-    sidebarNavRowClassName("w-full text-[13px] transition-colors"),
-    active
-      ? "workspace-tab-active font-medium text-foreground"
-      : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
-  );
-}
 
 type SidebarNavItem = {
   key: string;
@@ -144,76 +125,6 @@ export function SidebarCollapsedNav({
         ))}
       </div>
     </div>
-  );
-}
-
-export function SidebarSectionNav({
-  expanded,
-  section,
-  onSectionChange,
-  onNewChat,
-  isAuthenticated = true,
-  labelClassName = "",
-}: SidebarSectionNavProps) {
-  const authenticatedTabs: { id: SidebarSection; label: string; icon: LucideIcon }[] = [
-    { id: "library", label: "Library", icon: Folders },
-    { id: "apps", label: "Apps", icon: LayoutGrid },
-  ];
-
-  const guestTabs: { id: SidebarSection; label: string; icon: LucideIcon }[] = [
-    { id: "apps", label: "Apps", icon: LayoutGrid },
-    { id: "plans", label: "Plans", icon: Crown },
-  ];
-
-  const tabs = isAuthenticated ? authenticatedTabs : guestTabs;
-
-  return (
-    <nav className="flex flex-col gap-0.5">
-      <button
-        type="button"
-        onClick={onNewChat}
-        className={cn(
-          sidebarNavRowClassName("w-full text-[13px] font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground"),
-        )}
-        title="New chat"
-        aria-label="New chat"
-      >
-        <span className={SIDEBAR_ICON_SLOT_CLASS}>
-          <MessageCirclePlus className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
-        </span>
-        {expanded && <span className={cn("truncate", labelClassName)}>New chat</span>}
-      </button>
-
-      <div className="mt-1 flex flex-col gap-0.5">
-        {tabs.map(({ id, label, icon: Icon }) => {
-          const isActive = section === id;
-
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onSectionChange(id)}
-              className={sidebarNavItemClass(isActive)}
-              title={label}
-              aria-label={label}
-            >
-              <span className={SIDEBAR_ICON_SLOT_CLASS}>
-                <Icon
-                  className={cn(
-                    SIDEBAR_NAV_GLYPH_CLASS,
-                    isActive ? "text-foreground" : "text-muted-foreground",
-                  )}
-                  strokeWidth={1.75}
-                />
-              </span>
-              {expanded && (
-                <span className={cn("truncate", labelClassName)}>{label}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </nav>
   );
 }
 
@@ -1454,79 +1365,5 @@ export function MainLibraryPanel({
         />
       )}
     </>
-  );
-}
-
-type MainAgentsPanelProps = {
-  agents: HomeAgent[];
-  loading: boolean;
-  onSelect: (agentId: string) => void;
-};
-
-export function MainAgentsPanel({ agents, loading, onSelect }: MainAgentsPanelProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filtered = agents.filter(
-    (a) =>
-      a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.description.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 pt-14">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Agents</h1>
-        <p className="text-sm text-muted-foreground">
-          Specialized AI assistants for every task
-        </p>
-      </div>
-
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search agents…"
-          className="w-full rounded-xl border bg-background/80 py-2.5 pl-10 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((agent) => (
-            <button
-              key={agent.id}
-              type="button"
-              onClick={() => onSelect(agent.id)}
-              className="w-full text-left"
-            >
-              <AgentCardTint
-                colorKey={agent.colorKey}
-                className="group flex h-full items-start gap-3 p-4 transition-all hover:border-primary/40 hover:shadow-md"
-              >
-                <AgentListingIcon
-                  iconKey={agent.iconKey}
-                  colorKey={agent.colorKey}
-                  className="shrink-0 group-hover:scale-105 transition-transform"
-                />
-                <div className="min-w-0 space-y-1">
-                  <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">
-                    {agent.name}
-                  </h3>
-                  <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">
-                    {agent.description}
-                  </p>
-                </div>
-              </AgentCardTint>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

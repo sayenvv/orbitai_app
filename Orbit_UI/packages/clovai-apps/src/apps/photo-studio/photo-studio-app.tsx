@@ -1549,7 +1549,7 @@ function CanvasLayersList({
     <div className="space-y-1">
       {layers.map((layer) => {
         const selected =
-          (layer.kind === "shape" && selectedShapeIds.includes(layer.id)) ||
+          (layer.kind === "shape" && selectedShapeId === layer.id) ||
           (layer.kind === "text" && selectedTextId === layer.id);
         const ShapeIcon =
           layer.kind === "shape" && layer.shapeType
@@ -3549,7 +3549,8 @@ function SidebarResizeHandle({
       setDragging(true);
       let lastX = event.clientX;
 
-      const handleMouseMove = (moveEvent: MouseEvent) => {
+      const handleMouseMove: EventListener = (event) => {
+        const moveEvent = event as globalThis.MouseEvent;
         onDrag(moveEvent.clientX - lastX);
         lastX = moveEvent.clientX;
       };
@@ -4235,10 +4236,10 @@ function PhotoStudioWorkspace({
 
   useEffect(() => {
     if (!loadExportedCanvasJson || autoLoadedCanvasJsonRef.current) return;
+    const snapshot = initialWorkspaceSnapshot;
     const hasRestoredSnapshot =
-      Boolean(initialWorkspaceSnapshot) &&
-      (initialWorkspaceSnapshot.canvasShapes.length > 0 ||
-        initialWorkspaceSnapshot.canvasTexts.length > 0);
+      Boolean(snapshot) &&
+      ((snapshot?.canvasShapes.length ?? 0) > 0 || (snapshot?.canvasTexts.length ?? 0) > 0);
     if (hasRestoredSnapshot) {
       autoLoadedCanvasJsonRef.current = true;
       return;
@@ -5406,7 +5407,7 @@ function PhotoStudioWorkspace({
   );
   const showStandardGenerationPreview =
     Boolean(selectedGeneration) &&
-    !selectedGeneration.transparentBackground &&
+    !selectedGeneration?.transparentBackground &&
     !isGenerationMaterialized;
   const showAiGeneratedLogo =
     Boolean(selectedGeneration?.transparentBackground) && !isGenerationMaterialized;

@@ -16,6 +16,7 @@ export type {
   CanvasBackgroundId,
   RecentPhotoProject,
   PhotoStudioWorkspaceTab,
+  PhotoStudioWorkspaceUpload,
 } from "./photo-studio";
 export type { PhotoStudioOptionsConfig } from "./photo-studio";
 export { DEFAULT_PHOTO_STUDIO_OPTIONS, resolvePhotoStudioOptions, parseCanvasLayersJson } from "./photo-studio";

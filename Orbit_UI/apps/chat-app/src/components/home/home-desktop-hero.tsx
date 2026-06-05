@@ -156,7 +156,8 @@ export function HomeDesktopHero({
   onQuickStartPrompt,
   onComposerKeyDown,
 }: HomeDesktopHeroProps) {
-  const { user, isAuthenticated } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   useTokenUsage();
   const plan = useUsageStore((s) => s.usage?.plan ?? "free");
   const { openUpgrade, openAuthPrompt } = useAppShell();

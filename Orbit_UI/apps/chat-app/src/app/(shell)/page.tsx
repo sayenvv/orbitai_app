@@ -17,7 +17,7 @@ import type { StudySource } from "@/types";
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { setHeader, openAuthPrompt } = useAppShell();
   const { uploads: libraryUploads, loading: libraryLoading, refresh: refreshLibrary } = useLibrary();
   const { handleBackspace: handleRemoveWebpageBackspace, resetBackspace: resetWebpageBackspace } =
@@ -59,7 +59,10 @@ export default function HomePage() {
   const canSend =
     !webpageInputMode &&
     !libraryInputMode &&
-    (chatInput.trim().length > 0 || attachedFiles.length > 0 || attachedWebpage || attachedLibrarySource) &&
+    (chatInput.trim().length > 0 ||
+      attachedFiles.length > 0 ||
+      Boolean(attachedWebpage) ||
+      Boolean(attachedLibrarySource)) &&
     !heroUploading;
 
   const canAttachWebpage =

@@ -220,7 +220,8 @@ export function ContextSelector({
       publicApi
         .studyMaterials()
         .then((data) => {
-          const items: StudySource[] = (data.data || []).map((m: Record<string, unknown>) => ({
+          const rows = (data.data ?? []) as Record<string, unknown>[];
+          const items: StudySource[] = rows.map((m) => ({
             id: m.id as string,
             name: m.name as string,
             type: "study-material" as const,

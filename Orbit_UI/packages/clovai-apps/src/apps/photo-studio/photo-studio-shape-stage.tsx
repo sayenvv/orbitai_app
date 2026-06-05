@@ -479,7 +479,10 @@ function KonvaLineEditHandles({
         ),
       };
     }
-    return updateLineAnchorFromCanvas(shape, canvasSize, role, canvasX, canvasY);
+    if (role === "start" || role === "end") {
+      return updateLineAnchorFromCanvas(shape, canvasSize, role, canvasX, canvasY);
+    }
+    return {};
   };
 
   const syncHandlePosition = (

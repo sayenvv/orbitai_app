@@ -50,7 +50,7 @@ const iconMap = {
 } as const;
 
 export default function AppsPage() {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { setHeader, openUpgrade, openLogin } = useAppShell();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
