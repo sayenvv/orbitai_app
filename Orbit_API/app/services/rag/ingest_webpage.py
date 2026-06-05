@@ -70,8 +70,8 @@ def ingest_webpage_document(
             raise ValueError("Embedding generation failed.")
 
         db.query(RagChunk).filter(RagChunk.document_id == document.id).delete()
-        for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True)):
-            db.add(
+        db.add_all(
+            [
                 RagChunk(
                     document_id=document.id,
                     chunk_index=index,
@@ -80,7 +80,9 @@ def ingest_webpage_document(
                     page_end=chunk.page_end,
                     embedding=vector,
                 )
-            )
+                for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
+            ]
+        )
 
         document.pages_processed = 1
         document.chunk_count = len(chunks)

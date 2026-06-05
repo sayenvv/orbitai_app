@@ -17,7 +17,6 @@ dependencies = [
   "python-jose[cryptography]>=3.3.0",
   "langchain-openai>=0.3.0",
   "langchain-core>=0.3.0",
-  "langgraph>=0.2.0",
   "httpx>=0.28.0",
   "clovai @ file:packages/clovai",
   "clovai-apps @ file:packages/clovai-apps",

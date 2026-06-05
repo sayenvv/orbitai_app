@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import uuid
 
+import numpy as np
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import RagChunk, RagDocument
 from app.services.rag.embeddings import embed_query, embedding_stack_from_metadata
-from app.services.rag.similarity import cosine_similarity
+from app.services.rag.similarity import batch_cosine_similarity
 
 
 def retrieve_context(
@@ -33,23 +34,37 @@ def retrieve_context(
     if not query_vector:
         return ""
 
-    chunks = (
-        db.query(RagChunk)
-        .filter(RagChunk.document_id == document_id)
+    scoring_rows = (
+        db.query(
+            RagChunk.id,
+            RagChunk.chunk_index,
+            RagChunk.embedding,
+            RagChunk.page_start,
+            RagChunk.page_end,
+        )
+        .filter(RagChunk.document_id == document_id, RagChunk.embedding.is_not(None))
         .order_by(RagChunk.chunk_index)
         .all()
     )
-    if not chunks:
+    if not scoring_rows:
         return ""
 
     limit = top_k or settings.rag_top_k
-    scored = [
-        (cosine_similarity(query_vector, chunk.embedding), chunk)
-        for chunk in chunks
-        if chunk.embedding
+    embeddings = [row.embedding for row in scoring_rows]
+    scores = batch_cosine_similarity(query_vector, embeddings)
+    top_indices = np.argsort(scores)[::-1][:limit]
+
+    top_ids = [scoring_rows[int(index)].id for index in top_indices]
+    content_by_id = {
+        row.id: row.content
+        for row in db.query(RagChunk.id, RagChunk.content).filter(RagChunk.id.in_(top_ids)).all()
+    }
+
+    top = [
+        scoring_rows[int(index)]
+        for index in top_indices
+        if scoring_rows[int(index)].id in content_by_id
     ]
-    scored.sort(key=lambda item: item[0], reverse=True)
-    top = [chunk for _, chunk in scored[:limit]]
 
     parts: list[str] = []
     for index, chunk in enumerate(top, start=1):
@@ -60,7 +75,7 @@ def retrieve_context(
                 if chunk.page_start == chunk.page_end
                 else f" (pages {chunk.page_start}-{chunk.page_end})"
             )
-        parts.append(f"[Excerpt {index}{page_label}]\n{chunk.content}")
+        parts.append(f"[Excerpt {index}{page_label}]\n{content_by_id[chunk.id]}")
 
     header = f"Document: {document.original_filename}"
     if document.doc_metadata.get("pages_truncated"):

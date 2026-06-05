@@ -115,6 +115,7 @@ def get_conversation(
 ):
     conv = (
         db.query(Conversation)
+        .options(joinedload(Conversation.messages))
         .filter(Conversation.id == conversation_id, Conversation.user_id == user.id)
         .first()
     )

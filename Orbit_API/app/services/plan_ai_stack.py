@@ -67,6 +67,12 @@ PLAN_STACK_DEFAULTS: dict[str, PlanAiStack] = {
     "enterprise": default_azure_stack(),
 }
 
+_ai_stack_cache: dict[str, PlanAiStack] = {}
+
+
+def invalidate_plan_ai_stack_cache() -> None:
+    _ai_stack_cache.clear()
+
 
 def _coerce_chat(raw: Any) -> ChatStackConfig:
     if not isinstance(raw, dict):
@@ -129,11 +135,18 @@ def get_plan_ai_stack(db: Session, plan: str) -> PlanAiStack:
     if normalized not in PLANS:
         normalized = "free"
 
+    cached = _ai_stack_cache.get(normalized)
+    if cached is not None:
+        return cached
+
     row = db.query(PlanLimit).filter(PlanLimit.plan == normalized).first()
     if not row:
-        return PLAN_STACK_DEFAULTS.get(normalized, default_local_stack())
+        stack = PLAN_STACK_DEFAULTS.get(normalized, default_local_stack())
+    else:
+        stack = parse_ai_stack(row.ai_stack, plan=normalized)
 
-    return parse_ai_stack(row.ai_stack, plan=normalized)
+    _ai_stack_cache[normalized] = stack
+    return stack
 
 
 def validate_ai_stack(stack: PlanAiStack) -> None:

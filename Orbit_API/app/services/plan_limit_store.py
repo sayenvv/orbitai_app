@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.plan_limits import PLANS, coerce_token_limit, invalidate_plan_limits_cache
 from app.models import PlanLimit
 from app.services.plan_ai_stack import (
+    invalidate_plan_ai_stack_cache,
     PLAN_STACK_DEFAULTS,
     ai_stack_to_dict,
     merge_ai_stack_patch,
@@ -113,6 +114,7 @@ def ensure_plan_limits(db: Session) -> list[PlanLimit]:
         )
     db.commit()
     invalidate_plan_limits_cache()
+    invalidate_plan_ai_stack_cache()
     return db.query(PlanLimit).order_by(PlanLimit.plan).all()
 
 
@@ -174,4 +176,5 @@ def update_plan_limits(db: Session, updates: dict[str, dict[str, Any]]) -> list[
 
     db.commit()
     invalidate_plan_limits_cache()
+    invalidate_plan_ai_stack_cache()
     return list_plan_limits(db, include_ai_stack=True)

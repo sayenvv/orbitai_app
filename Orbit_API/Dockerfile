@@ -9,6 +9,9 @@ RUN pip install --no-cache-dir /tmp/clovai
 COPY packages/clovai-apps /tmp/clovai-apps
 RUN pip install --no-cache-dir /tmp/clovai-apps
 
+COPY packages/orbit_orchestration /tmp/orbit_orchestration
+RUN pip install --no-cache-dir /tmp/orbit_orchestration
+
 COPY personal/orbitai_app/Orbit_API/pyproject.toml personal/orbitai_app/Orbit_API/README.md ./
 COPY personal/orbitai_app/Orbit_API/app ./app
 COPY personal/orbitai_app/Orbit_API/alembic.ini ./

@@ -66,8 +66,8 @@ def ingest_document(
 
         db.query(RagChunk).filter(RagChunk.document_id == document.id).delete()
 
-        for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True)):
-            db.add(
+        db.add_all(
+            [
                 RagChunk(
                     document_id=document.id,
                     chunk_index=index,
@@ -76,7 +76,9 @@ def ingest_document(
                     page_end=chunk.page_end,
                     embedding=vector,
                 )
-            )
+                for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
+            ]
+        )
 
         document.chunk_count = len(chunks)
         document.status = "ready"

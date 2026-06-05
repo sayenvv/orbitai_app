@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.control._helpers import require_agent, require_operator
 from app.db.session import get_db
 from app.models import Agent, AgentConfiguration, User
+from app.services.agent_registry import invalidate_agent_registry_cache
 from app.schemas import (
     ControlAgentCreate,
     ControlAgentResponse,
@@ -52,6 +53,7 @@ def create_agent(
         )
     )
     db.commit()
+    invalidate_agent_registry_cache()
     db.refresh(agent)
     return agent
 
@@ -76,6 +78,7 @@ def update_agent(
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(agent, field, value)
     db.commit()
+    invalidate_agent_registry_cache()
     db.refresh(agent)
     return agent
 
@@ -89,6 +92,7 @@ def delete_agent(
     agent = require_agent(db, agent_id)
     db.delete(agent)
     db.commit()
+    invalidate_agent_registry_cache()
 
 
 @router.post("/agents/{agent_id}/publish", response_model=ControlAgentResponse)
@@ -100,6 +104,7 @@ def publish_agent(
     agent = require_agent(db, agent_id)
     agent.status = "active"
     db.commit()
+    invalidate_agent_registry_cache()
     db.refresh(agent)
     return agent
 
@@ -149,6 +154,7 @@ def update_configuration(
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(cfg, field, value)
     db.commit()
+    invalidate_agent_registry_cache()
     db.refresh(cfg)
     return ControlConfigurationResponse(
         model=cfg.model,

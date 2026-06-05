@@ -12,14 +12,12 @@ from app.schemas import (
     PlanLimitsResponse,
     PublicAgentListResponse,
     PublicAgentResponse,
-    RagDocumentListResponse,
     RagDocumentResponse,
     SubscriptionResponse,
 )
 from app.services.agent_registry import AgentRegistry, CLOVAI_AGENT_SLUG
 from app.services.library_store import list_user_library
 from app.services.plan_limit_store import list_plan_limits
-from app.services.rag.document_store import list_user_documents
 from app.services.token_usage import ensure_current_period, get_usage_snapshot
 
 router = APIRouter(tags=["public"])
@@ -86,16 +84,6 @@ def get_subscription(
 ):
     ensure_current_period(db, user)
     return _subscription_response(user)
-
-
-@router.get("/files", response_model=RagDocumentListResponse)
-def list_files_legacy(
-    user: User = Depends(require_chat_user),
-    db: Session = Depends(get_db),
-):
-    return RagDocumentListResponse(
-        data=[RagDocumentResponse(**item) for item in list_user_documents(db, user.id)]
-    )
 
 
 @router.get("/study-materials")

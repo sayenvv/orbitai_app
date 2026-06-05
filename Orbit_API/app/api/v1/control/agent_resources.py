@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.control._helpers import normalize_control_uuid, require_agent, require_operator
 from app.db.session import get_db
+from app.services.agent_registry import invalidate_agent_registry_cache
 from app.models import (
     AdaptiveCard,
     Agent,
@@ -150,6 +151,7 @@ def replace_agent_tools(
         saved.append(tool)
 
     db.commit()
+    invalidate_agent_registry_cache()
     return [_tool_to_item(tool) for tool in saved]
 
 
