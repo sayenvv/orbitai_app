@@ -96,20 +96,20 @@ export function ChatSideRailShimmer() {
 export function PhotoStudioLaunchShimmer() {
   return (
     <div
-      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      className="home-warm-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden"
       aria-busy="true"
       aria-label="Opening Clovai Canvas"
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-violet-400/15 blur-3xl" />
-        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-fuchsia-400/10 blur-3xl" />
+        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-foreground/[0.03] blur-3xl" />
+        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-primary/[0.04] blur-3xl" />
       </div>
       <div className="relative min-h-0 flex-1 overflow-y-auto p-4 md:p-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-          <Skeleton className="h-44 w-full rounded-[2rem] bg-gradient-to-br from-violet-200/40 via-fuchsia-200/30 to-cyan-200/40 md:h-52 dark:from-violet-900/30 dark:via-fuchsia-900/20 dark:to-cyan-900/25" />
+          <Skeleton className="h-44 w-full rounded-[2rem] md:h-52" />
           <div className="grid gap-3 lg:grid-cols-2">
-            <Skeleton className="h-28 w-full rounded-[1.25rem] bg-violet-100/50 dark:bg-violet-950/20" />
-            <Skeleton className="h-28 w-full rounded-[1.25rem] bg-cyan-100/50 dark:bg-cyan-950/20" />
+            <Skeleton className="h-28 w-full rounded-[1.25rem]" />
+            <Skeleton className="h-28 w-full rounded-[1.25rem]" />
           </div>
           <Skeleton className="h-36 w-full rounded-[1.35rem]" />
         </div>
@@ -122,11 +122,15 @@ export function PhotoStudioLaunchShimmer() {
 export function ResearchCompanionWorkspaceShimmer() {
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      className="home-warm-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden"
       aria-busy="true"
       aria-label="Opening workspace"
     >
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-8">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-foreground/[0.03] blur-3xl" />
+        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-primary/[0.04] blur-3xl" />
+      </div>
+      <div className="relative min-h-0 flex-1 overflow-y-auto p-4 md:p-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
           <Skeleton className="h-44 w-full rounded-[2rem] md:h-52" />
           <Skeleton className="h-36 w-full rounded-2xl" />
@@ -137,7 +141,7 @@ export function ResearchCompanionWorkspaceShimmer() {
           </div>
         </div>
       </div>
-      <p className="pb-4 text-center text-xs font-medium text-muted-foreground">Opening workspace…</p>
+      <p className="relative pb-4 text-center text-xs font-medium text-muted-foreground">Opening workspace…</p>
     </div>
   );
 }
