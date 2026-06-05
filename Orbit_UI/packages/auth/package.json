@@ -1,0 +1,22 @@
+{
+  "name": "@orbit/auth",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "echo \"no lint\""
+  },
+  "dependencies": {
+    "@orbit/api": "workspace:*",
+    "zustand": "^5.0.13"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@orbit/tsconfig": "workspace:*",
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

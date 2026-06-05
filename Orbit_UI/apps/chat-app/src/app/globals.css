@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "streamdown/styles.css";
 @import "@orbit/ui/src/agent-appearance.css";
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";

@@ -1,9 +1,14 @@
 "use client";
 
 import type { UIMessage } from "ai";
+import dynamic from "next/dynamic";
 import { memo } from "react";
-import { ChatStreamdown } from "@/components/chat/chat-streamdown";
 import { textFromUIMessage } from "@/lib/orbit-ui-message";
+
+const ChatStreamdown = dynamic(
+  () => import("@/components/chat/chat-streamdown").then((m) => ({ default: m.ChatStreamdown })),
+  { ssr: false },
+);
 
 type ChatAssistantResponseProps = {
   message: UIMessage;

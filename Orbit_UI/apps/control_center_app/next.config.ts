@@ -7,7 +7,7 @@ const nextConfig: NextConfig = withSecurityHeaders({
   turbopack: {
     root: path.resolve(__dirname, "../.."),
   },
-  transpilePackages: ["@orbit/ui", "@orbit/security"],
+  transpilePackages: ["@orbit/ui", "@orbit/api", "@orbit/auth", "@orbit/security"],
   async rewrites() {
     return [
       {

@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@orbit/api": "workspace:*",
+    "@orbit/auth": "workspace:*",
     "@orbit/security": "workspace:*",
     "@orbit/ui": "workspace:*",
     "@radix-ui/react-slot": "^1.2.4",

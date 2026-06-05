@@ -1,5 +1,13 @@
+import {
+  ApiError,
+  createApiClient,
+  getApiErrorMessage,
+  type ApiUser,
+} from "@orbit/api";
 import type { User } from "@/store/auth-store";
 import type { Conversation, Message } from "@/types";
+
+export { ApiError, getApiErrorMessage };
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api";
 const DEFAULT_CHAT_API_BASE_URL = "http://localhost:8000/api/chat";
@@ -20,26 +28,32 @@ function resolveChatApiBaseUrl(): string {
   return `${resolveApiBaseUrl().replace(/\/api\/?$/, "")}/api/chat`;
 }
 
+const api = createApiClient({
+  resolveBaseUrl: resolveApiBaseUrl,
+  onUnauthorized: async () => {
+    const { useAuthStore } = await import("@/store/auth-store");
+    useAuthStore.getState().logout();
+  },
+});
+
+const chatApiClient = createApiClient({
+  resolveBaseUrl: resolveChatApiBaseUrl,
+  onUnauthorized: async () => {
+    const { useAuthStore } = await import("@/store/auth-store");
+    useAuthStore.getState().logout();
+  },
+});
+
 /** Resolve at call time so browser uses same-origin /api (session cookies). */
 export function getApiBaseUrl(): string {
-  return resolveApiBaseUrl();
+  return api.getApiBaseUrl();
 }
 
 export function getChatApiBaseUrl(): string {
-  return resolveChatApiBaseUrl();
+  return chatApiClient.getApiBaseUrl();
 }
 
-/** Raw user shape from Orbit API */
-export type ApiUser = {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  email_verified?: boolean;
-  image?: string | null;
-  created_at?: string;
-  updated_at?: string;
-};
+export type { ApiUser };
 
 export type ApiAgent = {
   id: string;
@@ -236,33 +250,6 @@ export type StreamEvent =
       };
     };
 
-export class ApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-  }
-}
-
-export function parseApiError(data: unknown, fallback: string): string {
-  if (!data || typeof data !== "object") return fallback;
-  const detail = (data as { detail?: unknown }).detail;
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail) && detail.length > 0) {
-    const first = detail[0] as { msg?: string };
-    if (typeof first?.msg === "string") return first.msg;
-  }
-  return fallback;
-}
-
-export function getApiErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
-
 export function mapApiUser(raw: ApiUser): User {
   const now = new Date().toISOString();
   return {
@@ -277,90 +264,49 @@ export function mapApiUser(raw: ApiUser): User {
   };
 }
 
-async function request<T>(
-  baseUrl: string,
+function request<T>(
   path: string,
   options: RequestInit & { timeoutMs?: number } = {},
 ): Promise<T> {
-  const { timeoutMs, ...fetchOptions } = options;
-  const headers: Record<string, string> = {
-    ...(fetchOptions.headers as Record<string, string> | undefined),
-  };
-  if (fetchOptions.body && !headers["Content-Type"]) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...fetchOptions,
-    credentials: "include",
-    headers,
-    signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : fetchOptions.signal,
-  });
-
-  if (!response.ok) {
-    if (response.status === 401 && path.includes("/auth/")) {
-      const { useAuthStore } = await import("@/store/auth-store");
-      useAuthStore.getState().logout();
-    }
-    const error = await response.json().catch(() => null);
-    throw new ApiError(parseApiError(error, `HTTP ${response.status}`), response.status);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json() as Promise<T>;
+  return api.request<T>(path, options);
 }
 
-async function uploadRequest<T>(
-  baseUrl: string,
+function chatRequest<T>(
   path: string,
-  formData: FormData,
+  options: RequestInit & { timeoutMs?: number } = {},
 ): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  });
+  return chatApiClient.request<T>(path, options);
+}
 
-  if (!response.ok) {
-    if (response.status === 401 && path.includes("/auth/")) {
-      const { useAuthStore } = await import("@/store/auth-store");
-      useAuthStore.getState().logout();
-    }
-    const error = await response.json().catch(() => null);
-    throw new ApiError(parseApiError(error, `HTTP ${response.status}`), response.status);
-  }
-
-  return response.json() as Promise<T>;
+function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
+  return api.uploadRequest<T>(path, formData);
 }
 
 // ─── Auth (`/api/auth/*`) ───────────────────────────────────────────────────
 
 export const authApi = {
-  me: () => request<ApiUser>(getApiBaseUrl(), "/auth/chat/me"),
+  me: () => request<ApiUser>("/auth/chat/me"),
 
   login: (email: string, password: string) =>
-    request<{ user: ApiUser }>(getApiBaseUrl(), "/auth/chat/login", {
+    request<{ user: ApiUser }>("/auth/chat/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   register: (name: string, email: string, password: string) =>
-    request<{ user: ApiUser }>(getApiBaseUrl(), "/auth/chat/register", {
+    request<{ user: ApiUser }>("/auth/chat/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
     }),
 
   updateProfile: (name: string) =>
-    request<ApiUser>(getApiBaseUrl(), "/auth/chat/me", {
+    request<ApiUser>("/auth/chat/me", {
       method: "PATCH",
       body: JSON.stringify({ name }),
     }),
 
   logout: () =>
-    request<{ ok: boolean }>(getApiBaseUrl(), "/auth/chat/logout", { method: "POST" }),
+    request<{ ok: boolean }>("/auth/chat/logout", { method: "POST" }),
 };
 
 // ─── Public misc (`/api/*`) ───────────────────────────────────────────────────
@@ -371,28 +317,28 @@ export type ApiDefaultChat = {
 };
 
 export const publicApi = {
-  defaultChat: () => request<ApiDefaultChat>(getApiBaseUrl(), "/default-chat"),
+  defaultChat: () => request<ApiDefaultChat>("/default-chat"),
 
   agents: () =>
-    request<{ data: ApiAgent[] }>(getApiBaseUrl(), "/agents"),
+    request<{ data: ApiAgent[] }>("/agents"),
 
   subscription: () =>
-    request<ApiTokenUsage>(getApiBaseUrl(), "/subscription"),
+    request<ApiTokenUsage>("/subscription"),
 
   plans: () =>
-    request<{ data: ApiPlanLimit[] }>(getApiBaseUrl(), "/plans"),
+    request<{ data: ApiPlanLimit[] }>("/plans"),
 
-  files: () => request<{ data: ApiRagDocument[] }>(getApiBaseUrl(), "/files"),
+  files: () => request<{ data: ApiRagDocument[] }>("/files"),
 
-  getFile: (id: string) => request<ApiRagDocument>(getApiBaseUrl(), `/files/${id}`),
+  getFile: (id: string) => request<ApiRagDocument>(`/files/${id}`),
 
   deleteFile: (id: string) =>
-    request<{ ok: boolean }>(getApiBaseUrl(), `/files/${id}`, { method: "DELETE" }),
+    request<{ ok: boolean }>(`/files/${id}`, { method: "DELETE" }),
 
   inspectPdf: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return uploadRequest<ApiPdfInspect>(getApiBaseUrl(), "/files/inspect", formData);
+    return uploadRequest<ApiPdfInspect>("/files/inspect", formData);
   },
 
   downloadUpload: (id: string, filename: string) =>
@@ -401,7 +347,7 @@ export const publicApi = {
     ),
 
   deleteGenerated: (id: string) =>
-    request<{ ok: boolean }>(getApiBaseUrl(), `/library/generated/${id}`, { method: "DELETE" }),
+    request<{ ok: boolean }>(`/library/generated/${id}`, { method: "DELETE" }),
 
   downloadGenerated: (id: string, filename: string) =>
     import("@/lib/file-download").then(({ downloadFromApi }) =>
@@ -416,10 +362,7 @@ export const publicApi = {
     documentId: string,
     insightTypes?: string[],
   ) =>
-    request<ApiLibraryGenerated>(
-      getApiBaseUrl(),
-      `/library/uploads/${documentId}/insights`,
-      {
+    request<ApiLibraryGenerated>(`/library/uploads/${documentId}/insights`, {
         method: "POST",
         timeoutMs: 5 * 60 * 1000,
         body: JSON.stringify({
@@ -434,11 +377,11 @@ export const publicApi = {
     if (conversationId) {
       formData.append("conversation_id", conversationId);
     }
-    return uploadRequest<ApiRagDocument>(getApiBaseUrl(), "/files/upload", formData);
+    return uploadRequest<ApiRagDocument>("/files/upload", formData);
   },
 
   importWebpageUrl: (url: string, conversationId?: string | null) =>
-    request<ApiRagDocument>(getApiBaseUrl(), "/files/import-url", {
+    request<ApiRagDocument>("/files/import-url", {
       method: "POST",
       body: JSON.stringify({
         url,
@@ -448,7 +391,7 @@ export const publicApi = {
 
   /** Fetch and extract text from one or more pages (does not ingest into library). */
   crawlWeb: (body: ApiCrawlRequest) =>
-    request<ApiCrawlResponse>(getApiBaseUrl(), "/crawl", {
+    request<ApiCrawlResponse>("/crawl", {
       method: "POST",
       body: JSON.stringify(body),
     }),
@@ -462,7 +405,7 @@ export const publicApi = {
     const started = Date.now();
 
     while (true) {
-      const doc = await request<ApiRagDocument>(getApiBaseUrl(), `/files/${id}`);
+      const doc = await request<ApiRagDocument>(`/files/${id}`);
       options?.onProgress?.(doc);
 
       if (doc.status === "ready") return doc;
@@ -478,12 +421,12 @@ export const publicApi = {
   },
 
   studyMaterials: () =>
-    request<{ data: unknown[] }>(getApiBaseUrl(), "/study-materials"),
+    request<{ data: unknown[] }>("/study-materials"),
 
-  library: () => request<ApiLibraryResponse>(getApiBaseUrl(), "/library"),
+  library: () => request<ApiLibraryResponse>("/library"),
 
   getGeneratedInsight: (id: string) =>
-    request<ApiLibraryGenerated>(getApiBaseUrl(), `/library/generated/${id}`),
+    request<ApiLibraryGenerated>(`/library/generated/${id}`),
 };
 
 // ─── Photo Studio (`/api/apps/photo-studio/*`) ───────────────────────────────
@@ -521,11 +464,10 @@ export type ApiPhotoStudioOptions = {
 };
 
 export const photoStudioApi = {
-  options: () => request<ApiPhotoStudioOptions>(getApiBaseUrl(), "/apps/photo-studio/options"),
+  options: () => request<ApiPhotoStudioOptions>("/apps/photo-studio/options"),
 
   generate: (input: ApiPhotoStudioGenerateInput) =>
     request<{ batchId: string; variants: ApiPhotoStudioGeneratedItem[] }>(
-      getApiBaseUrl(),
       "/apps/photo-studio/generate",
       {
         method: "POST",
@@ -541,18 +483,15 @@ export const photoStudioApi = {
     ),
 
   generations: () =>
-    request<{ data: ApiPhotoStudioGeneratedItem[] }>(
-      getApiBaseUrl(),
-      "/apps/photo-studio/generations",
-    ),
+    request<{ data: ApiPhotoStudioGeneratedItem[] }>("/apps/photo-studio/generations"),
 
   deleteGeneration: (id: string) =>
-    request<{ ok: boolean }>(getApiBaseUrl(), `/apps/photo-studio/generations/${id}`, {
+    request<{ ok: boolean }>(`/apps/photo-studio/generations/${id}`, {
       method: "DELETE",
     }),
 
   getGeneration: (id: string) =>
-    request<ApiPhotoStudioGeneratedItem>(getApiBaseUrl(), `/apps/photo-studio/generations/${id}`),
+    request<ApiPhotoStudioGeneratedItem>(`/apps/photo-studio/generations/${id}`),
 
   assets: () =>
     request<
@@ -563,39 +502,35 @@ export const photoStudioApi = {
         downloadUrl: string;
         createdAt?: string | null;
       }>
-    >(getApiBaseUrl(), "/apps/photo-studio/assets"),
+    >("/apps/photo-studio/assets"),
 
   designs: (workspaceId?: string) => {
     const query = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
-    return request<ApiPhotoStudioDesignListResponse>(
-      getApiBaseUrl(),
-      `/apps/photo-studio/designs${query}`,
-    );
+    return request<ApiPhotoStudioDesignListResponse>(`/apps/photo-studio/designs${query}`);
   },
 
   workspaces: (limit = 20) =>
     request<{ data: ApiPhotoStudioWorkspaceSummary[] }>(
-      getApiBaseUrl(),
       `/apps/photo-studio/workspaces?limit=${limit}`,
     ),
 
   getWorkspace: (id: string) =>
-    request<ApiPhotoStudioWorkspaceResponse>(getApiBaseUrl(), `/apps/photo-studio/workspaces/${id}`),
+    request<ApiPhotoStudioWorkspaceResponse>(`/apps/photo-studio/workspaces/${id}`),
 
   createWorkspace: (input: ApiPhotoStudioWorkspaceCreateInput) =>
-    request<ApiPhotoStudioWorkspaceResponse>(getApiBaseUrl(), "/apps/photo-studio/workspaces", {
+    request<ApiPhotoStudioWorkspaceResponse>("/apps/photo-studio/workspaces", {
       method: "POST",
       body: JSON.stringify(input),
     }),
 
   updateWorkspace: (id: string, input: ApiPhotoStudioWorkspaceUpdateInput) =>
-    request<ApiPhotoStudioWorkspaceResponse>(getApiBaseUrl(), `/apps/photo-studio/workspaces/${id}`, {
+    request<ApiPhotoStudioWorkspaceResponse>(`/apps/photo-studio/workspaces/${id}`, {
       method: "PUT",
       body: JSON.stringify(input),
     }),
 
   deleteWorkspace: (id: string) =>
-    request<{ ok: boolean }>(getApiBaseUrl(), `/apps/photo-studio/workspaces/${id}`, {
+    request<{ ok: boolean }>(`/apps/photo-studio/workspaces/${id}`, {
       method: "DELETE",
     }),
 
@@ -616,7 +551,7 @@ export const photoStudioApi = {
       customCanvasGradientEnabled?: boolean;
       canvasShapes: unknown[];
       canvasTexts: unknown[];
-    }>(getApiBaseUrl(), `/apps/photo-studio/canvas-export${qs ? `?${qs}` : ""}`);
+    }>(`/apps/photo-studio/canvas-export${qs ? `?${qs}` : ""}`);
   },
 
   exportCanvasJson: (input: {
@@ -631,10 +566,7 @@ export const photoStudioApi = {
     canvasShapes: unknown[];
     canvasTexts: unknown[];
   }) =>
-    request<{ fileName: string; relativePath: string }>(
-      getApiBaseUrl(),
-      "/apps/photo-studio/canvas-export",
-      {
+    request<{ fileName: string; relativePath: string }>("/apps/photo-studio/canvas-export", {
         method: "POST",
         body: JSON.stringify(input),
       },
@@ -728,23 +660,22 @@ export const chatApi = {
     if (params?.offset != null) search.set("offset", String(params.offset));
     if (params?.q?.trim()) search.set("q", params.q.trim());
     const query = search.toString();
-    return request<ConversationListResult>(
-      getChatApiBaseUrl(),
+    return chatRequest<ConversationListResult>(
       query ? `/conversations?${query}` : "/conversations",
     );
   },
 
   createConversation: (body: { agent_id?: string | null; title?: string }) =>
-    request<ApiConversationSummary>(getChatApiBaseUrl(), "/conversations", {
+    chatRequest<ApiConversationSummary>("/conversations", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   getConversation: (id: string) =>
-    request<{ messages: ApiMessage[] }>(getChatApiBaseUrl(), `/conversations/${id}`),
+    chatRequest<{ messages: ApiMessage[] }>(`/conversations/${id}`),
 
   deleteConversation: (id: string) =>
-    request<void>(getChatApiBaseUrl(), `/conversations/${id}`, { method: "DELETE" }),
+    chatRequest<void>(`/conversations/${id}`, { method: "DELETE" }),
 
   streamMessage: async function* (
     body: {
@@ -840,17 +771,15 @@ export type ApiProjectPlanningDocument = {
 
 export const projectPlanningApi = {
   listTemplates: () =>
-    request<{ projectIds: string[] }>(getApiBaseUrl(), "/apps/project-planning/templates"),
+    request<{ projectIds: string[] }>("/apps/project-planning/templates"),
 
   getProject: (projectId: string) =>
     request<ApiProjectPlanningDocument>(
-      getApiBaseUrl(),
       `/apps/project-planning/projects/${encodeURIComponent(projectId)}`,
     ),
 
   saveProject: (projectId: string, body: ApiProjectPlanningDocument) =>
     request<{ projectId: string; relativePath: string; updatedAt: string }>(
-      getApiBaseUrl(),
       `/apps/project-planning/projects/${encodeURIComponent(projectId)}`,
       { method: "PUT", body: JSON.stringify(body) },
     ),
@@ -878,7 +807,7 @@ export const projectPlanningApi = {
       reply: string;
       worksheet?: ApiProjectPlanningWorksheetContent;
       worksheetUpdated: boolean;
-    }>(getApiBaseUrl(), "/apps/project-planning/ai-assist", {
+    }>("/apps/project-planning/ai-assist", {
       method: "POST",
       body: JSON.stringify(body),
     }),

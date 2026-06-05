@@ -8,6 +8,15 @@ const apiProxy = process.env.API_PROXY_URL ?? "http://127.0.0.1:8000";
 const nextConfig: NextConfig = withSecurityHeaders({
   devIndicators: false,
   allowedDevOrigins: buildAllowedDevOrigins(),
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "streamdown",
+      "@streamdown/code",
+      "framer-motion",
+      "@tanstack/react-query",
+    ],
+  },
   images: {
     remotePatterns: [
       {
@@ -25,6 +34,7 @@ const nextConfig: NextConfig = withSecurityHeaders({
   },
   transpilePackages: [
     "@orbit/ui",
+    "@orbit/api",
     "@orbit/clovai-apps",
     "@orbit/security",
     "streamdown",

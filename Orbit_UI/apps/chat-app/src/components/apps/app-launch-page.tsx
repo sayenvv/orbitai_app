@@ -1,9 +1,40 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { getLaunchAppKey, isLaunchApp, type CatalogApp } from "@orbit/clovai-apps";
-import { PhotoStudioAppPage } from "@/components/apps/photo-studio-app-page";
-import { ProjectPlanningAppPage } from "@/components/apps/project-planning-app-page";
-import { ResearchCompanionAppPage } from "@/components/apps/research-companion-app-page";
+import { Loader2 } from "lucide-react";
+
+function AppLaunchLoading() {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center p-8">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
+    </div>
+  );
+}
+
+const ResearchCompanionAppPage = dynamic(
+  () =>
+    import("@/components/apps/research-companion-app-page").then((m) => ({
+      default: m.ResearchCompanionAppPage,
+    })),
+  { ssr: false, loading: AppLaunchLoading },
+);
+
+const PhotoStudioAppPage = dynamic(
+  () =>
+    import("@/components/apps/photo-studio-app-page").then((m) => ({
+      default: m.PhotoStudioAppPage,
+    })),
+  { ssr: false, loading: AppLaunchLoading },
+);
+
+const ProjectPlanningAppPage = dynamic(
+  () =>
+    import("@/components/apps/project-planning-app-page").then((m) => ({
+      default: m.ProjectPlanningAppPage,
+    })),
+  { ssr: false, loading: AppLaunchLoading },
+);
 
 type AppLaunchPageProps = {
   app: CatalogApp;

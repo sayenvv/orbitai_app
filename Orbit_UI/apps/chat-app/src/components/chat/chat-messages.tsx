@@ -6,7 +6,7 @@ import { UpgradeCtaButton } from "@/components/plans/upgrade-cta";
 import { cn } from "@/lib/utils";
 import type { CSSProperties, ReactNode } from "react";
 import { Bot, Copy, Check } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   assistantCopyText,
@@ -106,7 +106,7 @@ export function ChatMessages({
   );
 }
 
-function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   message,
   isStreaming,
   showUpgrade,
@@ -174,4 +174,4 @@ function MessageBubble({
       </div>
     </div>
   );
-}
+});

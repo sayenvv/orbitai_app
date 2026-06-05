@@ -29,6 +29,7 @@ import { useChatSessionStore } from "@/store/chat-session-store";
 import { useAgents } from "@/hooks/use-agents";
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useShallow } from "zustand/react/shallow";
 
 /** Survives React Strict Mode remounts — one auto-send per pending launch. */
 const processedInitialSends = new Set<string>();
@@ -57,8 +58,25 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     refreshConversationsList,
     setLoading,
     deleteConversation,
-  } = useChatStore();
-  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
+  } = useChatStore(
+    useShallow((state) => ({
+      conversations: state.conversations,
+      activeConversationId: state.activeConversationId,
+      isLoading: state.isLoading,
+      conversationsHydrated: state.conversationsHydrated,
+      setActiveConversation: state.setActiveConversation,
+      addConversation: state.addConversation,
+      addMessage: state.addMessage,
+      setConversationMessages: state.setConversationMessages,
+      updateMessage: state.updateMessage,
+      updateConversationId: state.updateConversationId,
+      refreshConversationsList: state.refreshConversationsList,
+      setLoading: state.setLoading,
+      deleteConversation: state.deleteConversation,
+    })),
+  );
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const authLoading = useAuthStore((state) => state.isLoading);
 
   const [selectedSource, setSelectedSource] = useState<StudySource | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -67,6 +85,9 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   const [agentGreeting, setAgentGreeting] = useState<Message | null>(null);
   const [conversationError, setConversationError] = useState(false);
   const [mobileComposerHeight, setMobileComposerHeight] = useState(0);
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState("");
+  const [upgradeMessageId, setUpgradeMessageId] = useState<string | null>(null);
   const handleSendMessageRef = useRef<(content: string) => Promise<void>>(async () => {});
   const streamingConversationRef = useRef(false);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -85,7 +106,12 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
   agentGreetingRef.current = agentGreeting;
 
   const displayMessages = useMemo(() => {
-    const msgs = activeConversation?.messages ?? [];
+    let msgs = activeConversation?.messages ?? [];
+    if (streamingMsgId && streamingText) {
+      msgs = msgs.map((msg) =>
+        msg.id === streamingMsgId ? { ...msg, content: streamingText } : msg,
+      );
+    }
     const base =
       agentGreeting && msgs.length === 0 && !conversationId ? [agentGreeting, ...msgs] : msgs;
     const seenIds = new Set<string>();
@@ -98,7 +124,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       if (msg.content.trim()) seenContent.add(contentKey);
       return true;
     });
-  }, [activeConversation?.messages, agentGreeting, conversationId]);
+  }, [activeConversation?.messages, agentGreeting, conversationId, streamingMsgId, streamingText]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -374,9 +400,6 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     setDraftAgentSlug,
   ]);
 
-  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
-  const [upgradeMessageId, setUpgradeMessageId] = useState<string | null>(null);
-
   const syncConversationToUrl = useCallback(
     (id: string) => {
       router.replace(conversationPath(id));
@@ -491,6 +514,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       }
 
       setStreamingMsgId(assistantMsgId);
+      setStreamingText("");
       setUpgradeMessageId(null);
       streamingConversationRef.current = true;
 
@@ -511,7 +535,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           },
           onTextUpdate: (text) => {
             streamedText = text;
-            updateMessage(streamConversationId, assistantMsgId, text);
+            setStreamingText(text);
           },
           onSideEffect: (effect) => {
             if (effect.type === "start" && effect.conversation_id) {
@@ -555,6 +579,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       } finally {
         streamingConversationRef.current = false;
         setStreamingMsgId(null);
+        setStreamingText("");
         setLoading(false);
       }
     },

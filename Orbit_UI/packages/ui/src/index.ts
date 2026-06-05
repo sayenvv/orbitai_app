@@ -3,6 +3,16 @@
 
 export { cn } from "./lib/cn";
 export {
+  formatCurrency,
+  formatDate,
+  formatNumber,
+  formatRelative,
+  initials,
+  randomId,
+} from "./lib/format";
+export { AppProviders } from "./app-providers";
+export { ThemeToggle } from "./theme-toggle";
+export {
   BRAND_NAME,
   BRAND_WORDMARK,
   BRAND_ICON,

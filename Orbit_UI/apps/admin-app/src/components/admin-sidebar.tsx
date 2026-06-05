@@ -20,7 +20,7 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@orbit/ui";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle } from "@orbit/ui";
 import { RoleSwitcher } from "@/components/role-switcher";
 import { useCanPerform } from "@/components/auth-guard";
 import type { Permission } from "@/lib/rbac";

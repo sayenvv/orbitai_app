@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@orbit/api": "workspace:*",
     "@orbit/clovai-apps": "workspace:*",
     "@orbit/security": "workspace:*",
     "@orbit/ui": "workspace:*",

@@ -17,6 +17,12 @@ importers:
 
   apps/admin-app:
     dependencies:
+      '@orbit/api':
+        specifier: workspace:*
+        version: link:../../packages/api
+      '@orbit/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@orbit/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -93,6 +99,9 @@ importers:
 
   apps/chat-app:
     dependencies:
+      '@orbit/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@orbit/clovai-apps':
         specifier: workspace:*
         version: link:../../packages/clovai-apps
@@ -205,6 +214,12 @@ importers:
 
   apps/control_center_app:
     dependencies:
+      '@orbit/api':
+        specifier: workspace:*
+        version: link:../../packages/api
+      '@orbit/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@orbit/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -279,6 +294,40 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/api:
+    devDependencies:
+      '@orbit/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^20
+        version: 20.19.41
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  packages/auth:
+    dependencies:
+      '@orbit/api':
+        specifier: workspace:*
+        version: link:../api
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      zustand:
+        specifier: ^5.0.13
+        version: 5.0.13(@types/react@19.2.15)(react@19.2.4)
+    devDependencies:
+      '@orbit/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/react':
+        specifier: ^19
+        version: 19.2.15
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   packages/clovai-apps:
     dependencies:
       lucide-react:
@@ -293,12 +342,6 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.4(react@19.2.4)
-      react-markdown:
-        specifier: ^10.1.0
-        version: 10.1.0(@types/react@19.2.15)(react@19.2.4)
-      remark-gfm:
-        specifier: ^4.0.1
-        version: 4.0.1
     devDependencies:
       '@orbit/tsconfig':
         specifier: workspace:*
@@ -341,6 +384,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.2.4(@types/react@19.2.15)(react@19.2.4)
+      '@tanstack/react-query':
+        specifier: ^5.100.11
+        version: 5.100.14(react@19.2.4)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -350,6 +396,9 @@ importers:
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.4)
+      next-themes:
+        specifier: ^0.4.6
+        version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: ^19.0.0
         version: 19.2.4
