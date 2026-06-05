@@ -7,6 +7,3 @@ export function chatContentClass(actionsInset = false) {
     actionsInset && "md:max-xl:pr-16 lg:max-xl:pr-20",
   );
 }
-
-/** @deprecated use chatContentClass */
-export const chatColumnClass = chatContentClass;

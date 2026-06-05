@@ -1,11 +1,3 @@
-/** Catalog slugs for apps without a workspace package yet. */
-export const assetRemixSlug = "asset-remix";
-export const careerCoachSlug = "career-coach";
-export const creativeEditorSlug = "creative-editor";
-export const logoStudioSlug = "logo-studio";
-export const videoSnippetsSlug = "video-snippets";
-export const voiceMakerSlug = "voice-maker";
-
 export { appSlug as photoStudioSlug, PhotoStudioApp } from "./photo-studio";
 export {
   PHOTO_STUDIO_IMAGE_ACCEPT,

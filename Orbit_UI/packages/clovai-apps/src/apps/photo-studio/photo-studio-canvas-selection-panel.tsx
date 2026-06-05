@@ -31,10 +31,6 @@ export const CANVAS_SELECTION_PANEL_MORE_WIDTH = 200;
 export const CANVAS_SELECTION_PANEL_MORE_HEIGHT = 260;
 export const CANVAS_SELECTION_PANEL_PADDING = 8;
 
-/** @deprecated Use compact dimensions for in-canvas clamping. */
-export const CANVAS_SELECTION_PANEL_WIDTH = CANVAS_SELECTION_PANEL_COMPACT_WIDTH;
-export const CANVAS_SELECTION_PANEL_HEIGHT = CANVAS_SELECTION_PANEL_COMPACT_HEIGHT;
-
 export type PhotoStudioCanvasSelectionPanelProps = {
   anchor: { top: number; left: number } | null;
   canvasHostRef: RefObject<HTMLElement | null>;

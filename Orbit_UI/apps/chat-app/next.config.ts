@@ -25,7 +25,6 @@ const nextConfig: NextConfig = withSecurityHeaders({
   },
   transpilePackages: [
     "@orbit/ui",
-    "@orbit/types",
     "@orbit/clovai-apps",
     "@orbit/security",
     "streamdown",

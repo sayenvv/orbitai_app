@@ -1457,9 +1457,6 @@ export function MainLibraryPanel({
   );
 }
 
-/** @deprecated use MainLibraryPanel */
-export const MainMaterialsPanel = MainLibraryPanel;
-
 type MainAgentsPanelProps = {
   agents: HomeAgent[];
   loading: boolean;
@@ -1533,9 +1530,3 @@ export function MainAgentsPanel({ agents, loading, onSelect }: MainAgentsPanelPr
     </div>
   );
 }
-
-/** @deprecated use SidebarRecentsList */
-export const SidebarChatsList = SidebarRecentsList;
-
-/** @deprecated use MainLibraryPanel in main content */
-export const SidebarMaterialsList = MainLibraryPanel;

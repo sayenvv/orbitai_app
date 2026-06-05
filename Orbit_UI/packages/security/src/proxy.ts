@@ -15,18 +15,12 @@ export type CreateSecurityProxyOptions = {
   extraImgSrc?: string[];
 };
 
-/** @deprecated Use `CreateSecurityProxyOptions`. */
-export type CreateSecurityMiddlewareOptions = CreateSecurityProxyOptions;
-
 /**
  * Use this pattern inline in each app's proxy.ts `config.matcher`.
  * Next.js cannot parse imported matcher values at compile time.
  */
 export const PROXY_MATCHER_PATTERN =
   "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)";
-
-/** @deprecated Use `PROXY_MATCHER_PATTERN`. */
-export const MIDDLEWARE_MATCHER_PATTERN = PROXY_MATCHER_PATTERN;
 
 function pathRequiresAuth(pathname: string, protectedPaths: string[]): boolean {
   return protectedPaths.some(
@@ -59,6 +53,3 @@ export function createSecurityProxy(options: CreateSecurityProxyOptions = {}) {
     return applySecurityHeaders(response, { isProd, extraImgSrc: options.extraImgSrc });
   };
 }
-
-/** @deprecated Use `createSecurityProxy`. */
-export const createSecurityMiddleware = createSecurityProxy;

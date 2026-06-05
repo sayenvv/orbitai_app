@@ -10,7 +10,7 @@ Monorepo for the Orbit AI frontends — chat app, operator control center, and a
 | **control_center_app** | `pnpm dev:control` | http://localhost:3003 | Agents, widgets, plan limits, AI stack config |
 | **admin-app** | `pnpm dev:admin` | http://localhost:3004 | Platform ops (users, billing) |
 
-Shared packages: `@orbit/ui`, `@orbit/types`, `@orbit/tsconfig` (under `packages/`).
+Shared packages: `@orbit/ui`, `@orbit/clovai-apps`, `@orbit/security`, `@orbit/tsconfig` (under `packages/`).
 
 ---
 

@@ -5,10 +5,7 @@ export type {
   ProjectPlanningView,
   ProjectPlanningWorkspaceTab,
 } from "./project-planning-app";
-export {
-  ProjectPlanningHeaderNav,
-  ProjectPlanningWorkspaceChrome,
-} from "./project-planning-workspace-chrome";
+export { ProjectPlanningHeaderNav } from "./project-planning-workspace-chrome";
 export {
   ProjectPlanningWorkspace,
   type ProjectPlanningDeliverableChatProps,

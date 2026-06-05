@@ -29,12 +29,6 @@ export function getChatApiBaseUrl(): string {
   return resolveChatApiBaseUrl();
 }
 
-/** @deprecated use getApiBaseUrl() for runtime resolution */
-export const API_BASE_URL = DEFAULT_API_BASE_URL;
-
-/** @deprecated use getChatApiBaseUrl() for runtime resolution */
-export const CHAT_API_BASE_URL = DEFAULT_CHAT_API_BASE_URL;
-
 /** Raw user shape from Orbit API */
 export type ApiUser = {
   id: string;

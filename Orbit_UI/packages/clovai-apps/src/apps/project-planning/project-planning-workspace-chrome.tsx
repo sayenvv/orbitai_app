@@ -122,6 +122,3 @@ export function ProjectPlanningHeaderNav({
     </div>
   );
 }
-
-/** @deprecated Use ProjectPlanningHeaderNav in the app shell top bar. */
-export const ProjectPlanningWorkspaceChrome = ProjectPlanningHeaderNav;

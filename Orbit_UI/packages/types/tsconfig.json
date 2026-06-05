@@ -1,4 +1,0 @@
-{
-  "extends": "@orbit/tsconfig/base.json",
-  "include": ["src/**/*"]
-}
