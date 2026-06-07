@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 type SidebarTooltipProps = {
   label: string;
   hint?: string;
-  side?: "right" | "top";
+  side?: "left" | "right" | "top";
   children: ReactNode;
   className?: string;
   disabled?: boolean;
@@ -31,6 +31,8 @@ export function SidebarTooltip({
         role="tooltip"
         className={cn(
           "glass-surface pointer-events-none absolute z-[200] min-w-[7rem] max-w-[14rem] rounded-xl px-3 py-2 opacity-0 transition-all duration-150",
+          side === "left" &&
+            "right-[calc(100%+0.625rem)] top-1/2 -translate-y-1/2 -translate-x-1 group-hover/sidebar-tip:translate-x-0 group-hover/sidebar-tip:opacity-100 group-focus-within/sidebar-tip:translate-x-0 group-focus-within/sidebar-tip:opacity-100",
           side === "right" &&
             "left-[calc(100%+0.625rem)] top-1/2 -translate-y-1/2 translate-x-1 group-hover/sidebar-tip:translate-x-0 group-hover/sidebar-tip:opacity-100 group-focus-within/sidebar-tip:translate-x-0 group-focus-within/sidebar-tip:opacity-100",
           side === "top" &&

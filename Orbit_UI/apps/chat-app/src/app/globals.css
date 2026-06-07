@@ -1093,3 +1093,854 @@
   border-bottom: 1px solid var(--border);
   background-color: var(--background);
 }
+
+.code-editor-input::selection {
+  background: color-mix(in oklab, var(--primary) 28%, transparent);
+}
+
+.code-editor-input:focus-visible {
+  outline: none;
+}
+
+/* IDE editor — syntax highlight overlay + transparent input */
+.ide-editor-body {
+  background: transparent;
+}
+
+.ide-editor-highlight {
+  color: color-mix(in oklab, var(--foreground) 92%, transparent);
+}
+
+.ide-editor-highlight-line {
+  min-height: calc(12px * 1.55);
+}
+
+.ide-editor-input {
+  color: transparent;
+  caret-color: color-mix(in oklab, var(--foreground) 92%, transparent);
+  -webkit-text-fill-color: transparent;
+}
+
+.ide-editor-input::selection {
+  -webkit-text-fill-color: transparent;
+}
+
+/* Shiki dual-theme tokens (github-light / github-dark) */
+.ide-editor-highlight [style*="--shiki-light"] {
+  color: var(--shiki-light) !important;
+}
+
+html.dark .ide-editor-highlight [style*="--shiki-dark"] {
+  color: var(--shiki-dark) !important;
+}
+
+/* ─── IDE workspace — premium editor chrome ───────────────────────── */
+.ide-workspace {
+  --ide-surface: color-mix(in oklab, var(--background) 92%, var(--workspace-tab-bg) 8%);
+  --ide-surface-raised: color-mix(in oklab, var(--background) 84%, var(--workspace-tab-bg) 16%);
+  --ide-surface-muted: color-mix(in oklab, var(--foreground) 4.5%, var(--background));
+  --ide-border: color-mix(in oklab, var(--workspace-tab-border) 72%, transparent);
+  --ide-border-subtle: color-mix(in oklab, var(--foreground) 7%, transparent);
+  --ide-text-muted: color-mix(in oklab, var(--foreground) 52%, transparent);
+  --ide-accent-line: color-mix(in oklab, var(--primary) 68%, var(--foreground) 32%);
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -20%, color-mix(in oklab, var(--primary) 6%, transparent), transparent 55%),
+    var(--ide-surface-muted);
+}
+
+/* Code page shell — deep black canvas in dark mode */
+.dark .ide-page-canvas {
+  --workspace-tab-bg: rgb(0 0 0 / 0.42);
+  --workspace-tab-border: rgb(255 255 255 / 0.07);
+  --workspace-tab-shadow:
+    0 1px 3px rgb(0 0 0 / 0.55),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.06);
+  --workspace-tab-inactive-bg-hover: rgb(255 255 255 / 0.05);
+  --workspace-tab-inactive-fg: oklch(0.55 0.008 264);
+  --workspace-tab-inactive-fg-hover: oklch(0.92 0.004 264);
+  --workspace-tab-active-bg: rgb(255 255 255 / 0.1);
+  --workspace-tab-active-fg: oklch(0.96 0.004 264);
+  --workspace-tab-active-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+  background-color: oklch(0.03 0.004 264);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -8%, rgb(255 255 255 / 0.035), transparent 58%),
+    radial-gradient(ellipse 45% 40% at 100% 100%, rgb(255 255 255 / 0.02), transparent 55%),
+    linear-gradient(180deg, oklch(0.05 0.004 264) 0%, oklch(0.02 0.003 264) 100%);
+}
+
+/* IDE sidebars on code page — generic glass (not profile rail) */
+.dark .ide-page-canvas .sidebar-glass:not(.code-profile-rail) {
+  background: rgb(0 0 0 / 0.46);
+  border-color: rgb(255 255 255 / 0.06);
+  box-shadow:
+    var(--workspace-tab-shadow),
+    2px 0 20px -8px rgb(0 0 0 / 0.65);
+}
+
+html.dark [data-code-workspace] .ide-page-canvas .sidebar-glass:not(.code-profile-rail) {
+  border-color: var(--code-chrome-divider);
+}
+
+/*
+ * Profile rail (logo + profile icon).
+ * Light: standard frosted sidebar glass with a subtle tone shift.
+ * Dark: opaque black variant (html.dark only).
+ */
+[data-code-workspace] {
+  --code-chrome-divider: color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+html.dark [data-code-workspace] {
+  --code-chrome-divider: rgb(255 255 255 / 0.13);
+}
+
+[data-code-workspace] [data-profile-rail].code-profile-rail {
+  position: relative;
+  isolation: isolate;
+  border: none;
+  border-right: 1px solid var(--code-chrome-divider);
+  background: var(--workspace-tab-bg);
+  box-shadow:
+    var(--workspace-tab-shadow),
+    2px 0 14px -6px rgb(0 0 0 / 0.07);
+}
+
+html.dark [data-code-workspace] [data-profile-rail].code-profile-rail {
+  background-color: oklch(0.085 0.005 264);
+  background-image:
+    radial-gradient(ellipse 120% 50% at 50% 0%, rgb(255 255 255 / 0.08), transparent 55%),
+    linear-gradient(
+      180deg,
+      oklch(0.145 0.006 264) 0%,
+      oklch(0.1 0.005 264) 40%,
+      oklch(0.065 0.004 264) 100%
+    );
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-right-color: var(--code-chrome-divider);
+  box-shadow: 5px 0 32px -6px rgb(0 0 0 / 0.72);
+}
+
+[data-code-workspace] .workspace-top-bar {
+  border-bottom: 1px solid var(--code-chrome-divider);
+}
+
+html.dark [data-code-workspace] .workspace-top-bar {
+  background: linear-gradient(
+    180deg,
+    oklch(0.1 0.005 264) 0%,
+    oklch(0.085 0.004 264) 100%
+  );
+}
+
+[data-code-workspace] [data-profile-rail] .code-profile-rail-header,
+[data-code-workspace] [data-profile-rail] .code-profile-rail-footer {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+/* IDE — black glass theme (dark mode) */
+.dark .ide-workspace {
+  --ide-surface: rgb(0 0 0 / 0.46);
+  --ide-surface-raised: rgb(0 0 0 / 0.58);
+  --ide-surface-muted: oklch(0.05 0.004 264);
+  --ide-border: rgb(255 255 255 / 0.09);
+  --ide-border-subtle: rgb(255 255 255 / 0.05);
+  --ide-text-muted: oklch(0.58 0.008 264);
+  --ide-accent-line: rgb(255 255 255 / 0.78);
+  background:
+    radial-gradient(ellipse 110% 70% at 50% -15%, rgb(255 255 255 / 0.04), transparent 52%),
+    oklch(0.035 0.004 264);
+}
+
+html.dark [data-code-workspace] .ide-workspace {
+  --ide-surface: rgb(0 0 0 / 0.4);
+  --ide-surface-muted: oklch(0.07 0.004 264);
+  --ide-border: rgb(255 255 255 / 0.14);
+  --ide-border-subtle: var(--code-chrome-divider);
+}
+
+.dark .ide-workspace .sidebar-glass,
+.dark .ide-workspace .ide-panel {
+  background: rgb(0 0 0 / 0.5);
+  border-color: rgb(255 255 255 / 0.06);
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.04);
+}
+
+.dark .ide-workspace .ide-panel[data-side="right"] {
+  box-shadow: inset 1px 0 0 rgb(255 255 255 / 0.04);
+}
+
+html.dark [data-code-workspace] .ide-workspace .sidebar-glass,
+html.dark [data-code-workspace] .ide-workspace .ide-panel {
+  background: rgb(0 0 0 / 0.44);
+  border-color: var(--code-chrome-divider);
+  box-shadow: inset -1px 0 0 var(--code-chrome-divider);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-panel[data-side="right"] {
+  box-shadow: inset 1px 0 0 var(--code-chrome-divider);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-sidebar-icon-rail {
+  border-right: 1px solid var(--code-chrome-divider);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-panel[data-side="right"] .ide-sidebar-icon-rail {
+  border-right: none;
+  border-left: 1px solid var(--code-chrome-divider);
+}
+
+.dark .ide-workspace .glass-chip,
+.dark .ide-workspace .glass-surface {
+  background: rgb(0 0 0 / 0.42);
+  border-color: rgb(255 255 255 / 0.08);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.45),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.07);
+}
+
+.dark .ide-workspace .ide-editor-panel {
+  background: rgb(0 0 0 / 0.28);
+}
+
+.dark .ide-workspace .ide-breadcrumb-bar {
+  background: rgb(0 0 0 / 0.34);
+  border-bottom-color: rgb(255 255 255 / 0.05);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-breadcrumb-bar {
+  border-bottom-color: var(--code-chrome-divider);
+}
+
+.dark .ide-workspace .ide-editor-surface {
+  background: linear-gradient(
+    180deg,
+    rgb(0 0 0 / 0.32) 0%,
+    rgb(0 0 0 / 0.22) 100%
+  );
+}
+
+.dark .ide-workspace .glass-composer {
+  background: rgb(0 0 0 / 0.44);
+  border-color: rgb(255 255 255 / 0.08) !important;
+  box-shadow:
+    0 2px 12px rgb(0 0 0 / 0.45),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.07);
+}
+
+.dark .ide-workspace .ide-editor-gutter {
+  background: rgb(0 0 0 / 0.38);
+  border-right-color: rgb(255 255 255 / 0.05);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-editor-gutter {
+  border-right-color: var(--code-chrome-divider);
+}
+
+.dark .ide-workspace .ide-tab-bar,
+.dark .ide-workspace .ide-sidebar-tabs,
+.dark .ide-workspace .ide-sidebar-icon-rail {
+  background: rgb(0 0 0 / 0.36);
+}
+
+.dark .ide-workspace .ide-tab:hover:not(.ide-tab-active) {
+  background: rgb(255 255 255 / 0.04);
+}
+
+.dark .ide-workspace .ide-tab-active {
+  background: rgb(0 0 0 / 0.48);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.48);
+}
+
+.dark .ide-workspace .ide-sidebar-tab-active {
+  background: rgb(0 0 0 / 0.44);
+}
+
+.dark .ide-workspace .ide-tree-item-active {
+  background: rgb(255 255 255 / 0.06);
+  box-shadow: inset 2px 0 0 rgb(255 255 255 / 0.55);
+}
+
+.dark .ide-workspace .ide-toolbar-btn {
+  background: rgb(0 0 0 / 0.4);
+  border-color: rgb(255 255 255 / 0.08);
+}
+
+.dark .ide-workspace .ide-toolbar-btn:hover {
+  background: rgb(0 0 0 / 0.55);
+  border-color: rgb(255 255 255 / 0.12);
+}
+
+.dark .ide-workspace .ide-console-panel {
+  background: rgb(0 0 0 / 0.48);
+  border-top-color: rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-console-panel {
+  border-top-color: var(--code-chrome-divider);
+  box-shadow: inset 0 1px 0 var(--code-chrome-divider);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-sidebar-tabs,
+html.dark [data-code-workspace] .ide-workspace .ide-tab-bar {
+  border-bottom-color: var(--code-chrome-divider);
+}
+
+.dark .ide-workspace .ide-command-strip {
+  background: rgb(0 0 0 / 0.55);
+  border-top-color: rgb(255 255 255 / 0.07);
+  box-shadow:
+    0 -16px 44px -24px rgb(0 0 0 / 0.85),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
+  border-top-color: var(--code-chrome-divider);
+  box-shadow:
+    0 -16px 44px -24px rgb(0 0 0 / 0.85),
+    inset 0 1px 0 var(--code-chrome-divider);
+}
+
+.dark .ide-workspace .ide-command-strip .glass-chip {
+  background: rgb(0 0 0 / 0.38);
+  border-color: rgb(255 255 255 / 0.08);
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 0.5),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.06);
+}
+
+.dark .ide-workspace .ide-command-strip-accent {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 0.12) 20%,
+    rgb(255 255 255 / 0.28) 50%,
+    rgb(255 255 255 / 0.12) 80%,
+    transparent 100%
+  );
+  opacity: 0.7;
+}
+
+.dark .ide-workspace .ide-command-action-active {
+  background: rgb(255 255 255 / 0.08);
+  border-color: rgb(255 255 255 / 0.14);
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 0.4),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.08);
+}
+
+.dark .ide-workspace .ide-command-model {
+  background: rgb(255 255 255 / 0.06);
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.ide-panel {
+  background: var(--ide-surface);
+  box-shadow: inset -1px 0 0 var(--ide-border-subtle);
+}
+
+.ide-panel[data-side="right"] {
+  box-shadow: inset 1px 0 0 var(--ide-border-subtle);
+}
+
+.ide-editor-panel {
+  background: var(--ide-surface);
+}
+
+.ide-editor-surface {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--ide-surface) 98%, white 2%) 0%, var(--ide-surface) 100%);
+}
+
+.ide-editor-gutter {
+  min-width: 2.75rem;
+  border-right: 1px solid var(--ide-border-subtle);
+  background: color-mix(in oklab, var(--ide-surface-muted) 80%, transparent);
+  color: var(--ide-text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.ide-editor-input {
+  color: color-mix(in oklab, var(--foreground) 92%, transparent);
+  letter-spacing: 0.01em;
+}
+
+.ide-breadcrumb-bar {
+  border-bottom: 1px solid var(--ide-border-subtle);
+  background: color-mix(in oklab, var(--ide-surface-muted) 65%, transparent);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+
+.ide-toolbar-btn {
+  height: 1.625rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--ide-border);
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--workspace-tab-bg) 55%, transparent);
+  backdrop-filter: blur(12px);
+  font-size: 11px;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--foreground) 72%, transparent);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ide-toolbar-btn:hover {
+  border-color: color-mix(in oklab, var(--primary) 22%, var(--ide-border));
+  background: color-mix(in oklab, var(--workspace-tab-bg) 78%, transparent);
+  color: var(--foreground);
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+/* File tabs */
+.ide-tab-bar {
+  min-height: 2.25rem;
+  padding-top: 0.25rem;
+  border-bottom: 1px solid var(--ide-border-subtle);
+  background: var(--ide-surface-muted);
+}
+
+.ide-tab-strip {
+  gap: 0.125rem;
+  padding-left: 0.25rem;
+}
+
+.ide-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1.875rem;
+  min-width: 7.5rem;
+  max-width: 13rem;
+  padding: 0 0.4rem 0 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem 0.5rem 0 0;
+  background: transparent;
+  color: var(--ide-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.ide-tab:hover:not(.ide-tab-active) {
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+  color: color-mix(in oklab, var(--foreground) 78%, transparent);
+}
+
+.ide-tab-active {
+  border-color: var(--ide-border-subtle);
+  border-bottom-color: transparent;
+  background: var(--ide-surface);
+  color: var(--foreground);
+  box-shadow: 0 1px 0 var(--ide-surface);
+}
+
+.ide-tab-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0.65rem;
+  right: 0.65rem;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--ide-accent-line);
+}
+
+.ide-tab-label {
+  min-width: 0;
+  text-align: left;
+}
+
+.ide-tab-close {
+  display: flex;
+  height: 1.125rem;
+  width: 1.125rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.3rem;
+  color: var(--ide-text-muted);
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.ide-tab:hover .ide-tab-close,
+.ide-tab-active .ide-tab-close {
+  opacity: 1;
+}
+
+.ide-tab-close:hover {
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  color: var(--foreground);
+}
+
+/* Sidebar + console tabs — match editor file tab bar rhythm */
+.ide-sidebar-tabs {
+  min-height: 2.25rem;
+  padding-top: 0.25rem;
+  gap: 0.125rem;
+  background: var(--ide-surface-muted);
+}
+
+.ide-sidebar-tab-strip {
+  gap: 0.125rem;
+  padding-left: 0.25rem;
+}
+
+.ide-sidebar-tab {
+  position: relative;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.ide-sidebar-tab-active {
+  background: var(--ide-surface);
+  color: var(--foreground);
+}
+
+.ide-sidebar-tab-active::after {
+  content: "";
+  position: absolute;
+  left: 0.35rem;
+  right: 0.35rem;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--ide-accent-line);
+}
+
+.ide-sidebar-icon-rail {
+  background: color-mix(in oklab, var(--ide-surface-muted) 92%, transparent);
+  border-right: 1px solid var(--ide-border-subtle);
+}
+
+.ide-sidebar-icon-rail .workspace-tab-active {
+  box-shadow:
+    inset 0 0 0 1px var(--ide-border),
+    0 1px 4px color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.ide-tree-item {
+  border-radius: 0.35rem;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.ide-tree-item-active {
+  background: color-mix(in oklab, var(--primary) 10%, var(--workspace-tab-inactive-bg-hover) 90%);
+  color: var(--foreground);
+  box-shadow: inset 2px 0 0 var(--ide-accent-line);
+}
+
+.ide-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ide-text-muted);
+}
+
+.ide-console-panel {
+  border-top: 1px solid var(--ide-border-subtle);
+  background: var(--ide-surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, white 25%, transparent);
+}
+
+/* IDE — glass command strip */
+.ide-command-strip {
+  position: relative;
+  z-index: 5;
+  flex-shrink: 0;
+  border-top: 1px solid var(--workspace-tab-border);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  background: color-mix(in oklab, var(--workspace-tab-bg) 72%, transparent);
+  box-shadow:
+    var(--workspace-tab-shadow),
+    0 -12px 36px -20px color-mix(in oklab, var(--foreground) 14%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 48%, transparent);
+}
+
+.ide-command-strip .glass-chip {
+  background: color-mix(in oklab, var(--workspace-tab-bg) 58%, transparent);
+  border-color: color-mix(in oklab, var(--workspace-tab-border) 88%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent),
+    inset 0 0.5px 0 color-mix(in oklab, white 42%, transparent);
+}
+
+.ide-command-strip-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--primary) 45%, transparent) 18%,
+    color-mix(in oklab, var(--primary) 70%, white 30%) 50%,
+    color-mix(in oklab, var(--primary) 45%, transparent) 82%,
+    transparent 100%
+  );
+  opacity: 0.85;
+}
+
+.ide-command-strip-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.375rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: color-mix(in oklab, var(--foreground) 72%, transparent);
+}
+
+@media (max-width: 900px) {
+  .ide-command-strip-grid {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .ide-command-zone-center,
+  .ide-command-zone-right {
+    justify-content: flex-start;
+  }
+
+  .ide-command-filepath {
+    display: none;
+  }
+}
+
+.ide-command-zone {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.ide-command-zone-left {
+  justify-content: flex-start;
+}
+
+.ide-command-zone-center {
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ide-command-zone-right {
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.ide-command-workspace {
+  display: inline-flex;
+  max-width: 9rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.6rem 0.28rem 0.45rem;
+  border-radius: 999px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+}
+
+.ide-command-live-dot-synced {
+  color: oklch(0.62 0.14 152);
+}
+
+.ide-command-live-dot-pending {
+  color: oklch(0.72 0.12 82);
+}
+
+.ide-command-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.55rem;
+  padding: 0.28rem 0.55rem;
+  font-size: 10px;
+  color: color-mix(in oklab, var(--foreground) 68%, transparent);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.ide-command-action:hover {
+  border-color: color-mix(in oklab, var(--workspace-tab-border) 70%, var(--foreground) 30%);
+  color: var(--foreground);
+  transform: translateY(-0.5px);
+}
+
+.ide-command-action-active {
+  border-color: color-mix(in oklab, var(--primary) 32%, var(--workspace-tab-border));
+  background: color-mix(in oklab, var(--primary) 11%, var(--workspace-tab-bg) 89%);
+  color: var(--foreground);
+  box-shadow:
+    0 1px 4px color-mix(in oklab, var(--primary) 14%, transparent),
+    inset 0 0.5px 0 color-mix(in oklab, white 35%, transparent);
+}
+
+.ide-command-action-static {
+  cursor: default;
+}
+
+.ide-command-diagnostics {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.55rem;
+}
+
+.ide-command-diag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border-radius: 0.35rem;
+  padding: 0.1rem 0.35rem;
+  font-size: 9.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ide-command-diag-error {
+  color: oklch(0.52 0.16 25);
+  background: color-mix(in oklab, oklch(0.52 0.16 25) 10%, transparent);
+}
+
+.ide-command-diag-warn {
+  color: oklch(0.58 0.12 82);
+  background: color-mix(in oklab, oklch(0.58 0.12 82) 10%, transparent);
+}
+
+.ide-command-hud {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 0.65rem;
+  padding: 0.3rem 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ide-command-hud-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.ide-command-hud-key {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 42%, transparent);
+}
+
+.ide-command-hud-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.ide-command-hud-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+
+.ide-command-filepath {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 0.5rem;
+  padding: 0.18rem 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9.5px;
+  color: color-mix(in oklab, var(--foreground) 52%, transparent);
+}
+
+.ide-command-metrics {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.65rem;
+  padding: 0.22rem 0.4rem;
+}
+
+.ide-command-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.35rem;
+  padding: 0.12rem 0.35rem;
+}
+
+.ide-command-token-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--foreground) 38%, transparent);
+}
+
+.ide-command-token-value {
+  font-size: 10px;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--foreground) 78%, transparent);
+}
+
+.ide-command-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 10px;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--foreground) 84%, transparent);
+  border-color: color-mix(in oklab, var(--primary) 24%, var(--workspace-tab-border));
+  background: color-mix(in oklab, var(--primary) 7%, var(--workspace-tab-bg) 93%);
+}
+
+.ide-resize-handle,
+.ide-resize-handle-horizontal {
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+
+.ide-resize-handle:hover,
+.ide-resize-handle:active,
+.ide-resize-handle-horizontal:hover,
+.ide-resize-handle-horizontal:active {
+  background: color-mix(in oklab, var(--primary) 28%, transparent);
+}

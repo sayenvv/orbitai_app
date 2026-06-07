@@ -1,6 +1,7 @@
 /** Central route paths for the chat app — use instead of hardcoded strings. */
 export const routes = {
   home: "/",
+  code: "/code",
   plans: "/plans",
   apps: {
     store: "/apps",
@@ -34,6 +35,7 @@ export function parseConversationIdFromPath(pathname: string): string | null {
 /** Paths allowed for post-login redirects (keep in sync with proxy protected routes). */
 export const ALLOWED_INTERNAL_REDIRECT_PREFIXES = [
   routes.home,
+  routes.code,
   routes.plans,
   routes.apps.store,
   routes.chat.root,

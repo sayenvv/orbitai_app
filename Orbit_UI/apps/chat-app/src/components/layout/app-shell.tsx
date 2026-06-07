@@ -14,6 +14,7 @@ import { ProfilePanel } from "@/components/profile-panel";
 import { SupportModal } from "@/components/home/support-modal";
 import { AppShellProvider, useAppShell } from "@/components/layout/app-shell-context";
 import { AuthNavTabs } from "@/components/layout/auth-nav-tabs";
+import { CodeCollapsedRail } from "@/components/code/code-collapsed-rail";
 import { WorkspaceTopBar } from "@/components/layout/workspace-top-bar";
 import { ChatHistoryRail } from "@/components/chat/chat-history-rail";
 import { NavbarBrand } from "@/components/layout/navbar-brand";
@@ -35,6 +36,7 @@ import {
   COLLAPSIBLE_RAIL_EXPANDED_WIDTH_PX,
 } from "@/components/layout/collapsible-rail";
 import { routes } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
 const MainLibraryPanel = dynamic(
   () =>
@@ -116,10 +118,13 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   const showSectionPanel = pathname === routes.home && section === "library";
+  const isCodeWorkspace =
+    pathname === routes.code || pathname.startsWith(`${routes.code}/`);
 
   const { open: sidebarOpen, hydrated: sidebarHydrated } = useChatSideRail("left");
-  const sidebarWidth =
-    !sidebarHydrated || sidebarOpen
+  const sidebarWidth = isCodeWorkspace
+    ? COLLAPSIBLE_RAIL_COLLAPSED_WIDTH_PX
+    : !sidebarHydrated || sidebarOpen
       ? COLLAPSIBLE_RAIL_EXPANDED_WIDTH_PX
       : COLLAPSIBLE_RAIL_COLLAPSED_WIDTH_PX;
 
@@ -167,8 +172,20 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       <MobileAppDrawer />
 
       <main
-        className="app-shell app-shell-grid home-warm-canvas relative flex min-h-0 flex-1 flex-col overflow-hidden md:grid"
-        data-sidebar={sidebarHydrated ? (sidebarOpen ? "expanded" : "collapsed") : undefined}
+        className={cn(
+          "app-shell app-shell-grid relative flex min-h-0 flex-1 flex-col overflow-hidden md:grid",
+          isCodeWorkspace ? "ide-page-canvas" : "home-warm-canvas",
+        )}
+        data-sidebar={
+          isCodeWorkspace
+            ? "collapsed"
+            : sidebarHydrated
+              ? sidebarOpen
+                ? "expanded"
+                : "collapsed"
+              : undefined
+        }
+        data-code-workspace={isCodeWorkspace ? "true" : undefined}
         style={
           {
             "--sidebar-width": sidebarWidth,
@@ -176,7 +193,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
         }
       >
         <div className="relative z-30 hidden h-full min-h-0 overflow-visible md:block">
-          <ChatHistoryRail />
+          {isCodeWorkspace ? <CodeCollapsedRail /> : <ChatHistoryRail />}
         </div>
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

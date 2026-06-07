@@ -18,10 +18,11 @@ const TABS: Array<{ id: WorkspaceTab; label: string; href?: string }> = [
   { id: "chats", label: "Chats", href: routes.home },
   { id: "canvas", label: "Canvas", href: CANVAS_HREF },
   { id: "projects", label: "Projects", href: PROJECTS_HREF },
-  { id: "code", label: "Code" },
+  { id: "code", label: "Clovops", href: routes.code },
 ];
 
 function resolveActiveTab(pathname: string): WorkspaceTab {
+  if (pathname === routes.code || pathname.startsWith(`${routes.code}/`)) return "code";
   if (pathname.startsWith(`/apps/${catalogAppIds.photoGenerator}`)) return "canvas";
   if (pathname.startsWith(`/apps/${catalogAppIds.projectPlanning}`)) return "projects";
   return "chats";
@@ -39,7 +40,7 @@ export function WorkspaceTopBar() {
   const activeTab = resolveActiveTab(pathname);
 
   return (
-    <header className="relative flex h-14 shrink-0 items-center justify-between gap-3 px-4 md:px-6">
+    <header className="workspace-top-bar relative flex h-14 shrink-0 items-center justify-between gap-3 px-4 md:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2">{header?.leading}</div>
 
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
