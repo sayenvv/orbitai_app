@@ -80,6 +80,8 @@ export function CodeWorkspace() {
   const { setHeader } = useAppShell();
   const { preferences, ready: preferencesReady } = useCodeWorkspacePreferences();
   const prefsAppliedRef = useRef(false);
+  const fileContentsRef = useRef<CodeWorkspaceFileContents>({});
+  const projectRef = useRef<CodeWorkspaceProject | null>(null);
 
   const [project, setProject] = useState<CodeWorkspaceProject | null>(null);
   const [fileContents, setFileContents] = useState<CodeWorkspaceFileContents>({});
@@ -137,8 +139,12 @@ export function CodeWorkspace() {
   const consolePanel = useResizableHeight(180, 120, 420);
   const consoleMaxHeight = 420;
 
+  fileContentsRef.current = fileContents;
+  projectRef.current = project;
+
   const nodes = project?.state.nodes ?? [];
   const ui = project?.state.ui ?? DEFAULT_UI_STATE;
+  const projectId = project?.id ?? null;
   const activeFile = useMemo(() => getActiveFile(nodes, ui.activeFileId), [nodes, ui.activeFileId]);
   const activeContent =
     ui.activeFileId && fileContents[ui.activeFileId] !== undefined
@@ -168,7 +174,7 @@ export function CodeWorkspace() {
 
   const fetchFileContent = useCallback(
     async (fileId: string, projectId: string, nodeList: CodeWorkspaceNode[]): Promise<string> => {
-      const cached = fileContents[fileId];
+      const cached = fileContentsRef.current[fileId];
       if (cached !== undefined) return cached;
 
       const fallbackPath = nodePath(fileId, nodeList);
@@ -198,15 +204,15 @@ export function CodeWorkspace() {
         return fallback;
       }
     },
-    [fileContents, persisted],
+    [persisted],
   );
 
   const loadFileContent = useCallback(
     async (fileId: string, projectId: string, nodeList: CodeWorkspaceNode[]) => {
-      if (loadedFilesRef.current.has(fileId) && fileContents[fileId] !== undefined) return;
+      if (loadedFilesRef.current.has(fileId) && fileContentsRef.current[fileId] !== undefined) return;
       await fetchFileContent(fileId, projectId, nodeList);
     },
-    [fetchFileContent, fileContents],
+    [fetchFileContent],
   );
 
   const prepareSearch = useCallback<PrepareProjectSearch>(async () => {
@@ -553,16 +559,17 @@ export function CodeWorkspace() {
   );
 
   const handleSave = useCallback(async () => {
-    const fileId = project?.state.ui.activeFileId;
-    if (!fileId || !project || !persisted) return;
+    const currentProject = projectRef.current;
+    const fileId = currentProject?.state.ui.activeFileId;
+    if (!fileId || !currentProject || !persisted) return;
 
-    const content = fileContents[fileId] ?? "";
+    const content = fileContentsRef.current[fileId] ?? "";
     window.clearTimeout(fileSaveTimersRef.current[fileId]);
 
     setSaving(true);
     setSaved(false);
     try {
-      await codeWorkspaceApi.saveFileContent(project.id, fileId, content);
+      await codeWorkspaceApi.saveFileContent(currentProject.id, fileId, content);
       setSaved(true);
       window.setTimeout(() => setSaved(false), 1600);
     } catch {
@@ -570,7 +577,7 @@ export function CodeWorkspace() {
     } finally {
       setSaving(false);
     }
-  }, [fileContents, persisted, project]);
+  }, [persisted]);
 
   const handleSaveAs = useCallback(async () => {
     const fileId = project?.state.ui.activeFileId;
@@ -763,12 +770,12 @@ export function CodeWorkspace() {
     () => (
       <IdeFileMenu
         canSave={canSaveFile && persisted}
-        canDeploy={Boolean(project)}
+        canDeploy={Boolean(projectId)}
         saving={saving}
-        onNewFile={() => void handleNewFileFromMenu()}
-        onNewFolder={() => void handleNewFolderFromMenu()}
-        onSave={() => void handleSave()}
-        onSaveAs={() => void handleSaveAs()}
+        onNewFile={handleNewFileFromMenu}
+        onNewFolder={handleNewFolderFromMenu}
+        onSave={handleSave}
+        onSaveAs={handleSaveAs}
         onDeploy={handleOpenDeploy}
       />
     ),
@@ -780,7 +787,7 @@ export function CodeWorkspace() {
       handleSave,
       handleSaveAs,
       persisted,
-      project,
+      projectId,
       saving,
     ],
   );

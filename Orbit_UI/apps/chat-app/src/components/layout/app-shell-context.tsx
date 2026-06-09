@@ -87,7 +87,20 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setHeader = useCallback((next: AppHeaderState | null) => {
-    setHeaderState(next);
+    setHeaderState((prev) => {
+      if (prev === next) return prev;
+      if (!prev || !next) return next;
+      if (
+        prev.leading === next.leading &&
+        prev.title === next.title &&
+        prev.subtitle === next.subtitle &&
+        prev.nav === next.nav &&
+        prev.actions === next.actions
+      ) {
+        return prev;
+      }
+      return next;
+    });
   }, []);
 
   const value = useMemo(
