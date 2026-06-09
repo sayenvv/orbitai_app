@@ -35,3 +35,4 @@ data/rag_uploads/
 data/photo_studio_canvas_exports/
 data/project_planning/*
 !data/project_planning/_templates/
+data/code_workspace/*

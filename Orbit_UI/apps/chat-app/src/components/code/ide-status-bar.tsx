@@ -25,6 +25,7 @@ type IdeStatusBarProps = {
   errorCount?: number;
   warningCount?: number;
   synced?: boolean;
+  tabSize?: number;
 };
 
 function MetricToken({
@@ -56,6 +57,7 @@ export function IdeStatusBar({
   errorCount = 1,
   warningCount = 1,
   synced = true,
+  tabSize = 2,
 }: IdeStatusBarProps) {
   const hasDiagnostics = errorCount > 0 || warningCount > 0;
 
@@ -146,9 +148,9 @@ export function IdeStatusBar({
             <MetricToken label="Lang" value={language ?? "Plain"} />
             <MetricToken label="EOL" value="LF" mono />
             <MetricToken label="Enc" value="UTF-8" mono />
-            <span className="ide-command-token" title="Indentation: 2 spaces">
+            <span className="ide-command-token" title={`Indentation: ${tabSize} spaces`}>
               <IndentIncrease className="h-3 w-3 opacity-60" strokeWidth={1.75} />
-              <span className="ide-command-token-value font-mono">2</span>
+              <span className="ide-command-token-value font-mono">{tabSize}</span>
             </span>
           </div>
 

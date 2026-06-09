@@ -2,6 +2,7 @@
 export const routes = {
   home: "/",
   code: "/code",
+  codeSettings: "/code/settings",
   plans: "/plans",
   apps: {
     store: "/apps",
@@ -36,6 +37,7 @@ export function parseConversationIdFromPath(pathname: string): string | null {
 export const ALLOWED_INTERNAL_REDIRECT_PREFIXES = [
   routes.home,
   routes.code,
+  routes.codeSettings,
   routes.plans,
   routes.apps.store,
   routes.chat.root,

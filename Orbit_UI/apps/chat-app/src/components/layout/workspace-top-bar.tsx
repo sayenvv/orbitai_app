@@ -41,7 +41,10 @@ export function WorkspaceTopBar() {
 
   return (
     <header className="workspace-top-bar relative flex h-14 shrink-0 items-center justify-between gap-3 px-4 md:px-6">
-      <div className="flex min-w-0 flex-1 items-center gap-2">{header?.leading}</div>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {header?.leading}
+        {header?.nav}
+      </div>
 
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <div

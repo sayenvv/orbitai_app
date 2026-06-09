@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { HighlightResult } from "@streamdown/code";
-import { highlightIdeCode, highlightTokenStyle } from "@/lib/ide-code-highlighter";
+import { useEffect, useMemo, useRef } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
+import { indentWithTab } from "@codemirror/commands";
+import { indentUnit } from "@codemirror/language";
+import type { Extension } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import { DEFAULT_CODE_WORKSPACE_PREFERENCES } from "@/lib/code-workspace-preferences";
+import { useTheme } from "next-themes";
+import { getIdeCodeMirrorLanguage } from "@/lib/ide-codemirror-extensions";
 import type { IdeCursorPosition } from "@/lib/ide-cursor";
 import { cn } from "@/lib/utils";
 
@@ -11,38 +18,81 @@ type CodeEditorProps = {
   language?: string;
   onChange: (value: string) => void;
   onCursorChange?: (cursor: IdeCursorPosition, selectionChars: number) => void;
+  tabSize?: number;
+  fontSize?: number;
+  wordWrap?: boolean;
+  lineNumbers?: boolean;
+  scrollToLine?: number | null;
+  onScrollToLineComplete?: () => void;
   className?: string;
 };
 
-function EditorCodeLines({
-  lines,
-  highlight,
-}: {
-  lines: string[];
-  highlight: HighlightResult | null;
-}) {
-  return (
-    <code className="ide-editor-highlight-code block min-w-full">
-      {highlight
-        ? highlight.tokens.map((line, lineIndex) => (
-            <div key={lineIndex} className="ide-editor-highlight-line whitespace-pre">
-              {line.length > 0 ? (
-                line.map((token, tokenIndex) => (
-                  <span key={tokenIndex} style={highlightTokenStyle(token)}>
-                    {token.content}
-                  </span>
-                ))
-              ) : (
-                "\u00a0"
-              )}
-            </div>
-          ))
-        : lines.map((line, lineIndex) => (
-            <div key={lineIndex} className="ide-editor-highlight-line whitespace-pre">
-              {line || "\u00a0"}
-            </div>
-          ))}
-    </code>
+const IDE_EDITOR_DARK_BG = "#0d1117";
+const IDE_EDITOR_DARK_GUTTER = "#010409";
+
+function ideEditorTheme(isDark: boolean, fontSize: number): Extension {
+  return EditorView.theme(
+    {
+      "&": {
+        backgroundColor: isDark ? IDE_EDITOR_DARK_BG : "transparent",
+        height: "100%",
+        fontSize: `${fontSize}px`,
+      },
+      "&.cm-focused": {
+        outline: "none",
+      },
+      ".cm-scroller": {
+        fontFamily:
+          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+        lineHeight: "1.55",
+        backgroundColor: isDark ? IDE_EDITOR_DARK_BG : "transparent",
+      },
+      ".cm-content": {
+        padding: "12px 16px",
+        fontSize: `${fontSize}px`,
+        caretColor: isDark
+          ? "#e6edf3"
+          : "color-mix(in oklab, var(--foreground) 92%, transparent)",
+      },
+      ".cm-gutters": {
+        backgroundColor: isDark
+          ? IDE_EDITOR_DARK_GUTTER
+          : "color-mix(in oklab, var(--ide-surface-muted) 80%, transparent)",
+        borderRight: isDark
+          ? "1px solid rgb(255 255 255 / 0.08)"
+          : "1px solid var(--ide-border-subtle)",
+        color: isDark ? "rgb(255 255 255 / 0.38)" : "var(--ide-text-muted)",
+        fontFamily:
+          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+        fontSize: "11.5px",
+        lineHeight: "1.55",
+      },
+      ".cm-lineNumbers .cm-gutterElement": {
+        padding: "0 8px",
+        minWidth: "2.75rem",
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: isDark
+          ? "rgb(255 255 255 / 0.06)"
+          : "color-mix(in oklab, var(--primary) 8%, transparent)",
+        color: isDark ? "rgb(255 255 255 / 0.62)" : "color-mix(in oklab, var(--foreground) 72%, transparent)",
+      },
+      "&.cm-focused .cm-cursor": {
+        borderLeftColor: isDark
+          ? "#e6edf3"
+          : "color-mix(in oklab, var(--foreground) 92%, transparent)",
+      },
+      "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
+        backgroundColor: isDark
+          ? "rgb(56 139 253 / 0.35) !important"
+          : "color-mix(in oklab, var(--primary) 28%, transparent) !important",
+      },
+      ".cm-panels": {
+        backgroundColor: isDark ? IDE_EDITOR_DARK_BG : "var(--ide-surface)",
+        color: isDark ? "#e6edf3" : "var(--foreground)",
+      },
+    },
+    { dark: isDark },
   );
 }
 
@@ -51,121 +101,111 @@ export function CodeEditor({
   language = "text",
   onChange,
   onCursorChange,
+  tabSize = DEFAULT_CODE_WORKSPACE_PREFERENCES.tabSize,
+  fontSize = DEFAULT_CODE_WORKSPACE_PREFERENCES.fontSize,
+  wordWrap = DEFAULT_CODE_WORKSPACE_PREFERENCES.wordWrap,
+  lineNumbers = DEFAULT_CODE_WORKSPACE_PREFERENCES.lineNumbers,
+  scrollToLine = null,
+  onScrollToLineComplete,
   className,
 }: CodeEditorProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const gutterRef = useRef<HTMLDivElement>(null);
-  const highlightRef = useRef<HTMLPreElement>(null);
-  const [highlight, setHighlight] = useState<HighlightResult | null>(null);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const viewRef = useRef<EditorView | null>(null);
+  const onCursorChangeRef = useRef(onCursorChange);
+  const onScrollToLineCompleteRef = useRef(onScrollToLineComplete);
+  const lastScrolledLineRef = useRef<number | null>(null);
 
-  const lines = useMemo(() => value.split("\n"), [value]);
-  const lineCount = Math.max(lines.length, 1);
+  onCursorChangeRef.current = onCursorChange;
+  onScrollToLineCompleteRef.current = onScrollToLineComplete;
+
+  const extensions = useMemo(() => {
+    const viewCapture = EditorView.updateListener.of((update) => {
+      viewRef.current = update.view;
+    });
+    const cursorListener = EditorView.updateListener.of((update) => {
+      const notifyCursor = onCursorChangeRef.current;
+      if (!notifyCursor) return;
+      if (!update.selectionSet && !update.docChanged) return;
+
+      const selection = update.state.selection.main;
+      const line = update.state.doc.lineAt(selection.head);
+      notifyCursor(
+        {
+          line: line.number,
+          column: selection.head - line.from + 1,
+        },
+        Math.max(0, selection.to - selection.from),
+      );
+    });
+
+    const next: Extension[] = [
+      ...getIdeCodeMirrorLanguage(language),
+      isDark ? githubDark : githubLight,
+      ideEditorTheme(isDark, fontSize),
+      indentUnit.of(" ".repeat(tabSize)),
+      keymap.of([indentWithTab]),
+      viewCapture,
+      cursorListener,
+    ];
+
+    if (wordWrap) next.push(EditorView.lineWrapping);
+
+    return next;
+  }, [fontSize, isDark, language, tabSize, wordWrap]);
+
+  const basicSetup = useMemo(
+    () => ({
+      lineNumbers,
+      highlightActiveLineGutter: true,
+      highlightActiveLine: false,
+      foldGutter: false,
+      dropCursor: true,
+      allowMultipleSelections: true,
+      indentOnInput: true,
+      bracketMatching: true,
+      closeBrackets: true,
+      autocompletion: false,
+      rectangularSelection: true,
+      crosshairCursor: false,
+      highlightSelectionMatches: false,
+      searchKeymap: false,
+    }),
+    [lineNumbers],
+  );
 
   useEffect(() => {
-    let cancelled = false;
-
-    const applyHighlight = (result: HighlightResult) => {
-      if (!cancelled) setHighlight(result);
-    };
-
-    const cached = highlightIdeCode(value, language, applyHighlight);
-    if (cached) setHighlight(cached);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [language, value]);
-
-  const emitCursor = useCallback(
-    (target: HTMLTextAreaElement) => {
-      if (!onCursorChange) return;
-      const before = value.slice(0, target.selectionStart);
-      const lineLines = before.split("\n");
-      onCursorChange(
-        {
-          line: lineLines.length,
-          column: (lineLines.at(-1)?.length ?? 0) + 1,
-        },
-        Math.max(0, target.selectionEnd - target.selectionStart),
-      );
-    },
-    [onCursorChange, value],
-  );
-
-  const syncScroll = useCallback(() => {
-    const textarea = textareaRef.current;
-    const gutter = gutterRef.current;
-    const highlightLayer = highlightRef.current;
-    if (!textarea) return;
-
-    if (gutter) gutter.scrollTop = textarea.scrollTop;
-    if (highlightLayer) {
-      highlightLayer.scrollTop = textarea.scrollTop;
-      highlightLayer.scrollLeft = textarea.scrollLeft;
+    if (scrollToLine == null || scrollToLine < 1) {
+      lastScrolledLineRef.current = null;
+      return;
     }
-  }, []);
 
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === "Tab") {
-        event.preventDefault();
-        const textarea = event.currentTarget;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const next = `${value.slice(0, start)}  ${value.slice(end)}`;
-        onChange(next);
-        requestAnimationFrame(() => {
-          textarea.selectionStart = start + 2;
-          textarea.selectionEnd = start + 2;
-          emitCursor(textarea);
-        });
-      }
-    },
-    [emitCursor, onChange, value],
-  );
+    if (lastScrolledLineRef.current === scrollToLine) return;
+
+    const view = viewRef.current;
+    if (!view) return;
+    if (scrollToLine > view.state.doc.lines) return;
+
+    const line = view.state.doc.line(scrollToLine);
+    view.dispatch({
+      selection: { anchor: line.from },
+      effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+    });
+    view.focus();
+    lastScrolledLineRef.current = scrollToLine;
+    onScrollToLineCompleteRef.current?.();
+  }, [scrollToLine, value]);
 
   return (
-    <div className={cn("ide-editor-surface flex min-h-full min-w-0", className)}>
-      <div
-        ref={gutterRef}
-        className="ide-editor-gutter sticky left-0 shrink-0 select-none overflow-hidden py-3 text-right font-mono text-[11.5px] leading-[1.55]"
-        aria-hidden
-      >
-        {Array.from({ length: lineCount }, (_, index) => (
-          <div key={index + 1} className="px-2">
-            {index + 1}
-          </div>
-        ))}
-      </div>
-
-      <div className="ide-editor-body relative min-h-full min-w-0 flex-1">
-        <pre
-          ref={highlightRef}
-          className="ide-editor-highlight pointer-events-none absolute inset-0 m-0 overflow-hidden px-4 py-3 font-mono text-[12px] leading-[1.55]"
-          aria-hidden
-        >
-          <EditorCodeLines lines={lines} highlight={highlight} />
-        </pre>
-
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(event) => {
-            onChange(event.target.value);
-            emitCursor(event.target);
-          }}
-          onScroll={syncScroll}
-          onKeyDown={handleKeyDown}
-          onKeyUp={(event) => emitCursor(event.currentTarget)}
-          onClick={(event) => emitCursor(event.currentTarget)}
-          onSelect={(event) => emitCursor(event.currentTarget)}
-          spellCheck={false}
-          autoCapitalize="off"
-          autoCorrect="off"
-          aria-label="Code editor"
-          className="code-editor-input ide-editor-input relative z-[1] min-h-full w-full resize-none border-0 bg-transparent px-4 py-3 font-mono text-[12px] leading-[1.55] outline-none"
-        />
-      </div>
+    <div className={cn("ide-editor-surface ide-codemirror-host min-h-full min-w-0", className)}>
+      <CodeMirror
+        value={value}
+        extensions={extensions}
+        onChange={onChange}
+        basicSetup={basicSetup}
+        className="ide-codemirror h-full min-h-full"
+        height="100%"
+      />
     </div>
   );
 }

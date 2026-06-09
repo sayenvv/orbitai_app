@@ -849,6 +849,146 @@ export const projectPlanningApi = {
     }),
 };
 
+// ─── Code workspace (`/apps/code-workspace/*`) ───────────────────────────────
+
+export type ApiCodeWorkspaceNode = {
+  id: string;
+  kind: "folder" | "file";
+  name: string;
+  parentId: string | null;
+  language?: string | null;
+};
+
+export type ApiCodeWorkspaceUiState = {
+  explorerFocusId?: string | null;
+  selectedFolderId?: string | null;
+  activeFileId: string | null;
+  expandedFolderIds: string[];
+  openFileIds: string[];
+};
+
+export type ApiCodeWorkspaceState = {
+  nodes: ApiCodeWorkspaceNode[];
+  ui: ApiCodeWorkspaceUiState;
+};
+
+export type ApiCodeWorkspaceProjectSummary = {
+  id: string;
+  title: string;
+  description?: string | null;
+  updatedAt: number;
+};
+
+export type ApiCodeWorkspaceProjectResponse = {
+  id: string;
+  title: string;
+  description?: string | null;
+  updatedAt: number;
+  state: ApiCodeWorkspaceState;
+};
+
+export type ApiCodeWorkspacePreferences = {
+  tabSize: 2 | 4 | 8;
+  fontSize: number;
+  wordWrap: boolean;
+  lineNumbers: boolean;
+  autoSave: boolean;
+  autoSaveDelayMs: 500 | 1000 | 2000 | 5000;
+  seedDemoOnCreate: boolean;
+  terminalOpenOnLaunch: boolean;
+  defaultGitBranch: string;
+  rightSidebarOpenOnLaunch: boolean;
+};
+
+export type ApiCodeWorkspaceSettings = {
+  storageRootPath: string | null;
+  effectiveStorageRootPath: string;
+  defaultStorageRootPath: string;
+  preferences: ApiCodeWorkspacePreferences;
+};
+
+export const codeWorkspaceApi = {
+  listProjects: (limit = 20) =>
+    request<{ data: ApiCodeWorkspaceProjectSummary[] }>(
+      `/apps/code-workspace/projects?limit=${limit}`,
+    ),
+
+  getProject: (id: string) =>
+    request<ApiCodeWorkspaceProjectResponse>(
+      `/apps/code-workspace/projects/${encodeURIComponent(id)}`,
+    ),
+
+  createProject: (body: { title?: string; description?: string; seedDemo?: boolean }) =>
+    request<ApiCodeWorkspaceProjectResponse>("/apps/code-workspace/projects", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateProject: (id: string, body: { title?: string; description?: string }) =>
+    request<ApiCodeWorkspaceProjectResponse>(
+      `/apps/code-workspace/projects/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+
+  updateStructure: (id: string, body: ApiCodeWorkspaceState) =>
+    request<ApiCodeWorkspaceProjectResponse>(
+      `/apps/code-workspace/projects/${encodeURIComponent(id)}/structure`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ),
+
+  addNode: (
+    id: string,
+    body: {
+      kind: "folder" | "file";
+      name: string;
+      parentId?: string | null;
+      language?: string;
+    },
+  ) =>
+    request<ApiCodeWorkspaceProjectResponse>(
+      `/apps/code-workspace/projects/${encodeURIComponent(id)}/nodes`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  updateNode: (
+    projectId: string,
+    nodeId: string,
+    body: { name?: string; language?: string; parentId?: string | null },
+  ) =>
+    request<ApiCodeWorkspaceProjectResponse>(
+      `/apps/code-workspace/projects/${encodeURIComponent(projectId)}/nodes/${encodeURIComponent(nodeId)}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+
+  deleteProject: (id: string) =>
+    request<void>(`/apps/code-workspace/projects/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+
+  getFileContent: (projectId: string, nodeId: string) =>
+    request<{ nodeId: string; content: string }>(
+      `/apps/code-workspace/projects/${encodeURIComponent(projectId)}/files/${encodeURIComponent(nodeId)}`,
+    ),
+
+  saveFileContent: (projectId: string, nodeId: string, content: string) =>
+    request<{ nodeId: string; content: string }>(
+      `/apps/code-workspace/projects/${encodeURIComponent(projectId)}/files/${encodeURIComponent(nodeId)}`,
+      { method: "PUT", body: JSON.stringify({ content }) },
+    ),
+
+  getSettings: () =>
+    request<ApiCodeWorkspaceSettings>("/apps/code-workspace/settings"),
+
+  updateSettings: (body: {
+    storageRootPath?: string | null;
+    preferences?: Partial<ApiCodeWorkspacePreferences>;
+  }) =>
+    request<ApiCodeWorkspaceSettings>("/apps/code-workspace/settings", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+};
+
 // ─── Mappers for UI types ─────────────────────────────────────────────────────
 
 export function mapConversationSummary(raw: ApiConversationSummary): Conversation {

@@ -34,6 +34,12 @@ class User(Base):
     photo_studio_workspaces: Mapped[list["PhotoStudioWorkspace"]] = relationship(
         back_populates="user"
     )
+    code_workspace_projects: Mapped[list["CodeWorkspaceProject"]] = relationship(
+        back_populates="user"
+    )
+    code_workspace_settings: Mapped["CodeWorkspaceUserSettings | None"] = relationship(
+        back_populates="user", uselist=False
+    )
 
 
 class Agent(Base):
@@ -399,3 +405,39 @@ class PhotoStudioWorkspace(Base):
 
     user: Mapped["User"] = relationship(back_populates="photo_studio_workspaces")
     asset: Mapped["RagDocument | None"] = relationship()
+
+
+class CodeWorkspaceProject(Base):
+    __tablename__ = "code_workspace_projects"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(512))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    state: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    last_opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="code_workspace_projects")
+
+
+class CodeWorkspaceUserSettings(Base):
+    __tablename__ = "code_workspace_user_settings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    storage_root_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    preferences: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped["User"] = relationship(back_populates="code_workspace_settings")

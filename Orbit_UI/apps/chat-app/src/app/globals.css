@@ -1294,11 +1294,18 @@ html.dark [data-code-workspace] .ide-workspace .ide-panel[data-side="right"] .id
 
 .dark .ide-workspace .glass-chip,
 .dark .ide-workspace .glass-surface {
-  background: rgb(0 0 0 / 0.42);
+  background: rgb(0 0 0 / 0.36);
   border-color: rgb(255 255 255 / 0.08);
   box-shadow:
     0 1px 3px rgb(0 0 0 / 0.45),
     inset 0 0.5px 0 rgb(255 255 255 / 0.07);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+
+.ide-workspace .glass-surface {
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
 }
 
 .dark .ide-workspace .ide-editor-panel {
@@ -1315,11 +1322,11 @@ html.dark [data-code-workspace] .ide-workspace .ide-breadcrumb-bar {
 }
 
 .dark .ide-workspace .ide-editor-surface {
-  background: linear-gradient(
-    180deg,
-    rgb(0 0 0 / 0.32) 0%,
-    rgb(0 0 0 / 0.22) 100%
-  );
+  background: #0d1117;
+}
+
+.dark .ide-workspace .ide-editor-viewport {
+  background: #0d1117;
 }
 
 .dark .ide-workspace .glass-composer {
@@ -1467,6 +1474,47 @@ html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
 .ide-editor-input {
   color: color-mix(in oklab, var(--foreground) 92%, transparent);
   letter-spacing: 0.01em;
+}
+
+/* CodeMirror editor — fills panel, matches IDE chrome */
+.ide-codemirror-host {
+  display: flex;
+  min-height: 100%;
+  flex: 1;
+}
+
+.ide-codemirror,
+.ide-codemirror .cm-editor {
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.ide-codemirror .cm-editor.cm-focused {
+  outline: none;
+}
+
+.ide-codemirror .cm-scroller {
+  min-height: 100%;
+  overflow: auto;
+}
+
+html.dark .ide-workspace .ide-codemirror-host,
+html.dark .ide-workspace .ide-codemirror,
+html.dark .ide-workspace .ide-codemirror .cm-editor,
+html.dark .ide-workspace .ide-codemirror .cm-scroller {
+  background: #0d1117;
+}
+
+html.dark .ide-workspace .ide-codemirror .cm-gutters {
+  background: #010409;
+  border-right-color: rgb(255 255 255 / 0.08);
+}
+
+html.dark [data-code-workspace] .ide-workspace .ide-codemirror .cm-gutters {
+  border-right-color: var(--code-chrome-divider);
 }
 
 .ide-breadcrumb-bar {
@@ -1631,6 +1679,75 @@ html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
   border-right: 1px solid var(--ide-border-subtle);
 }
 
+/* Clovops IDE menu bar + File dropdown */
+.ide-menubar {
+  min-height: 2rem;
+  border-bottom: 1px solid var(--ide-border-subtle);
+  background: var(--ide-surface-muted);
+}
+
+.ide-file-menu-trigger {
+  border: none;
+  background: transparent;
+}
+
+.ide-file-menu-trigger:hover {
+  background: var(--workspace-tab-inactive-bg-hover);
+}
+
+.ide-file-menu-trigger-active {
+  background: var(--workspace-tab-inactive-bg-hover);
+  color: var(--foreground);
+}
+
+/*
+ * File menu — portaled to body; uses :root glass tokens (not --ide-*).
+ * Extends glass-surface with macOS-style vibrancy + depth.
+ */
+.ide-file-menu-dropdown {
+  border: 1px solid var(--workspace-tab-border);
+  background: var(--workspace-tab-bg);
+  backdrop-filter: blur(44px) saturate(195%);
+  -webkit-backdrop-filter: blur(44px) saturate(195%);
+  box-shadow:
+    var(--workspace-tab-shadow),
+    0 2px 8px rgb(0 0 0 / 0.06),
+    0 16px 48px -12px rgb(0 0 0 / 0.18);
+}
+
+html:not(.dark) .ide-file-menu-dropdown {
+  background: rgb(255 255 255 / 0.82);
+  border-color: rgb(255 255 255 / 0.95);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.05),
+    0 4px 14px rgb(0 0 0 / 0.06),
+    0 18px 52px -14px rgb(0 0 0 / 0.16),
+    inset 0 1px 0 rgb(255 255 255 / 1),
+    inset 0 0 0 1px rgb(255 255 255 / 0.65);
+  backdrop-filter: blur(58px) saturate(210%);
+  -webkit-backdrop-filter: blur(58px) saturate(210%);
+}
+
+html.dark .ide-file-menu-dropdown {
+  background: rgb(24 24 26 / 0.78);
+  border-color: rgb(255 255 255 / 0.12);
+  box-shadow:
+    0 2px 10px rgb(0 0 0 / 0.28),
+    0 12px 36px rgb(0 0 0 / 0.38),
+    0 24px 64px -16px rgb(0 0 0 / 0.55),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(58px) saturate(185%);
+  -webkit-backdrop-filter: blur(58px) saturate(185%);
+}
+
+html.dark [data-code-workspace] .ide-menubar {
+  border-bottom-color: var(--code-chrome-divider);
+}
+
+.dark .ide-workspace .ide-menubar {
+  background: rgb(0 0 0 / 0.36);
+}
+
 .ide-sidebar-icon-rail .workspace-tab-active {
   box-shadow:
     inset 0 0 0 1px var(--ide-border),
@@ -1642,6 +1759,31 @@ html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
   font-size: 12px;
   letter-spacing: 0.01em;
   transition: background-color 140ms ease, color 140ms ease;
+}
+
+.ide-tree-folder-selected {
+  background: color-mix(in oklab, var(--primary) 10%, var(--workspace-tab-inactive-bg-hover) 90%);
+  color: var(--foreground);
+  box-shadow: inset 2px 0 0 var(--ide-accent-line);
+  border-radius: 0.35rem;
+}
+
+.ide-tree-create-input {
+  height: 1.35rem;
+  border: 1px solid color-mix(in oklab, var(--primary) 35%, transparent 65%);
+  border-radius: 0.2rem;
+  background: color-mix(in oklab, var(--background) 88%, var(--primary) 12%);
+  color: var(--foreground);
+  padding: 0 0.35rem;
+}
+
+.ide-tree-create-input:focus {
+  border-color: color-mix(in oklab, var(--primary) 55%, transparent 45%);
+}
+
+.dark .ide-workspace .ide-tree-folder-selected {
+  background: rgb(255 255 255 / 0.08);
+  box-shadow: inset 2px 0 0 rgb(255 255 255 / 0.45);
 }
 
 .ide-tree-item-active {
@@ -1944,3 +2086,4 @@ html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
 .ide-resize-handle-horizontal:active {
   background: color-mix(in oklab, var(--primary) 28%, transparent);
 }
+
