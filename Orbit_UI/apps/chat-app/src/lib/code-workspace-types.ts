@@ -16,6 +16,8 @@ export type CodeWorkspaceUiState = {
   /** Single explorer selection: null = project root, otherwise a folder or file id. */
   explorerFocusId: string | null;
   activeFileId: string | null;
+  /** Whether top-level project tree children are visible. */
+  rootExpanded: boolean;
   expandedFolderIds: string[];
   /** Single editor tab (VS Code–style one open file). */
   openFileIds: string[];

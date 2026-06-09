@@ -9,6 +9,7 @@ from app.api.v1.public.auth import require_chat_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.models import User
+from app.services.code_workspace.deploy_store import deploy_project
 from app.services.code_workspace.file_store import read_file_content, write_file_content
 from app.services.code_workspace.settings_store import get_user_settings, update_user_settings
 from app.services.code_workspace.project_store import (
@@ -24,6 +25,8 @@ from app.services.code_workspace.project_store import (
     update_project_structure,
 )
 from clovai_apps.code_workspace.schemas import (
+    CodeWorkspaceDeployRequest,
+    CodeWorkspaceDeployResponse,
     CodeWorkspaceFileContentResponse,
     CodeWorkspaceFileContentUpdateRequest,
     CodeWorkspaceNodeCreateRequest,
@@ -171,6 +174,18 @@ def code_workspace_update_settings(
     _ensure_enabled()
     payload = update_user_settings(db, user.id, body)
     return CodeWorkspaceSettingsResponse.model_validate(payload)
+
+
+@router.post("/projects/{project_id}/deploy", response_model=CodeWorkspaceDeployResponse)
+def code_workspace_deploy_project(
+    project_id: uuid.UUID,
+    body: CodeWorkspaceDeployRequest | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_chat_user),
+):
+    _ensure_enabled()
+    payload = body or CodeWorkspaceDeployRequest()
+    return deploy_project(db, user.id, project_id, payload)
 
 
 @router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

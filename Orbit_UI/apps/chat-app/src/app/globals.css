@@ -550,133 +550,61 @@
   }
 }
 
-/* Home + Chat — soft grey canvas gradient */
+/* Home + Chat — solid canvas (no grey gradients); dark = black glass like Clovops */
 .home-warm-canvas {
-  background-color: oklch(0.94 0.004 264);
-  background-image:
-    radial-gradient(ellipse 110% 70% at 50% -12%, oklch(0.86 0.005 264 / 0.7), transparent 58%),
-    radial-gradient(ellipse 55% 45% at 92% 88%, oklch(0.82 0.006 264 / 0.45), transparent 52%),
-    linear-gradient(168deg, oklch(0.98 0.002 264) 0%, oklch(0.92 0.004 264) 50%, oklch(0.86 0.006 264) 100%);
+  background-color: var(--background);
+  background-image: none;
 }
 
 .dark .home-warm-canvas {
-  background-color: oklch(0.17 0.008 264);
-  background-image:
-    radial-gradient(ellipse 110% 70% at 50% -12%, oklch(0.30 0.012 264 / 0.75), transparent 58%),
-    radial-gradient(ellipse 55% 45% at 92% 88%, oklch(0.22 0.01 264 / 0.55), transparent 52%),
-    linear-gradient(168deg, oklch(0.26 0.01 264) 0%, oklch(0.18 0.008 264) 50%, oklch(0.12 0.008 264) 100%);
+  --workspace-tab-bg: rgb(0 0 0 / 0.42);
+  --workspace-tab-border: rgb(255 255 255 / 0.07);
+  --workspace-tab-shadow:
+    0 1px 3px rgb(0 0 0 / 0.55),
+    inset 0 0.5px 0 rgb(255 255 255 / 0.06);
+  --workspace-tab-inactive-bg-hover: rgb(255 255 255 / 0.05);
+  --workspace-tab-inactive-fg: oklch(0.55 0.008 264);
+  --workspace-tab-inactive-fg-hover: oklch(0.92 0.004 264);
+  --workspace-tab-active-bg: rgb(255 255 255 / 0.1);
+  --workspace-tab-active-fg: oklch(0.96 0.004 264);
+  --workspace-tab-active-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+  background-color: oklch(0.03 0.004 264);
+  background-image: none;
 }
 
-/* Home page — full-bleed grey gradient behind hero */
+.dark .home-warm-canvas .sidebar-glass {
+  background: rgb(0 0 0 / 0.46);
+  border-color: rgb(255 255 255 / 0.06);
+  box-shadow:
+    var(--workspace-tab-shadow),
+    2px 0 20px -8px rgb(0 0 0 / 0.65);
+}
+
+.dark .home-warm-canvas .workspace-top-bar {
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  background: linear-gradient(
+    180deg,
+    oklch(0.1 0.005 264) 0%,
+    oklch(0.085 0.004 264) 100%
+  );
+}
+
+/* Home page — full-bleed backdrop (matches shell; no animated grey blobs) */
 .home-page-canvas {
   overflow: hidden;
   isolation: isolate;
-  background-color: oklch(0.93 0.004 264);
-  background-image: linear-gradient(
-    180deg,
-    oklch(0.97 0.003 264) 0%,
-    oklch(0.90 0.005 264) 55%,
-    oklch(0.84 0.006 264) 100%
-  );
+  background-color: var(--background);
+  background-image: none;
 }
 
 .home-page-canvas::before,
 .home-page-canvas::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-/* Slow drifting grey blobs */
-.home-page-canvas::before {
-  inset: -25%;
-  filter: blur(72px) saturate(110%);
-  opacity: 0.72;
-  will-change: transform;
-  animation: home-gradient-drift 32s ease-in-out infinite alternate;
-  background:
-    radial-gradient(ellipse 55% 45% at 50% 8%, oklch(0.80 0.006 264 / 0.85), transparent 62%),
-    radial-gradient(ellipse 40% 35% at 12% 88%, oklch(0.86 0.005 264 / 0.55), transparent 58%),
-    radial-gradient(ellipse 45% 40% at 88% 72%, oklch(0.82 0.006 264 / 0.65), transparent 60%);
-}
-
-/* Soft shine sweep */
-.home-page-canvas::after {
-  inset: -40% -60%;
-  background: linear-gradient(
-    105deg,
-    transparent 38%,
-    oklch(1 0 0 / 0.14) 48%,
-    oklch(1 0 0 / 0.22) 50%,
-    oklch(1 0 0 / 0.14) 52%,
-    transparent 62%
-  );
-  mix-blend-mode: overlay;
-  will-change: transform;
-  animation: home-gradient-shine 11s ease-in-out infinite;
+  display: none;
 }
 
 .dark .home-page-canvas {
-  background-color: oklch(0.15 0.008 264);
-  background-image: linear-gradient(
-    180deg,
-    oklch(0.28 0.012 264) 0%,
-    oklch(0.17 0.008 264) 55%,
-    oklch(0.11 0.008 264) 100%
-  );
-}
-
-.dark .home-page-canvas::before {
-  opacity: 0.65;
-  background:
-    radial-gradient(ellipse 55% 45% at 50% 6%, oklch(0.36 0.014 264 / 0.9), transparent 62%),
-    radial-gradient(ellipse 40% 35% at 10% 90%, oklch(0.24 0.01 264 / 0.7), transparent 58%),
-    radial-gradient(ellipse 45% 40% at 90% 70%, oklch(0.26 0.012 264 / 0.75), transparent 60%);
-}
-
-.dark .home-page-canvas::after {
-  background: linear-gradient(
-    105deg,
-    transparent 38%,
-    oklch(1 0 0 / 0.06) 48%,
-    oklch(1 0 0 / 0.12) 50%,
-    oklch(1 0 0 / 0.06) 52%,
-    transparent 62%
-  );
-}
-
-@keyframes home-gradient-drift {
-  0% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-  }
-  35% {
-    transform: translate3d(2.5%, -2%, 0) scale(1.04);
-  }
-  70% {
-    transform: translate3d(-2%, 2.5%, 0) scale(1.02);
-  }
-  100% {
-    transform: translate3d(1.5%, 1.5%, 0) scale(1.03);
-  }
-}
-
-@keyframes home-gradient-shine {
-  0%,
-  72%,
-  100% {
-    transform: translate3d(-55%, 0, 0) skewX(-12deg);
-    opacity: 0;
-  }
-  8% {
-    opacity: 1;
-  }
-  38% {
-    transform: translate3d(55%, 0, 0) skewX(-12deg);
-    opacity: 1;
-  }
-  48% {
-    opacity: 0;
-  }
+  background-color: oklch(0.03 0.004 264);
+  background-image: none;
 }
 
 /* Navbar tab track — top bar tablist, chat sidebar, assistant message cards */
@@ -1042,7 +970,6 @@
 /* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {
   .aurora::before, .aurora::after,
-  .home-page-canvas::before, .home-page-canvas::after,
   .float-slow, .text-gradient, .brand-text-gradient,
   .gradient-border::before, .dot-live::before {
     animation: none !important;
@@ -1095,7 +1022,11 @@
 }
 
 .code-editor-input::selection {
-  background: color-mix(in oklab, var(--primary) 28%, transparent);
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+html.dark .code-editor-input::selection {
+  background: rgb(255 255 255 / 0.14);
 }
 
 .code-editor-input:focus-visible {
@@ -1122,7 +1053,12 @@
 }
 
 .ide-editor-input::selection {
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
   -webkit-text-fill-color: transparent;
+}
+
+html.dark .ide-editor-input::selection {
+  background: rgb(255 255 255 / 0.14);
 }
 
 /* Shiki dual-theme tokens (github-light / github-dark) */
@@ -1136,11 +1072,12 @@ html.dark .ide-editor-highlight [style*="--shiki-dark"] {
 
 /* ─── IDE workspace — premium editor chrome ───────────────────────── */
 .ide-workspace {
+  --ide-chrome-border-width: 0.5px;
   --ide-surface: color-mix(in oklab, var(--background) 92%, var(--workspace-tab-bg) 8%);
   --ide-surface-raised: color-mix(in oklab, var(--background) 84%, var(--workspace-tab-bg) 16%);
   --ide-surface-muted: color-mix(in oklab, var(--foreground) 4.5%, var(--background));
-  --ide-border: color-mix(in oklab, var(--workspace-tab-border) 72%, transparent);
-  --ide-border-subtle: color-mix(in oklab, var(--foreground) 7%, transparent);
+  --ide-border: color-mix(in oklab, var(--workspace-tab-border) 55%, transparent);
+  --ide-border-subtle: color-mix(in oklab, var(--foreground) 5%, transparent);
   --ide-text-muted: color-mix(in oklab, var(--foreground) 52%, transparent);
   --ide-accent-line: color-mix(in oklab, var(--primary) 68%, var(--foreground) 32%);
   background:
@@ -1151,7 +1088,7 @@ html.dark .ide-editor-highlight [style*="--shiki-dark"] {
 /* Code page shell — deep black canvas in dark mode */
 .dark .ide-page-canvas {
   --workspace-tab-bg: rgb(0 0 0 / 0.42);
-  --workspace-tab-border: rgb(255 255 255 / 0.07);
+  --workspace-tab-border: rgb(255 255 255 / 0.05);
   --workspace-tab-shadow:
     0 1px 3px rgb(0 0 0 / 0.55),
     inset 0 0.5px 0 rgb(255 255 255 / 0.06);
@@ -1187,18 +1124,19 @@ html.dark [data-code-workspace] .ide-page-canvas .sidebar-glass:not(.code-profil
  * Dark: opaque black variant (html.dark only).
  */
 [data-code-workspace] {
-  --code-chrome-divider: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --ide-chrome-border-width: 0.5px;
+  --code-chrome-divider: color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
 html.dark [data-code-workspace] {
-  --code-chrome-divider: rgb(255 255 255 / 0.13);
+  --code-chrome-divider: rgb(255 255 255 / 0.06);
 }
 
 [data-code-workspace] [data-profile-rail].code-profile-rail {
   position: relative;
   isolation: isolate;
   border: none;
-  border-right: 1px solid var(--code-chrome-divider);
+  border-right: var(--ide-chrome-border-width) solid var(--code-chrome-divider);
   background: var(--workspace-tab-bg);
   box-shadow:
     var(--workspace-tab-shadow),
@@ -1222,7 +1160,7 @@ html.dark [data-code-workspace] [data-profile-rail].code-profile-rail {
 }
 
 [data-code-workspace] .workspace-top-bar {
-  border-bottom: 1px solid var(--code-chrome-divider);
+  border-bottom: var(--ide-chrome-border-width) solid var(--code-chrome-divider);
 }
 
 html.dark [data-code-workspace] .workspace-top-bar {
@@ -1257,39 +1195,39 @@ html.dark [data-code-workspace] .workspace-top-bar {
 html.dark [data-code-workspace] .ide-workspace {
   --ide-surface: rgb(0 0 0 / 0.4);
   --ide-surface-muted: oklch(0.07 0.004 264);
-  --ide-border: rgb(255 255 255 / 0.14);
+  --ide-border: rgb(255 255 255 / 0.08);
   --ide-border-subtle: var(--code-chrome-divider);
 }
 
 .dark .ide-workspace .sidebar-glass,
 .dark .ide-workspace .ide-panel {
   background: rgb(0 0 0 / 0.5);
-  border-color: rgb(255 255 255 / 0.06);
-  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.04);
+  border-color: rgb(255 255 255 / 0.04);
+  box-shadow: inset -0.5px 0 0 rgb(255 255 255 / 0.03);
 }
 
 .dark .ide-workspace .ide-panel[data-side="right"] {
-  box-shadow: inset 1px 0 0 rgb(255 255 255 / 0.04);
+  box-shadow: inset 0.5px 0 0 rgb(255 255 255 / 0.03);
 }
 
 html.dark [data-code-workspace] .ide-workspace .sidebar-glass,
 html.dark [data-code-workspace] .ide-workspace .ide-panel {
   background: rgb(0 0 0 / 0.44);
   border-color: var(--code-chrome-divider);
-  box-shadow: inset -1px 0 0 var(--code-chrome-divider);
+  box-shadow: inset -0.5px 0 0 var(--code-chrome-divider);
 }
 
 html.dark [data-code-workspace] .ide-workspace .ide-panel[data-side="right"] {
-  box-shadow: inset 1px 0 0 var(--code-chrome-divider);
+  box-shadow: inset 0.5px 0 0 var(--code-chrome-divider);
 }
 
 html.dark [data-code-workspace] .ide-workspace .ide-sidebar-icon-rail {
-  border-right: 1px solid var(--code-chrome-divider);
+  border-right: var(--ide-chrome-border-width) solid var(--code-chrome-divider);
 }
 
 html.dark [data-code-workspace] .ide-workspace .ide-panel[data-side="right"] .ide-sidebar-icon-rail {
   border-right: none;
-  border-left: 1px solid var(--code-chrome-divider);
+  border-left: var(--ide-chrome-border-width) solid var(--code-chrome-divider);
 }
 
 .dark .ide-workspace .glass-chip,
@@ -1367,7 +1305,7 @@ html.dark [data-code-workspace] .ide-workspace .ide-editor-gutter {
 
 .dark .ide-workspace .ide-tree-item-active {
   background: rgb(255 255 255 / 0.06);
-  box-shadow: inset 2px 0 0 rgb(255 255 255 / 0.55);
+  box-shadow: inset 1px 0 0 rgb(255 255 255 / 0.55);
 }
 
 .dark .ide-workspace .ide-toolbar-btn {
@@ -1382,13 +1320,13 @@ html.dark [data-code-workspace] .ide-workspace .ide-editor-gutter {
 
 .dark .ide-workspace .ide-console-panel {
   background: rgb(0 0 0 / 0.48);
-  border-top-color: rgb(255 255 255 / 0.06);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  border-top-color: rgb(255 255 255 / 0.04);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.03);
 }
 
 html.dark [data-code-workspace] .ide-workspace .ide-console-panel {
   border-top-color: var(--code-chrome-divider);
-  box-shadow: inset 0 1px 0 var(--code-chrome-divider);
+  box-shadow: inset 0 0.5px 0 var(--code-chrome-divider);
 }
 
 html.dark [data-code-workspace] .ide-workspace .ide-sidebar-tabs,
@@ -1398,17 +1336,17 @@ html.dark [data-code-workspace] .ide-workspace .ide-tab-bar {
 
 .dark .ide-workspace .ide-command-strip {
   background: rgb(0 0 0 / 0.55);
-  border-top-color: rgb(255 255 255 / 0.07);
+  border-top-color: rgb(255 255 255 / 0.04);
   box-shadow:
     0 -16px 44px -24px rgb(0 0 0 / 0.85),
-    inset 0 1px 0 rgb(255 255 255 / 0.06);
+    inset 0 0.5px 0 rgb(255 255 255 / 0.03);
 }
 
 html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
   border-top-color: var(--code-chrome-divider);
   box-shadow:
     0 -16px 44px -24px rgb(0 0 0 / 0.85),
-    inset 0 1px 0 var(--code-chrome-divider);
+    inset 0 0.5px 0 var(--code-chrome-divider);
 }
 
 .dark .ide-workspace .ide-command-strip .glass-chip {
@@ -1446,11 +1384,11 @@ html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
 
 .ide-panel {
   background: var(--ide-surface);
-  box-shadow: inset -1px 0 0 var(--ide-border-subtle);
+  box-shadow: inset -0.5px 0 0 var(--ide-border-subtle);
 }
 
 .ide-panel[data-side="right"] {
-  box-shadow: inset 1px 0 0 var(--ide-border-subtle);
+  box-shadow: inset 0.5px 0 0 var(--ide-border-subtle);
 }
 
 .ide-editor-panel {
@@ -1464,7 +1402,7 @@ html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
 
 .ide-editor-gutter {
   min-width: 2.75rem;
-  border-right: 1px solid var(--ide-border-subtle);
+  border-right: var(--ide-chrome-border-width) solid var(--ide-border-subtle);
   background: color-mix(in oklab, var(--ide-surface-muted) 80%, transparent);
   color: var(--ide-text-muted);
   font-variant-numeric: tabular-nums;
@@ -1501,6 +1439,19 @@ html.dark [data-code-workspace] .ide-workspace .ide-command-strip {
   overflow: auto;
 }
 
+/* CodeMirror selection — grey (overrides GitHub theme blue #BBDFFF / #003d73) */
+.ide-codemirror .cm-selectionLayer .cm-selectionBackground,
+.ide-codemirror .cm-content ::selection,
+.ide-codemirror .cm-line::selection {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+html.dark .ide-codemirror .cm-selectionLayer .cm-selectionBackground,
+html.dark .ide-codemirror .cm-content ::selection,
+html.dark .ide-codemirror .cm-line::selection {
+  background: rgb(255 255 255 / 0.14) !important;
+}
+
 html.dark .ide-workspace .ide-codemirror-host,
 html.dark .ide-workspace .ide-codemirror,
 html.dark .ide-workspace .ide-codemirror .cm-editor,
@@ -1518,7 +1469,7 @@ html.dark [data-code-workspace] .ide-workspace .ide-codemirror .cm-gutters {
 }
 
 .ide-breadcrumb-bar {
-  border-bottom: 1px solid var(--ide-border-subtle);
+  border-bottom: var(--ide-chrome-border-width) solid var(--ide-border-subtle);
   background: color-mix(in oklab, var(--ide-surface-muted) 65%, transparent);
   font-size: 11px;
   letter-spacing: 0.01em;
@@ -1527,7 +1478,7 @@ html.dark [data-code-workspace] .ide-workspace .ide-codemirror .cm-gutters {
 .ide-toolbar-btn {
   height: 1.625rem;
   padding: 0 0.5rem;
-  border: 1px solid var(--ide-border);
+  border: var(--ide-chrome-border-width) solid var(--ide-border);
   border-radius: 0.5rem;
   background: color-mix(in oklab, var(--workspace-tab-bg) 55%, transparent);
   backdrop-filter: blur(12px);
@@ -1552,7 +1503,7 @@ html.dark [data-code-workspace] .ide-workspace .ide-codemirror .cm-gutters {
 .ide-tab-bar {
   min-height: 2.25rem;
   padding-top: 0.25rem;
-  border-bottom: 1px solid var(--ide-border-subtle);
+  border-bottom: var(--ide-chrome-border-width) solid var(--ide-border-subtle);
   background: var(--ide-surface-muted);
 }
 
@@ -1602,8 +1553,8 @@ html.dark [data-code-workspace] .ide-workspace .ide-codemirror .cm-gutters {
   bottom: 0;
   left: 0.65rem;
   right: 0.65rem;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
+  height: 1px;
+  border-radius: 1px 1px 0 0;
   background: var(--ide-accent-line);
 }
 
@@ -1669,20 +1620,20 @@ html.dark [data-code-workspace] .ide-workspace .ide-codemirror .cm-gutters {
   left: 0.35rem;
   right: 0.35rem;
   bottom: 0;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
+  height: 1px;
+  border-radius: 1px 1px 0 0;
   background: var(--ide-accent-line);
 }
 
 .ide-sidebar-icon-rail {
   background: color-mix(in oklab, var(--ide-surface-muted) 92%, transparent);
-  border-right: 1px solid var(--ide-border-subtle);
+  border-right: var(--ide-chrome-border-width) solid var(--ide-border-subtle);
 }
 
 /* Clovops IDE menu bar + File dropdown */
 .ide-menubar {
   min-height: 2rem;
-  border-bottom: 1px solid var(--ide-border-subtle);
+  border-bottom: var(--ide-chrome-border-width) solid var(--ide-border-subtle);
   background: var(--ide-surface-muted);
 }
 
@@ -1705,7 +1656,8 @@ html.dark [data-code-workspace] .ide-workspace .ide-codemirror .cm-gutters {
  * Extends glass-surface with macOS-style vibrancy + depth.
  */
 .ide-file-menu-dropdown {
-  border: 1px solid var(--workspace-tab-border);
+  --ide-chrome-border-width: 0.5px;
+  border: var(--ide-chrome-border-width) solid var(--workspace-tab-border);
   background: var(--workspace-tab-bg);
   backdrop-filter: blur(44px) saturate(195%);
   -webkit-backdrop-filter: blur(44px) saturate(195%);
@@ -1730,7 +1682,7 @@ html:not(.dark) .ide-file-menu-dropdown {
 
 html.dark .ide-file-menu-dropdown {
   background: rgb(24 24 26 / 0.78);
-  border-color: rgb(255 255 255 / 0.12);
+  border-color: rgb(255 255 255 / 0.08);
   box-shadow:
     0 2px 10px rgb(0 0 0 / 0.28),
     0 12px 36px rgb(0 0 0 / 0.38),
@@ -1755,8 +1707,9 @@ html.dark [data-code-workspace] .ide-menubar {
 }
 
 .ide-tree-item {
-  border-radius: 0.35rem;
+  border-radius: 0.3rem;
   font-size: 12px;
+  line-height: 1.35;
   letter-spacing: 0.01em;
   transition: background-color 140ms ease, color 140ms ease;
 }
@@ -1764,12 +1717,12 @@ html.dark [data-code-workspace] .ide-menubar {
 .ide-tree-folder-selected {
   background: color-mix(in oklab, var(--primary) 10%, var(--workspace-tab-inactive-bg-hover) 90%);
   color: var(--foreground);
-  box-shadow: inset 2px 0 0 var(--ide-accent-line);
+  box-shadow: inset 1px 0 0 var(--ide-accent-line);
   border-radius: 0.35rem;
 }
 
 .ide-tree-create-input {
-  height: 1.35rem;
+  height: 1.3rem;
   border: 1px solid color-mix(in oklab, var(--primary) 35%, transparent 65%);
   border-radius: 0.2rem;
   background: color-mix(in oklab, var(--background) 88%, var(--primary) 12%);
@@ -1783,13 +1736,13 @@ html.dark [data-code-workspace] .ide-menubar {
 
 .dark .ide-workspace .ide-tree-folder-selected {
   background: rgb(255 255 255 / 0.08);
-  box-shadow: inset 2px 0 0 rgb(255 255 255 / 0.45);
+  box-shadow: inset 1px 0 0 rgb(255 255 255 / 0.45);
 }
 
 .ide-tree-item-active {
   background: color-mix(in oklab, var(--primary) 10%, var(--workspace-tab-inactive-bg-hover) 90%);
   color: var(--foreground);
-  box-shadow: inset 2px 0 0 var(--ide-accent-line);
+  box-shadow: inset 1px 0 0 var(--ide-accent-line);
 }
 
 .ide-section-label {
@@ -1801,7 +1754,7 @@ html.dark [data-code-workspace] .ide-menubar {
 }
 
 .ide-console-panel {
-  border-top: 1px solid var(--ide-border-subtle);
+  border-top: var(--ide-chrome-border-width) solid var(--ide-border-subtle);
   background: var(--ide-surface);
   box-shadow: inset 0 1px 0 color-mix(in oklab, white 25%, transparent);
 }
@@ -2085,5 +2038,30 @@ html.dark [data-code-workspace] .ide-menubar {
 .ide-resize-handle-horizontal:hover,
 .ide-resize-handle-horizontal:active {
   background: color-mix(in oklab, var(--primary) 28%, transparent);
+}
+
+/* Clovops — hairline Tailwind borders inside IDE panels */
+.ide-workspace .border {
+  border-width: var(--ide-chrome-border-width);
+}
+
+.ide-workspace .border-b {
+  border-bottom-width: var(--ide-chrome-border-width);
+}
+
+.ide-workspace .border-t {
+  border-top-width: var(--ide-chrome-border-width);
+}
+
+.ide-workspace .border-l {
+  border-left-width: var(--ide-chrome-border-width);
+}
+
+.ide-workspace .border-r {
+  border-right-width: var(--ide-chrome-border-width);
+}
+
+html.dark [data-code-workspace] .ide-workspace .sidebar-glass {
+  border-right-width: var(--ide-chrome-border-width);
 }
 

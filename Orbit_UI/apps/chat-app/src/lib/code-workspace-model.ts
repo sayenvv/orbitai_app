@@ -13,6 +13,7 @@ import type { ApiCodeWorkspaceProjectResponse } from "@/lib/orbit-api";
 export const DEFAULT_UI_STATE: CodeWorkspaceUiState = {
   explorerFocusId: null,
   activeFileId: null,
+  rootExpanded: true,
   expandedFolderIds: [],
   openFileIds: [],
 };
@@ -50,6 +51,7 @@ function migrateUiState(ui: CodeWorkspaceUiState & { selectedFolderId?: string |
   return {
     explorerFocusId,
     activeFileId: ui.activeFileId,
+    rootExpanded: ui.rootExpanded ?? true,
     expandedFolderIds: ui.expandedFolderIds ?? [],
     openFileIds,
   };
@@ -213,6 +215,7 @@ export function mapApiProject(raw: ApiCodeWorkspaceProjectResponse): CodeWorkspa
       ui: {
         explorerFocusId: ui.explorerFocusId ?? ui.selectedFolderId ?? null,
         activeFileId: ui.activeFileId,
+        rootExpanded: ui.rootExpanded,
         expandedFolderIds: ui.expandedFolderIds,
         openFileIds: ui.openFileIds,
       },
@@ -270,6 +273,7 @@ export function addLocalNode(
 
   const nextUi = { ...state.ui };
   nextUi.explorerFocusId = nodeId;
+  if (input.parentId === null) nextUi.rootExpanded = true;
   if (input.kind === "folder") {
     expanded.add(nodeId);
     nextUi.expandedFolderIds = [...expanded];

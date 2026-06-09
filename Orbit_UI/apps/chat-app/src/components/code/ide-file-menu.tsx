@@ -8,11 +8,13 @@ import { cn } from "@/lib/utils";
 
 type IdeFileMenuProps = {
   canSave: boolean;
+  canDeploy?: boolean;
   saving?: boolean;
   onNewFile: () => void;
   onNewFolder: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  onDeploy: () => void;
 };
 
 type MenuPosition = {
@@ -61,11 +63,13 @@ function MenuDivider() {
 
 export function IdeFileMenu({
   canSave,
+  canDeploy = true,
   saving = false,
   onNewFile,
   onNewFolder,
   onSave,
   onSaveAs,
+  onDeploy,
 }: IdeFileMenuProps) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -164,6 +168,15 @@ export function IdeFileMenu({
               disabled={!canSave}
               onClick={() => {
                 onSaveAs();
+                setOpen(false);
+              }}
+            />
+            <MenuDivider />
+            <MenuItem
+              label="Deploy…"
+              disabled={!canDeploy}
+              onClick={() => {
+                onDeploy();
                 setOpen(false);
               }}
             />

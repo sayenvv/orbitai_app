@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
+import { githubDarkInit, githubLightInit } from "@uiw/codemirror-theme-github";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
@@ -29,6 +29,13 @@ type CodeEditorProps = {
 
 const IDE_EDITOR_DARK_BG = "#0d1117";
 const IDE_EDITOR_DARK_GUTTER = "#010409";
+const IDE_SELECTION_LIGHT = "rgba(0, 0, 0, 0.10)";
+const IDE_SELECTION_DARK = "rgba(255, 255, 255, 0.14)";
+const IDE_SELECTION_MATCH_LIGHT = "rgba(0, 0, 0, 0.06)";
+const IDE_SELECTION_MATCH_DARK = "rgba(255, 255, 255, 0.10)";
+
+const selectionThemeSelectors =
+  "&.cm-focused .cm-selectionBackground, & .cm-line::selection, & .cm-selectionLayer .cm-selectionBackground, .cm-content ::selection";
 
 function ideEditorTheme(isDark: boolean, fontSize: number): Extension {
   return EditorView.theme(
@@ -82,10 +89,10 @@ function ideEditorTheme(isDark: boolean, fontSize: number): Extension {
           ? "#e6edf3"
           : "color-mix(in oklab, var(--foreground) 92%, transparent)",
       },
-      "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-        backgroundColor: isDark
-          ? "rgb(56 139 253 / 0.35) !important"
-          : "color-mix(in oklab, var(--primary) 28%, transparent) !important",
+      [selectionThemeSelectors]: {
+        background: isDark
+          ? `${IDE_SELECTION_DARK} !important`
+          : `${IDE_SELECTION_LIGHT} !important`,
       },
       ".cm-panels": {
         backgroundColor: isDark ? IDE_EDITOR_DARK_BG : "var(--ide-surface)",
@@ -139,9 +146,23 @@ export function CodeEditor({
       );
     });
 
+    const githubTheme = isDark
+      ? githubDarkInit({
+          settings: {
+            selection: IDE_SELECTION_DARK,
+            selectionMatch: IDE_SELECTION_MATCH_DARK,
+          },
+        })
+      : githubLightInit({
+          settings: {
+            selection: IDE_SELECTION_LIGHT,
+            selectionMatch: IDE_SELECTION_MATCH_LIGHT,
+          },
+        });
+
     const next: Extension[] = [
       ...getIdeCodeMirrorLanguage(language),
-      isDark ? githubDark : githubLight,
+      ...githubTheme,
       ideEditorTheme(isDark, fontSize),
       indentUnit.of(" ".repeat(tabSize)),
       keymap.of([indentWithTab]),

@@ -29,7 +29,6 @@ import {
   getCreateParentId,
   isExplorerFocused,
   isRootExplorerFocus,
-  nodePath,
 } from "@/lib/code-workspace-model";
 import type { CodeWorkspaceNode, CodeWorkspaceUiState } from "@/lib/code-workspace-types";
 import { cn } from "@/lib/utils";
@@ -61,6 +60,16 @@ type CreateDraft = {
   parentId: string | null;
 };
 
+const TREE_DEPTH_INDENT_PX = 7;
+const TREE_FOLDER_PAD_PX = 3;
+const TREE_CHEVRON_SLOT_CLASS = "inline-flex h-[18px] w-[18px] shrink-0";
+const treeRowClass =
+  "ide-tree-item flex w-full items-center gap-1.5 px-1.5 py-1 text-left";
+
+function treeIndent(depth: number): number {
+  return depth * TREE_DEPTH_INDENT_PX + TREE_FOLDER_PAD_PX;
+}
+
 function InlineCreateRow({
   type,
   depth,
@@ -87,10 +96,11 @@ function InlineCreateRow({
 
   return (
     <div
-      className="ide-tree-item ide-tree-create-row flex w-full items-center gap-1.5 px-1.5 py-1"
-      style={{ paddingLeft: `${depth * 8 + 6}px` }}
+      className={cn(treeRowClass, "ide-tree-create-row")}
+      style={{ paddingLeft: `${treeIndent(depth)}px` }}
       onMouseDown={(event) => event.stopPropagation()}
     >
+      <span className={TREE_CHEVRON_SLOT_CLASS} aria-hidden />
       {type === "file" ? (
         <FileCode2 className="h-3 w-3 shrink-0 text-primary/80" />
       ) : (
@@ -110,7 +120,7 @@ function InlineCreateRow({
             onCancel();
           }
         }}
-        placeholder={type === "file" ? "filename.ts" : "folder-name"}
+        placeholder={type === "file" ? "new filename" : "folder-name"}
         className={cn(
           "ide-tree-create-input min-w-0 flex-1 font-mono text-[12px] outline-none",
           hasError && "border-destructive",
@@ -162,13 +172,14 @@ function FileTreeNode({
         onClick={() => onSelectFile(node.id)}
         onContextMenu={(event) => onContextMenu(event, node.parentId)}
         className={cn(
-          "ide-tree-item flex w-full items-center gap-1.5 px-1.5 py-1 text-left",
+          treeRowClass,
           active
             ? "ide-tree-item-active"
             : "text-muted-foreground hover:bg-[var(--workspace-tab-inactive-bg-hover)] hover:text-foreground",
         )}
-        style={{ paddingLeft: `${depth * 8 + 6}px` }}
+        style={{ paddingLeft: `${treeIndent(depth)}px` }}
       >
+        <span className={TREE_CHEVRON_SLOT_CLASS} aria-hidden />
         <FileCode2 className="h-3 w-3 shrink-0 text-primary/80" />
         <span className="truncate">{node.name}</span>
       </button>
@@ -186,10 +197,11 @@ function FileTreeNode({
         role="button"
         tabIndex={0}
         className={cn(
-          "ide-tree-item flex w-full cursor-pointer items-center gap-0.5 px-1 py-1 text-left",
+          treeRowClass,
+          "cursor-pointer",
           selected ? "ide-tree-folder-selected" : "hover:bg-[var(--workspace-tab-inactive-bg-hover)]",
         )}
-        style={{ paddingLeft: `${depth * 8 + 2}px` }}
+        style={{ paddingLeft: `${treeIndent(depth)}px` }}
         onClick={() => onSelectFolder(node.id)}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -206,7 +218,7 @@ function FileTreeNode({
             event.stopPropagation();
             onToggleFolder(node.id);
           }}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+          className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
           aria-label={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
         >
           {showChildren ? (
@@ -215,7 +227,7 @@ function FileTreeNode({
             <ChevronRight className="h-3 w-3" />
           )}
         </button>
-        <span className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 font-medium text-foreground/80">
+        <span className="flex min-w-0 flex-1 items-center gap-1.5 font-medium text-foreground/80">
           <Folder className="h-3 w-3 shrink-0 text-primary/70" />
           <span className="truncate">{node.name}</span>
         </span>
@@ -265,6 +277,7 @@ type IdeLeftSidebarProps = {
   ui: CodeWorkspaceUiState;
   onSelectFolder: (folderId: string) => void;
   onSelectRoot: () => void;
+  onToggleRoot: () => void;
   onToggleFolder: (folderId: string) => void;
   onSelectFile: (fileId: string) => void;
   onPrepareCreateParent: (parentId: string | null) => void;
@@ -281,6 +294,7 @@ export function IdeLeftSidebar({
   ui,
   onSelectFolder,
   onSelectRoot,
+  onToggleRoot,
   onToggleFolder,
   onSelectFile,
   onPrepareCreateParent,
@@ -297,10 +311,9 @@ export function IdeLeftSidebar({
 
   const tree = buildTree(nodes);
   const rootSelected = isRootExplorerFocus(ui.explorerFocusId);
+  const rootExpanded = ui.rootExpanded;
+  const showRootChildren = rootExpanded || createDraft?.parentId === null;
   const createParentId = getCreateParentId(ui.explorerFocusId, nodes);
-  const createTargetLabel = createParentId
-    ? nodePath(createParentId, nodes)
-    : "/ (root)";
 
   const cancelCreate = useCallback(() => {
     setCreateDraft(null);
@@ -381,22 +394,9 @@ export function IdeLeftSidebar({
       <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
         {activeTab === "files" && (
           <>
-            <div className="space-y-1 px-2 py-2">
+            <div className="space-y-1 px-1.5 py-1.5">
               <div className="flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={onSelectRoot}
-                  className={cn(
-                    "ide-section-label min-w-0 truncate rounded-md px-1.5 py-1 text-left transition-colors",
-                    rootSelected
-                      ? "ide-tree-folder-selected text-foreground"
-                      : "text-muted-foreground hover:bg-[var(--workspace-tab-inactive-bg-hover)] hover:text-foreground",
-                  )}
-                  title="Select project root"
-                  aria-selected={rootSelected}
-                >
-                  {projectTitle}
-                </button>
+                <p className="ide-section-label min-w-0 truncate px-1.5 py-1">Explorer</p>
                 <div className="flex shrink-0 items-center gap-0.5">
                 <button
                   type="button"
@@ -426,21 +426,20 @@ export function IdeLeftSidebar({
                 </Link>
                 </div>
               </div>
-              <p className="truncate px-1.5 text-[10px] text-muted-foreground">
-                New items in <span className="font-mono text-foreground/75">{createTargetLabel}</span>
-              </p>
             </div>
 
-            <nav className="px-1.5 pb-2" onContextMenu={(event) => handleContextMenu(event, null)}>
+            <nav className="px-1.5 pb-1.5" onContextMenu={(event) => handleContextMenu(event, null)}>
               <div
                 role="button"
                 tabIndex={0}
                 className={cn(
-                  "ide-tree-item mb-0.5 flex w-full cursor-pointer items-center gap-1.5 px-1.5 py-1 text-left",
+                  treeRowClass,
+                  "cursor-pointer",
                   rootSelected
                     ? "ide-tree-folder-selected"
-                    : "text-muted-foreground hover:bg-[var(--workspace-tab-inactive-bg-hover)] hover:text-foreground",
+                    : "hover:bg-[var(--workspace-tab-inactive-bg-hover)]",
                 )}
+                style={{ paddingLeft: `${treeIndent(0)}px` }}
                 onClick={onSelectRoot}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -453,14 +452,30 @@ export function IdeLeftSidebar({
                   handleContextMenu(event, null);
                 }}
                 aria-selected={rootSelected}
-                title="Project root — new files and folders are created here when selected"
+                title="Project root folder"
               >
-                <Folder className="h-3 w-3 shrink-0 text-primary/70" />
-                <span className="min-w-0 flex-1 truncate font-medium">/</span>
-                <span className="shrink-0 text-[10px] text-muted-foreground">root</span>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleRoot();
+                  }}
+                  className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                  aria-label={rootExpanded ? `Collapse ${projectTitle}` : `Expand ${projectTitle}`}
+                >
+                  {showRootChildren ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                </button>
+                <span className="flex min-w-0 flex-1 items-center gap-1.5 font-medium text-foreground/80">
+                  <Folder className="h-3 w-3 shrink-0 text-primary/70" />
+                  <span className="truncate">{projectTitle}</span>
+                </span>
               </div>
 
-              {createDraft?.parentId === null && (
+              {showRootChildren && createDraft?.parentId === null && (
                 <InlineCreateRow
                   type={createDraft.type}
                   depth={1}
@@ -475,28 +490,29 @@ export function IdeLeftSidebar({
                 />
               )}
 
-              {tree.map((item) => (
-                <FileTreeNode
-                  key={item.node.id}
-                  item={item}
-                  depth={0}
-                  nodes={nodes}
-                  ui={ui}
-                  createDraft={createDraft}
-                  createName={createName}
-                  createError={createError}
-                  onCreateNameChange={(value) => {
-                    setCreateName(value);
-                    if (createError) setCreateError(null);
-                  }}
-                  onSubmitCreate={() => void submitCreate()}
-                  onCancelCreate={cancelCreate}
-                  onSelectFolder={onSelectFolder}
-                  onToggleFolder={onToggleFolder}
-                  onSelectFile={onSelectFile}
-                  onContextMenu={handleContextMenu}
-                />
-              ))}
+              {showRootChildren &&
+                tree.map((item) => (
+                  <FileTreeNode
+                    key={item.node.id}
+                    item={item}
+                    depth={1}
+                    nodes={nodes}
+                    ui={ui}
+                    createDraft={createDraft}
+                    createName={createName}
+                    createError={createError}
+                    onCreateNameChange={(value) => {
+                      setCreateName(value);
+                      if (createError) setCreateError(null);
+                    }}
+                    onSubmitCreate={() => void submitCreate()}
+                    onCancelCreate={cancelCreate}
+                    onSelectFolder={onSelectFolder}
+                    onToggleFolder={onToggleFolder}
+                    onSelectFile={onSelectFile}
+                    onContextMenu={handleContextMenu}
+                  />
+                ))}
             </nav>
           </>
         )}
@@ -509,7 +525,7 @@ export function IdeLeftSidebar({
                 key={branch.name}
                 type="button"
                 className={cn(
-                  "ide-tree-item flex w-full items-center gap-2 px-2 py-2 text-left",
+                  "ide-tree-item flex w-full items-center gap-1.5 px-1.5 py-1 text-left",
                   branch.current
                     ? "ide-tree-item-active"
                     : "text-muted-foreground hover:bg-[var(--workspace-tab-inactive-bg-hover)] hover:text-foreground",

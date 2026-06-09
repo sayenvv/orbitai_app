@@ -26,6 +26,9 @@ class CodeWorkspaceUiState(BaseModel):
     active_file_id: str | None = Field(
         default=None, alias="activeFileId", serialization_alias="activeFileId"
     )
+    root_expanded: bool = Field(
+        default=True, alias="rootExpanded", serialization_alias="rootExpanded"
+    )
     expanded_folder_ids: list[str] = Field(
         default_factory=list, alias="expandedFolderIds", serialization_alias="expandedFolderIds"
     )
@@ -174,5 +177,29 @@ class CodeWorkspaceSettingsUpdateRequest(BaseModel):
         default=None, alias="storageRootPath", serialization_alias="storageRootPath"
     )
     preferences: CodeWorkspacePreferences | None = None
+
+    model_config = {"populate_by_name": True}
+
+
+class CodeWorkspaceDeployRequest(BaseModel):
+    target: Literal["clovops"] = "clovops"
+
+    model_config = {"populate_by_name": True}
+
+
+class CodeWorkspaceDeployLogEntry(BaseModel):
+    level: Literal["info", "warn", "error", "success"] = "info"
+    message: str
+    timestamp: int = Field(alias="timestamp", serialization_alias="timestamp")
+
+    model_config = {"populate_by_name": True}
+
+
+class CodeWorkspaceDeployResponse(BaseModel):
+    status: Literal["success", "failed"]
+    stack: str
+    deploy_url: str | None = Field(default=None, alias="deployUrl", serialization_alias="deployUrl")
+    logs: list[CodeWorkspaceDeployLogEntry] = Field(default_factory=list)
+    deployed_at: int = Field(alias="deployedAt", serialization_alias="deployedAt")
 
     model_config = {"populate_by_name": True}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   Bug,
@@ -36,7 +36,7 @@ const DEBUG_LOG = `[info] AxiomClient initialized
 [warn] API key loaded from environment
 `;
 
-const OUTPUT_LOG = `[build] Compiling TypeScript...
+const DEFAULT_OUTPUT_LOG = `[build] Compiling TypeScript...
 [build] Emitting declaration files...
 [build] Done in 1.24s
 `;
@@ -45,20 +45,43 @@ const PROBLEMS = [
   { file: "src/rate-limiter.ts", line: 12, severity: "warn", message: "Recursive acquire() may overflow on long waits" },
 ];
 
-const PORTS = [
+const DEFAULT_PORTS = [
   { name: "Node", port: 9229, status: "listening" },
   { name: "Dev server", port: 3001, status: "listening" },
 ];
+
+export type IdeConsolePort = {
+  name: string;
+  port: number;
+  status: string;
+};
 
 type IdeBottomConsoleProps = {
   onClose?: () => void;
   onMaximize?: () => void;
   maximized?: boolean;
+  preferredTab?: ConsoleTab;
+  outputLog?: string;
+  ports?: IdeConsolePort[];
 };
 
-export function IdeBottomConsole({ onClose, onMaximize, maximized }: IdeBottomConsoleProps) {
-  const [activeTab, setActiveTab] = useState<ConsoleTab>("terminal");
+export function IdeBottomConsole({
+  onClose,
+  onMaximize,
+  maximized,
+  preferredTab,
+  outputLog,
+  ports,
+}: IdeBottomConsoleProps) {
+  const [activeTab, setActiveTab] = useState<ConsoleTab>(preferredTab ?? "terminal");
   const [terminalInput, setTerminalInput] = useState("");
+
+  useEffect(() => {
+    if (preferredTab) setActiveTab(preferredTab);
+  }, [preferredTab]);
+
+  const resolvedOutput = outputLog?.trim() ? outputLog : DEFAULT_OUTPUT_LOG;
+  const resolvedPorts = ports && ports.length > 0 ? ports : DEFAULT_PORTS;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -137,7 +160,7 @@ export function IdeBottomConsole({ onClose, onMaximize, maximized }: IdeBottomCo
 
         {activeTab === "output" && (
           <pre className="h-full overflow-auto p-3 font-mono text-[12px] leading-relaxed text-muted-foreground [scrollbar-width:thin]">
-            {OUTPUT_LOG}
+            {resolvedOutput}
           </pre>
         )}
 
@@ -177,7 +200,7 @@ export function IdeBottomConsole({ onClose, onMaximize, maximized }: IdeBottomCo
                 </tr>
               </thead>
               <tbody>
-                {PORTS.map((port) => (
+                {resolvedPorts.map((port) => (
                   <tr key={port.port} className="border-t border-[color:var(--workspace-tab-border)]">
                     <td className="py-2 text-foreground">{port.name}</td>
                     <td className="py-2 font-mono text-muted-foreground">{port.port}</td>

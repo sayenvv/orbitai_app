@@ -11,8 +11,9 @@ import {
   X,
 } from "lucide-react";
 import { CodeEditor } from "@/components/code/code-editor";
+import { IdeDeployModal, type DeployResult } from "@/components/code/ide-deploy-modal";
 import { IdeFileMenu } from "@/components/code/ide-file-menu";
-import { IdeBottomConsole } from "@/components/code/ide-bottom-console";
+import { IdeBottomConsole, type IdeConsolePort } from "@/components/code/ide-bottom-console";
 import {
   IDE_SIDEBAR_ICON_RAIL_WIDTH_PX,
   IdeCollapsibleSidebar,
@@ -92,6 +93,15 @@ export function CodeWorkspace() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+  const [deployResult, setDeployResult] = useState<DeployResult | null>(null);
+  const [deployError, setDeployError] = useState<string | null>(null);
+  const [deployOutput, setDeployOutput] = useState("");
+  const [deployPorts, setDeployPorts] = useState<IdeConsolePort[]>([]);
+  const [consolePreferredTab, setConsolePreferredTab] = useState<
+    "terminal" | "debug" | "output" | "problems" | "ports" | undefined
+  >(undefined);
   const [leftSidebarTab, setLeftSidebarTab] = useState<LeftSidebarTab>("files");
   const [rightSidebarTab, setRightSidebarTab] = useState<RightSidebarTab>("ask");
   const [consoleOpen, setConsoleOpen] = useState(true);
@@ -360,6 +370,7 @@ export function CodeWorkspace() {
         }
         return {
           ...current,
+          rootExpanded: true,
           expandedFolderIds: Array.from(expanded),
           explorerFocusId: fileId,
           activeFileId: fileId,
@@ -422,6 +433,14 @@ export function CodeWorkspace() {
     updateUi((current) => ({ ...current, explorerFocusId: null }));
   }, [updateUi]);
 
+  const toggleRoot = useCallback(() => {
+    updateUi((current) => ({
+      ...current,
+      explorerFocusId: null,
+      rootExpanded: !current.rootExpanded,
+    }));
+  }, [updateUi]);
+
   const toggleFolder = useCallback(
     (folderId: string) => {
       updateUi((current) => {
@@ -441,7 +460,7 @@ export function CodeWorkspace() {
   const prepareCreateParent = useCallback(
     (parentId: string | null) => {
       if (!parentId) {
-        updateUi((current) => ({ ...current, explorerFocusId: null }));
+        updateUi((current) => ({ ...current, explorerFocusId: null, rootExpanded: true }));
         return;
       }
 
@@ -463,6 +482,7 @@ export function CodeWorkspace() {
         return {
           ...current,
           explorerFocusId: focusId,
+          rootExpanded: true,
           expandedFolderIds: [...expanded],
         };
       });
@@ -658,24 +678,109 @@ export function CodeWorkspace() {
 
   const canSaveFile = Boolean(activeFile) && isActiveFileContentReady && persisted;
 
+  const flushProjectFiles = useCallback(async () => {
+    if (!project || !persisted) return;
+
+    const fileNodes = nodes.filter((node) => node.kind === "file");
+    await Promise.all(
+      fileNodes.map(async (node) => {
+        const content = fileContents[node.id] ?? "";
+        window.clearTimeout(fileSaveTimersRef.current[node.id]);
+        await codeWorkspaceApi.saveFileContent(project.id, node.id, content);
+      }),
+    );
+
+    await codeWorkspaceApi.updateStructure(project.id, {
+      nodes: nodesForPersistence(nodes),
+      ui,
+    });
+  }, [fileContents, nodes, persisted, project, ui]);
+
+  const handleOpenDeploy = useCallback(() => {
+    setDeployError(null);
+    setDeployModalOpen(true);
+  }, []);
+
+  const handleDeploy = useCallback(async () => {
+    if (!project) return;
+
+    setDeploying(true);
+    setDeployError(null);
+    setDeployResult(null);
+    setConsoleOpen(true);
+    setConsoleMaximized(false);
+    setConsolePreferredTab("output");
+
+    try {
+      if (persisted) {
+        await flushProjectFiles();
+        const response = await codeWorkspaceApi.deployProject(project.id);
+        const output = response.logs.map((entry) => `[${entry.level}] ${entry.message}`).join("\n");
+        setDeployOutput(output);
+        setDeployResult({
+          status: response.status,
+          stack: response.stack,
+          deployUrl: response.deployUrl,
+        });
+        if (response.status === "success" && response.deployUrl) {
+          setDeployPorts([{ name: "Production", port: 443, status: "live" }]);
+          setConsolePreferredTab("ports");
+        }
+        return;
+      }
+
+      const hasPackageJson = nodes.some(
+        (node) => node.kind === "file" && node.name === "package.json",
+      );
+      const stack = hasPackageJson ? "node" : "generic";
+      const slug = project.id.slice(0, 8);
+      const deployUrl = `https://${slug}.clovops.app`;
+      const output = [
+        "[info] Starting local preview deploy…",
+        `[info] Project: ${project.title}`,
+        `[info] Detected stack: ${stack}`,
+        stack === "node" ? "[info] Running pnpm build…" : "[warn] Demo mode — sign in to deploy to Clovops Cloud.",
+        stack === "node" ? "[success] Build completed successfully." : "[info] Bundling workspace files.",
+        `[success] Live at ${deployUrl}`,
+      ].join("\n");
+      setDeployOutput(output);
+      setDeployResult({ status: "success", stack, deployUrl });
+      setDeployPorts([{ name: "Preview", port: 443, status: "live" }]);
+      setConsolePreferredTab("ports");
+    } catch (error) {
+      setDeployError(getApiErrorMessage(error, "Deploy failed."));
+      setDeployOutput((previous) =>
+        previous
+          ? `${previous}\n[error] ${getApiErrorMessage(error, "Deploy failed.")}`
+          : `[error] ${getApiErrorMessage(error, "Deploy failed.")}`,
+      );
+    } finally {
+      setDeploying(false);
+    }
+  }, [flushProjectFiles, nodes, persisted, project]);
+
   const fileMenu = useMemo(
     () => (
       <IdeFileMenu
         canSave={canSaveFile && persisted}
+        canDeploy={Boolean(project)}
         saving={saving}
         onNewFile={() => void handleNewFileFromMenu()}
         onNewFolder={() => void handleNewFolderFromMenu()}
         onSave={() => void handleSave()}
         onSaveAs={() => void handleSaveAs()}
+        onDeploy={handleOpenDeploy}
       />
     ),
     [
       canSaveFile,
       handleNewFileFromMenu,
       handleNewFolderFromMenu,
+      handleOpenDeploy,
       handleSave,
       handleSaveAs,
       persisted,
+      project,
       saving,
     ],
   );
@@ -683,10 +788,9 @@ export function CodeWorkspace() {
   useEffect(() => {
     setHeader({
       leading: fileMenu,
-      title: project?.title,
     });
     return () => setHeader(null);
-  }, [fileMenu, project?.title, setHeader]);
+  }, [fileMenu, setHeader]);
 
   if (loading || !project) {
     return (
@@ -720,6 +824,7 @@ export function CodeWorkspace() {
               ui={ui}
               onSelectFolder={selectFolder}
               onSelectRoot={selectRoot}
+              onToggleRoot={toggleRoot}
               onToggleFolder={toggleFolder}
               onSelectFile={openFile}
               onPrepareCreateParent={prepareCreateParent}
@@ -843,6 +948,9 @@ export function CodeWorkspace() {
                 maximized={consoleMaximized}
                 onMaximize={() => setConsoleMaximized((prev) => !prev)}
                 onClose={() => setConsoleOpen(false)}
+                preferredTab={consolePreferredTab}
+                outputLog={deployOutput}
+                ports={deployPorts}
               />
             </IdeResizableBottomPanel>
           )}
@@ -880,6 +988,16 @@ export function CodeWorkspace() {
         cursor={cursor}
         selectionChars={selectionChars}
         tabSize={preferences.tabSize}
+      />
+
+      <IdeDeployModal
+        open={deployModalOpen}
+        projectTitle={project.title}
+        deploying={deploying}
+        result={deployResult}
+        errorMessage={deployError}
+        onClose={() => setDeployModalOpen(false)}
+        onDeploy={() => void handleDeploy()}
       />
     </div>
   );

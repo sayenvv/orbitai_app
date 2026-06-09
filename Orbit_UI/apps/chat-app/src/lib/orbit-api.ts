@@ -863,6 +863,7 @@ export type ApiCodeWorkspaceUiState = {
   explorerFocusId?: string | null;
   selectedFolderId?: string | null;
   activeFileId: string | null;
+  rootExpanded?: boolean;
   expandedFolderIds: string[];
   openFileIds: string[];
 };
@@ -905,6 +906,20 @@ export type ApiCodeWorkspaceSettings = {
   effectiveStorageRootPath: string;
   defaultStorageRootPath: string;
   preferences: ApiCodeWorkspacePreferences;
+};
+
+export type ApiCodeWorkspaceDeployLogEntry = {
+  level: "info" | "warn" | "error" | "success";
+  message: string;
+  timestamp: number;
+};
+
+export type ApiCodeWorkspaceDeployResponse = {
+  status: "success" | "failed";
+  stack: string;
+  deployUrl: string | null;
+  logs: ApiCodeWorkspaceDeployLogEntry[];
+  deployedAt: number;
 };
 
 export const codeWorkspaceApi = {
@@ -987,6 +1002,12 @@ export const codeWorkspaceApi = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+
+  deployProject: (projectId: string, body: { target?: "clovops" } = {}) =>
+    request<ApiCodeWorkspaceDeployResponse>(
+      `/apps/code-workspace/projects/${encodeURIComponent(projectId)}/deploy`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
 };
 
 // ─── Mappers for UI types ─────────────────────────────────────────────────────
