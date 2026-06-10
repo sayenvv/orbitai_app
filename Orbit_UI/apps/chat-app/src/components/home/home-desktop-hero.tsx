@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import {
@@ -87,6 +88,8 @@ const heroItem: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
 };
 
+const MOBILE_QUICK_START_ROWS = 3;
+
 const QUICK_START: Array<{
   title: string;
   description: string;
@@ -162,6 +165,8 @@ export function HomeDesktopHero({
   const plan = useUsageStore((s) => s.usage?.plan ?? "free");
   const { openUpgrade, openAuthPrompt } = useAppShell();
   const reduceMotion = useReducedMotion();
+  const mobileDockRef = useRef<HTMLDivElement>(null);
+  const [mobileDockHeight, setMobileDockHeight] = useState(0);
 
   const displayName = user?.name?.trim().split(" ")[0] || "there";
   const planLabel = `${plan.charAt(0).toUpperCase()}${plan.slice(1)} Plan`;
@@ -169,6 +174,35 @@ export function HomeDesktopHero({
     attachedFiles.length > 0 || Boolean(attachedWebpage) || Boolean(attachedLibrarySource);
   const showUploadProgress =
     heroUploading && (Boolean(attachedWebpage) || attachedFiles.length > 0);
+
+  useLayoutEffect(() => {
+    const el = mobileDockRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      if (window.innerWidth >= 768) {
+        setMobileDockHeight(0);
+        return;
+      }
+      setMobileDockHeight(el.offsetHeight);
+    };
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, [
+    chatInput,
+    hasAttachments,
+    heroUploadError,
+    heroUploading,
+    libraryInputMode,
+    webpageInputMode,
+  ]);
 
   const handleQuickStart = (item: (typeof QUICK_START)[number]) => {
     if (!isAuthenticated) {
@@ -184,11 +218,251 @@ export function HomeDesktopHero({
     }
   };
 
+  const renderComposer = () => (
+    <>
+      {(hasAttachments || showUploadProgress) && (
+        <div className="mb-3 flex flex-wrap justify-center gap-2">
+          {showUploadProgress ? (
+            <span className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs">
+              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+              {attachedWebpage ? "Importing webpage…" : "Indexing PDF…"}
+            </span>
+          ) : null}
+          {attachedWebpage && !heroUploading ? (
+            <WebpageContextChip draft={attachedWebpage} onRemove={onRemoveWebpage} />
+          ) : null}
+          {attachedFiles.map((file, idx) => (
+            <span
+              key={`${file.name}-${idx}`}
+              className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs"
+            >
+              <Paperclip className="h-3 w-3 text-orange-500" />
+              <span className="max-w-[180px] truncate">{file.name}</span>
+              <button
+                type="button"
+                onClick={() => onRemoveFile(idx)}
+                className="text-muted-foreground hover:text-destructive"
+                title="Remove"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          {attachedLibrarySource && !heroUploading ? (
+            <span className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs">
+              <FolderOpen className="h-3 w-3 text-violet-500" />
+              <span className="max-w-[200px] truncate">{attachedLibrarySource.name}</span>
+              <button
+                type="button"
+                onClick={onRemoveLibrarySource}
+                className="text-muted-foreground hover:text-destructive"
+                title="Remove"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ) : null}
+        </div>
+      )}
+
+      <div className="glass-surface glass-composer glass-card rounded-[1.5rem] px-4 pb-3 pt-4">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf,.pdf"
+          className="hidden"
+          onChange={onFileChange}
+        />
+
+        {libraryInputMode ? (
+          <LibraryComposerField
+            items={libraryComposerItems}
+            search={librarySearch}
+            onSearchChange={onLibrarySearchChange}
+            onSelectItem={onSelectLibraryItem}
+            onCancel={onCancelLibraryMode}
+            onUploadNew={onUploadNewFromLibrary}
+            loading={libraryLoading}
+            size="lg"
+          />
+        ) : webpageInputMode ? (
+          <WebpageUrlComposerField
+            value={webpageUrlInput}
+            onChange={onWebpageUrlInputChange}
+            onSubmit={onConfirmWebpageUrl}
+            onCancel={onCancelWebpageMode}
+            error={webpageUrlError}
+            loading={heroUploading}
+            size="lg"
+          />
+        ) : (
+          <>
+            <textarea
+              value={chatInput}
+              onChange={(e) => onChatInputChange(e.target.value)}
+              onKeyDown={(e) => {
+                onComposerKeyDown?.(e);
+                if (e.defaultPrevented) return;
+                if (e.key === "Enter" && !e.shiftKey && canSend) {
+                  e.preventDefault();
+                  onSend();
+                }
+              }}
+              rows={1}
+              placeholder="How can I help you today?"
+              disabled={heroUploading}
+              className="min-h-[2rem] w-full resize-none bg-transparent px-1 text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50 sm:text-[15px]"
+            />
+
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-0.5">
+                <ComposerToolsMenu
+                  tools={composerTools}
+                  disabled={heroUploading}
+                  placement="bottom"
+                  size="md"
+                  variant="inline"
+                />
+                <button
+                  type="button"
+                  onClick={onFileInputClick}
+                  disabled={heroUploading}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/70 transition hover:bg-black/[0.04] hover:text-foreground"
+                  title="Attach PDF"
+                >
+                  <Paperclip className="h-[18px] w-[18px]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => composerTools.find((t) => t.id === "webpage")?.onSelect()}
+                  disabled={heroUploading}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/70 transition hover:bg-black/[0.04] hover:text-foreground"
+                  title="Attach webpage"
+                >
+                  <Globe className="h-[18px] w-[18px]" />
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full text-muted-foreground/40"
+                  title="Voice input coming soon"
+                >
+                  <Mic className="h-[18px] w-[18px]" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground/80 transition hover:text-foreground"
+                  title="Model"
+                >
+                  Axiom Ultra 3.1
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (webpageInputMode ? onConfirmWebpageUrl() : void onSend())}
+                  disabled={webpageInputMode ? !canAttachWebpage : !canSend}
+                  className={cn(
+                    "inline-flex h-8 w-8 items-center justify-center rounded-full transition-all",
+                    (webpageInputMode ? canAttachWebpage : canSend)
+                      ? "bg-foreground text-background shadow-sm hover:opacity-90"
+                      : "bg-black/[0.06] text-muted-foreground/50 dark:bg-white/[0.08]",
+                  )}
+                  aria-label="Send"
+                >
+                  {heroUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {heroUploadError ? (
+        <p className="mt-2 text-center text-xs text-destructive">{heroUploadError}</p>
+      ) : null}
+    </>
+  );
+
+  const renderQuickStartCards = (variant: "dock" | "desktop") => {
+    if (variant === "dock") {
+      return (
+        <div className="-mx-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory">
+          <ul
+            className="grid w-max grid-flow-col gap-x-2 gap-y-1.5"
+            style={{
+              gridTemplateRows: `repeat(${MOBILE_QUICK_START_ROWS}, minmax(0, auto))`,
+            }}
+          >
+            {QUICK_START.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.title} className="min-w-[10.25rem] max-w-[11.5rem] snap-start">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickStart(item)}
+                    className="glass-surface glass-card glass-card-interactive group flex h-full w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left active:scale-[0.99]"
+                  >
+                    <span className="glass-icon-well flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[12px] font-medium leading-snug text-foreground line-clamp-2">
+                        {item.title}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        {QUICK_START.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => handleQuickStart(item)}
+              className="glass-surface glass-card glass-card-interactive group flex items-start gap-3 rounded-2xl p-4 text-left"
+            >
+              <span className="glass-icon-well mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">{item.title}</span>
+                <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">
+                  {item.description}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div
+        className="relative flex min-h-0 flex-1 flex-col overflow-y-auto max-md:pb-0"
+        style={
+          mobileDockHeight > 0 ? { paddingBottom: mobileDockHeight + 8 } : undefined
+        }
+      >
         <motion.div
-          className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 pb-12 pt-5 sm:px-6 sm:pb-16 sm:pt-6"
+          className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-4 pb-12 pt-5 max-md:justify-start max-md:pb-8 max-md:pt-8 sm:px-6 sm:pb-16 sm:pt-6"
           variants={heroContainer}
           initial={reduceMotion ? false : "hidden"}
           animate="show"
@@ -225,231 +499,35 @@ export function HomeDesktopHero({
             {isAuthenticated ? `${getGreeting()}, ${displayName}` : "How can I help you today?"}
           </motion.h1>
 
-          {/* Composer */}
-          <motion.div variants={heroItem} className="mt-8 sm:mt-10">
-            {(hasAttachments || showUploadProgress) && (
-              <div className="mb-3 flex flex-wrap justify-center gap-2">
-                {showUploadProgress ? (
-                  <span className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs">
-                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                    {attachedWebpage ? "Importing webpage…" : "Indexing PDF…"}
-                  </span>
-                ) : null}
-                {attachedWebpage && !heroUploading ? (
-                  <WebpageContextChip draft={attachedWebpage} onRemove={onRemoveWebpage} />
-                ) : null}
-                {attachedFiles.map((file, idx) => (
-                  <span
-                    key={`${file.name}-${idx}`}
-                    className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs"
-                  >
-                    <Paperclip className="h-3 w-3 text-orange-500" />
-                    <span className="max-w-[180px] truncate">{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveFile(idx)}
-                      className="text-muted-foreground hover:text-destructive"
-                      title="Remove"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-                {attachedLibrarySource && !heroUploading ? (
-                  <span className="glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs">
-                    <FolderOpen className="h-3 w-3 text-violet-500" />
-                    <span className="max-w-[200px] truncate">{attachedLibrarySource.name}</span>
-                    <button
-                      type="button"
-                      onClick={onRemoveLibrarySource}
-                      className="text-muted-foreground hover:text-destructive"
-                      title="Remove"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ) : null}
-              </div>
-            )}
-
-            <div className="glass-surface glass-composer glass-card rounded-[1.5rem] px-4 pb-3 pt-4">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/pdf,.pdf"
-                className="hidden"
-                onChange={onFileChange}
-              />
-
-              {libraryInputMode ? (
-                <LibraryComposerField
-                  items={libraryComposerItems}
-                  search={librarySearch}
-                  onSearchChange={onLibrarySearchChange}
-                  onSelectItem={onSelectLibraryItem}
-                  onCancel={onCancelLibraryMode}
-                  onUploadNew={onUploadNewFromLibrary}
-                  loading={libraryLoading}
-                  size="lg"
-                />
-              ) : webpageInputMode ? (
-                <WebpageUrlComposerField
-                  value={webpageUrlInput}
-                  onChange={onWebpageUrlInputChange}
-                  onSubmit={onConfirmWebpageUrl}
-                  onCancel={onCancelWebpageMode}
-                  error={webpageUrlError}
-                  loading={heroUploading}
-                  size="lg"
-                />
-              ) : (
-                <>
-                  <textarea
-                    value={chatInput}
-                    onChange={(e) => onChatInputChange(e.target.value)}
-                    onKeyDown={(e) => {
-                      onComposerKeyDown?.(e);
-                      if (e.defaultPrevented) return;
-                      if (e.key === "Enter" && !e.shiftKey && canSend) {
-                        e.preventDefault();
-                        onSend();
-                      }
-                    }}
-                    rows={1}
-                    placeholder="How can I help you today?"
-                    disabled={heroUploading}
-                    className="min-h-[2rem] w-full resize-none bg-transparent px-1 text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50 sm:text-[15px]"
-                  />
-
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-0.5">
-                      <ComposerToolsMenu
-                        tools={composerTools}
-                        disabled={heroUploading}
-                        placement="bottom"
-                        size="md"
-                        variant="inline"
-                      />
-                      <button
-                        type="button"
-                        onClick={onFileInputClick}
-                        disabled={heroUploading}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/70 transition hover:bg-black/[0.04] hover:text-foreground"
-                        title="Attach PDF"
-                      >
-                        <Paperclip className="h-[18px] w-[18px]" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => composerTools.find((t) => t.id === "webpage")?.onSelect()}
-                        disabled={heroUploading}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/70 transition hover:bg-black/[0.04] hover:text-foreground"
-                        title="Attach webpage"
-                      >
-                        <Globe className="h-[18px] w-[18px]" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled
-                        className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full text-muted-foreground/40"
-                        title="Voice input coming soon"
-                      >
-                        <Mic className="h-[18px] w-[18px]" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2.5">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground/80 transition hover:text-foreground"
-                        title="Model"
-                      >
-                        Axiom Ultra 3.1
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => (webpageInputMode ? onConfirmWebpageUrl() : void onSend())}
-                        disabled={webpageInputMode ? !canAttachWebpage : !canSend}
-                        className={cn(
-                          "inline-flex h-8 w-8 items-center justify-center rounded-full transition-all",
-                          (webpageInputMode ? canAttachWebpage : canSend)
-                        ? "bg-foreground text-background shadow-sm hover:opacity-90"
-                          : "bg-black/[0.06] text-muted-foreground/50 dark:bg-white/[0.08]",
-                        )}
-                        aria-label="Send"
-                      >
-                        {heroUploading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {heroUploadError ? (
-              <p className="mt-2 text-center text-xs text-destructive">{heroUploadError}</p>
-            ) : null}
+          {/* Desktop composer */}
+          <motion.div variants={heroItem} className="mt-8 hidden md:block sm:mt-10">
+            {renderComposer()}
           </motion.div>
 
-          {/* Quick start */}
-          <motion.section variants={heroItem} className="mt-9">
+          {/* Desktop quick start */}
+          <motion.section variants={heroItem} className="mt-9 hidden md:block">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
               Quick start
             </p>
-
-            {/* Mobile: floating wrap chips — no scroll */}
-            <div className="flex flex-wrap justify-center gap-2 sm:hidden">
-              {QUICK_START.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.title}
-                    type="button"
-                    onClick={() => handleQuickStart(item)}
-                    className="glass-chip glass-card inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-left transition active:scale-[0.98]"
-                  >
-                    <span className="glass-icon-well flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
-                      <Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="whitespace-nowrap text-[13px] font-medium text-foreground">
-                      {item.title}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Desktop: full cards */}
-            <div className="hidden gap-3 sm:grid sm:grid-cols-2">
-              {QUICK_START.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.title}
-                    type="button"
-                    onClick={() => handleQuickStart(item)}
-                    className="glass-surface glass-card glass-card-interactive group flex items-start gap-3 rounded-2xl p-4 text-left"
-                  >
-                    <span className="glass-icon-well mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                      <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">
-                        {item.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            {renderQuickStartCards("desktop")}
           </motion.section>
         </motion.div>
+      </div>
+
+      {/* Mobile: suggestion cards + floating composer */}
+      <div
+        ref={mobileDockRef}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 md:hidden safe-bottom safe-x"
+      >
+        <div className="pointer-events-auto bg-gradient-to-t from-background via-background/95 to-transparent px-2 pb-3 pt-4">
+          <section aria-label="Quick start suggestions">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
+              Quick start
+            </p>
+            {renderQuickStartCards("dock")}
+          </section>
+          <div className="mt-3">{renderComposer()}</div>
+        </div>
       </div>
     </div>
   );

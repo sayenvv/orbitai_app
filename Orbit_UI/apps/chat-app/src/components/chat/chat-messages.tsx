@@ -12,7 +12,8 @@ import {
   assistantCopyText,
   ChatAssistantResponse,
 } from "@/components/chat/chat-assistant-response";
-import { ChatAdaptiveCards } from "@/components/chat/chat-adaptive-cards";
+import { ChatResultsLauncher } from "@/components/chat/chat-results-launcher";
+import { hasSearchResultTabs } from "@/lib/result-tabs-utils";
 import { messageToUIMessage } from "@/lib/orbit-ui-message";
 
 type ChatMessagesProps = {
@@ -161,13 +162,13 @@ const MessageBubble = memo(function MessageBubble({
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
         <ChatAssistantResponse message={uiMessage} isStreaming={isStreaming} />
-        {(message.metadata?.cards?.length || message.metadata?.images?.length) ? (
-          <ChatAdaptiveCards
-            cards={message.metadata?.cards}
-            images={
-              message.metadata?.cards?.length ? undefined : message.metadata?.images
-            }
-          />
+        {hasSearchResultTabs(message.metadata?.cards, message.metadata?.images) ? (
+          <div className="mt-2 hidden md:block">
+            <ChatResultsLauncher
+              cards={message.metadata?.cards}
+              images={message.metadata?.images}
+            />
+          </div>
         ) : null}
         {showUpgrade && onUpgrade && (
           <div className="mt-4">

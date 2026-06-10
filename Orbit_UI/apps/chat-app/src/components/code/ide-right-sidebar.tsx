@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { ArrowUp, Loader2, Sparkles } from "lucide-react";
 import { ChatMessages } from "@/components/chat/chat-messages";
@@ -92,6 +92,8 @@ export function IdeRightSidebar({
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [logRevision, setLogRevision] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mobileDockRef = useRef<HTMLDivElement>(null);
+  const [mobileDockHeight, setMobileDockHeight] = useState(0);
   const streamBufferRef = useRef("");
   const rafRef = useRef<number | null>(null);
 
@@ -117,6 +119,28 @@ export function IdeRightSidebar({
     textareaRef.current.style.height = "auto";
     textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
   }, [input]);
+
+  useLayoutEffect(() => {
+    const el = mobileDockRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      if (window.innerWidth >= 768) {
+        setMobileDockHeight(0);
+        return;
+      }
+      setMobileDockHeight(el.offsetHeight);
+    };
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, [showSuggestions, isLoading, input, agentPhase]);
 
   const handleSend = useCallback(
     async (rawPrompt: string) => {
@@ -350,13 +374,40 @@ export function IdeRightSidebar({
 
   const canSend = input.trim().length > 0 && !isLoading;
 
+  const suggestionsPanel = showSuggestions ? (
+    <section className="px-1.5 md:px-2" aria-label="Suggested prompts">
+      <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
+        Suggestions
+      </p>
+      <ul className="flex flex-col gap-1.5">
+        {CLOVOPS_SUGGESTIONS.map((suggestion) => (
+          <li key={suggestion.id}>
+            <button
+              type="button"
+              onClick={() => void handleSend(suggestion.prompt)}
+              className="glass-surface glass-card glass-card-interactive group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition-colors"
+            >
+              <span className="text-[13px] leading-snug text-muted-foreground transition-colors group-hover:text-foreground">
+                {suggestion.label}
+              </span>
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary/50 transition-colors group-hover:text-primary" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null;
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
       <ChatMessages
         messages={displayMessages}
         isLoading={isLoading}
         streamingMsgId={streamingMsgId}
-        className="[scrollbar-width:thin]"
+        className="max-md:pb-0 [scrollbar-width:thin]"
+        style={
+          mobileDockHeight > 0 ? { paddingBottom: mobileDockHeight + 8 } : undefined
+        }
         contentClassName="px-2"
         threadClassName="chat-thread space-y-4 py-4"
         renderMessageFooter={(message) => {
@@ -384,38 +435,29 @@ export function IdeRightSidebar({
         }}
         footer={
           showSuggestions ? (
-            <section className="px-2 pb-2" aria-label="Suggested prompts">
-              <p className="mb-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
-                Suggestions
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {CLOVOPS_SUGGESTIONS.map((suggestion) => (
-                  <li key={suggestion.id}>
-                    <button
-                      type="button"
-                      onClick={() => void handleSend(suggestion.prompt)}
-                      className="group flex w-full items-center justify-between gap-2 rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors hover:border-border/60 hover:bg-muted/40"
-                    >
-                      <span className="text-[13px] leading-snug text-muted-foreground transition-colors group-hover:text-foreground">
-                        {suggestion.label}
-                      </span>
-                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary/50 transition-colors group-hover:text-primary" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <div className="hidden px-2 pb-2 md:block">{suggestionsPanel}</div>
           ) : null
         }
       />
 
-      <div className="shrink-0 w-full border-t border-border/40 bg-background/80 pb-3 pt-2 backdrop-blur-sm">
+      <div
+        ref={mobileDockRef}
+        className={cn(
+          "shrink-0 w-full safe-bottom safe-x",
+          "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40",
+          "max-md:bg-gradient-to-t max-md:from-background max-md:via-background/95 max-md:to-transparent",
+          "border-t border-border/40 bg-background/80 pb-3 pt-2 backdrop-blur-sm max-md:border-t-0 max-md:pt-3",
+        )}
+      >
+        {showSuggestions ? (
+          <div className="mb-2 md:hidden">{suggestionsPanel}</div>
+        ) : null}
         <form
           onSubmit={(event) => {
             event.preventDefault();
             submitInput();
           }}
-          className="w-full px-2"
+          className="w-full px-1.5 md:px-2"
         >
             <div className="glass-surface glass-composer w-full rounded-[1.25rem] px-3 pb-2.5 pt-2.5 transition-all">
               <textarea

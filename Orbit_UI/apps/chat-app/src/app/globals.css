@@ -794,6 +794,28 @@
   -webkit-backdrop-filter: blur(var(--glass-modal-blur)) saturate(190%);
 }
 
+/* Transparent listing/result cards inside the research panel */
+.results-glass-card {
+  background: color-mix(in oklab, var(--workspace-tab-bg) 36%, transparent);
+  border: 1px solid color-mix(in oklab, var(--workspace-tab-border) 65%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+
+.dark .results-glass-card {
+  background: color-mix(in oklab, var(--workspace-tab-bg) 48%, transparent);
+}
+
+.results-glass-card.results-glass-card-interactive:hover {
+  background: color-mix(in oklab, var(--workspace-tab-bg) 52%, transparent);
+  border-color: color-mix(in oklab, var(--workspace-tab-border) 50%, var(--foreground) 50%);
+}
+
+.dark .results-glass-card.results-glass-card-interactive:hover {
+  background: color-mix(in oklab, var(--workspace-tab-bg) 62%, transparent);
+}
+
 /* Subtle dotted grid overlay */
 .grid-dots {
   background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 8%, transparent) 1px, transparent 0);

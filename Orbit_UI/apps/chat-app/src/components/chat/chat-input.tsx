@@ -174,7 +174,14 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           : "border-t border-border/40 bg-background/80 pb-3 pt-2 backdrop-blur-sm md:border-t-0 md:bg-transparent md:pt-3 md:pb-5",
       )}
     >
-      <div className={cn("relative w-full", columnClassName)}>
+      <div
+        className={cn(
+          "relative w-full",
+          mobileBottom
+            ? "px-2 md:mx-auto md:max-w-4xl md:px-6"
+            : columnClassName,
+        )}
+      >
         <input
           ref={fileInputRef}
           type="file"

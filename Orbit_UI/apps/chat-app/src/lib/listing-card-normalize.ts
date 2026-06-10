@@ -84,3 +84,19 @@ export function isListingSearch(cards: AdaptiveCard[]): boolean {
       /hotel|resort|inn|lodge|stay/i.test(card.title),
   );
 }
+
+export function isListingImage(image: WebSearchImage): boolean {
+  const text = `${image.title ?? ""} ${image.alt ?? ""} ${image.source ?? ""}`;
+  return /hotel|resort|inn|lodge|stay|booking|accommodation|airbnb|hostel|villa|homestay/i.test(
+    text,
+  );
+}
+
+export function collectPlaceImageUrls(cards: AdaptiveCard[]): Set<string> {
+  const urls = new Set<string>();
+  for (const card of cards) {
+    if (card.imageUrl) urls.add(card.imageUrl);
+    if (card.thumbnailUrl) urls.add(card.thumbnailUrl);
+  }
+  return urls;
+}

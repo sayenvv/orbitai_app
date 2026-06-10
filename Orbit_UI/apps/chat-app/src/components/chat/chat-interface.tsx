@@ -4,6 +4,8 @@ import { useChatStore } from "@/store/chat-store";
 import { useAuthStore } from "@/store/auth-store";
 import { ChatMessages } from "./chat-messages";
 import { AgentSuggestions } from "./agent-suggestions";
+import { ChatResultsLauncher } from "./chat-results-launcher";
+import { hasSearchResultTabs } from "@/lib/result-tabs-utils";
 import { ChatSideRail } from "./chat-side-rail";
 import { ChatActionsMenu } from "./chat-actions-menu";
 import { ChatThreadShimmer } from "@/components/ui/skeleton";
@@ -129,11 +131,8 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
                 streamingImages.length || streamingCards.length
                   ? {
                       ...msg.metadata,
-                      ...(streamingCards.length
-                        ? { cards: streamingCards }
-                        : streamingImages.length
-                          ? { images: streamingImages }
-                          : {}),
+                      ...(streamingCards.length ? { cards: streamingCards } : {}),
+                      ...(streamingImages.length ? { images: streamingImages } : {}),
                     }
                   : msg.metadata,
             }
@@ -161,6 +160,31 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
     streamingImages,
     streamingCards,
   ]);
+
+  const composerResults = useMemo(() => {
+    if (streamingMsgId) {
+      if (streamingCards.length > 0 || streamingImages.length > 0) {
+        return {
+          cards: streamingCards.length ? streamingCards : undefined,
+          images: streamingImages.length ? streamingImages : undefined,
+        };
+      }
+      return null;
+    }
+
+    for (let index = displayMessages.length - 1; index >= 0; index -= 1) {
+      const message = displayMessages[index];
+      if (message.role !== "assistant") continue;
+      if (hasSearchResultTabs(message.metadata?.cards, message.metadata?.images)) {
+        return {
+          cards: message.metadata?.cards,
+          images: message.metadata?.images,
+        };
+      }
+      return null;
+    }
+    return null;
+  }, [displayMessages, streamingMsgId, streamingCards, streamingImages]);
 
   useEffect(() => {
     if (!conversationId) {
@@ -218,28 +242,6 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       setPendingLaunchKey(pending.sendKey ?? pending.prompt.trim());
     }
   }, [conversationId, launchSeq, consumePending, setActiveConversation, setDraftAgentSlug]);
-
-  useLayoutEffect(() => {
-    const el = mobileComposerRef.current;
-    if (!el) return;
-
-    const updateHeight = () => {
-      if (window.innerWidth >= 768) {
-        setMobileComposerHeight(0);
-        return;
-      }
-      setMobileComposerHeight(el.offsetHeight);
-    };
-    updateHeight();
-
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(el);
-    window.addEventListener("resize", updateHeight);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateHeight);
-    };
-  }, []);
 
   useLayoutEffect(() => {
     if (conversationId) {
@@ -687,11 +689,12 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
           streamConversationId,
           assistantMsgId,
           streamedText,
-          streamedCards.length
-            ? { cards: streamedCards }
-            : streamedImages.length
-              ? { images: streamedImages }
-              : undefined,
+          streamedCards.length || streamedImages.length
+            ? {
+                ...(streamedCards.length ? { cards: streamedCards } : {}),
+                ...(streamedImages.length ? { images: streamedImages } : {}),
+              }
+            : undefined,
         );
         void refreshConversationsList();
       } catch (err) {
@@ -784,6 +787,28 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
 
   const contentClass = chatContentClass(showActionsMenu);
 
+  useLayoutEffect(() => {
+    const el = mobileComposerRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      if (window.innerWidth >= 768) {
+        setMobileComposerHeight(0);
+        return;
+      }
+      setMobileComposerHeight(el.offsetHeight);
+    };
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, [composerResults, showAgentSuggestions]);
+
   useEffect(() => {
     if (!conversationId) {
       setHeader(null);
@@ -873,7 +898,7 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
             showAgentSuggestions && activeAgent ? (
               <AgentSuggestions
                 agentSlug={activeAgent.id}
-                className="pt-3 pb-1"
+                className="hidden pt-3 pb-1 md:block"
                 onSelect={(prompt) => {
                   void handleSendMessage(prompt);
                   chatInputRef.current?.focus();
@@ -885,8 +910,27 @@ export function ChatInterface({ conversationId }: { conversationId?: string }) {
       )}
       <div
         ref={mobileComposerRef}
-        className="shrink-0 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40"
+        className="shrink-0 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40 max-md:bg-gradient-to-t max-md:from-background/55 max-md:via-background/20 max-md:to-transparent max-md:pt-3 max-md:backdrop-blur-[2px]"
       >
+        {showAgentSuggestions && activeAgent ? (
+          <AgentSuggestions
+            agentSlug={activeAgent.id}
+            className="mb-2 px-2 md:hidden"
+            onSelect={(prompt) => {
+              void handleSendMessage(prompt);
+              chatInputRef.current?.focus();
+            }}
+          />
+        ) : null}
+        {composerResults ? (
+          <div className="mb-2 px-2 md:hidden">
+            <ChatResultsLauncher
+              key={streamingMsgId ?? "composer-results"}
+              cards={composerResults.cards}
+              images={composerResults.images}
+            />
+          </div>
+        ) : null}
         <ChatInput
           ref={chatInputRef}
           columnClassName={contentClass}
