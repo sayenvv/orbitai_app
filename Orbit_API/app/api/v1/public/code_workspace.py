@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.v1.public.auth import require_chat_user
@@ -11,6 +12,9 @@ from app.db.session import get_db
 from app.models import User
 from app.services.code_workspace.deploy_store import deploy_project
 from app.services.code_workspace.file_store import read_file_content, write_file_content
+from app.services.code_workspace.search_agent import stream_code_workspace_search_agent
+from app.services.code_workspace.search_store import search_project_files
+from app.services.multi_agent_stream import sse_response
 from app.services.code_workspace.settings_store import get_user_settings, update_user_settings
 from app.services.code_workspace.project_store import (
     parse_project_state,
@@ -25,6 +29,7 @@ from app.services.code_workspace.project_store import (
     update_project_structure,
 )
 from clovai_apps.code_workspace.schemas import (
+    CodeWorkspaceAgentSearchRequest,
     CodeWorkspaceDeployRequest,
     CodeWorkspaceDeployResponse,
     CodeWorkspaceFileContentResponse,
@@ -35,6 +40,8 @@ from clovai_apps.code_workspace.schemas import (
     CodeWorkspaceProjectListResponse,
     CodeWorkspaceProjectResponse,
     CodeWorkspaceProjectUpdateRequest,
+    CodeWorkspaceSearchRequest,
+    CodeWorkspaceSearchResponse,
     CodeWorkspaceSettingsResponse,
     CodeWorkspaceSettingsUpdateRequest,
     CodeWorkspaceStructureUpdateRequest,
@@ -139,6 +146,46 @@ def code_workspace_get_file_content(
     state = parse_project_state(row.state)
     content = read_file_content(db, user.id, project_id, state.nodes, node_id)
     return CodeWorkspaceFileContentResponse(node_id=node_id, content=content)
+
+
+@router.post("/projects/{project_id}/search", response_model=CodeWorkspaceSearchResponse)
+def code_workspace_search_project(
+    project_id: uuid.UUID,
+    body: CodeWorkspaceSearchRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_chat_user),
+):
+    """Search files in a project by name, path, or content. Used by agents and the IDE."""
+    _ensure_enabled()
+    return search_project_files(db, user.id, project_id, body)
+
+
+@router.post("/projects/{project_id}/agent/search/stream")
+def code_workspace_search_agent_stream(
+    project_id: uuid.UUID,
+    body: CodeWorkspaceAgentSearchRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_chat_user),
+) -> StreamingResponse:
+    """LangGraph search agent — streams tokens and file matches for the Clovops sidebar."""
+    _ensure_enabled()
+    message = body.message.strip()
+    if not message:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message is required.")
+
+    row = get_project(db, user.id, project_id)
+    project_title = row.title
+
+    async def events():
+        async for event in stream_code_workspace_search_agent(
+            user.id,
+            project_id,
+            body,
+            project_title=project_title,
+        ):
+            yield event
+
+    return sse_response(events())
 
 
 @router.put("/projects/{project_id}/files/{node_id}", response_model=CodeWorkspaceFileContentResponse)

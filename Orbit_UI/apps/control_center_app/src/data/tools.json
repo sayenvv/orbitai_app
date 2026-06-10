@@ -181,6 +181,33 @@
       "enabled": true
     },
     {
+      "id": "t0000000-0000-4000-8000-000000000033",
+      "name": "search_code_workspace_files",
+      "description": "Search files in a Clovops code workspace project by filename, path, or file content. Returns fileId, filePath, line, and column for opening the correct file in the editor.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Code workspace project UUID"
+          },
+          "query": {
+            "type": "string",
+            "description": "Search text, filename fragment, or extension filter such as .ts"
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["all", "filename", "content"],
+            "default": "all"
+          },
+          "case_sensitive": { "type": "boolean", "default": false },
+          "max_results": { "type": "integer", "default": 25 }
+        },
+        "required": ["project_id", "query"]
+      },
+      "enabled": true
+    },
+    {
       "id": "t0000000-0000-4000-8000-000000000040",
       "name": "review_resume",
       "description": "Score and critique an uploaded resume.",

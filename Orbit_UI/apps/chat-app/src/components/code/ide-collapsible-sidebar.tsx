@@ -44,6 +44,29 @@ function IdeSidebarTopTabs<T extends string>({
 }) {
   const CollapseIcon = side === "left" ? PanelLeftClose : PanelRightClose;
 
+  if (tabs.length === 1) {
+    const panel = tabs[0];
+    const PanelIcon = panel.icon;
+    return (
+      <div className="ide-sidebar-tabs flex shrink-0 items-center justify-between gap-2 border-b border-[color:var(--ide-border-subtle)] px-2.5 py-1.5">
+        <div className="flex min-w-0 items-center gap-2 text-[12px] font-medium text-foreground">
+          <PanelIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.75} />
+          <span className="truncate">{panel.label}</span>
+        </div>
+        <SidebarTooltip label="Collapse sidebar" side="top">
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label="Collapse sidebar"
+            className="flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--workspace-tab-inactive-bg-hover)] hover:text-foreground"
+          >
+            <CollapseIcon className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
+          </button>
+        </SidebarTooltip>
+      </div>
+    );
+  }
+
   return (
     <div className="ide-sidebar-tabs flex shrink-0 items-end justify-between gap-1.5 border-b border-[color:var(--ide-border-subtle)] px-1.5 md:px-2">
       <div className="ide-sidebar-tab-strip flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto [scrollbar-width:thin]">
@@ -112,12 +135,16 @@ export function IdeCollapsibleSidebar<T extends string>({
         <div className={cn(SIDEBAR_COLLAPSED_COLUMN_CLASS, "gap-1")}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const active = activeTab === tab.id;
+            const active = tabs.length === 1 || activeTab === tab.id;
             return (
               <SidebarTooltip key={tab.id} label={tab.label} side={tooltipSide}>
                 <button
                   type="button"
-                  onClick={() => handleCollapsedTabClick(tab.id)}
+                  onClick={() =>
+                    tabs.length === 1
+                      ? onCollapsedChange(false)
+                      : handleCollapsedTabClick(tab.id)
+                  }
                   aria-label={tab.label}
                   aria-selected={active}
                   className={cn(

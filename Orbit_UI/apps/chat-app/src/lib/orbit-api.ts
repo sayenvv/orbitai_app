@@ -922,6 +922,59 @@ export type ApiCodeWorkspaceDeployResponse = {
   deployedAt: number;
 };
 
+export type ApiCodeWorkspaceSearchMatch = {
+  fileId: string;
+  filePath: string;
+  line: number;
+  column: number;
+  lineText: string;
+  matchStart: number;
+  matchEnd: number;
+  kind: "filename" | "content";
+};
+
+export type ApiCodeWorkspaceSearchResponse = {
+  query: string;
+  results: ApiCodeWorkspaceSearchMatch[];
+  total: number;
+};
+
+export type ApiCodeWorkspaceAgentEdit = {
+  fileId: string;
+  filePath: string;
+  syntaxOk: boolean;
+};
+
+export type ApiCodeWorkspaceAgentReviewIssue = {
+  line: number;
+  severity: string;
+  message: string;
+};
+
+export type ApiCodeWorkspaceAgentReview = {
+  fileId: string;
+  filePath: string;
+  syntaxOk: boolean;
+  passed: boolean;
+  issues: ApiCodeWorkspaceAgentReviewIssue[];
+  summary: string;
+};
+
+export type CodeWorkspaceAgentStreamEvent =
+  | { type: "start"; project_id: string }
+  | { type: "token"; content: string }
+  | { type: "files"; files: ApiCodeWorkspaceSearchMatch[] }
+  | { type: "edit"; edit: ApiCodeWorkspaceAgentEdit }
+  | { type: "review"; review: ApiCodeWorkspaceAgentReview }
+  | { type: "error"; detail: string }
+  | {
+      type: "done";
+      content: string;
+      files: ApiCodeWorkspaceSearchMatch[];
+      edits: ApiCodeWorkspaceAgentEdit[];
+      reviews: ApiCodeWorkspaceAgentReview[];
+    };
+
 export const codeWorkspaceApi = {
   listProjects: (limit = 20) =>
     request<{ data: ApiCodeWorkspaceProjectSummary[] }>(
@@ -1008,6 +1061,79 @@ export const codeWorkspaceApi = {
       `/apps/code-workspace/projects/${encodeURIComponent(projectId)}/deploy`,
       { method: "POST", body: JSON.stringify(body) },
     ),
+
+  searchProject: (
+    projectId: string,
+    body: {
+      query: string;
+      caseSensitive?: boolean;
+      maxResults?: number;
+      mode?: "all" | "filename" | "content";
+    },
+  ) =>
+    request<ApiCodeWorkspaceSearchResponse>(
+      `/apps/code-workspace/projects/${encodeURIComponent(projectId)}/search`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  streamSearchAgent: async function* (
+    projectId: string,
+    body: {
+      message: string;
+      history?: { role: "user" | "assistant"; content: string }[];
+      activeFileId?: string | null;
+      activeFilePath?: string | null;
+    },
+  ): AsyncGenerator<CodeWorkspaceAgentStreamEvent> {
+    const response = await fetch(
+      `${getApiBaseUrl()}/apps/code-workspace/projects/${encodeURIComponent(projectId)}/agent/search/stream`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: body.message,
+          history: body.history ?? [],
+          activeFileId: body.activeFileId ?? null,
+          activeFilePath: body.activeFilePath ?? null,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new ApiError(
+        parseApiError(error, "Failed to stream search agent"),
+        response.status,
+      );
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new ApiError("No response stream", 500);
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          yield JSON.parse(jsonStr) as CodeWorkspaceAgentStreamEvent;
+        } catch {
+          // skip malformed SSE chunk
+        }
+      }
+    }
+  },
 };
 
 // ─── Mappers for UI types ─────────────────────────────────────────────────────

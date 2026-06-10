@@ -22,9 +22,11 @@ type ChatMessagesProps = {
   upgradeMessageId?: string | null;
   onUpgrade?: () => void;
   contentClassName?: string;
+  threadClassName?: string;
   className?: string;
   style?: CSSProperties;
   footer?: ReactNode;
+  renderMessageFooter?: (message: Message) => ReactNode;
 };
 
 function hasStreamPlaceholder(messages: Message[], streamingMsgId?: string | null) {
@@ -43,9 +45,11 @@ export function ChatMessages({
   upgradeMessageId,
   onUpgrade,
   contentClassName,
+  threadClassName,
   className,
   style,
   footer,
+  renderMessageFooter,
 }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -75,10 +79,16 @@ export function ChatMessages({
       className={cn("min-h-0 flex-1 overflow-y-auto scroll-smooth w-full", className)}
       style={style}
     >
-      <div className={cn(contentClassName, "chat-thread space-y-5 py-6 sm:space-y-6 sm:py-10")}>
+      <div
+        className={cn(
+          contentClassName,
+          threadClassName ?? "chat-thread space-y-5 py-6 sm:space-y-6 sm:py-10",
+        )}
+      >
         {messages.map((message, index) => {
           const prev = messages[index - 1];
           const isNewTurn = !prev || prev.role !== message.role;
+          const messageFooter = renderMessageFooter?.(message);
 
           return (
             <motion.div
@@ -94,6 +104,7 @@ export function ChatMessages({
                 showUpgrade={message.id === upgradeMessageId && Boolean(onUpgrade)}
                 onUpgrade={onUpgrade}
               />
+              {messageFooter ? <div className="mt-2">{messageFooter}</div> : null}
             </motion.div>
           );
         })}

@@ -25,11 +25,7 @@ import {
 } from "@/components/code/ide-left-sidebar";
 import { IdeResizableBottomPanel } from "@/components/code/ide-resizable-bottom-panel";
 import { IdeResizablePanel } from "@/components/code/ide-resizable-panel";
-import {
-  IdeRightSidebar,
-  RIGHT_SIDEBAR_TABS,
-  type RightSidebarTab,
-} from "@/components/code/ide-right-sidebar";
+import { IdeRightSidebar, RIGHT_SIDEBAR_PANEL } from "@/components/code/ide-right-sidebar";
 import { IdeStatusBar } from "@/components/code/ide-status-bar";
 import { CODE_PROJECT_NAME, CODE_WORKSPACE_FILES } from "@/lib/code-workspace-demo";
 import {
@@ -80,8 +76,6 @@ export function CodeWorkspace() {
   const { setHeader } = useAppShell();
   const { preferences, ready: preferencesReady } = useCodeWorkspacePreferences();
   const prefsAppliedRef = useRef(false);
-  const fileContentsRef = useRef<CodeWorkspaceFileContents>({});
-  const projectRef = useRef<CodeWorkspaceProject | null>(null);
 
   const [project, setProject] = useState<CodeWorkspaceProject | null>(null);
   const [fileContents, setFileContents] = useState<CodeWorkspaceFileContents>({});
@@ -105,7 +99,6 @@ export function CodeWorkspace() {
     "terminal" | "debug" | "output" | "problems" | "ports" | undefined
   >(undefined);
   const [leftSidebarTab, setLeftSidebarTab] = useState<LeftSidebarTab>("files");
-  const [rightSidebarTab, setRightSidebarTab] = useState<RightSidebarTab>("ask");
   const [consoleOpen, setConsoleOpen] = useState(true);
   const [consoleMaximized, setConsoleMaximized] = useState(false);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
@@ -139,12 +132,8 @@ export function CodeWorkspace() {
   const consolePanel = useResizableHeight(180, 120, 420);
   const consoleMaxHeight = 420;
 
-  fileContentsRef.current = fileContents;
-  projectRef.current = project;
-
   const nodes = project?.state.nodes ?? [];
   const ui = project?.state.ui ?? DEFAULT_UI_STATE;
-  const projectId = project?.id ?? null;
   const activeFile = useMemo(() => getActiveFile(nodes, ui.activeFileId), [nodes, ui.activeFileId]);
   const activeContent =
     ui.activeFileId && fileContents[ui.activeFileId] !== undefined
@@ -156,6 +145,7 @@ export function CodeWorkspace() {
   const lineCount = Math.max(activeContent.split("\n").length, 1);
   const crumbs = useMemo(() => breadcrumbSegments(activePath), [activePath]);
   const activeFileLabel = activeFile?.name;
+  const activeFilePath = activeFile ? nodePath(activeFile.id, nodes) : undefined;
 
   const allFileNodes = useMemo(
     () => nodes.filter((node) => node.kind === "file"),
@@ -174,7 +164,7 @@ export function CodeWorkspace() {
 
   const fetchFileContent = useCallback(
     async (fileId: string, projectId: string, nodeList: CodeWorkspaceNode[]): Promise<string> => {
-      const cached = fileContentsRef.current[fileId];
+      const cached = fileContents[fileId];
       if (cached !== undefined) return cached;
 
       const fallbackPath = nodePath(fileId, nodeList);
@@ -204,15 +194,50 @@ export function CodeWorkspace() {
         return fallback;
       }
     },
-    [persisted],
+    [fileContents, persisted],
   );
 
   const loadFileContent = useCallback(
     async (fileId: string, projectId: string, nodeList: CodeWorkspaceNode[]) => {
-      if (loadedFilesRef.current.has(fileId) && fileContentsRef.current[fileId] !== undefined) return;
+      if (loadedFilesRef.current.has(fileId) && fileContents[fileId] !== undefined) return;
       await fetchFileContent(fileId, projectId, nodeList);
     },
-    [fetchFileContent],
+    [fetchFileContent, fileContents],
+  );
+
+  const [externalContentRevision, setExternalContentRevision] = useState<Record<string, number>>({});
+
+  const reloadFileContent = useCallback(
+    async (fileId: string, projectId: string, nodeList: CodeWorkspaceNode[]) => {
+      const fallbackPath = nodePath(fileId, nodeList);
+      const fallback = CODE_WORKSPACE_FILES[fallbackPath]?.content ?? "";
+
+      window.clearTimeout(fileSaveTimersRef.current[fileId]);
+      delete fileSaveTimersRef.current[fileId];
+
+      if (!persisted) {
+        setFileContents((previous) => ({ ...previous, [fileId]: fallback }));
+        setExternalContentRevision((previous) => ({
+          ...previous,
+          [fileId]: (previous[fileId] ?? 0) + 1,
+        }));
+        return;
+      }
+
+      try {
+        const result = await codeWorkspaceApi.getFileContent(projectId, fileId);
+        const content = result.content ?? fallback;
+        loadedFilesRef.current.add(fileId);
+        setFileContents((previous) => ({ ...previous, [fileId]: content }));
+        setExternalContentRevision((previous) => ({
+          ...previous,
+          [fileId]: (previous[fileId] ?? 0) + 1,
+        }));
+      } catch {
+        // Keep the current buffer if the refetch fails.
+      }
+    },
+    [persisted],
   );
 
   const prepareSearch = useCallback<PrepareProjectSearch>(async () => {
@@ -559,17 +584,16 @@ export function CodeWorkspace() {
   );
 
   const handleSave = useCallback(async () => {
-    const currentProject = projectRef.current;
-    const fileId = currentProject?.state.ui.activeFileId;
-    if (!fileId || !currentProject || !persisted) return;
+    const fileId = project?.state.ui.activeFileId;
+    if (!fileId || !project || !persisted) return;
 
-    const content = fileContentsRef.current[fileId] ?? "";
+    const content = fileContents[fileId] ?? "";
     window.clearTimeout(fileSaveTimersRef.current[fileId]);
 
     setSaving(true);
     setSaved(false);
     try {
-      await codeWorkspaceApi.saveFileContent(currentProject.id, fileId, content);
+      await codeWorkspaceApi.saveFileContent(project.id, fileId, content);
       setSaved(true);
       window.setTimeout(() => setSaved(false), 1600);
     } catch {
@@ -577,7 +601,7 @@ export function CodeWorkspace() {
     } finally {
       setSaving(false);
     }
-  }, [persisted]);
+  }, [fileContents, persisted, project]);
 
   const handleSaveAs = useCallback(async () => {
     const fileId = project?.state.ui.activeFileId;
@@ -770,12 +794,12 @@ export function CodeWorkspace() {
     () => (
       <IdeFileMenu
         canSave={canSaveFile && persisted}
-        canDeploy={Boolean(projectId)}
+        canDeploy={Boolean(project)}
         saving={saving}
-        onNewFile={handleNewFileFromMenu}
-        onNewFolder={handleNewFolderFromMenu}
-        onSave={handleSave}
-        onSaveAs={handleSaveAs}
+        onNewFile={() => void handleNewFileFromMenu()}
+        onNewFolder={() => void handleNewFolderFromMenu()}
+        onSave={() => void handleSave()}
+        onSaveAs={() => void handleSaveAs()}
         onDeploy={handleOpenDeploy}
       />
     ),
@@ -787,7 +811,7 @@ export function CodeWorkspace() {
       handleSave,
       handleSaveAs,
       persisted,
-      projectId,
+      project,
       saving,
     ],
   );
@@ -839,6 +863,7 @@ export function CodeWorkspace() {
               onCreateFolder={handleCreateFolder}
               onPrepareSearch={prepareSearch}
               onOpenSearchResult={openSearchResult}
+              projectId={persisted ? project.id : null}
             />
           </IdeCollapsibleSidebar>
         </IdeResizablePanel>
@@ -926,6 +951,7 @@ export function CodeWorkspace() {
           <div className="ide-editor-viewport relative flex min-h-0 flex-1 flex-col overflow-hidden">
             {activeFile && isActiveFileContentReady ? (
               <CodeEditor
+                key={`${activeFile.id}:${externalContentRevision[activeFile.id] ?? 0}`}
                 value={activeContent}
                 language={activeFile.language ?? "plaintext"}
                 onChange={updateActiveFile}
@@ -971,15 +997,24 @@ export function CodeWorkspace() {
         >
           <IdeCollapsibleSidebar
             side="right"
-            tabs={RIGHT_SIDEBAR_TABS}
-            activeTab={rightSidebarTab}
-            onTabChange={setRightSidebarTab}
+            tabs={[RIGHT_SIDEBAR_PANEL]}
+            activeTab={RIGHT_SIDEBAR_PANEL.id}
+            onTabChange={() => {}}
             collapsed={rightSidebarCollapsed}
             onCollapsedChange={setRightSidebarCollapsed}
           >
             <IdeRightSidebar
-              activeTab={rightSidebarTab}
               activeFileLabel={activeFileLabel}
+              activeFilePath={activeFilePath}
+              activeFileId={ui.activeFileId}
+              projectId={project?.id ?? null}
+              persisted={persisted}
+              onOpenSearchResult={openSearchResult}
+              onFileEdited={(fileId) => {
+                if (persisted && project) {
+                  void reloadFileContent(fileId, project.id, project.state.nodes);
+                }
+              }}
             />
           </IdeCollapsibleSidebar>
         </IdeResizablePanel>

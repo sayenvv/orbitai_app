@@ -285,6 +285,7 @@ type IdeLeftSidebarProps = {
   onCreateFolder: (parentId: string | null, name: string) => string | null | Promise<string | null>;
   onPrepareSearch: PrepareProjectSearch;
   onOpenSearchResult: (fileId: string, line: number) => void;
+  projectId?: string | null;
 };
 
 export function IdeLeftSidebar({
@@ -302,6 +303,7 @@ export function IdeLeftSidebar({
   onCreateFolder,
   onPrepareSearch,
   onOpenSearchResult,
+  projectId,
 }: IdeLeftSidebarProps) {
   const [contextMenu, setContextMenu] = useState<FileTreeContextMenuState | null>(null);
   const [createDraft, setCreateDraft] = useState<CreateDraft | null>(null);
@@ -387,6 +389,7 @@ export function IdeLeftSidebar({
       {activeTab === "search" ? (
         <IdeProjectSearch
           nodes={nodes}
+          projectId={projectId}
           onPrepareSearch={onPrepareSearch}
           onOpenResult={onOpenSearchResult}
         />

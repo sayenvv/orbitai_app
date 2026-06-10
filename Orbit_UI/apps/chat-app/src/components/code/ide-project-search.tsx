@@ -8,12 +8,14 @@ import {
   type ProjectSearchMatch,
 } from "@/lib/code-workspace-search";
 import type { CodeWorkspaceFileContents, CodeWorkspaceNode } from "@/lib/code-workspace-types";
+import { codeWorkspaceApi } from "@/lib/orbit-api";
 import { cn } from "@/lib/utils";
 
 export type PrepareProjectSearch = () => Promise<CodeWorkspaceFileContents>;
 
 type IdeProjectSearchProps = {
   nodes: CodeWorkspaceNode[];
+  projectId?: string | null;
   onPrepareSearch: PrepareProjectSearch;
   onOpenResult: (fileId: string, line: number) => void;
 };
@@ -39,6 +41,7 @@ function groupMatchesByFile(matches: ProjectSearchMatch[]) {
 
 export function IdeProjectSearch({
   nodes,
+  projectId,
   onPrepareSearch,
   onOpenResult,
 }: IdeProjectSearchProps) {
@@ -62,6 +65,17 @@ export function IdeProjectSearch({
       setHasSearched(true);
 
       try {
+        if (projectId) {
+          const response = await codeWorkspaceApi.searchProject(projectId, {
+            query: trimmed,
+            caseSensitive: nextCaseSensitive,
+            maxResults: 200,
+            mode: "all",
+          });
+          setResults(response.results);
+          return;
+        }
+
         const contents = await onPrepareSearch();
         const matches = searchProjectFiles(nodes, contents, trimmed, {
           caseSensitive: nextCaseSensitive,
@@ -71,7 +85,7 @@ export function IdeProjectSearch({
         setSearching(false);
       }
     },
-    [nodes, onPrepareSearch],
+    [nodes, onPrepareSearch, projectId],
   );
 
   useEffect(() => {
