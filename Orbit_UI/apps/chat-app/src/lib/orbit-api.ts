@@ -943,6 +943,8 @@ export type ApiCodeWorkspaceAgentEdit = {
   fileId: string;
   filePath: string;
   syntaxOk: boolean;
+  created?: boolean;
+  status?: string;
 };
 
 export type ApiCodeWorkspaceAgentReviewIssue = {
@@ -960,12 +962,41 @@ export type ApiCodeWorkspaceAgentReview = {
   summary: string;
 };
 
+export type ApiCodeWorkspaceAgentLogEntry = {
+  id: string;
+  agent: string;
+  agentId: string;
+  status: "running" | "done" | "error";
+  message: string;
+  detail?: string | null;
+};
+
 export type CodeWorkspaceAgentStreamEvent =
   | { type: "start"; project_id: string }
+  | { type: "ping" }
+  | { type: "log"; id: string; agent: string; agentId: string; status: ApiCodeWorkspaceAgentLogEntry["status"]; message: string; detail?: string | null }
+  | { type: "phase"; phase: string; status: string; message: string }
+  | { type: "routing"; request_type: string; reason: string }
   | { type: "token"; content: string }
   | { type: "files"; files: ApiCodeWorkspaceSearchMatch[] }
   | { type: "edit"; edit: ApiCodeWorkspaceAgentEdit }
+  | { type: "project_changed" }
+  | {
+      type: "terminal";
+      command: string;
+      output: string;
+      exitCode?: number | null;
+      executed?: boolean;
+    }
   | { type: "review"; review: ApiCodeWorkspaceAgentReview }
+  | {
+      type: "validation";
+      validation: {
+        passed: boolean;
+        issues: ApiCodeWorkspaceAgentReviewIssue[];
+        checks: string[];
+      };
+    }
   | { type: "error"; detail: string }
   | {
       type: "done";
@@ -973,6 +1004,8 @@ export type CodeWorkspaceAgentStreamEvent =
       files: ApiCodeWorkspaceSearchMatch[];
       edits: ApiCodeWorkspaceAgentEdit[];
       reviews: ApiCodeWorkspaceAgentReview[];
+      plan?: string | null;
+      request_type?: string | null;
     };
 
 export const codeWorkspaceApi = {
@@ -1123,9 +1156,22 @@ export const codeWorkspaceApi = {
       buffer = lines.pop() ?? "";
 
       for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const jsonStr = line.slice(6).trim();
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const jsonStr = trimmed.slice(5).trim();
         if (!jsonStr) continue;
+        try {
+          yield JSON.parse(jsonStr) as CodeWorkspaceAgentStreamEvent;
+        } catch {
+          // skip malformed SSE chunk
+        }
+      }
+    }
+
+    const tail = buffer.trim();
+    if (tail.startsWith("data:")) {
+      const jsonStr = tail.slice(5).trim();
+      if (jsonStr) {
         try {
           yield JSON.parse(jsonStr) as CodeWorkspaceAgentStreamEvent;
         } catch {

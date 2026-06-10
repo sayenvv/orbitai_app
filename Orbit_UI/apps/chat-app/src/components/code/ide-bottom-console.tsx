@@ -23,14 +23,6 @@ const CONSOLE_TABS: Array<{ id: ConsoleTab; label: string; icon: LucideIcon }> =
   { id: "ports", label: "Ports", icon: Plug },
 ];
 
-const TERMINAL_LOG = `$ pnpm build
-> axiom-api-client@0.1.0 build
-> tsc
-
-$ node dist/index.js
-Axiom client ready — base URL https://api.axiom.ai/v1
-`;
-
 const DEBUG_LOG = `[info] AxiomClient initialized
 [debug] RateLimiter configured: 60 req/min
 [warn] API key loaded from environment
@@ -62,6 +54,7 @@ type IdeBottomConsoleProps = {
   maximized?: boolean;
   preferredTab?: ConsoleTab;
   outputLog?: string;
+  terminalLog?: string;
   ports?: IdeConsolePort[];
 };
 
@@ -71,6 +64,7 @@ export function IdeBottomConsole({
   maximized,
   preferredTab,
   outputLog,
+  terminalLog,
   ports,
 }: IdeBottomConsoleProps) {
   const [activeTab, setActiveTab] = useState<ConsoleTab>(preferredTab ?? "terminal");
@@ -81,6 +75,9 @@ export function IdeBottomConsole({
   }, [preferredTab]);
 
   const resolvedOutput = outputLog?.trim() ? outputLog : DEFAULT_OUTPUT_LOG;
+  const resolvedTerminal = terminalLog?.trim()
+    ? terminalLog
+    : "$ Clovops terminal ready — ask the agent to run a file (e.g. `run main.py`).\n";
   const resolvedPorts = ports && ports.length > 0 ? ports : DEFAULT_PORTS;
 
   return (
@@ -137,7 +134,7 @@ export function IdeBottomConsole({
         {activeTab === "terminal" && (
           <div className="flex h-full min-h-0 flex-col">
             <pre className="min-h-0 flex-1 overflow-auto p-3 font-mono text-[12px] leading-relaxed text-foreground/85 [scrollbar-width:thin]">
-              {TERMINAL_LOG}
+              {resolvedTerminal}
             </pre>
             <div className="flex shrink-0 items-center gap-2 border-t border-[color:var(--workspace-tab-border)] px-3 py-2">
               <span className="text-[12px] text-primary">$</span>

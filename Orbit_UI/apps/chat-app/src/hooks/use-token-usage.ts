@@ -23,7 +23,15 @@ export function useTokenUsage() {
     setLoading(true);
     try {
       const data = await publicApi.subscription();
-      setUsage(data);
+      const current = useUsageStore.getState().usage;
+      if (
+        !current ||
+        current.plan !== data.plan ||
+        current.tokens_used !== data.tokens_used ||
+        current.tokens_limit !== data.tokens_limit
+      ) {
+        setUsage(data);
+      }
     } catch {
       // keep last known usage on transient errors
     } finally {

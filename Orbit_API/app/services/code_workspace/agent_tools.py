@@ -10,9 +10,15 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.services.code_workspace.code_review import validate_source_syntax
-from app.services.code_workspace.file_resolver import find_file_node, slice_file_lines
+from app.services.code_workspace.file_resolver import (
+    find_file_node,
+    find_folder_id_by_path,
+    infer_language_from_name,
+    slice_file_lines,
+)
 from app.services.code_workspace.file_store import node_relative_path, read_file_content, write_file_content
-from app.services.code_workspace.project_store import get_project, parse_project_state
+from app.services.code_workspace.project_store import add_project_node, get_project, parse_project_state
+from clovai_apps.code_workspace.schemas import CodeWorkspaceNodeCreateRequest
 from app.services.code_workspace.search_store import search_project_files
 from clovai_apps.code_workspace.schemas import CodeWorkspaceSearchRequest
 
@@ -77,6 +83,56 @@ def read_code_workspace_file_for_agent(
     }
 
 
+def create_code_workspace_file_for_agent(
+    db: Session,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    *,
+    name: str,
+    content: str,
+    parent_id: str | None = None,
+    parent_path: str | None = None,
+    language: str | None = None,
+) -> dict[str, Any]:
+    row = get_project(db, user_id, project_id)
+    state = parse_project_state(row.state)
+    resolved_parent = parent_id
+    if not resolved_parent and parent_path:
+        resolved_parent = find_folder_id_by_path(state.nodes, parent_path)
+
+    file_language = language or infer_language_from_name(name)
+    add_project_node(
+        db,
+        user_id,
+        project_id,
+        CodeWorkspaceNodeCreateRequest(
+            kind="file",
+            name=name.strip(),
+            parent_id=resolved_parent,
+            language=file_language,
+        ),
+    )
+
+    row = get_project(db, user_id, project_id)
+    state = parse_project_state(row.state)
+    file_id = state.ui.active_file_id
+    if not file_id:
+        raise ValueError("Failed to resolve created file id.")
+
+    write_file_content(db, user_id, project_id, state.nodes, file_id, content)
+    file_path = node_relative_path(state.nodes, file_id)
+    syntax = validate_source_syntax(content, language=file_language, file_path=file_path)
+    return {
+        "fileId": file_id,
+        "filePath": file_path,
+        "status": "created",
+        "created": True,
+        "bytes": len(content.encode("utf-8")),
+        "syntaxOk": bool(syntax.get("ok")),
+        "syntaxErrors": syntax.get("errors") or [],
+    }
+
+
 def write_code_workspace_file_for_agent(
     db: Session,
     user_id: uuid.UUID,
@@ -95,6 +151,7 @@ def write_code_workspace_file_for_agent(
         "fileId": node.id,
         "filePath": file_path,
         "status": "saved",
+        "created": False,
         "bytes": len(content.encode("utf-8")),
         "syntaxOk": bool(syntax.get("ok")),
         "syntaxErrors": syntax.get("errors") or [],
@@ -157,6 +214,27 @@ def build_code_workspace_agent_tools(
             )
         return json.dumps(payload)
 
+    def create_code_workspace_file(
+        name: str,
+        content: str,
+        parent_path: str = "",
+        parent_id: str = "",
+        language: str = "",
+    ) -> str:
+        """Create a new file in the project and write its full contents."""
+        with _tool_db_session() as db:
+            payload = create_code_workspace_file_for_agent(
+                db,
+                user_id,
+                uuid.UUID(project_id),
+                name=name,
+                content=content,
+                parent_id=parent_id or None,
+                parent_path=parent_path or None,
+                language=language or None,
+            )
+        return json.dumps(payload)
+
     return [
         StructuredTool.from_function(
             func=search_code_workspace_files,
@@ -178,5 +256,10 @@ def build_code_workspace_agent_tools(
                 "Save the full updated file content after reading and editing. "
                 "Always read the file first unless you already have the full current content."
             ),
+        ),
+        StructuredTool.from_function(
+            func=create_code_workspace_file,
+            name="create_code_workspace_file",
+            description="Create a new project file with full content. Use parent_path like src or lib.",
         ),
     ]

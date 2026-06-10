@@ -89,7 +89,8 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   const setHeader = useCallback((next: AppHeaderState | null) => {
     setHeaderState((prev) => {
       if (prev === next) return prev;
-      if (!prev || !next) return next;
+      if (!next) return prev === null ? prev : null;
+      if (!prev) return next;
       if (
         prev.leading === next.leading &&
         prev.title === next.title &&

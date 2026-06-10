@@ -37,6 +37,37 @@ def find_file_node(
     )
 
 
+def infer_language_from_name(name: str) -> str:
+    lower = name.lower()
+    if lower.endswith((".ts", ".tsx")):
+        return "typescript"
+    if lower.endswith((".js", ".jsx")):
+        return "javascript"
+    if lower.endswith(".py"):
+        return "python"
+    if lower.endswith(".json"):
+        return "json"
+    if lower.endswith(".md"):
+        return "markdown"
+    if lower.endswith((".css", ".scss")):
+        return "css"
+    if lower.endswith(".html"):
+        return "html"
+    return "plaintext"
+
+
+def find_folder_id_by_path(nodes: list[CodeWorkspaceNode], folder_path: str) -> str | None:
+    normalized = normalize_project_path(folder_path)
+    if not normalized:
+        return None
+    for node in nodes:
+        if node.kind != "folder":
+            continue
+        if node_relative_path(nodes, node.id) == normalized:
+            return node.id
+    return None
+
+
 def slice_file_lines(content: str, *, start_line: int = 1, end_line: int = 0) -> tuple[str, int, int]:
     lines = content.splitlines()
     total = len(lines)

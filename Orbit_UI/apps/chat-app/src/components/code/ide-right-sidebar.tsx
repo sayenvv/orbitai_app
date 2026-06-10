@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { ArrowUp, Loader2, Sparkles } from "lucide-react";
 import { ChatMessages } from "@/components/chat/chat-messages";
 import { ClovopsChatFileResults } from "@/components/code/clovops-chat-file-results";
+import { ClovopsExecutionLog } from "@/components/code/clovops-execution-log";
 import { ClovopsChatReviewResults } from "@/components/code/clovops-chat-review-results";
 import { buildAgentGreeting } from "@/lib/agent-greeting";
 import {
   codeWorkspaceApi,
   getApiErrorMessage,
+  type ApiCodeWorkspaceAgentLogEntry,
   type ApiCodeWorkspaceAgentReview,
   type ApiCodeWorkspaceSearchMatch,
 } from "@/lib/orbit-api";
@@ -60,6 +63,8 @@ type IdeRightSidebarProps = {
   persisted?: boolean;
   onOpenSearchResult?: (fileId: string, line: number) => void;
   onFileEdited?: (fileId: string) => void;
+  onProjectChanged?: () => void;
+  onTerminalOutput?: (command: string, output: string, exitCode?: number | null) => void;
 };
 
 export function IdeRightSidebar({
@@ -70,15 +75,22 @@ export function IdeRightSidebar({
   persisted = false,
   onOpenSearchResult,
   onFileEdited,
+  onProjectChanged,
+  onTerminalOutput,
 }: IdeRightSidebarProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageFiles, setMessageFiles] = useState<Record<string, ApiCodeWorkspaceSearchMatch[]>>({});
   const [messageReviews, setMessageReviews] = useState<
     Record<string, ApiCodeWorkspaceAgentReview[]>
   >({});
+  const [messageLogs, setMessageLogs] = useState<
+    Record<string, ApiCodeWorkspaceAgentLogEntry[]>
+  >({});
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [agentPhase, setAgentPhase] = useState<string | null>(null);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+  const [logRevision, setLogRevision] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const streamBufferRef = useRef("");
   const rafRef = useRef<number | null>(null);
@@ -156,11 +168,63 @@ export function IdeRightSidebar({
         },
       ]);
       setIsLoading(true);
+      setAgentPhase("Understanding request…");
       setStreamingMsgId(assistantMsgId);
       streamBufferRef.current = "";
+      setMessageLogs((current) => ({
+        ...current,
+        [assistantMsgId]: [
+          {
+            id: "gateway-running",
+            agent: "Gateway",
+            agentId: "gateway",
+            status: "running",
+            message: "Understanding request…",
+          },
+        ],
+      }));
 
       let collectedFiles: ApiCodeWorkspaceSearchMatch[] = [];
       let collectedReviews: ApiCodeWorkspaceAgentReview[] = [];
+      let collectedLogs: ApiCodeWorkspaceAgentLogEntry[] = [
+        {
+          id: "gateway-running",
+          agent: "Gateway",
+          agentId: "gateway",
+          status: "running",
+          message: "Understanding request…",
+        },
+      ];
+
+      const paintLogs = (snapshot: ApiCodeWorkspaceAgentLogEntry[]) => {
+        flushSync(() => {
+          setMessageLogs((current) => ({
+            ...current,
+            [assistantMsgId]: snapshot,
+          }));
+          setLogRevision((value) => value + 1);
+        });
+      };
+
+      const upsertLog = (entry: ApiCodeWorkspaceAgentLogEntry) => {
+        const existingIndex = collectedLogs.findIndex((log) => log.id === entry.id);
+        if (existingIndex >= 0) {
+          collectedLogs = collectedLogs.map((log, index) =>
+            index === existingIndex ? { ...log, ...entry } : log,
+          );
+        } else {
+          collectedLogs = [...collectedLogs, entry];
+        }
+        paintLogs([...collectedLogs]);
+        if (entry.status === "running") {
+          setAgentPhase(entry.message);
+        }
+      };
+
+      const yieldToUi = () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
       let lastFlushed = "";
 
       const flushBuffer = () => {
@@ -183,7 +247,20 @@ export function IdeRightSidebar({
           activeFileId: activeFileId ?? null,
           activeFilePath: activeFilePath ?? activeFileLabel ?? null,
         })) {
-          if (event.type === "token") {
+          if (event.type === "phase") {
+            flushSync(() => setAgentPhase(event.message));
+            await yieldToUi();
+          } else if (event.type === "log") {
+            upsertLog({
+              id: event.id,
+              agent: event.agent,
+              agentId: event.agentId,
+              status: event.status,
+              message: event.message,
+              detail: event.detail ?? undefined,
+            });
+            await yieldToUi();
+          } else if (event.type === "token") {
             streamBufferRef.current += event.content;
           } else if (event.type === "files") {
             collectedFiles = dedupeFiles([...collectedFiles, ...event.files]);
@@ -192,7 +269,17 @@ export function IdeRightSidebar({
               [assistantMsgId]: dedupeFiles(collectedFiles),
             }));
           } else if (event.type === "edit") {
+            if (event.edit.created) {
+              onProjectChanged?.();
+            }
             onFileEdited?.(event.edit.fileId);
+          } else if (event.type === "project_changed") {
+            onProjectChanged?.();
+          } else if (event.type === "terminal") {
+            onTerminalOutput?.(event.command, event.output, event.exitCode);
+            if (event.output) {
+              streamBufferRef.current += `\n\`\`\`terminal\n$ ${event.command}\n${event.output}\n\`\`\`\n`;
+            }
           } else if (event.type === "review") {
             collectedReviews = [...collectedReviews, event.review];
             setMessageReviews((current) => ({
@@ -236,6 +323,7 @@ export function IdeRightSidebar({
           ),
         );
         setStreamingMsgId(null);
+        setAgentPhase(null);
         setIsLoading(false);
       }
     },
@@ -246,6 +334,8 @@ export function IdeRightSidebar({
       isLoading,
       messages,
       onFileEdited,
+      onProjectChanged,
+      onTerminalOutput,
       persisted,
       projectId,
     ],
@@ -273,9 +363,18 @@ export function IdeRightSidebar({
           if (message.role !== "assistant") return null;
           const files = messageFiles[message.id];
           const reviews = messageReviews[message.id];
-          if (!files?.length && !reviews?.length) return null;
+          const logs = messageLogs[message.id];
+          const isStreamingMessage = isLoading && streamingMsgId === message.id;
+          if (!files?.length && !reviews?.length && !logs?.length) return null;
           return (
             <div className="space-y-3">
+              {logs?.length ? (
+                <ClovopsExecutionLog
+                  key={isStreamingMessage ? `live-${logRevision}` : message.id}
+                  logs={logs}
+                  live={isStreamingMessage}
+                />
+              ) : null}
               {files?.length ? (
                 <ClovopsChatFileResults files={files} onOpenFile={onOpenSearchResult} />
               ) : null}
@@ -362,7 +461,7 @@ export function IdeRightSidebar({
 
           <p className="mt-2 flex items-center justify-center gap-1.5 px-1 text-center text-[11px] text-muted-foreground/70">
             <Sparkles className="h-3 w-3 shrink-0 text-primary/60" />
-            {contextHint}
+            {isLoading && agentPhase ? agentPhase : contextHint}
           </p>
         </form>
       </div>

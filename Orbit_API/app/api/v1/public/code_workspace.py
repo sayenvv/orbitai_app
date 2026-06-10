@@ -14,7 +14,7 @@ from app.services.code_workspace.deploy_store import deploy_project
 from app.services.code_workspace.file_store import read_file_content, write_file_content
 from app.services.code_workspace.search_agent import stream_code_workspace_search_agent
 from app.services.code_workspace.search_store import search_project_files
-from app.services.multi_agent_stream import sse_response
+from app.services.code_workspace.sse import code_workspace_sse_response
 from app.services.code_workspace.settings_store import get_user_settings, update_user_settings
 from app.services.code_workspace.project_store import (
     parse_project_state,
@@ -161,7 +161,7 @@ def code_workspace_search_project(
 
 
 @router.post("/projects/{project_id}/agent/search/stream")
-def code_workspace_search_agent_stream(
+async def code_workspace_search_agent_stream(
     project_id: uuid.UUID,
     body: CodeWorkspaceAgentSearchRequest,
     db: Session = Depends(get_db),
@@ -185,7 +185,7 @@ def code_workspace_search_agent_stream(
         ):
             yield event
 
-    return sse_response(events())
+    return code_workspace_sse_response(events())
 
 
 @router.put("/projects/{project_id}/files/{node_id}", response_model=CodeWorkspaceFileContentResponse)

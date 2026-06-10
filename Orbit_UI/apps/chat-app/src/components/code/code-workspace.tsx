@@ -69,6 +69,8 @@ function breadcrumbSegments(path: string): string[] {
   return path ? path.split("/") : [];
 }
 
+const EMPTY_NODES: CodeWorkspaceNode[] = [];
+
 export function CodeWorkspace() {
   const searchParams = useSearchParams();
   const projectIdParam = searchParams.get("projectId");
@@ -94,6 +96,7 @@ export function CodeWorkspace() {
   const [deployResult, setDeployResult] = useState<DeployResult | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deployOutput, setDeployOutput] = useState("");
+  const [terminalLog, setTerminalLog] = useState("");
   const [deployPorts, setDeployPorts] = useState<IdeConsolePort[]>([]);
   const [consolePreferredTab, setConsolePreferredTab] = useState<
     "terminal" | "debug" | "output" | "problems" | "ports" | undefined
@@ -132,7 +135,13 @@ export function CodeWorkspace() {
   const consolePanel = useResizableHeight(180, 120, 420);
   const consoleMaxHeight = 420;
 
-  const nodes = project?.state.nodes ?? [];
+  const projectRef = useRef(project);
+  projectRef.current = project;
+
+  const nodes = useMemo(
+    () => project?.state.nodes ?? EMPTY_NODES,
+    [project?.state.nodes],
+  );
   const ui = project?.state.ui ?? DEFAULT_UI_STATE;
   const activeFile = useMemo(() => getActiveFile(nodes, ui.activeFileId), [nodes, ui.activeFileId]);
   const activeContent =
@@ -260,6 +269,17 @@ export function CodeWorkspace() {
     skipSaveRef.current = true;
     setProject(next);
   }, []);
+
+  const refreshProjectFromServer = useCallback(async () => {
+    const current = projectRef.current;
+    if (!persisted || !current) return;
+    try {
+      const raw = await codeWorkspaceApi.getProject(current.id);
+      applyRemoteProject(mapApiProject(raw));
+    } catch {
+      // ignore refresh errors
+    }
+  }, [applyRemoteProject, persisted]);
 
   useEffect(() => {
     let cancelled = false;
@@ -790,38 +810,62 @@ export function CodeWorkspace() {
     }
   }, [flushProjectFiles, nodes, persisted, project]);
 
+  const fileMenuHandlersRef = useRef({
+    handleNewFileFromMenu,
+    handleNewFolderFromMenu,
+    handleOpenDeploy,
+    handleSave,
+    handleSaveAs,
+  });
+  fileMenuHandlersRef.current = {
+    handleNewFileFromMenu,
+    handleNewFolderFromMenu,
+    handleOpenDeploy,
+    handleSave,
+    handleSaveAs,
+  };
+
   const fileMenu = useMemo(
     () => (
       <IdeFileMenu
         canSave={canSaveFile && persisted}
-        canDeploy={Boolean(project)}
+        canDeploy={Boolean(projectRef.current)}
         saving={saving}
-        onNewFile={() => void handleNewFileFromMenu()}
-        onNewFolder={() => void handleNewFolderFromMenu()}
-        onSave={() => void handleSave()}
-        onSaveAs={() => void handleSaveAs()}
-        onDeploy={handleOpenDeploy}
+        onNewFile={() => void fileMenuHandlersRef.current.handleNewFileFromMenu()}
+        onNewFolder={() => void fileMenuHandlersRef.current.handleNewFolderFromMenu()}
+        onSave={() => void fileMenuHandlersRef.current.handleSave()}
+        onSaveAs={() => void fileMenuHandlersRef.current.handleSaveAs()}
+        onDeploy={fileMenuHandlersRef.current.handleOpenDeploy}
       />
     ),
-    [
-      canSaveFile,
-      handleNewFileFromMenu,
-      handleNewFolderFromMenu,
-      handleOpenDeploy,
-      handleSave,
-      handleSaveAs,
-      persisted,
-      project,
-      saving,
-    ],
+    [canSaveFile, persisted, project?.id, saving],
   );
 
   useEffect(() => {
-    setHeader({
-      leading: fileMenu,
-    });
-    return () => setHeader(null);
+    setHeader({ leading: fileMenu });
   }, [fileMenu, setHeader]);
+
+  useEffect(() => () => setHeader(null), [setHeader]);
+
+  const handleTerminalOutput = useCallback((command: string, output: string) => {
+    setConsoleOpen(true);
+    setConsoleMaximized(false);
+    setConsolePreferredTab("terminal");
+    setTerminalLog((previous) => {
+      const prefix = previous.trim() ? `${previous.trim()}\n\n` : "";
+      return `${prefix}$ ${command}\n${output}`;
+    });
+  }, []);
+
+  const handleAgentFileEdited = useCallback(
+    (fileId: string) => {
+      const current = projectRef.current;
+      if (persisted && current) {
+        void reloadFileContent(fileId, current.id, current.state.nodes);
+      }
+    },
+    [persisted, reloadFileContent],
+  );
 
   if (loading || !project) {
     return (
@@ -983,6 +1027,7 @@ export function CodeWorkspace() {
                 onClose={() => setConsoleOpen(false)}
                 preferredTab={consolePreferredTab}
                 outputLog={deployOutput}
+                terminalLog={terminalLog}
                 ports={deployPorts}
               />
             </IdeResizableBottomPanel>
@@ -1010,11 +1055,9 @@ export function CodeWorkspace() {
               projectId={project?.id ?? null}
               persisted={persisted}
               onOpenSearchResult={openSearchResult}
-              onFileEdited={(fileId) => {
-                if (persisted && project) {
-                  void reloadFileContent(fileId, project.id, project.state.nodes);
-                }
-              }}
+              onFileEdited={handleAgentFileEdited}
+              onProjectChanged={refreshProjectFromServer}
+              onTerminalOutput={handleTerminalOutput}
             />
           </IdeCollapsibleSidebar>
         </IdeResizablePanel>
