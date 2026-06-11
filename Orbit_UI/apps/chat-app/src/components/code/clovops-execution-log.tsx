@@ -4,17 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
-  Circle,
+  ChevronRight,
   Code2,
   FileText,
   FolderTree,
   ListChecks,
   Loader2,
   MessageSquare,
-  Route,
   Search,
   ShieldCheck,
-  Sparkles,
   Terminal,
   X,
   type LucideIcon,
@@ -31,162 +29,138 @@ type ClovopsExecutionLogProps = {
 
 type AgentVisual = {
   icon: LucideIcon;
-  label: string;
-  accent: string;
+  verb: string;
 };
 
 const AGENT_VISUALS: Record<string, AgentVisual> = {
-  gateway: { icon: Route, label: "Gateway", accent: "text-violet-500" },
-  index_project: { icon: FolderTree, label: "Indexer", accent: "text-sky-500" },
-  search_files: { icon: Search, label: "Search", accent: "text-amber-500" },
-  build_context: { icon: FileText, label: "Context", accent: "text-cyan-500" },
-  plan_changes: { icon: ListChecks, label: "Planner", accent: "text-indigo-500" },
-  write_code: { icon: Code2, label: "Writer", accent: "text-emerald-500" },
-  review_code: { icon: ShieldCheck, label: "Review", accent: "text-orange-500" },
-  validate_code: { icon: Check, label: "Validator", accent: "text-teal-500" },
-  chat_response: { icon: MessageSquare, label: "Assistant", accent: "text-blue-500" },
-  explain_response: { icon: MessageSquare, label: "Assistant", accent: "text-blue-500" },
-  terminal: { icon: Terminal, label: "Terminal", accent: "text-rose-500" },
-};
-
-const DEFAULT_VISUAL: AgentVisual = {
-  icon: Sparkles,
-  label: "Agent",
-  accent: "text-primary",
+  gateway: { icon: MessageSquare, verb: "Understanding request" },
+  index_project: { icon: FolderTree, verb: "Indexed project" },
+  search_files: { icon: Search, verb: "Searched files" },
+  build_context: { icon: FileText, verb: "Read context" },
+  plan_changes: { icon: ListChecks, verb: "Planned changes" },
+  write_code: { icon: Code2, verb: "Edited code" },
+  review_code: { icon: ShieldCheck, verb: "Reviewed changes" },
+  validate_code: { icon: Check, verb: "Validated" },
+  chat_response: { icon: MessageSquare, verb: "Responded" },
+  explain_response: { icon: MessageSquare, verb: "Explained" },
+  terminal: { icon: Terminal, verb: "Ran command" },
 };
 
 function getAgentVisual(agentId: string, agentName: string): AgentVisual {
-  const known = AGENT_VISUALS[agentId];
-  if (known) return known;
-  return { ...DEFAULT_VISUAL, label: agentName };
+  return AGENT_VISUALS[agentId] ?? { icon: MessageSquare, verb: agentName };
 }
 
-function StatusBadge({ status }: { status: ApiCodeWorkspaceAgentLogEntry["status"] }) {
+const RUNNING_VERBS: Record<string, string> = {
+  gateway: "Understanding request",
+  index_project: "Indexing project",
+  search_files: "Searching files",
+  build_context: "Reading context",
+  plan_changes: "Planning changes",
+  write_code: "Editing code",
+  review_code: "Reviewing changes",
+  validate_code: "Validating",
+  chat_response: "Responding",
+  explain_response: "Explaining",
+  terminal: "Running command",
+};
+
+function stepTitle(entry: ApiCodeWorkspaceAgentLogEntry): string {
+  const visual = getAgentVisual(entry.agentId, entry.agent);
+  if (entry.status === "running") {
+    return RUNNING_VERBS[entry.agentId] ?? visual.verb;
+  }
+  if (entry.status === "error") {
+    return `${visual.verb} failed`;
+  }
+  return visual.verb;
+}
+
+function StatusGlyph({ status }: { status: ApiCodeWorkspaceAgentLogEntry["status"] }) {
   if (status === "running") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-        <Loader2 className="h-2.5 w-2.5 animate-spin" />
-        Running
-      </span>
-    );
+    return <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />;
   }
   if (status === "error") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
-        <X className="h-2.5 w-2.5" />
-        Failed
-      </span>
-    );
+    return <X className="h-3.5 w-3.5 shrink-0 text-destructive/90" />;
   }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-      <Check className="h-2.5 w-2.5" />
-      Done
-    </span>
-  );
+  return <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />;
 }
 
-function TimelineNode({
-  status,
-  icon: Icon,
-  accent,
-}: {
-  status: ApiCodeWorkspaceAgentLogEntry["status"];
-  icon: LucideIcon;
-  accent: string;
-}) {
-  if (status === "running") {
-    return (
-      <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 shadow-[0_0_0_4px_hsl(var(--background))]">
-        <Loader2 className={cn("h-3.5 w-3.5 animate-spin", accent)} />
-      </div>
-    );
-  }
-  if (status === "error") {
-    return (
-      <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-destructive/30 bg-destructive/10 shadow-[0_0_0_4px_hsl(var(--background))]">
-        <X className="h-3.5 w-3.5 text-destructive" />
-      </div>
-    );
-  }
-  return (
-    <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-muted/50 shadow-[0_0_0_4px_hsl(var(--background))]">
-      <Icon className={cn("h-3.5 w-3.5", accent)} />
-    </div>
-  );
-}
-
-function LogStep({
+function StepRow({
   entry,
-  isLast,
   expanded,
   onToggle,
-  compact,
 }: {
   entry: ApiCodeWorkspaceAgentLogEntry;
-  isLast: boolean;
   expanded: boolean;
   onToggle: () => void;
-  compact: boolean;
 }) {
   const visual = getAgentVisual(entry.agentId, entry.agent);
+  const Icon = visual.icon;
   const hasDetail = Boolean(entry.detail?.trim());
+  const title = stepTitle(entry);
 
   return (
-    <li className="relative flex gap-3 pb-0">
-      {!isLast ? (
-        <span
-          aria-hidden
-          className="absolute left-[13px] top-7 bottom-0 w-px bg-border/70"
-        />
-      ) : null}
+    <div
+      className={cn(
+        "group/step rounded-md transition-colors",
+        entry.status === "running" && "bg-muted/30",
+        hasDetail && "hover:bg-muted/25",
+      )}
+    >
+      <button
+        type="button"
+        onClick={hasDetail ? onToggle : undefined}
+        disabled={!hasDetail}
+        className={cn(
+          "flex w-full items-start gap-2.5 px-2 py-1.5 text-left",
+          !hasDetail && "cursor-default",
+        )}
+      >
+        <div className="mt-0.5 flex w-3.5 shrink-0 justify-center">
+          <StatusGlyph status={entry.status} />
+        </div>
 
-      <TimelineNode status={entry.status} icon={visual.icon} accent={visual.accent} />
-
-      <div className="min-w-0 flex-1 pb-4">
-        <button
-          type="button"
-          onClick={hasDetail ? onToggle : undefined}
-          disabled={!hasDetail}
-          className={cn(
-            "group flex w-full items-start justify-between gap-2 rounded-lg text-left transition-colors",
-            hasDetail && "hover:bg-muted/30",
-            compact ? "px-1.5 py-1" : "px-2 py-1.5",
-          )}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-[12px] font-semibold tracking-tight text-foreground">
-                {visual.label}
-              </span>
-              <StatusBadge status={entry.status} />
-            </div>
-            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{entry.message}</p>
-          </div>
-          {hasDetail ? (
-            <ChevronDown
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <Icon className="h-3 w-3 shrink-0 text-muted-foreground/60" aria-hidden />
+            <span
               className={cn(
-                "mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform",
-                expanded && "rotate-180",
+                "truncate text-[12px] leading-snug",
+                entry.status === "running"
+                  ? "text-foreground"
+                  : entry.status === "error"
+                    ? "text-destructive"
+                    : "text-foreground/85",
               )}
-            />
-          ) : null}
-        </button>
-
-        {hasDetail && expanded ? (
-          <div
-            className={cn(
-              "mt-1.5 overflow-hidden rounded-md border border-border/40 bg-muted/25",
-              compact ? "mx-1.5" : "mx-2",
-            )}
-          >
-            <pre className="max-h-28 overflow-auto p-2.5 font-mono text-[10.5px] leading-relaxed text-foreground/85 [scrollbar-width:thin]">
-              {entry.detail}
-            </pre>
+            >
+              {title}
+            </span>
           </div>
+          {entry.message ? (
+            <p className="mt-0.5 truncate pl-[18px] text-[11px] leading-snug text-muted-foreground/80">
+              {entry.message}
+            </p>
+          ) : null}
+        </div>
+
+        {hasDetail ? (
+          <ChevronDown
+            className={cn(
+              "mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-transform",
+              expanded && "rotate-180",
+            )}
+          />
         ) : null}
-      </div>
-    </li>
+      </button>
+
+      {hasDetail && expanded ? (
+        <div className="mx-2 mb-2 ml-[26px] overflow-hidden rounded-md border border-border/30 bg-muted/20">
+          <pre className="max-h-32 overflow-auto p-2.5 font-mono text-[10.5px] leading-relaxed text-foreground/75 [scrollbar-width:thin]">
+            {entry.detail}
+          </pre>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -198,13 +172,38 @@ export function ClovopsExecutionLog({
 }: ClovopsExecutionLogProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const stats = useMemo(() => {
     const done = logs.filter((entry) => entry.status === "done").length;
-    const running = logs.some((entry) => entry.status === "running");
+    const runningEntries = logs.filter((entry) => entry.status === "running");
+    const runningEntry = runningEntries[0] ?? null;
     const failed = logs.some((entry) => entry.status === "error");
-    return { done, total: logs.length, running, failed };
+    return {
+      done,
+      total: logs.length,
+      running: runningEntries.length > 0,
+      runningEntry,
+      failed,
+    };
   }, [logs]);
+
+  const headerLabel = useMemo(() => {
+    if (stats.running && stats.runningEntry) {
+      return stepTitle(stats.runningEntry);
+    }
+    if (stats.failed) {
+      return "Finished with errors";
+    }
+    if (stats.total > 0 && !stats.running) {
+      return `${stats.done} step${stats.done === 1 ? "" : "s"}`;
+    }
+    return "Working…";
+  }, [stats]);
+
+  useEffect(() => {
+    if (live) setPanelOpen(true);
+  }, [live]);
 
   useEffect(() => {
     setExpandedIds((current) => {
@@ -222,9 +221,9 @@ export function ClovopsExecutionLog({
 
   useEffect(() => {
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container || !live) return;
     container.scrollTop = container.scrollHeight;
-  }, [logs, expandedIds]);
+  }, [logs, expandedIds, live]);
 
   if (!logs.length) return null;
 
@@ -238,71 +237,67 @@ export function ClovopsExecutionLog({
   };
 
   return (
-    <section
-      className={cn(
-        "w-full",
-        !compact && "pl-11 sm:pl-12",
-        className,
-      )}
-      aria-label="Agent activity"
-    >
+    <section className={cn("mt-1 w-full", className)} aria-label="Agent steps">
       <div
         className={cn(
-          "overflow-hidden rounded-xl border border-border/50 bg-background/60 backdrop-blur-sm",
-          live && "border-primary/20 shadow-[0_0_0_1px_hsl(var(--primary)/0.08)]",
+          "overflow-hidden rounded-lg border border-border/35 bg-muted/10",
+          live && "border-border/50",
         )}
       >
-        <header className="flex items-center justify-between gap-3 border-b border-border/40 bg-muted/20 px-3 py-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold tracking-tight text-foreground">
-                Agent activity
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {stats.running
-                  ? "Working through your request…"
-                  : stats.failed
-                    ? "Completed with errors"
-                    : "Run complete"}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {stats.running ? (
-              <span className="inline-flex items-center gap-1 text-[10px] text-primary">
-                <Circle className="h-2 w-2 fill-current animate-pulse" />
-                Live
-              </span>
-            ) : null}
-            <span className="rounded-md bg-background/80 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+        <button
+          type="button"
+          onClick={() => setPanelOpen((open) => !open)}
+          className="flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-muted/20"
+        >
+          {panelOpen ? (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+          )}
+
+          {live && stats.running ? (
+            <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+          ) : null}
+
+          <span className="min-w-0 flex-1 truncate text-[12px] text-muted-foreground">
+            {headerLabel}
+          </span>
+
+          {!live && stats.total > 0 ? (
+            <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/60">
               {stats.done}/{stats.total}
             </span>
-          </div>
-        </header>
+          ) : null}
+        </button>
 
-        <div
-          ref={scrollRef}
-          className={cn(
-            "px-3 pt-3 [scrollbar-width:thin]",
-            compact ? "max-h-52 overflow-y-auto" : "max-h-72 overflow-y-auto",
-          )}
-        >
-          <ol className="relative m-0 list-none p-0">
+        {panelOpen ? (
+          <div
+            ref={scrollRef}
+            className={cn(
+              "border-t border-border/25 px-1 py-1 [scrollbar-width:thin]",
+              compact ? "max-h-44 overflow-y-auto" : "max-h-60 overflow-y-auto",
+            )}
+          >
             {logs.map((entry, index) => (
-              <LogStep
-                key={entry.id}
-                entry={entry}
-                isLast={index === logs.length - 1}
-                expanded={expandedIds.has(entry.id)}
-                onToggle={() => toggleExpanded(entry.id)}
-                compact={compact}
-              />
+              <div
+                key={entry.id || `${entry.agentId}-${index}`}
+                className={cn(index > 0 && "border-t border-border/20")}
+              >
+                <StepRow
+                  entry={entry}
+                  expanded={expandedIds.has(entry.id)}
+                  onToggle={() => toggleExpanded(entry.id)}
+                />
+              </div>
             ))}
-          </ol>
-        </div>
+          </div>
+        ) : null}
+
+        {live && stats.running ? (
+          <div className="h-px w-full bg-border/30">
+            <div className="h-full w-1/3 animate-pulse bg-foreground/10" />
+          </div>
+        ) : null}
       </div>
     </section>
   );

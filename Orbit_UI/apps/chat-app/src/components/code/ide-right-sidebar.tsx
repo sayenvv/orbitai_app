@@ -2,18 +2,25 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { ArrowUp, Loader2, Sparkles } from "lucide-react";
+import { ArrowUp, Check, Loader2, Sparkles } from "lucide-react";
 import { ChatMessages } from "@/components/chat/chat-messages";
 import { ClovopsChatFileResults } from "@/components/code/clovops-chat-file-results";
-import { ClovopsExecutionLog } from "@/components/code/clovops-execution-log";
+import { ClovopsChatTerminal } from "@/components/code/clovops-chat-terminal";
+import { ClovopsPlanReviewCard, type PlanReviewPayload } from "@/components/code/clovops-plan-review-card";
 import { ClovopsChatReviewResults } from "@/components/code/clovops-chat-review-results";
+import { ClovopsWorkflowPanel } from "@/components/code/clovops-workflow-panel";
 import { buildAgentGreeting } from "@/lib/agent-greeting";
+import {
+  appendWorkflowEventsFromStream,
+  finalizeWorkflowEvents,
+  type ApiCodeWorkspaceWorkflowEvent,
+} from "@/lib/clovops-workflow-events";
 import {
   codeWorkspaceApi,
   getApiErrorMessage,
-  type ApiCodeWorkspaceAgentLogEntry,
   type ApiCodeWorkspaceAgentReview,
   type ApiCodeWorkspaceSearchMatch,
+  type ApiCodeWorkspaceTerminalEntry,
 } from "@/lib/orbit-api";
 import { cn, randomId } from "@/lib/utils";
 import type { Message } from "@/types";
@@ -43,6 +50,65 @@ const CLOVOPS_SUGGESTIONS = [
     prompt: "Find and read the main entry point, then summarize how the project boots.",
   },
 ];
+
+function upsertTerminalEntry(
+  entries: ApiCodeWorkspaceTerminalEntry[],
+  event: {
+    command: string;
+    output: string;
+    exitCode?: number | null;
+    executed?: boolean;
+    purpose?: string | null;
+  },
+): ApiCodeWorkspaceTerminalEntry[] {
+  const status: ApiCodeWorkspaceTerminalEntry["status"] =
+    event.exitCode != null && event.exitCode !== 0
+      ? "error"
+      : event.output.trim()
+        ? "done"
+        : "running";
+  const existingIndex = entries.findIndex((entry) => entry.command === event.command);
+
+  if (existingIndex >= 0) {
+    return entries.map((entry, index) =>
+      index === existingIndex
+        ? {
+            ...entry,
+            output: event.output || entry.output,
+            exitCode: event.exitCode ?? entry.exitCode,
+            executed: event.executed ?? entry.executed,
+            purpose: event.purpose ?? entry.purpose,
+            status: status === "running" && entry.output.trim() ? entry.status : status,
+          }
+        : entry.status === "running" && index !== existingIndex
+          ? { ...entry, status: "done" as const }
+          : entry,
+    );
+  }
+
+  return [
+    ...entries.map((entry) =>
+      entry.status === "running" ? { ...entry, status: "done" as const } : entry,
+    ),
+    {
+      id: randomId(),
+      command: event.command,
+      output: event.output,
+      exitCode: event.exitCode,
+      executed: event.executed,
+      purpose: event.purpose ?? null,
+      status,
+    },
+  ];
+}
+
+function finalizeTerminalEntries(
+  entries: ApiCodeWorkspaceTerminalEntry[],
+): ApiCodeWorkspaceTerminalEntry[] {
+  return entries.map((entry) =>
+    entry.status === "running" ? { ...entry, status: "done" as const } : entry,
+  );
+}
 
 function dedupeFiles(files: ApiCodeWorkspaceSearchMatch[]): ApiCodeWorkspaceSearchMatch[] {
   const seen = new Set<string>();
@@ -83,14 +149,24 @@ export function IdeRightSidebar({
   const [messageReviews, setMessageReviews] = useState<
     Record<string, ApiCodeWorkspaceAgentReview[]>
   >({});
-  const [messageLogs, setMessageLogs] = useState<
-    Record<string, ApiCodeWorkspaceAgentLogEntry[]>
+  const [messageWorkflow, setMessageWorkflow] = useState<
+    Record<string, ApiCodeWorkspaceWorkflowEvent[]>
+  >({});
+  const [messageTerminals, setMessageTerminals] = useState<
+    Record<string, ApiCodeWorkspaceTerminalEntry[]>
   >({});
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [agentPhase, setAgentPhase] = useState<string | null>(null);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
-  const [logRevision, setLogRevision] = useState(0);
+  const [workflowRevision, setWorkflowRevision] = useState(0);
+  const [awaitingHuman, setAwaitingHuman] = useState<{
+    sessionId: string;
+    messageId: string;
+  } | null>(null);
+  const [messagePlanReview, setMessagePlanReview] = useState<
+    Record<string, PlanReviewPayload>
+  >({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mobileDockRef = useRef<HTMLDivElement>(null);
   const [mobileDockHeight, setMobileDockHeight] = useState(0);
@@ -110,9 +186,11 @@ export function IdeRightSidebar({
   const displayMessages = messages.length === 0 ? [greeting] : messages;
   const showSuggestions = messages.length === 0 && !isLoading;
 
-  const contextHint = activeFileLabel
-    ? `Using context: ${activeFileLabel}`
-    : "Clovops can search, read, edit, and review project files.";
+  const contextHint = awaitingHuman
+    ? "Review the proposed plan — reply with feedback or send empty to approve."
+    : activeFileLabel
+      ? `Using context: ${activeFileLabel}`
+      : "Clovops can search, read, edit, and review project files.";
 
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -143,9 +221,11 @@ export function IdeRightSidebar({
   }, [showSuggestions, isLoading, input, agentPhase]);
 
   const handleSend = useCallback(
-    async (rawPrompt: string) => {
+    async (rawPrompt: string, options?: { resumeSessionId?: string }) => {
       const prompt = rawPrompt.trim();
-      if (!prompt || isLoading) return;
+      const resumeSessionId = options?.resumeSessionId ?? awaitingHuman?.sessionId;
+      const isResume = Boolean(resumeSessionId);
+      if ((!prompt && !isResume) || isLoading) return;
 
       if (!persisted || !projectId) {
         const userMsgId = randomId();
@@ -170,79 +250,91 @@ export function IdeRightSidebar({
       }
 
       const userMsgId = randomId();
-      const assistantMsgId = randomId();
-      const history = messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-      }));
+      const assistantMsgId = isResume && streamingMsgId ? streamingMsgId : randomId();
+      const history = isResume
+        ? []
+        : messages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          }));
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: userMsgId,
-          role: "user",
-          content: prompt,
-          timestamp: new Date(),
-        },
-        {
-          id: assistantMsgId,
-          role: "assistant",
-          content: "",
-          timestamp: new Date(),
-        },
-      ]);
-      setIsLoading(true);
-      setAgentPhase("Understanding request…");
-      setStreamingMsgId(assistantMsgId);
-      streamBufferRef.current = "";
-      setMessageLogs((current) => ({
-        ...current,
-        [assistantMsgId]: [
+      if (isResume) {
+        if (prompt) {
+          setMessages((current) => [
+            ...current,
+            {
+              id: userMsgId,
+              role: "user",
+              content: prompt,
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      } else {
+        setMessages((current) => [
+          ...current,
           {
-            id: "gateway-running",
-            agent: "Gateway",
-            agentId: "gateway",
-            status: "running",
-            message: "Understanding request…",
+            id: userMsgId,
+            role: "user",
+            content: prompt,
+            timestamp: new Date(),
           },
-        ],
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            content: "",
+            timestamp: new Date(),
+          },
+        ]);
+      }
+      setAwaitingHuman(null);
+      setIsLoading(true);
+      setAgentPhase(isResume ? "Resuming after your review…" : "Understanding request…");
+      setStreamingMsgId(assistantMsgId);
+      if (!isResume) {
+        streamBufferRef.current = "";
+      }
+      setMessageWorkflow((current) => ({
+        ...current,
+        [assistantMsgId]: isResume ? current[assistantMsgId] ?? [] : [],
+      }));
+      setMessageTerminals((current) => ({
+        ...current,
+        [assistantMsgId]: isResume ? current[assistantMsgId] ?? [] : [],
       }));
 
-      let collectedFiles: ApiCodeWorkspaceSearchMatch[] = [];
-      let collectedReviews: ApiCodeWorkspaceAgentReview[] = [];
-      let collectedLogs: ApiCodeWorkspaceAgentLogEntry[] = [
-        {
-          id: "gateway-running",
-          agent: "Gateway",
-          agentId: "gateway",
-          status: "running",
-          message: "Understanding request…",
-        },
-      ];
+      let collectedFiles: ApiCodeWorkspaceSearchMatch[] = messageFiles[assistantMsgId] ?? [];
+      let collectedReviews: ApiCodeWorkspaceAgentReview[] = messageReviews[assistantMsgId] ?? [];
+      let collectedWorkflow: ApiCodeWorkspaceWorkflowEvent[] = isResume
+        ? [...(messageWorkflow[assistantMsgId] ?? [])]
+        : [];
+      let collectedTerminals: ApiCodeWorkspaceTerminalEntry[] = isResume
+        ? [...(messageTerminals[assistantMsgId] ?? [])]
+        : [];
+      let hitAwaitHuman = false;
 
-      const paintLogs = (snapshot: ApiCodeWorkspaceAgentLogEntry[]) => {
+      const paintWorkflow = (snapshot: ApiCodeWorkspaceWorkflowEvent[]) => {
         flushSync(() => {
-          setMessageLogs((current) => ({
+          setMessageWorkflow((current) => ({
             ...current,
             [assistantMsgId]: snapshot,
           }));
-          setLogRevision((value) => value + 1);
+          setWorkflowRevision((value) => value + 1);
         });
       };
 
-      const upsertLog = (entry: ApiCodeWorkspaceAgentLogEntry) => {
-        const existingIndex = collectedLogs.findIndex((log) => log.id === entry.id);
-        if (existingIndex >= 0) {
-          collectedLogs = collectedLogs.map((log, index) =>
-            index === existingIndex ? { ...log, ...entry } : log,
-          );
-        } else {
-          collectedLogs = [...collectedLogs, entry];
-        }
-        paintLogs([...collectedLogs]);
-        if (entry.status === "running") {
-          setAgentPhase(entry.message);
-        }
+      const recordStreamEvent = (event: Parameters<typeof appendWorkflowEventsFromStream>[1]) => {
+        collectedWorkflow = appendWorkflowEventsFromStream(collectedWorkflow, event);
+        paintWorkflow([...collectedWorkflow]);
+      };
+
+      const paintTerminals = (snapshot: ApiCodeWorkspaceTerminalEntry[]) => {
+        flushSync(() => {
+          setMessageTerminals((current) => ({
+            ...current,
+            [assistantMsgId]: snapshot,
+          }));
+        });
       };
 
       const yieldToUi = () =>
@@ -265,24 +357,57 @@ export function IdeRightSidebar({
       rafRef.current = requestAnimationFrame(flushBuffer);
 
       try {
-        for await (const event of codeWorkspaceApi.streamSearchAgent(projectId, {
-          message: prompt,
-          history,
-          activeFileId: activeFileId ?? null,
-          activeFilePath: activeFilePath ?? activeFileLabel ?? null,
-        })) {
-          if (event.type === "phase") {
+        const eventStream = isResume
+          ? codeWorkspaceApi.streamSearchAgentResume(projectId, {
+              sessionId: resumeSessionId!,
+              humanInput: prompt,
+            })
+          : codeWorkspaceApi.streamSearchAgent(projectId, {
+              message: prompt,
+              history,
+              activeFileId: activeFileId ?? null,
+              activeFilePath: activeFilePath ?? activeFileLabel ?? null,
+            });
+
+        for await (const event of eventStream) {
+          recordStreamEvent(event);
+
+          if (event.type === "await_human") {
+            hitAwaitHuman = true;
+            const review: PlanReviewPayload = {
+              prompt: event.human_prompt,
+              plan: event.plan,
+              discussion: event.discussion,
+              pendingAgent: event.pending_agent,
+            };
+            setAwaitingHuman({ sessionId: event.session_id, messageId: assistantMsgId });
+            setMessagePlanReview((current) => ({
+              ...current,
+              [assistantMsgId]: review,
+            }));
+            setAgentPhase("Waiting for your plan review");
+            collectedWorkflow = finalizeWorkflowEvents(collectedWorkflow);
+            collectedTerminals = finalizeTerminalEntries(collectedTerminals);
+            paintWorkflow([...collectedWorkflow]);
+            paintTerminals([...collectedTerminals]);
+            if (!streamBufferRef.current.trim()) {
+              streamBufferRef.current = "Review the proposed plan below, then approve or send feedback.";
+            }
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantMsgId
+                  ? { ...message, content: streamBufferRef.current }
+                  : message,
+              ),
+            );
+            break;
+          } else if (event.type === "phase") {
             flushSync(() => setAgentPhase(event.message));
             await yieldToUi();
           } else if (event.type === "log") {
-            upsertLog({
-              id: event.id,
-              agent: event.agent,
-              agentId: event.agentId,
-              status: event.status,
-              message: event.message,
-              detail: event.detail ?? undefined,
-            });
+            if (event.status === "running") {
+              flushSync(() => setAgentPhase(event.message));
+            }
             await yieldToUi();
           } else if (event.type === "token") {
             streamBufferRef.current += event.content;
@@ -301,9 +426,14 @@ export function IdeRightSidebar({
             onProjectChanged?.();
           } else if (event.type === "terminal") {
             onTerminalOutput?.(event.command, event.output, event.exitCode);
-            if (event.output) {
-              streamBufferRef.current += `\n\`\`\`terminal\n$ ${event.command}\n${event.output}\n\`\`\`\n`;
-            }
+            collectedTerminals = upsertTerminalEntry(collectedTerminals, {
+              command: event.command,
+              output: event.output,
+              exitCode: event.exitCode,
+              executed: event.executed,
+              purpose: event.purpose,
+            });
+            paintTerminals([...collectedTerminals]);
           } else if (event.type === "review") {
             collectedReviews = [...collectedReviews, event.review];
             setMessageReviews((current) => ({
@@ -313,6 +443,10 @@ export function IdeRightSidebar({
           } else if (event.type === "error") {
             streamBufferRef.current += event.detail;
           } else if (event.type === "done") {
+            collectedWorkflow = finalizeWorkflowEvents(collectedWorkflow);
+            collectedTerminals = finalizeTerminalEntries(collectedTerminals);
+            paintWorkflow([...collectedWorkflow]);
+            paintTerminals([...collectedTerminals]);
             if (event.content && !streamBufferRef.current) {
               streamBufferRef.current = event.content;
             }
@@ -330,6 +464,8 @@ export function IdeRightSidebar({
                 [assistantMsgId]: event.reviews,
               }));
             }
+          } else {
+            await yieldToUi();
           }
         }
       } catch (err) {
@@ -339,15 +475,21 @@ export function IdeRightSidebar({
           "Something went wrong. Please try again.";
       } finally {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantMsgId
-              ? { ...message, content: streamBufferRef.current || "No response." }
-              : message,
-          ),
-        );
-        setStreamingMsgId(null);
-        setAgentPhase(null);
+        collectedWorkflow = finalizeWorkflowEvents(collectedWorkflow);
+        collectedTerminals = finalizeTerminalEntries(collectedTerminals);
+        paintWorkflow([...collectedWorkflow]);
+        paintTerminals([...collectedTerminals]);
+        if (!hitAwaitHuman) {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMsgId
+                ? { ...message, content: streamBufferRef.current || "No response." }
+                : message,
+            ),
+          );
+          setStreamingMsgId(null);
+          setAgentPhase(null);
+        }
         setIsLoading(false);
       }
     },
@@ -355,24 +497,42 @@ export function IdeRightSidebar({
       activeFileId,
       activeFileLabel,
       activeFilePath,
+      awaitingHuman,
       isLoading,
+      messageFiles,
+      messagePlanReview,
+      messageWorkflow,
+      messageTerminals,
+      messageReviews,
       messages,
       onFileEdited,
       onProjectChanged,
       onTerminalOutput,
       persisted,
       projectId,
+      streamingMsgId,
     ],
   );
 
   const submitInput = () => {
     const trimmed = input.trim();
+    if (awaitingHuman) {
+      setInput("");
+      void handleSend(trimmed, { resumeSessionId: awaitingHuman.sessionId });
+      return;
+    }
     if (!trimmed) return;
     setInput("");
     void handleSend(trimmed);
   };
 
-  const canSend = input.trim().length > 0 && !isLoading;
+  const approvePlan = () => {
+    if (!awaitingHuman || isLoading) return;
+    void handleSend("", { resumeSessionId: awaitingHuman.sessionId });
+  };
+
+  const canSend =
+    !isLoading && (input.trim().length > 0 || awaitingHuman !== null);
 
   const suggestionsPanel = showSuggestions ? (
     <section className="px-1.5 md:px-2" aria-label="Suggested prompts">
@@ -414,15 +574,43 @@ export function IdeRightSidebar({
           if (message.role !== "assistant") return null;
           const files = messageFiles[message.id];
           const reviews = messageReviews[message.id];
-          const logs = messageLogs[message.id];
+          const workflow = messageWorkflow[message.id];
+          const terminals = messageTerminals[message.id];
+          const planReview = messagePlanReview[message.id];
           const isStreamingMessage = isLoading && streamingMsgId === message.id;
-          if (!files?.length && !reviews?.length && !logs?.length) return null;
+          const showPlanReview =
+            planReview &&
+            (awaitingHuman?.messageId === message.id || !awaitingHuman);
+          if (
+            !files?.length &&
+            !reviews?.length &&
+            !workflow?.length &&
+            !terminals?.length &&
+            !showPlanReview
+          ) {
+            return null;
+          }
           return (
-            <div className="space-y-3">
-              {logs?.length ? (
-                <ClovopsExecutionLog
-                  key={isStreamingMessage ? `live-${logRevision}` : message.id}
-                  logs={logs}
+            <div className="mt-2 space-y-1.5">
+              {showPlanReview ? (
+                <ClovopsPlanReviewCard
+                  review={planReview}
+                  onApprove={
+                    awaitingHuman?.messageId === message.id ? approvePlan : undefined
+                  }
+                  approving={isLoading && awaitingHuman?.messageId === message.id}
+                />
+              ) : null}
+              {workflow?.length ? (
+                <ClovopsWorkflowPanel
+                  key={isStreamingMessage ? `live-${workflowRevision}` : message.id}
+                  events={workflow}
+                  live={isStreamingMessage}
+                />
+              ) : null}
+              {terminals?.length ? (
+                <ClovopsChatTerminal
+                  entries={terminals}
                   live={isStreamingMessage}
                 />
               ) : null}
@@ -449,6 +637,22 @@ export function IdeRightSidebar({
           "border-t border-border/40 bg-background/80 pb-3 pt-2 backdrop-blur-sm max-md:border-t-0 max-md:pt-3",
         )}
       >
+        {awaitingHuman ? (
+          <div className="mb-2 px-1.5 md:px-2">
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2">
+              <p className="text-[12px] text-foreground/90">Plan review required</p>
+              <button
+                type="button"
+                onClick={approvePlan}
+                disabled={isLoading}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-[12px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                <Check className="h-3.5 w-3.5" />
+                Approve
+              </button>
+            </div>
+          </div>
+        ) : null}
         {showSuggestions ? (
           <div className="mb-2 md:hidden">{suggestionsPanel}</div>
         ) : null}
@@ -471,9 +675,11 @@ export function IdeRightSidebar({
                   }
                 }}
                 placeholder={
-                  messages.length > 0
-                    ? "Continue the conversation…"
-                    : "How can I help you edit this project?"
+                  awaitingHuman
+                    ? "Request changes to the plan…"
+                    : messages.length > 0
+                      ? "Continue the conversation…"
+                      : "How can I help you edit this project?"
                 }
                 rows={1}
                 disabled={isLoading}
@@ -501,9 +707,12 @@ export function IdeRightSidebar({
               </div>
             </div>
 
-          <p className="mt-2 flex items-center justify-center gap-1.5 px-1 text-center text-[11px] text-muted-foreground/70">
-            <Sparkles className="h-3 w-3 shrink-0 text-primary/60" />
-            {isLoading && agentPhase ? agentPhase : contextHint}
+          <p className="mt-2 flex items-center justify-center px-1 text-center text-[11px] text-muted-foreground/65">
+            {awaitingHuman
+              ? "Approve the plan above, or send feedback to request changes."
+              : isLoading && agentPhase
+                ? agentPhase
+                : contextHint}
           </p>
         </form>
       </div>

@@ -6,6 +6,7 @@ import shlex
 import subprocess
 import uuid
 from pathlib import Path
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.orm import Session
@@ -17,7 +18,9 @@ from app.services.code_workspace.project_store import get_project, parse_project
 from orbit_orchestration.config import get_orchestration_settings
 from orbit_orchestration.langchain.llm_factory import create_chat_model
 
-_ALLOWED_BINARIES = frozenset({"python", "python3", "node", "npm", "pnpm", "npx", "uvicorn"})
+_ALLOWED_BINARIES = frozenset(
+    {"python", "python3", "node", "npm", "pnpm", "npx", "uvicorn", "pip", "pip3"}
+)
 _BLOCKED_SHELL_TOKENS = re.compile(r"[;&|`$<>]")
 _UVICORN_MODULE_RE = re.compile(r"^[\w.]+:[\w]+$")
 _JSON_FENCE = re.compile(r"```(?:json)?\s*\n([\s\S]*?)\n```", re.IGNORECASE)
@@ -31,7 +34,8 @@ Return JSON only:
 {"command": "python3 main.py"}
 
 Rules:
-- Allowed binaries only: python, python3, node, npm, pnpm, npx, uvicorn
+- Allowed binaries only: python, python3, node, npm, pnpm, npx, uvicorn, pip, pip3
+- Allowed install forms: pip3 install -r requirements.txt, pip3 install <pkg>, npm install, pnpm install
 - No shell chaining (; | & ` $)
 - Use project file paths from the list when inferring scripts
 - For FastAPI/web servers prefer uvicorn with module:app (e.g. uvicorn app.main:app)
@@ -66,8 +70,16 @@ def _parse_direct_command(command: str) -> tuple[str, list[str]] | None:
     binary = argv[0].lower()
     if binary not in _ALLOWED_BINARIES:
         return None
+    if binary in {"python", "python3"} and len(argv) >= 2 and argv[1] == "-m":
+        return binary, argv[1:]
     if binary == "uvicorn":
         return "uvicorn", argv[1:]
+    if binary in {"pip", "pip3"}:
+        return binary, argv[1:]
+    if binary == "npm":
+        return binary, argv[1:]
+    if binary == "pnpm":
+        return binary, argv[1:]
     return binary, argv[1:]
 
 
@@ -112,41 +124,165 @@ async def infer_terminal_command(
     return str(command).strip()
 
 
+def _validate_pip_argv(binary: str, args: list[str], project_root: Path) -> list[str]:
+    if not args or args[0] != "install":
+        raise ValueError("Only pip install is allowed.")
+
+    argv = [binary, "install"]
+    index = 1
+    while index < len(args):
+        token = args[index]
+        if token in {"--upgrade", "-U"}:
+            argv.append(token)
+            index += 1
+            continue
+        if token == "-r":
+            if index + 1 >= len(args):
+                raise ValueError("Missing requirements file for pip -r.")
+            req_file = args[index + 1]
+            candidate = (project_root / req_file).resolve()
+            root = project_root.resolve()
+            if candidate != root and root not in candidate.parents:
+                raise ValueError("Requirements path must stay inside the project.")
+            if not candidate.exists():
+                raise ValueError(f"Requirements file not found: {req_file}")
+            argv.extend(["-r", req_file])
+            index += 2
+            continue
+        if token == "-e" and index + 1 < len(args) and args[index + 1] == ".":
+            argv.extend(["-e", "."])
+            index += 2
+            continue
+        if _BLOCKED_SHELL_TOKENS.search(token):
+            raise ValueError(f"Unsupported pip argument: {token}")
+        if token.startswith("-"):
+            raise ValueError(f"Unsupported pip argument: {token}")
+        argv.append(token)
+        index += 1
+
+    if len(argv) <= 2:
+        raise ValueError("pip install requires packages or -r requirements.txt.")
+    return argv
+
+
+def _validate_uvicorn_argv(
+    args: list[str],
+    project_root: Path,
+    *,
+    python_binary: str | None = None,
+) -> list[str]:
+    if not args:
+        raise ValueError("uvicorn requires a module target like `app.main:app`.")
+    module_target = args[0]
+    if not _UVICORN_MODULE_RE.match(module_target):
+        raise ValueError("uvicorn target must look like `package.module:app`.")
+
+    allowed_flags = {"--host", "--port", "--reload", "--reload-dir"}
+    prefix = [python_binary, "-m", "uvicorn"] if python_binary else ["uvicorn"]
+    argv = [*prefix, module_target]
+    index = 1
+    while index < len(args):
+        token = args[index]
+        if token == "--reload":
+            argv.append("--reload")
+            index += 1
+            continue
+        if token not in allowed_flags:
+            raise ValueError(f"Unsupported uvicorn flag: {token}")
+        if index + 1 >= len(args):
+            raise ValueError(f"Missing value for {token}.")
+        value = args[index + 1]
+        if _BLOCKED_SHELL_TOKENS.search(value):
+            raise ValueError("Shell operators are not allowed.")
+        if token == "--host" and value not in {"127.0.0.1", "localhost"}:
+            raise ValueError("uvicorn may only bind to localhost.")
+        if token == "--port" and not value.isdigit():
+            raise ValueError("uvicorn --port must be numeric.")
+        if token == "--reload-dir":
+            candidate = (project_root / value).resolve()
+            root = project_root.resolve()
+            if candidate != root and root not in candidate.parents:
+                raise ValueError("reload-dir must stay inside the project.")
+        argv.extend([token, value])
+        index += 2
+
+    if "--host" not in argv:
+        argv.extend(["--host", "127.0.0.1"])
+    if "--port" not in argv:
+        argv.extend(["--port", _PREVIEW_PORT])
+    return argv
+
+
+def _validate_python_argv(binary: str, args: list[str], project_root: Path) -> list[str]:
+    if args and args[0] == "-m":
+        if len(args) < 2:
+            raise ValueError("python -m requires a module name.")
+        module = args[1]
+        module_args = args[2:]
+        if module == "uvicorn":
+            return _validate_uvicorn_argv(module_args, project_root, python_binary=binary)
+        if module == "pip":
+            pip_argv = _validate_pip_argv("pip", module_args, project_root)
+            return [binary, "-m", "pip", *pip_argv[2:]]
+        raise ValueError(f"Unsupported python -m module: {module}")
+
+    argv = [binary, *args]
+    for token in argv:
+        if _BLOCKED_SHELL_TOKENS.search(token):
+            raise ValueError("Shell operators are not allowed.")
+
+    script = args[0] if args else ""
+    if script:
+        candidate = (project_root / script).resolve()
+        root = project_root.resolve()
+        if candidate != root and root not in candidate.parents:
+            raise ValueError("Script path must stay inside the project.")
+        if not candidate.exists():
+            raise ValueError(f"File not found in project: {script}")
+
+    return argv
+
+
+def _validate_npm_argv(args: list[str]) -> list[str]:
+    if not args or args[0] != "install":
+        raise ValueError("Only npm install is allowed.")
+    argv = ["npm", "install"]
+    for token in args[1:]:
+        if _BLOCKED_SHELL_TOKENS.search(token) or token.startswith("-"):
+            raise ValueError(f"Unsupported npm argument: {token}")
+        argv.append(token)
+    return argv
+
+
+def _validate_pnpm_argv(args: list[str]) -> list[str]:
+    if not args or args[0] not in {"install", "add"}:
+        raise ValueError("Only pnpm install/add is allowed.")
+    argv = ["pnpm", args[0]]
+    for token in args[1:]:
+        if _BLOCKED_SHELL_TOKENS.search(token) or token.startswith("-"):
+            raise ValueError(f"Unsupported pnpm argument: {token}")
+        argv.append(token)
+    return argv
+
+
 def _validate_argv(binary: str, args: list[str], project_root: Path) -> list[str]:
     if binary not in _ALLOWED_BINARIES:
         raise ValueError(f"Command '{binary}' is not allowed.")
 
+    if binary in {"pip", "pip3"}:
+        return _validate_pip_argv(binary, args, project_root)
+
+    if binary == "npm":
+        return _validate_npm_argv(args)
+
+    if binary == "pnpm":
+        return _validate_pnpm_argv(args)
+
     if binary == "uvicorn":
-        if not args:
-            raise ValueError("uvicorn requires a module target like `app.main:app`.")
-        module_target = args[0]
-        if not _UVICORN_MODULE_RE.match(module_target):
-            raise ValueError("uvicorn target must look like `package.module:app`.")
+        return _validate_uvicorn_argv(args, project_root)
 
-        allowed_flags = {"--host", "--port"}
-        argv = ["uvicorn", module_target]
-        index = 1
-        while index < len(args):
-            token = args[index]
-            if token not in allowed_flags:
-                raise ValueError(f"Unsupported uvicorn flag: {token}")
-            if index + 1 >= len(args):
-                raise ValueError(f"Missing value for {token}.")
-            value = args[index + 1]
-            if _BLOCKED_SHELL_TOKENS.search(value):
-                raise ValueError("Shell operators are not allowed.")
-            if token == "--host" and value not in {"127.0.0.1", "localhost"}:
-                raise ValueError("uvicorn may only bind to localhost.")
-            if token == "--port" and not value.isdigit():
-                raise ValueError("uvicorn --port must be numeric.")
-            argv.extend([token, value])
-            index += 2
-
-        if "--host" not in argv:
-            argv.extend(["--host", "127.0.0.1"])
-        if "--port" not in argv:
-            argv.extend(["--port", _PREVIEW_PORT])
-        return argv
+    if binary in {"python", "python3"}:
+        return _validate_python_argv(binary, args, project_root)
 
     argv = [binary, *args]
     for token in argv:
@@ -291,7 +427,12 @@ def run_safe_terminal_command(
 
         binary, args = run_target
         argv = _validate_argv(binary, args, project_root)
-        timeout = _SERVER_PREVIEW_SECONDS if binary == "uvicorn" else 45
+        if binary in {"pip", "pip3", "npm", "pnpm"}:
+            timeout = 180
+        elif binary == "uvicorn" or (binary in {"python", "python3"} and "-m" in argv and "uvicorn" in argv):
+            timeout = _SERVER_PREVIEW_SECONDS
+        else:
+            timeout = 45
         return _execute_in_project(project_root, argv, timeout=timeout)
     except ValueError as exc:
         return {
@@ -309,3 +450,33 @@ def run_safe_terminal_command(
             "executed": False,
             "safe": False,
         }
+
+
+async def execute_project_run_workflow(
+    db: Session,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    *,
+    user_request: str,
+    file_map: list[dict],
+    context_files: list[dict] | None = None,
+    active_file_path: str | None = None,
+    project_title: str = "Project",
+    explicit_command: str | None = None,
+    max_total_steps: int = 40,
+) -> dict[str, Any]:
+    """Planner → Executor loop: plan, execute, hand errors back to Planner until success."""
+    from app.services.code_workspace.clovops.execution_orchestrator import ExecutionOrchestrator
+
+    orchestrator = ExecutionOrchestrator(
+        db,
+        user_id,
+        project_id,
+        user_request=user_request,
+        file_map=file_map,
+        context_files=context_files,
+        active_file_path=active_file_path,
+        project_title=project_title,
+        max_total_steps=max_total_steps,
+    )
+    return await orchestrator.run(explicit_command=explicit_command)

@@ -29,6 +29,14 @@ class OrchestrationSettings(BaseSettings):
     azure_openai_api_version: str = Field(
         default="2024-02-01", validation_alias="AZURE_OPENAI_API_VERSION"
     )
+    # Agent Framework OpenAIChatClient uses Azure Responses API — not chat-completions.
+    azure_openai_maf_api_version: str = Field(
+        default="preview",
+        validation_alias=AliasChoices(
+            "AZURE_OPENAI_MAF_API_VERSION",
+            "AZURE_OPENAI_RESPONSES_API_VERSION",
+        ),
+    )
     azure_openai_chat_deployment: str = Field(
         default="gpt-4o", validation_alias="AZURE_OPENAI_CHAT_DEPLOYMENT"
     )

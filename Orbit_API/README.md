@@ -160,7 +160,7 @@ First PDF upload downloads the embedding model (`BAAI/bge-small-en-v1.5` via fas
 ```bash
 cd Orbit_API
 source .venv/bin/activate
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8000 --reload-dir app --reload-dir packages
 ```
 
 Verify: http://localhost:8000/docs
@@ -187,7 +187,7 @@ See [Orbit_UI/README.md](../Orbit_UI/README.md) for frontend-only details.
 |---|---------|---------|-----|
 | 1 | Postgres | `docker compose up db -d` (in `Orbit_API`) | `localhost:5432` |
 | 2 | Ollama | `ollama serve` + `ollama pull llama3.2` | `localhost:11434` |
-| 3 | API | `uvicorn app.main:app --reload --port 8000` | http://localhost:8000 |
+| 3 | API | `uvicorn app.main:app --reload --port 8000 --reload-dir app --reload-dir packages` | http://localhost:8000 |
 | 4 | Chat UI | `pnpm dev:chat` (in `Orbit_UI`) | http://localhost:3001 |
 | 5 | Control Center | `pnpm dev:control` | http://localhost:3003 |
 

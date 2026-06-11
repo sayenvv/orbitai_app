@@ -72,6 +72,7 @@ class ClovopsGraphState(TypedDict, total=False):
     last_edits: list[dict[str, Any]]
     reviews: list[dict[str, Any]]
     terminal_result: dict[str, Any] | None
+    run_plan: str | None
     validation: dict[str, Any] | None
 
     response_text: str

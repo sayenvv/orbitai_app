@@ -12,7 +12,10 @@ from app.db.session import get_db
 from app.models import User
 from app.services.code_workspace.deploy_store import deploy_project
 from app.services.code_workspace.file_store import read_file_content, write_file_content
-from app.services.code_workspace.search_agent import stream_code_workspace_search_agent
+from app.services.code_workspace.search_agent import (
+    stream_code_workspace_search_agent,
+    stream_code_workspace_search_agent_resume,
+)
 from app.services.code_workspace.search_store import search_project_files
 from app.services.code_workspace.sse import code_workspace_sse_response
 from app.services.code_workspace.settings_store import get_user_settings, update_user_settings
@@ -29,6 +32,7 @@ from app.services.code_workspace.project_store import (
     update_project_structure,
 )
 from clovai_apps.code_workspace.schemas import (
+    CodeWorkspaceAgentHumanInputRequest,
     CodeWorkspaceAgentSearchRequest,
     CodeWorkspaceDeployRequest,
     CodeWorkspaceDeployResponse,
@@ -167,7 +171,7 @@ async def code_workspace_search_agent_stream(
     db: Session = Depends(get_db),
     user: User = Depends(require_chat_user),
 ) -> StreamingResponse:
-    """LangGraph search agent — streams tokens and file matches for the Clovops sidebar."""
+    """Microsoft Agent Framework orchestrator — streams tokens, file matches, and HITL pauses."""
     _ensure_enabled()
     message = body.message.strip()
     if not message:
@@ -182,6 +186,33 @@ async def code_workspace_search_agent_stream(
             project_id,
             body,
             project_title=project_title,
+        ):
+            yield event
+
+    return code_workspace_sse_response(events())
+
+
+@router.post("/projects/{project_id}/agent/human-input/stream")
+async def code_workspace_search_agent_human_input_stream(
+    project_id: uuid.UUID,
+    body: CodeWorkspaceAgentHumanInputRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_chat_user),
+) -> StreamingResponse:
+    """Resume a paused Clovops group-chat workflow after human plan review."""
+    _ensure_enabled()
+    session_id = body.session_id.strip()
+    if not session_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="sessionId is required.")
+
+    get_project(db, user.id, project_id)
+
+    async def events():
+        async for event in stream_code_workspace_search_agent_resume(
+            user.id,
+            project_id,
+            session_id,
+            body.human_input,
         ):
             yield event
 

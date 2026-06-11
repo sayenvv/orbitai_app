@@ -69,10 +69,13 @@ Guidelines:
 - Explain / how does X work / what does this file do → intent explain, same context pipeline, response_mode explain
 - Find / locate / search files → intent code_question, context pipeline ending in explain_response
 - Edit / create / fix / implement / refactor code → intent code_edit or bug_fix, full edit pipeline ending with validate_code
-- Run / execute / install / start server / terminal → intent terminal, pipeline ["terminal"], set terminal_command when you can infer it (e.g. python main.py, uvicorn app.main:app)
+- Run / execute / run the project / start server / install deps → intent terminal, pipeline ["index_project", "search_files", "build_context", "terminal"]
+- For run-the-project requests, do NOT guess a single run command — leave terminal_command null so the run planner can install dependencies first
+- Explicit one-off commands (e.g. "run python3 script.py") may set terminal_command directly
+- terminal_command must be a single safe command (no shell chaining with ; | &) or null
+- Allowed install/run commands include pip3 install, npm install, pnpm install, python3, uvicorn
 - Do not include agents that are unnecessary for the request
 - pipeline must contain only agent ids from the list above
-- terminal_command must be a single safe command (no shell chaining with ; | &) or null
 """
 
 
@@ -103,7 +106,7 @@ def _default_pipeline(intent: str) -> list[ClovopsPipelineStep]:
     if intent == "chat":
         return ["chat_response"]
     if intent == "terminal":
-        return ["terminal"]
+        return ["index_project", "search_files", "build_context", "terminal"]
     if intent in {"code_edit", "bug_fix"}:
         return [
             "index_project",

@@ -971,13 +971,42 @@ export type ApiCodeWorkspaceAgentLogEntry = {
   detail?: string | null;
 };
 
+export type ApiCodeWorkspaceTerminalEntry = {
+  id: string;
+  command: string;
+  output: string;
+  exitCode?: number | null;
+  executed?: boolean;
+  purpose?: string | null;
+  status: "running" | "done" | "error";
+};
+
+export type ApiCodeWorkspaceWorkflowEvent = {
+  id: string;
+  kind: string;
+  title: string;
+  message?: string | null;
+  detail?: string | null;
+  agentId?: string | null;
+  status: "info" | "running" | "success" | "error" | "warning";
+  category:
+    | "task"
+    | "tool"
+    | "plan"
+    | "routing"
+    | "background"
+    | "validation"
+    | "review";
+  meta?: Record<string, unknown>;
+};
+
 export type CodeWorkspaceAgentStreamEvent =
-  | { type: "start"; project_id: string }
+  | { type: "start"; project_id: string; resumed?: boolean }
   | { type: "ping" }
   | { type: "log"; id: string; agent: string; agentId: string; status: ApiCodeWorkspaceAgentLogEntry["status"]; message: string; detail?: string | null }
   | { type: "phase"; phase: string; status: string; message: string }
-  | { type: "routing"; request_type: string; reason: string }
-  | { type: "token"; content: string }
+  | { type: "routing"; request_type: string; reason: string; pipeline?: string[] }
+  | { type: "token"; content: string; agentId?: string }
   | { type: "files"; files: ApiCodeWorkspaceSearchMatch[] }
   | { type: "edit"; edit: ApiCodeWorkspaceAgentEdit }
   | { type: "project_changed" }
@@ -987,6 +1016,10 @@ export type CodeWorkspaceAgentStreamEvent =
       output: string;
       exitCode?: number | null;
       executed?: boolean;
+      purpose?: string | null;
+      planKind?: string | null;
+      planCycle?: number | null;
+      agent?: string | null;
     }
   | { type: "review"; review: ApiCodeWorkspaceAgentReview }
   | {
@@ -997,7 +1030,28 @@ export type CodeWorkspaceAgentStreamEvent =
         checks: string[];
       };
     }
+  | {
+      type: "workflow";
+      id: string;
+      kind: string;
+      title: string;
+      message?: string | null;
+      detail?: string | null;
+      agentId?: string | null;
+      status: ApiCodeWorkspaceWorkflowEvent["status"];
+      category: ApiCodeWorkspaceWorkflowEvent["category"];
+      meta?: Record<string, unknown>;
+    }
   | { type: "error"; detail: string }
+  | {
+      type: "await_human";
+      session_id: string;
+      human_prompt: string;
+      plan?: string | null;
+      discussion?: string | null;
+      pending_agent?: string;
+      status?: string;
+    }
   | {
       type: "done";
       content: string;
@@ -1006,6 +1060,8 @@ export type CodeWorkspaceAgentStreamEvent =
       reviews: ApiCodeWorkspaceAgentReview[];
       plan?: string | null;
       request_type?: string | null;
+      pipeline?: string[];
+      orchestrator?: string;
     };
 
 export const codeWorkspaceApi = {
@@ -1137,6 +1193,71 @@ export const codeWorkspaceApi = {
       const error = await response.json().catch(() => null);
       throw new ApiError(
         parseApiError(error, "Failed to stream search agent"),
+        response.status,
+      );
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new ApiError("No response stream", 500);
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const jsonStr = trimmed.slice(5).trim();
+        if (!jsonStr) continue;
+        try {
+          yield JSON.parse(jsonStr) as CodeWorkspaceAgentStreamEvent;
+        } catch {
+          // skip malformed SSE chunk
+        }
+      }
+    }
+
+    const tail = buffer.trim();
+    if (tail.startsWith("data:")) {
+      const jsonStr = tail.slice(5).trim();
+      if (jsonStr) {
+        try {
+          yield JSON.parse(jsonStr) as CodeWorkspaceAgentStreamEvent;
+        } catch {
+          // skip malformed SSE chunk
+        }
+      }
+    }
+  },
+
+  streamSearchAgentResume: async function* (
+    projectId: string,
+    body: { sessionId: string; humanInput?: string },
+  ): AsyncGenerator<CodeWorkspaceAgentStreamEvent> {
+    const response = await fetch(
+      `${getApiBaseUrl()}/apps/code-workspace/projects/${encodeURIComponent(projectId)}/agent/human-input/stream`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: body.sessionId,
+          humanInput: body.humanInput ?? "",
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new ApiError(
+        parseApiError(error, "Failed to resume search agent"),
         response.status,
       );
     }

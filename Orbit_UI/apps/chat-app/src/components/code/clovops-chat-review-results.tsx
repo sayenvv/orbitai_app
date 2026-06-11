@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { AlertCircle, Check, ChevronDown, ChevronRight } from "lucide-react";
 import type { ApiCodeWorkspaceAgentReview } from "@/lib/orbit-api";
 import { cn } from "@/lib/utils";
 
@@ -10,57 +11,69 @@ type ClovopsChatReviewResultsProps = {
 };
 
 export function ClovopsChatReviewResults({ reviews, className }: ClovopsChatReviewResultsProps) {
+  const [open, setOpen] = useState(true);
+
   if (!reviews.length) return null;
 
+  const failed = reviews.filter((review) => !review.passed).length;
+
   return (
-    <section className={cn("w-full space-y-2 pl-11 sm:pl-12", className)} aria-label="Code review">
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
-        Review
-      </p>
-      {reviews.map((review) => (
-        <div
-          key={`${review.fileId}-${review.filePath}`}
-          className={cn(
-            "rounded-lg border px-3 py-2.5",
-            review.passed
-              ? "border-emerald-500/20 bg-emerald-500/5"
-              : "border-destructive/25 bg-destructive/5",
-          )}
+    <section className={cn("mt-1 w-full", className)} aria-label="Code review">
+      <div className="overflow-hidden rounded-lg border border-border/35 bg-muted/10">
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-muted/20"
         >
-          <div className="flex items-start gap-2">
-            {review.passed ? (
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-medium text-foreground">
-                {review.filePath}
-                <span className="ml-2 text-[11px] font-normal text-muted-foreground">
-                  {review.passed ? "Passed" : "Needs fixes"}
-                </span>
-              </p>
-              {review.issues.length > 0 && (
-                <ul className="mt-1.5 space-y-1">
-                  {review.issues.map((issue, index) => (
-                    <li
-                      key={`${issue.line}-${index}`}
-                      className="text-[12px] leading-snug text-muted-foreground"
-                    >
-                      Line {issue.line}: {issue.message}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {review.summary ? (
-                <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-muted-foreground">
-                  {review.summary}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ))}
+          {open ? (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+          )}
+          <span className="text-[12px] text-muted-foreground">
+            Review · {reviews.length - failed} passed
+            {failed > 0 ? `, ${failed} need fixes` : ""}
+          </span>
+        </button>
+
+        {open ? (
+          <ul className="border-t border-border/25 px-1 py-1">
+            {reviews.map((review, index) => (
+              <li
+                key={`${review.fileId}-${review.filePath}`}
+                className={cn(index > 0 && "border-t border-border/20")}
+              >
+                <div className="flex items-start gap-2.5 px-2 py-1.5">
+                  <div className="mt-0.5 flex w-3.5 shrink-0 justify-center">
+                    {review.passed ? (
+                      <Check className="h-3.5 w-3.5 text-muted-foreground/70" />
+                    ) : (
+                      <AlertCircle className="h-3.5 w-3.5 text-destructive/90" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-mono text-[11px] text-foreground/85">{review.filePath}</p>
+                    {review.issues.length > 0 ? (
+                      <ul className="mt-1 space-y-0.5">
+                        {review.issues.map((issue, issueIndex) => (
+                          <li
+                            key={`${issue.line}-${issueIndex}`}
+                            className="text-[11px] leading-snug text-muted-foreground/80"
+                          >
+                            L{issue.line}: {issue.message}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : review.summary ? (
+                      <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80">{review.summary}</p>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     </section>
   );
 }

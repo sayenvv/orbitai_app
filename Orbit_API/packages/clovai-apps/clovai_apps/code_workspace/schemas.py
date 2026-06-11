@@ -257,3 +257,12 @@ class CodeWorkspaceAgentSearchRequest(BaseModel):
     )
 
     model_config = {"populate_by_name": True}
+
+
+class CodeWorkspaceAgentHumanInputRequest(BaseModel):
+    """Resume a paused Clovops MAF workflow after human review."""
+
+    session_id: str = Field(alias="sessionId", serialization_alias="sessionId")
+    human_input: str = Field(default="", alias="humanInput", serialization_alias="humanInput")
+
+    model_config = {"populate_by_name": True}

@@ -6,7 +6,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.graph import END, StateGraph
 
 from app.db.session import SessionLocal
 from app.services.code_workspace.agent_tools import search_code_workspace_files_for_agent
@@ -16,7 +15,12 @@ from app.services.code_workspace.clovops.memory import build_session_context
 from app.services.code_workspace.clovops.planner import create_implementation_plan
 from app.services.code_workspace.clovops.progress import emit_agent_progress
 from app.services.code_workspace.clovops.router import plan_clovops_flow
-from app.services.code_workspace.clovops.terminal import infer_terminal_command, run_safe_terminal_command
+from app.services.code_workspace.clovops.terminal import (
+    execute_project_run_workflow,
+    infer_terminal_command,
+    run_safe_terminal_command,
+)
+from app.services.code_workspace.clovops.run_plan import should_use_run_plan
 from app.services.code_workspace.clovops.types import ClovopsGraphState, ClovopsPipelineStep
 from app.services.code_workspace.clovops.validation import validate_edited_files
 from app.services.code_workspace.clovops.writer import run_code_writer
@@ -299,32 +303,58 @@ async def _terminal_node(state: ClovopsGraphState) -> dict[str, Any]:
     emit_agent_progress("terminal")
     db = SessionLocal()
     try:
-        command = (state.get("terminal_command") or "").strip()
-        if not command:
-            file_map = state.get("file_map") or []
-            if not file_map:
-                file_map = build_project_file_map(
-                    db,
-                    uuid.UUID(state["user_id"]),
-                    uuid.UUID(state["project_id"]),
-                )
-            command = await infer_terminal_command(
+        explicit_command = (state.get("terminal_command") or "").strip()
+        use_run_plan = should_use_run_plan(
+            user_request=state["user_request"],
+            terminal_command=explicit_command or None,
+            request_type=state.get("request_type"),
+        )
+
+        file_map = state.get("file_map") or []
+        if not file_map:
+            file_map = build_project_file_map(
+                db,
+                uuid.UUID(state["user_id"]),
+                uuid.UUID(state["project_id"]),
+            )
+
+        if use_run_plan:
+            result = await execute_project_run_workflow(
+                db,
+                uuid.UUID(state["user_id"]),
+                uuid.UUID(state["project_id"]),
                 user_request=state["user_request"],
                 file_map=file_map,
+                context_files=state.get("context_files") or [],
                 active_file_path=state.get("active_file_path"),
                 project_title=state.get("project_title", "Project"),
             )
-        effective = command or state["user_request"]
-        result = run_safe_terminal_command(
-            db,
-            uuid.UUID(state["user_id"]),
-            uuid.UUID(state["project_id"]),
-            command=effective,
-            active_file_path=state.get("active_file_path"),
-        )
+        else:
+            command = explicit_command
+            if not command:
+                command = await infer_terminal_command(
+                    user_request=state["user_request"],
+                    file_map=file_map,
+                    active_file_path=state.get("active_file_path"),
+                    project_title=state.get("project_title", "Project"),
+                )
+            effective = command or state["user_request"]
+            result = run_safe_terminal_command(
+                db,
+                uuid.UUID(state["user_id"]),
+                uuid.UUID(state["project_id"]),
+                command=effective,
+                active_file_path=state.get("active_file_path"),
+            )
     finally:
         db.close()
-    return {"response_text": result.get("output", ""), "terminal_result": result}
+
+    response_text = str(result.get("response_text") or result.get("output") or "")
+    return {
+        "response_text": response_text,
+        "terminal_result": result,
+        "run_plan": result.get("plan_summary"),
+    }
 
 
 STEP_RUNNERS: dict[ClovopsPipelineStep, Callable[[ClovopsGraphState], Awaitable[dict[str, Any]]]] = {
@@ -408,34 +438,9 @@ async def _pipeline_runner_node(state: ClovopsGraphState) -> dict[str, Any]:
     return updates
 
 
-def _route_after_pipeline(state: ClovopsGraphState) -> str:
-    pipeline = state.get("pipeline") or []
-    completed = state.get("pipeline_completed") or 0
-    if completed < len(pipeline):
-        return "pipeline_runner"
-    return END
-
-
-_CLOVOPS_GRAPH = None
-
-
 def build_clovops_graph():
-    global _CLOVOPS_GRAPH  # noqa: PLW0603
-    if _CLOVOPS_GRAPH is not None:
-        return _CLOVOPS_GRAPH
-
-    graph = StateGraph(ClovopsGraphState)
-
-    graph.add_node("gateway", _gateway_node)
-    graph.add_node("pipeline_runner", _pipeline_runner_node)
-
-    graph.set_entry_point("gateway")
-    graph.add_edge("gateway", "pipeline_runner")
-    graph.add_conditional_edges(
-        "pipeline_runner",
-        _route_after_pipeline,
-        {"pipeline_runner": "pipeline_runner", END: END},
+    """Deprecated LangGraph entry — Clovops now uses Microsoft Agent Framework."""
+    raise RuntimeError(
+        "LangGraph Clovops orchestration was replaced by Microsoft Agent Framework. "
+        "Use stream_clovops_orchestrator() instead."
     )
-
-    _CLOVOPS_GRAPH = graph.compile()
-    return _CLOVOPS_GRAPH

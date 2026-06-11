@@ -2,6 +2,7 @@
 .venv/
 venv/
 ENV/
+.maf_deps/
 
 # Python bytecode
 __pycache__/

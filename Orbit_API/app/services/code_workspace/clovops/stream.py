@@ -8,10 +8,12 @@ from typing import Any
 
 _HEARTBEAT_SECONDS = 8
 
-from app.services.code_workspace.clovops.orchestrator import build_clovops_graph
+from app.services.code_workspace.clovops.maf.runner import (
+    _stream_clovops_maf_events,
+    stream_clovops_maf_resume,
+)
 from app.services.code_workspace.clovops.types import ClovopsGraphState
 from clovai_apps.code_workspace.schemas import CodeWorkspaceAgentSearchRequest
-from orbit_orchestration.domain.message_text import sanitize_for_chat_ui
 
 _PHASE_LABELS: dict[str, str] = {
     "gateway": "Understanding request…",
@@ -24,7 +26,7 @@ _PHASE_LABELS: dict[str, str] = {
     "validate_code": "Validating code…",
     "chat_response": "Replying…",
     "explain_response": "Preparing answer…",
-    "terminal": "Checking terminal request…",
+    "terminal": "Running project steps…",
 }
 
 _AGENT_LABELS: dict[str, str] = {
@@ -50,6 +52,10 @@ _REQUEST_TYPE_LABELS: dict[str, str] = {
     "summarize": "Summarize",
     "terminal": "Terminal",
 }
+
+
+def _active_log_id(agent_id: str) -> str:
+    return f"{agent_id}-active"
 
 
 def _log_event(
@@ -175,6 +181,14 @@ def _build_log_detail(node_name: str, node_state: dict[str, Any]) -> str | None:
 
     if node_name == "terminal":
         result = node_state.get("terminal_result") or {}
+        steps = result.get("steps") or []
+        if steps:
+            ok = sum(1 for step in steps if step.get("exitCode") in (0, None))
+            failed = len(steps) - ok
+            preview = result.get("plan_summary") or "Executed run plan"
+            if failed:
+                return f"{preview} — {ok}/{len(steps)} steps succeeded."
+            return f"{preview} — all {len(steps)} steps completed."
         command = (result.get("command") or "").strip()
         output = (result.get("output") or "").strip()
         if command:
@@ -272,14 +286,17 @@ async def _emit_node_completion(
     emitted_edit_ids: set[str],
     streamed_writer_text: bool,
 ) -> AsyncIterator[dict[str, Any]]:
+    from app.services.code_workspace.clovops.workflow_events import workflow_event
+
     agent_id = _effective_agent_id(node_name, node_state)
     detail = _build_log_detail(agent_id, {**final_state, **node_state})
+    done_log_id = running_log_ids.pop(agent_id, None) or _active_log_id(agent_id)
     yield _log_event(
         agent_id=agent_id,
         status="done",
         message=_PHASE_LABELS.get(agent_id, agent_id),
         detail=detail,
-        log_id=running_log_ids.pop(agent_id, None),
+        log_id=done_log_id,
     )
 
     yield {
@@ -289,17 +306,57 @@ async def _emit_node_completion(
         "message": _PHASE_LABELS.get(agent_id, agent_id),
     }
 
+    yield workflow_event(
+        kind="step_done",
+        title=_AGENT_LABELS.get(agent_id, agent_id),
+        message=_PHASE_LABELS.get(agent_id, agent_id),
+        detail=detail,
+        agent_id=agent_id,
+        status="success",
+        category="task",
+        event_id=f"task-{agent_id}-active",
+    )
+
     if node_name == "gateway":
+        request_type = node_state.get("request_type")
+        pipeline = node_state.get("pipeline") or []
+        reason = node_state.get("routing_reason") or ""
+        label = _REQUEST_TYPE_LABELS.get(request_type, request_type)
         yield {
             "type": "routing",
-            "request_type": node_state.get("request_type"),
-            "reason": node_state.get("routing_reason"),
-            "pipeline": node_state.get("pipeline") or [],
+            "request_type": request_type,
+            "reason": reason,
+            "pipeline": pipeline,
         }
+        yield workflow_event(
+            kind="routing",
+            title="Request routed",
+            message=f"{label} · {reason}".strip(" ·"),
+            agent_id="gateway",
+            status="info",
+            category="routing",
+            meta={
+                "requestType": request_type,
+                "pipeline": pipeline,
+                "reason": reason,
+            },
+            event_id="routing-decision",
+        )
 
     if agent_id == "search_files":
         results = node_state.get("search_results") or []
         if results:
+            yield workflow_event(
+                kind="search_results",
+                title="Search files",
+                message=f"Found {len(results)} match{'es' if len(results) != 1 else ''}",
+                detail=_format_paths(results),
+                agent_id="search_files",
+                status="success",
+                category="tool",
+                meta={"tool": "search_files", "count": len(results)},
+                event_id="tool-search-results",
+            )
             yield {"type": "files", "files": results}
 
     if agent_id == "write_code":
@@ -309,6 +366,18 @@ async def _emit_node_completion(
                 continue
             if file_id:
                 emitted_edit_ids.add(file_id)
+            file_path = str(edit.get("filePath") or "unknown")
+            yield workflow_event(
+                kind="tool_result",
+                title="Write file",
+                message=file_path,
+                detail="Created file" if edit.get("created") else "Updated file",
+                agent_id="write_code",
+                status="success",
+                category="tool",
+                meta={"tool": "write_file", "fileId": file_id, "created": bool(edit.get("created"))},
+                event_id=f"tool-write-{file_id}",
+            )
             yield {"type": "edit", "edit": edit}
             if edit.get("created"):
                 yield {"type": "project_changed"}
@@ -318,22 +387,66 @@ async def _emit_node_completion(
 
     if agent_id == "review_code":
         for review in node_state.get("reviews") or []:
+            yield workflow_event(
+                kind="review",
+                title="Code review",
+                message=str(review.get("filePath") or "unknown"),
+                detail=str(review.get("summary") or ""),
+                agent_id="review_code",
+                status="success" if review.get("passed") else "warning",
+                category="review",
+                meta={"passed": bool(review.get("passed")), "issueCount": len(review.get("issues") or [])},
+                event_id=f"review-{review.get('fileId')}",
+            )
             yield {"type": "review", "review": review}
 
     if agent_id == "validate_code":
         validation = node_state.get("validation")
         if validation:
+            passed = bool(validation.get("passed"))
+            yield workflow_event(
+                kind="validation",
+                title="Validation",
+                message="All checks passed" if passed else "Validation issues found",
+                detail="; ".join(
+                    issue.get("message", "")
+                    for issue in (validation.get("issues") or [])[:5]
+                ) or None,
+                agent_id="validate_code",
+                status="success" if passed else "error",
+                category="validation",
+                meta={
+                    "passed": passed,
+                    "checks": validation.get("checks") or [],
+                    "issueCount": len(validation.get("issues") or []),
+                },
+                event_id="validation-result",
+            )
             yield {"type": "validation", "validation": validation}
 
     if agent_id == "terminal":
         result = node_state.get("terminal_result") or {}
-        yield {
-            "type": "terminal",
-            "command": str(result.get("command") or ""),
-            "output": str(result.get("output") or ""),
-            "exitCode": result.get("exitCode"),
-            "executed": bool(result.get("executed")),
-        }
+        steps = result.get("steps") or []
+        if steps:
+            for step in steps:
+                yield {
+                    "type": "terminal",
+                    "command": str(step.get("command") or ""),
+                    "output": str(step.get("output") or ""),
+                    "exitCode": step.get("exitCode"),
+                    "executed": bool(step.get("executed")),
+                    "purpose": step.get("purpose"),
+                    "planKind": step.get("planKind"),
+                    "agent": step.get("agent"),
+                }
+        else:
+            yield {
+                "type": "terminal",
+                "command": str(result.get("command") or ""),
+                "output": str(result.get("output") or ""),
+                "exitCode": result.get("exitCode"),
+                "executed": bool(result.get("executed")),
+            }
         text = node_state.get("response_text") or ""
         if text:
             yield {"type": "token", "content": text}
@@ -352,80 +465,13 @@ async def _stream_clovops_events(
     *,
     project_title: str = "Project",
 ) -> AsyncIterator[dict[str, Any]]:
-    yield {"type": "start", "project_id": str(project_id)}
-
-    graph = build_clovops_graph()
-    state = _build_initial_state(user_id, project_id, body, project_title=project_title)
-
-    final_state: dict[str, Any] = dict(state)
-    streamed_writer_text = False
-    emitted_edit_ids: set[str] = set()
-    running_log_ids: dict[str, str] = {}
-
-    try:
-        async for mode, chunk in graph.astream(state, stream_mode=["updates", "custom"]):
-            if mode == "custom":
-                if not isinstance(chunk, dict) or chunk.get("type") != "agent_progress":
-                    continue
-                agent_id = str(chunk.get("agentId") or "")
-                if not agent_id:
-                    continue
-                running_id = running_log_ids.get(agent_id) or f"{agent_id}-running-{uuid.uuid4().hex[:8]}"
-                running_log_ids[agent_id] = running_id
-                yield _log_event(
-                    agent_id=agent_id,
-                    status="running",
-                    message=_running_log_message(agent_id, chunk.get("message")),
-                    log_id=running_id,
-                )
-                yield {
-                    "type": "phase",
-                    "phase": agent_id,
-                    "status": "running",
-                    "message": _running_log_message(agent_id, chunk.get("message")),
-                }
-                continue
-
-            if mode != "updates" or not isinstance(chunk, dict):
-                continue
-
-            for node_name, node_state in chunk.items():
-                final_state.update(node_state)
-                async for event in _emit_node_completion(
-                    node_name,
-                    node_state,
-                    final_state=final_state,
-                    running_log_ids=running_log_ids,
-                    emitted_edit_ids=emitted_edit_ids,
-                    streamed_writer_text=streamed_writer_text,
-                ):
-                    if event.get("type") == "token" and not streamed_writer_text:
-                        streamed_writer_text = True
-                    yield event
-
-        response_text = sanitize_for_chat_ui(final_state.get("response_text") or "") or (
-            "Done."
-        )
-        yield {
-            "type": "done",
-            "content": response_text,
-            "files": final_state.get("search_results") or [],
-            "edits": final_state.get("edits") or [],
-            "reviews": final_state.get("reviews") or [],
-            "plan": final_state.get("plan"),
-            "request_type": final_state.get("request_type"),
-            "pipeline": final_state.get("pipeline") or [],
-        }
-    except Exception as exc:
-        for agent_id, log_id in list(running_log_ids.items()):
-            yield _log_event(
-                agent_id=agent_id,
-                status="error",
-                message=_PHASE_LABELS.get(agent_id, agent_id),
-                detail=str(exc),
-                log_id=log_id,
-            )
-        yield {"type": "error", "detail": str(exc)}
+    async for event in _stream_clovops_maf_events(
+        user_id,
+        project_id,
+        body,
+        project_title=project_title,
+    ):
+        yield event
 
 
 async def stream_clovops_orchestrator(
@@ -435,7 +481,7 @@ async def stream_clovops_orchestrator(
     *,
     project_title: str = "Project",
 ) -> AsyncIterator[dict[str, Any]]:
-    """UI streaming layer — maps graph node updates to SSE events."""
+    """UI streaming layer — maps MAF workflow events to SSE events."""
     async for event in _with_heartbeats(
         _stream_clovops_events(
             user_id,
@@ -443,5 +489,17 @@ async def stream_clovops_orchestrator(
             body,
             project_title=project_title,
         )
+    ):
+        yield event
+
+
+async def stream_clovops_orchestrator_resume(
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    session_id: str,
+    human_input: str,
+) -> AsyncIterator[dict[str, Any]]:
+    async for event in _with_heartbeats(
+        stream_clovops_maf_resume(user_id, project_id, session_id, human_input)
     ):
         yield event

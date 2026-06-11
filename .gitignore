@@ -47,6 +47,7 @@ next-env.d.ts
 
 # backend (Orbit_API — Python / FastAPI)
 Orbit_API/.venv/
+Orbit_API/.maf_deps/
 Orbit_API/venv/
 Orbit_API/**/__pycache__/
 Orbit_API/**/*.py[cod]
