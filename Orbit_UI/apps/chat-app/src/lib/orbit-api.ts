@@ -895,10 +895,20 @@ export type ApiCodeWorkspacePreferences = {
   lineNumbers: boolean;
   autoSave: boolean;
   autoSaveDelayMs: 500 | 1000 | 2000 | 5000;
-  seedDemoOnCreate: boolean;
+  /** @deprecated Use defaultProjectTemplate */
+  seedDemoOnCreate?: boolean;
+  defaultProjectTemplate: string;
   terminalOpenOnLaunch: boolean;
   defaultGitBranch: string;
   rightSidebarOpenOnLaunch: boolean;
+};
+
+export type ApiCodeWorkspaceProjectTemplate = {
+  id: string;
+  label: string;
+  description: string;
+  language: string;
+  framework?: string | null;
 };
 
 export type ApiCodeWorkspaceSettings = {
@@ -1065,6 +1075,9 @@ export type CodeWorkspaceAgentStreamEvent =
     };
 
 export const codeWorkspaceApi = {
+  listTemplates: () =>
+    request<{ data: ApiCodeWorkspaceProjectTemplate[] }>("/apps/code-workspace/templates"),
+
   listProjects: (limit = 20) =>
     request<{ data: ApiCodeWorkspaceProjectSummary[] }>(
       `/apps/code-workspace/projects?limit=${limit}`,
@@ -1075,7 +1088,12 @@ export const codeWorkspaceApi = {
       `/apps/code-workspace/projects/${encodeURIComponent(id)}`,
     ),
 
-  createProject: (body: { title?: string; description?: string; seedDemo?: boolean }) =>
+  createProject: (body: {
+    title?: string;
+    description?: string;
+    template?: string;
+    seedDemo?: boolean;
+  }) =>
     request<ApiCodeWorkspaceProjectResponse>("/apps/code-workspace/projects", {
       method: "POST",
       body: JSON.stringify(body),

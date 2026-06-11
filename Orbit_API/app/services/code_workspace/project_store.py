@@ -11,8 +11,10 @@ from app.services.code_workspace.file_store import (
     create_node_on_disk,
     delete_project_directory,
     rename_node_on_disk,
+    seed_template_file_contents,
     sync_structure_to_disk,
 )
+from app.services.code_workspace.project_templates import build_state_from_template
 from clovai_apps.code_workspace.schemas import (
     CodeWorkspaceNode,
     CodeWorkspaceNodeCreateRequest,
@@ -23,22 +25,7 @@ from clovai_apps.code_workspace.schemas import (
     CodeWorkspaceProjectUpdateRequest,
     CodeWorkspaceState,
     CodeWorkspaceStructureUpdateRequest,
-    CodeWorkspaceUiState,
 )
-
-_DEMO_NODES: list[dict] = [
-    {"id": "folder-src", "kind": "folder", "name": "src", "parentId": None},
-    {"id": "file-client", "kind": "file", "name": "client.ts", "parentId": "folder-src", "language": "typescript"},
-    {"id": "file-factory", "kind": "file", "name": "factory.ts", "parentId": "folder-src", "language": "typescript"},
-    {"id": "file-rate", "kind": "file", "name": "rate-limiter.ts", "parentId": "folder-src", "language": "typescript"},
-    {"id": "file-types", "kind": "file", "name": "types.ts", "parentId": "folder-src", "language": "typescript"},
-    {"id": "file-utils", "kind": "file", "name": "utils.ts", "parentId": "folder-src", "language": "typescript"},
-    {"id": "file-index", "kind": "file", "name": "index.ts", "parentId": None, "language": "typescript"},
-    {"id": "file-package", "kind": "file", "name": "package.json", "parentId": None, "language": "json"},
-    {"id": "file-tsconfig", "kind": "file", "name": "tsconfig.json", "parentId": None, "language": "json"},
-    {"id": "file-readme", "kind": "file", "name": "README.md", "parentId": None, "language": "markdown"},
-]
-
 
 def _to_ms(value: datetime) -> int:
     return int(value.timestamp() * 1000)
@@ -82,18 +69,6 @@ def _dump_state(state: CodeWorkspaceState) -> dict:
         nodes=_persist_nodes(state.nodes),
         ui=state.ui,
     ).model_dump(by_alias=True)
-
-
-def default_demo_state() -> CodeWorkspaceState:
-    return CodeWorkspaceState(
-        nodes=[CodeWorkspaceNode.model_validate(node) for node in _DEMO_NODES],
-        ui=CodeWorkspaceUiState(
-            explorer_focus_id=None,
-            active_file_id="file-client",
-            expanded_folder_ids=["folder-src"],
-            open_file_ids=["file-client"],
-        ),
-    )
 
 
 def _node_index(nodes: list[CodeWorkspaceNode], node_id: str) -> int:
@@ -178,7 +153,7 @@ def create_project(
     body: CodeWorkspaceProjectCreateRequest,
 ) -> CodeWorkspaceProjectResponse:
     title = body.title.strip() or "Untitled project"
-    state = default_demo_state() if body.seed_demo else CodeWorkspaceState()
+    state, file_contents = build_state_from_template(body.template, seed_demo=body.seed_demo)
     row = CodeWorkspaceProject(
         id=uuid.uuid4(),
         user_id=user_id,
@@ -189,7 +164,9 @@ def create_project(
     db.add(row)
     db.commit()
     db.refresh(row)
-    sync_structure_to_disk(db, user_id, row.id, parse_project_state(row.state).nodes)
+    parsed = parse_project_state(row.state)
+    sync_structure_to_disk(db, user_id, row.id, parsed.nodes)
+    seed_template_file_contents(db, user_id, row.id, parsed.nodes, file_contents)
     return serialize_project(row)
 
 

@@ -49,7 +49,32 @@ class CodeWorkspaceState(BaseModel):
 class CodeWorkspaceProjectCreateRequest(BaseModel):
     title: str = "Untitled project"
     description: str | None = None
-    seed_demo: bool = Field(default=True, alias="seedDemo", serialization_alias="seedDemo")
+    template: str = Field(
+        default="empty",
+        description="Project skeleton template id (empty, typescript, python, python-fastapi, node-express).",
+    )
+    seed_demo: bool | None = Field(
+        default=None,
+        alias="seedDemo",
+        serialization_alias="seedDemo",
+        description="Deprecated — use template instead. True maps to the legacy typescript demo.",
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class CodeWorkspaceProjectTemplate(BaseModel):
+    id: str
+    label: str
+    description: str
+    language: str
+    framework: str | None = None
+
+    model_config = {"populate_by_name": True}
+
+
+class CodeWorkspaceProjectTemplateListResponse(BaseModel):
+    data: list[CodeWorkspaceProjectTemplate]
 
     model_config = {"populate_by_name": True}
 
@@ -139,8 +164,17 @@ class CodeWorkspacePreferences(BaseModel):
     auto_save_delay_ms: Literal[500, 1000, 2000, 5000] = Field(
         default=1000, alias="autoSaveDelayMs", serialization_alias="autoSaveDelayMs"
     )
-    seed_demo_on_create: bool = Field(
-        default=True, alias="seedDemoOnCreate", serialization_alias="seedDemoOnCreate"
+    seed_demo_on_create: bool | None = Field(
+        default=None,
+        alias="seedDemoOnCreate",
+        serialization_alias="seedDemoOnCreate",
+        description="Deprecated — use defaultProjectTemplate.",
+    )
+    default_project_template: str = Field(
+        default="empty",
+        alias="defaultProjectTemplate",
+        serialization_alias="defaultProjectTemplate",
+        max_length=64,
     )
     terminal_open_on_launch: bool = Field(
         default=True, alias="terminalOpenOnLaunch", serialization_alias="terminalOpenOnLaunch"

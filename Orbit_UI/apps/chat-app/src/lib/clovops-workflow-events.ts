@@ -237,7 +237,7 @@ function mapStreamEvent(event: CodeWorkspaceAgentStreamEvent): ApiCodeWorkspaceW
           id: "run-completed",
           kind: "run_completed",
           title: "Workflow completed",
-          message: event.content?.slice(0, 240) || "Done",
+          message: "Done",
           status: "success",
           category: "background",
           meta: {

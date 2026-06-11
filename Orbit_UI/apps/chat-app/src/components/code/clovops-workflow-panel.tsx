@@ -18,24 +18,17 @@ import {
 import {
   collapseTaskEvents,
   extractRoutingMeta,
-  filterWorkflowByCategory,
   type ApiCodeWorkspaceWorkflowEvent,
   type WorkflowEventStatus,
 } from "@/lib/clovops-workflow-events";
 import { cn } from "@/lib/utils";
 
-type WorkflowTab = "tasks" | "tools" | "activity";
-
 type ClovopsWorkflowPanelProps = {
   events: ApiCodeWorkspaceWorkflowEvent[];
   className?: string;
   live?: boolean;
-};
-
-const TAB_LABELS: Record<WorkflowTab, string> = {
-  tasks: "Tasks",
-  tools: "Tools",
-  activity: "Activity",
+  embedded?: boolean;
+  muted?: boolean;
 };
 
 const STATUS_ICONS: Record<WorkflowEventStatus, LucideIcon> = {
@@ -46,21 +39,56 @@ const STATUS_ICONS: Record<WorkflowEventStatus, LucideIcon> = {
   warning: Activity,
 };
 
-function StatusIcon({ status }: { status: WorkflowEventStatus }) {
+function StatusIcon({ status, muted = false }: { status: WorkflowEventStatus; muted?: boolean }) {
   const Icon = STATUS_ICONS[status];
   if (status === "running") {
-    return <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />;
+    return (
+      <Loader2
+        className={cn(
+          "shrink-0 animate-spin",
+          muted ? "h-2.5 w-2.5 text-muted-foreground/50" : "h-3.5 w-3.5 text-muted-foreground",
+        )}
+      />
+    );
   }
   if (status === "error") {
-    return <X className="h-3.5 w-3.5 shrink-0 text-destructive/90" />;
+    return (
+      <X
+        className={cn(
+          "shrink-0",
+          muted ? "h-2.5 w-2.5 text-destructive/70" : "h-3.5 w-3.5 text-destructive/90",
+        )}
+      />
+    );
   }
   if (status === "warning") {
-    return <Activity className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />;
+    return (
+      <Activity
+        className={cn(
+          "shrink-0",
+          muted ? "h-2.5 w-2.5 text-amber-500/60" : "h-3.5 w-3.5 text-amber-500/90",
+        )}
+      />
+    );
   }
   if (status === "success") {
-    return <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />;
+    return (
+      <Check
+        className={cn(
+          "shrink-0",
+          muted ? "h-2.5 w-2.5 text-muted-foreground/35" : "h-3.5 w-3.5 text-muted-foreground/70",
+        )}
+      />
+    );
   }
-  return <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />;
+  return (
+    <Icon
+      className={cn(
+        "shrink-0",
+        muted ? "h-2.5 w-2.5 text-muted-foreground/35" : "h-3.5 w-3.5 text-muted-foreground/60",
+      )}
+    />
+  );
 }
 
 function CategoryIcon({ event }: { event: ApiCodeWorkspaceWorkflowEvent }) {
@@ -84,22 +112,23 @@ function WorkflowRow({
   event,
   expanded,
   onToggle,
-  compact = false,
+  muted = false,
 }: {
   event: ApiCodeWorkspaceWorkflowEvent;
   expanded: boolean;
   onToggle: () => void;
-  compact?: boolean;
+  muted?: boolean;
 }) {
-  const hasDetail = Boolean(event.detail?.trim() || event.message?.trim());
-  const subtitle = compact ? event.message : event.message;
+  const hasDetail = Boolean(event.detail?.trim());
+  const title = event.message ? `${event.title} — ${event.message}` : event.title;
 
   return (
     <div
       className={cn(
         "group/row rounded-md transition-colors",
-        event.status === "running" && "bg-muted/30",
-        hasDetail && "hover:bg-muted/25",
+        !muted && event.status === "running" && "bg-muted/30",
+        !muted && hasDetail && "hover:bg-muted/25",
+        muted && hasDetail && "hover:bg-muted/10",
       )}
     >
       <button
@@ -107,53 +136,66 @@ function WorkflowRow({
         onClick={hasDetail ? onToggle : undefined}
         disabled={!hasDetail}
         className={cn(
-          "flex w-full items-start gap-2.5 px-2 py-1.5 text-left",
+          "flex w-full items-start gap-2 px-2 py-1 text-left",
+          muted ? "gap-1.5 py-0.5" : "gap-2.5 px-2 py-1.5",
           !hasDetail && "cursor-default",
         )}
       >
-        <div className="mt-0.5 flex w-3.5 shrink-0 justify-center">
-          <StatusIcon status={event.status} />
+        <div className={cn("flex shrink-0 justify-center", muted ? "mt-0.5 w-3" : "mt-0.5 w-3.5")}>
+          <StatusIcon status={event.status} muted={muted} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <CategoryIcon event={event} />
+            {!muted ? <CategoryIcon event={event} /> : null}
             <span
               className={cn(
-                "truncate text-[12px] leading-snug",
-                event.status === "running"
-                  ? "text-foreground"
-                  : event.status === "error"
-                    ? "text-destructive"
-                    : "text-foreground/85",
+                "truncate leading-snug",
+                muted ? "text-[11px]" : "text-[12px]",
+                muted
+                  ? event.status === "running"
+                    ? "text-muted-foreground/70"
+                    : event.status === "error"
+                      ? "text-destructive/75"
+                      : "text-muted-foreground/45"
+                  : event.status === "running"
+                    ? "text-foreground"
+                    : event.status === "error"
+                      ? "text-destructive"
+                      : "text-foreground/85",
               )}
             >
-              {event.title}
+              {title}
             </span>
-            {!compact ? (
-              <span className="shrink-0 rounded bg-muted/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-muted-foreground/70">
-                {event.kind.replace(/_/g, " ")}
-              </span>
-            ) : null}
           </div>
-          {subtitle ? (
-            <p className="mt-0.5 truncate pl-[18px] text-[11px] leading-snug text-muted-foreground/80">
-              {subtitle}
-            </p>
-          ) : null}
         </div>
         {hasDetail ? (
           <ChevronDown
             className={cn(
-              "mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-transform",
+              "mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform",
+              !muted && "h-3.5 w-3.5 text-muted-foreground/40",
               expanded && "rotate-180",
             )}
           />
         ) : null}
       </button>
       {hasDetail && expanded ? (
-        <div className="mx-2 mb-2 ml-[26px] overflow-hidden rounded-md border border-border/30 bg-muted/20">
-          <pre className="max-h-40 overflow-auto whitespace-pre-wrap p-2.5 font-mono text-[10.5px] leading-relaxed text-foreground/75 [scrollbar-width:thin]">
-            {event.detail?.trim() || event.message}
+        <div
+          className={cn(
+            "mx-2 mb-1.5 ml-[22px] overflow-hidden rounded-md",
+            muted
+              ? "bg-transparent"
+              : "border border-border/30 bg-muted/20",
+          )}
+        >
+          <pre
+            className={cn(
+              "max-h-32 overflow-auto whitespace-pre-wrap p-2 font-mono leading-relaxed [scrollbar-width:thin]",
+              muted
+                ? "text-[10px] text-muted-foreground/40"
+                : "text-[10.5px] text-foreground/75",
+            )}
+          >
+            {event.detail}
           </pre>
         </div>
       ) : null}
@@ -182,30 +224,32 @@ function PipelineStrip({ pipeline }: { pipeline: string[] }) {
   );
 }
 
-export function ClovopsWorkflowPanel({ events, className, live = false }: ClovopsWorkflowPanelProps) {
+export function ClovopsWorkflowPanel({
+  events,
+  className,
+  live = false,
+  embedded = false,
+  muted: mutedProp,
+}: ClovopsWorkflowPanelProps) {
+  const muted = mutedProp ?? embedded;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [panelOpen, setPanelOpen] = useState(true);
-  const [tab, setTab] = useState<WorkflowTab>("tasks");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const routing = useMemo(() => extractRoutingMeta(events), [events]);
-  const tasks = useMemo(() => collapseTaskEvents(events), [events]);
-  const tools = useMemo(() => filterWorkflowByCategory(events, "tools"), [events]);
-  const activity = events;
-
-  const tabEvents = tab === "tasks" ? tasks : tab === "tools" ? tools : activity;
+  const steps = useMemo(() => collapseTaskEvents(events), [events]);
 
   const stats = useMemo(() => {
-    const running = events.some((event) => event.status === "running");
-    const failed = events.some((event) => event.status === "error");
-    return { running, failed, total: events.length };
-  }, [events]);
+    const running = steps.some((event) => event.status === "running");
+    const failed = steps.some((event) => event.status === "error");
+    return { running, failed, total: steps.length };
+  }, [steps]);
 
   const headerLabel = useMemo(() => {
-    if (stats.running) return "Workflow running…";
-    if (stats.failed) return "Workflow finished with errors";
-    if (stats.total > 0) return "Workflow complete";
-    return "Workflow";
+    if (stats.running) return "Running…";
+    if (stats.failed) return "Finished with errors";
+    if (stats.total > 0) return `${stats.total} step${stats.total === 1 ? "" : "s"}`;
+    return "Agent steps";
   }, [stats]);
 
   useEffect(() => {
@@ -216,7 +260,7 @@ export function ClovopsWorkflowPanel({ events, className, live = false }: Clovop
     setExpandedIds((current) => {
       const next = new Set(current);
       let changed = false;
-      for (const event of tabEvents) {
+      for (const event of steps) {
         if ((event.status === "running" || event.detail) && !next.has(event.id)) {
           next.add(event.id);
           changed = true;
@@ -224,15 +268,15 @@ export function ClovopsWorkflowPanel({ events, className, live = false }: Clovop
       }
       return changed ? next : current;
     });
-  }, [tabEvents]);
+  }, [steps]);
 
   useEffect(() => {
     const container = scrollRef.current;
     if (!container || !live) return;
     container.scrollTop = container.scrollHeight;
-  }, [tabEvents, expandedIds, live, tab]);
+  }, [steps, expandedIds, live]);
 
-  if (!events.length) return null;
+  if (!steps.length) return null;
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((current) => {
@@ -244,100 +288,103 @@ export function ClovopsWorkflowPanel({ events, className, live = false }: Clovop
   };
 
   return (
-    <section className={cn("mt-1 w-full", className)} aria-label="Workflow">
+    <section className={cn("mt-1 w-full", className)} aria-label="Execution log">
       <div
         className={cn(
-          "overflow-hidden rounded-lg border border-border/35 bg-muted/10",
-          live && stats.running && "border-border/50",
+          "overflow-hidden",
+          muted
+            ? "rounded-md bg-transparent"
+            : embedded
+              ? "rounded-md bg-muted/15"
+              : "rounded-lg border border-border/35 bg-muted/10",
+          !muted && !embedded && live && stats.running && "border-border/50",
         )}
       >
         <button
           type="button"
           onClick={() => setPanelOpen((open) => !open)}
-          className="flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-muted/20"
+          className={cn(
+            "flex w-full items-center gap-2 text-left transition-colors",
+            muted ? "px-2 py-1 hover:bg-muted/10" : "px-2.5 py-2 hover:bg-muted/20",
+          )}
         >
           {panelOpen ? (
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+            <ChevronDown
+              className={cn(
+                "shrink-0 text-muted-foreground/40",
+                muted ? "h-3 w-3" : "h-3.5 w-3.5 text-muted-foreground/60",
+              )}
+            />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+            <ChevronRight
+              className={cn(
+                "shrink-0 text-muted-foreground/40",
+                muted ? "h-3 w-3" : "h-3.5 w-3.5 text-muted-foreground/60",
+              )}
+            />
           )}
           {live && stats.running ? (
-            <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-          ) : (
+            <Loader2
+              className={cn(
+                "shrink-0 animate-spin text-muted-foreground/50",
+                muted ? "h-2.5 w-2.5" : "h-3 w-3 text-muted-foreground",
+              )}
+            />
+          ) : muted ? null : (
             <GitBranch className="h-3 w-3 shrink-0 text-muted-foreground/60" />
           )}
-          <span className="min-w-0 flex-1 truncate text-[12px] text-muted-foreground">{headerLabel}</span>
-          {routing?.requestType ? (
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate",
+              muted
+                ? "text-[10px] font-medium uppercase tracking-wider text-muted-foreground/45"
+                : "text-[12px] text-muted-foreground",
+            )}
+          >
+            {muted ? "Execution log" : headerLabel}
+          </span>
+          {!muted && routing?.requestType ? (
             <span className="shrink-0 rounded bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
               {String(routing.requestType).replace(/_/g, " ")}
+            </span>
+          ) : null}
+          {muted && stats.total > 0 ? (
+            <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/35">
+              {stats.running ? headerLabel : `${stats.total} step${stats.total === 1 ? "" : "s"}`}
             </span>
           ) : null}
         </button>
 
         {panelOpen ? (
           <>
-            {routing?.pipeline?.length ? <PipelineStrip pipeline={routing.pipeline} /> : null}
-
-            <div className="flex border-b border-border/25 px-1 pt-1">
-              {(Object.keys(TAB_LABELS) as WorkflowTab[]).map((key) => {
-                const count =
-                  key === "tasks"
-                    ? tasks.length
-                    : key === "tools"
-                      ? tools.length
-                      : activity.length;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setTab(key)}
-                    className={cn(
-                      "relative px-2.5 py-1.5 text-[11px] font-medium transition-colors",
-                      tab === key
-                        ? "text-foreground"
-                        : "text-muted-foreground/70 hover:text-muted-foreground",
-                    )}
-                  >
-                    {TAB_LABELS[key]}
-                    <span className="ml-1 font-mono text-[10px] tabular-nums text-muted-foreground/60">
-                      {count}
-                    </span>
-                    {tab === key ? (
-                      <span className="absolute inset-x-1.5 bottom-0 h-px bg-foreground/70" />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-
+            {!muted && routing?.pipeline?.length ? (
+              <PipelineStrip pipeline={routing.pipeline} />
+            ) : null}
             <div
               ref={scrollRef}
-              className="max-h-64 overflow-y-auto px-1 py-1 [scrollbar-width:thin]"
-            >
-              {tabEvents.length === 0 ? (
-                <p className="px-2 py-3 text-[11px] text-muted-foreground/70">
-                  No {TAB_LABELS[tab].toLowerCase()} yet.
-                </p>
-              ) : (
-                tabEvents.map((event, index) => (
-                  <div
-                    key={event.id}
-                    className={cn(index > 0 && "border-t border-border/20")}
-                  >
-                    <WorkflowRow
-                      event={event}
-                      expanded={expandedIds.has(event.id)}
-                      onToggle={() => toggleExpanded(event.id)}
-                      compact={tab === "activity"}
-                    />
-                  </div>
-                ))
+              className={cn(
+                "overflow-y-auto px-1 [scrollbar-width:thin]",
+                muted ? "max-h-36 py-0.5" : "max-h-52 py-1",
               )}
+            >
+              {steps.map((event, index) => (
+                <div
+                  key={event.id}
+                  className={cn(index > 0 && !muted && "border-t border-border/20")}
+                >
+                  <WorkflowRow
+                    event={event}
+                    expanded={expandedIds.has(event.id)}
+                    onToggle={() => toggleExpanded(event.id)}
+                    muted={muted}
+                  />
+                </div>
+              ))}
             </div>
           </>
         ) : null}
 
-        {live && stats.running ? (
+        {live && stats.running && !muted ? (
           <div className="h-px w-full bg-border/30">
             <div className="h-full w-1/3 animate-pulse bg-foreground/10" />
           </div>

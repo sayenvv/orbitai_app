@@ -19,6 +19,11 @@ import {
   writeStoredPreferences,
   type CodeWorkspacePreferences,
 } from "@/lib/code-workspace-preferences";
+import {
+  FALLBACK_CODE_WORKSPACE_TEMPLATES,
+  fetchCodeWorkspaceTemplates,
+  type CodeWorkspaceProjectTemplate,
+} from "@/lib/code-workspace-templates";
 import { codeWorkspaceApi, getApiErrorMessage } from "@/lib/orbit-api";
 import { routes } from "@/lib/routes";
 import { useAuthStore } from "@/store/auth-store";
@@ -125,6 +130,9 @@ export function CodeWorkspaceSettings() {
   const [preferences, setPreferences] = useState<CodeWorkspacePreferences>(
     DEFAULT_CODE_WORKSPACE_PREFERENCES,
   );
+  const [templates, setTemplates] = useState<CodeWorkspaceProjectTemplate[]>(
+    FALLBACK_CODE_WORKSPACE_TEMPLATES,
+  );
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -153,6 +161,10 @@ export function CodeWorkspaceSettings() {
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    void fetchCodeWorkspaceTemplates().then(setTemplates);
+  }, [isAuthenticated]);
 
   const patchPreferences = (partial: Partial<CodeWorkspacePreferences>) => {
     setPreferences((current) => normalizePreferences({ ...current, ...partial }));
@@ -398,15 +410,23 @@ export function CodeWorkspaceSettings() {
                   </SettingRow>
 
                   <SettingRow
-                    label="Seed demo project"
-                    description="Include sample files when creating a new project"
+                    label="Default project template"
+                    description="Starter skeleton used when you create a new project"
                   >
-                    <Toggle
-                      checked={preferences.seedDemoOnCreate}
-                      onChange={(seedDemoOnCreate) => patchPreferences({ seedDemoOnCreate })}
+                    <select
+                      value={preferences.defaultProjectTemplate}
+                      onChange={(event) =>
+                        patchPreferences({ defaultProjectTemplate: event.target.value })
+                      }
                       disabled={saving}
-                      label="Seed demo project"
-                    />
+                      className={selectClassName}
+                    >
+                      {templates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.label}
+                        </option>
+                      ))}
+                    </select>
                   </SettingRow>
 
                   <SettingRow

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   ChevronRight,
@@ -13,6 +13,8 @@ import {
 import { CodeEditor } from "@/components/code/code-editor";
 import { IdeDeployModal, type DeployResult } from "@/components/code/ide-deploy-modal";
 import { IdeFileMenu } from "@/components/code/ide-file-menu";
+import { IdeNewProjectDialog } from "@/components/code/ide-new-project-dialog";
+import { IdeProjectMenu } from "@/components/code/ide-project-menu";
 import { IdeBottomConsole, type IdeConsolePort } from "@/components/code/ide-bottom-console";
 import {
   IDE_SIDEBAR_ICON_RAIL_WIDTH_PX,
@@ -54,7 +56,18 @@ import { useResizableHeight } from "@/hooks/use-resizable-height";
 import { useResizableWidth } from "@/hooks/use-resizable-width";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useCodeWorkspacePreferences } from "@/hooks/use-code-workspace-preferences";
-import { codeWorkspaceApi, getApiErrorMessage } from "@/lib/orbit-api";
+import {
+  buildRecentCodeProjectHref,
+  fetchRecentCodeProjects,
+  recordRecentCodeProject,
+  type RecentCodeProject,
+} from "@/lib/code-workspace-recent-projects";
+import {
+  FALLBACK_CODE_WORKSPACE_TEMPLATES,
+  fetchCodeWorkspaceTemplates,
+  type CodeWorkspaceProjectTemplate,
+} from "@/lib/code-workspace-templates";
+import { codeWorkspaceApi, getApiErrorMessage, type ApiCodeWorkspaceAgentEdit } from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -73,9 +86,10 @@ const EMPTY_NODES: CodeWorkspaceNode[] = [];
 
 export function CodeWorkspace() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const projectIdParam = searchParams.get("projectId");
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const { setHeader } = useAppShell();
+  const { setHeader, openAuthPrompt } = useAppShell();
   const { preferences, ready: preferencesReady } = useCodeWorkspacePreferences();
   const prefsAppliedRef = useRef(false);
 
@@ -97,15 +111,24 @@ export function CodeWorkspace() {
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deployOutput, setDeployOutput] = useState("");
   const [terminalLog, setTerminalLog] = useState("");
+  const [agentChanges, setAgentChanges] = useState<ApiCodeWorkspaceAgentEdit[]>([]);
   const [deployPorts, setDeployPorts] = useState<IdeConsolePort[]>([]);
   const [consolePreferredTab, setConsolePreferredTab] = useState<
-    "terminal" | "debug" | "output" | "problems" | "ports" | undefined
+    "terminal" | "changes" | "debug" | "output" | "problems" | "ports" | undefined
   >(undefined);
   const [leftSidebarTab, setLeftSidebarTab] = useState<LeftSidebarTab>("files");
   const [consoleOpen, setConsoleOpen] = useState(true);
   const [consoleMaximized, setConsoleMaximized] = useState(false);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(true);
+  const [recentProjects, setRecentProjects] = useState<RecentCodeProject[]>([]);
+  const [loadingRecents, setLoadingRecents] = useState(false);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectError, setNewProjectError] = useState<string | null>(null);
+  const [projectTemplates, setProjectTemplates] = useState<CodeWorkspaceProjectTemplate[]>(
+    FALLBACK_CODE_WORKSPACE_TEMPLATES,
+  );
 
   useEffect(() => {
     if (!preferencesReady || prefsAppliedRef.current) return;
@@ -323,7 +346,7 @@ export function CodeWorkspace() {
 
         const created = await codeWorkspaceApi.createProject({
           title: CODE_PROJECT_NAME,
-          seedDemo: preferences.seedDemoOnCreate,
+          template: preferences.defaultProjectTemplate,
         });
         if (!cancelled) {
           applyRemoteProject(mapApiProject(created));
@@ -348,10 +371,88 @@ export function CodeWorkspace() {
   }, [
     applyRemoteProject,
     isAuthenticated,
-    preferences.seedDemoOnCreate,
+    preferences.defaultProjectTemplate,
     preferencesReady,
     projectIdParam,
   ]);
+
+  const refreshRecentProjects = useCallback(async () => {
+    setLoadingRecents(true);
+    try {
+      const projects = await fetchRecentCodeProjects();
+      setRecentProjects(projects);
+    } finally {
+      setLoadingRecents(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshRecentProjects();
+  }, [isAuthenticated, refreshRecentProjects]);
+
+  useEffect(() => {
+    if (!project?.id) return;
+    setRecentProjects(recordRecentCodeProject({ id: project.id, title: project.title }));
+  }, [project?.id, project?.title]);
+
+  useEffect(() => {
+    if (!project || !persisted || projectIdParam === project.id) return;
+    if (!projectIdParam) {
+      router.replace(buildRecentCodeProjectHref({ id: project.id }));
+    }
+  }, [persisted, project, projectIdParam, router]);
+
+  const handleOpenRecentProject = useCallback(
+    (recent: RecentCodeProject) => {
+      if (recent.id === projectIdParam) return;
+      if (!isAuthenticated && recent.id !== "local-demo") {
+        openAuthPrompt();
+        return;
+      }
+      router.push(buildRecentCodeProjectHref(recent));
+    },
+    [isAuthenticated, openAuthPrompt, projectIdParam, router],
+  );
+
+  const handleRequestNewProject = useCallback(() => {
+    if (!isAuthenticated) {
+      openAuthPrompt();
+      return;
+    }
+    setNewProjectError(null);
+    setNewProjectOpen(true);
+  }, [isAuthenticated, openAuthPrompt]);
+
+  useEffect(() => {
+    void fetchCodeWorkspaceTemplates().then(setProjectTemplates);
+  }, [isAuthenticated]);
+
+  const handleCreateProject = useCallback(
+    async (title: string, templateId: string) => {
+      if (!isAuthenticated) {
+        openAuthPrompt();
+        return;
+      }
+      setCreatingProject(true);
+      setNewProjectError(null);
+      try {
+        const created = await codeWorkspaceApi.createProject({
+          title,
+          template: templateId,
+        });
+        setRecentProjects(
+          recordRecentCodeProject({ id: created.id, title: created.title }),
+        );
+        setNewProjectOpen(false);
+        router.push(buildRecentCodeProjectHref({ id: created.id }));
+      } catch (error) {
+        setNewProjectError(getApiErrorMessage(error, "Could not create project."));
+      } finally {
+        setCreatingProject(false);
+      }
+    },
+    [isAuthenticated, openAuthPrompt, router],
+  );
 
   useEffect(() => {
     if (!project || !persisted || loading) return;
@@ -825,25 +926,47 @@ export function CodeWorkspace() {
     handleSaveAs,
   };
 
-  const fileMenu = useMemo(
+  const headerLeading = useMemo(
     () => (
-      <IdeFileMenu
-        canSave={canSaveFile && persisted}
-        canDeploy={Boolean(projectRef.current)}
-        saving={saving}
-        onNewFile={() => void fileMenuHandlersRef.current.handleNewFileFromMenu()}
-        onNewFolder={() => void fileMenuHandlersRef.current.handleNewFolderFromMenu()}
-        onSave={() => void fileMenuHandlersRef.current.handleSave()}
-        onSaveAs={() => void fileMenuHandlersRef.current.handleSaveAs()}
-        onDeploy={fileMenuHandlersRef.current.handleOpenDeploy}
-      />
+      <div className="flex min-w-0 items-center gap-0.5">
+        <IdeProjectMenu
+          projectTitle={project?.title ?? "Project"}
+          projectId={project?.id}
+          recentProjects={recentProjects}
+          loadingRecents={loadingRecents}
+          onNewProject={handleRequestNewProject}
+          onOpenRecent={handleOpenRecentProject}
+          onRefreshRecents={refreshRecentProjects}
+        />
+        <IdeFileMenu
+          canSave={canSaveFile && persisted}
+          canDeploy={Boolean(projectRef.current)}
+          saving={saving}
+          onNewFile={() => void fileMenuHandlersRef.current.handleNewFileFromMenu()}
+          onNewFolder={() => void fileMenuHandlersRef.current.handleNewFolderFromMenu()}
+          onSave={() => void fileMenuHandlersRef.current.handleSave()}
+          onSaveAs={() => void fileMenuHandlersRef.current.handleSaveAs()}
+          onDeploy={fileMenuHandlersRef.current.handleOpenDeploy}
+        />
+      </div>
     ),
-    [canSaveFile, persisted, project?.id, saving],
+    [
+      canSaveFile,
+      handleOpenRecentProject,
+      handleRequestNewProject,
+      loadingRecents,
+      persisted,
+      project?.id,
+      project?.title,
+      recentProjects,
+      refreshRecentProjects,
+      saving,
+    ],
   );
 
   useEffect(() => {
-    setHeader({ leading: fileMenu });
-  }, [fileMenu, setHeader]);
+    setHeader({ leading: headerLeading });
+  }, [headerLeading, setHeader]);
 
   useEffect(() => () => setHeader(null), [setHeader]);
 
@@ -856,6 +979,26 @@ export function CodeWorkspace() {
       return `${prefix}$ ${command}\n${output}`;
     });
   }, []);
+
+  const handleAgentChange = useCallback((edit: ApiCodeWorkspaceAgentEdit) => {
+    setConsoleOpen(true);
+    setConsoleMaximized(false);
+    setConsolePreferredTab("changes");
+    setAgentChanges((previous) => {
+      const index = previous.findIndex((item) => item.fileId === edit.fileId);
+      if (index >= 0) {
+        return previous.map((item, idx) => (idx === index ? edit : item));
+      }
+      return [...previous, edit];
+    });
+  }, []);
+
+  const handleOpenAgentChange = useCallback(
+    (fileId: string) => {
+      openSearchResult(fileId, 1);
+    },
+    [openSearchResult],
+  );
 
   const handleAgentFileEdited = useCallback(
     (fileId: string) => {
@@ -876,7 +1019,27 @@ export function CodeWorkspace() {
   }
 
   return (
-    <div className="ide-workspace flex h-full min-h-0 flex-1 flex-col overflow-hidden backdrop-blur-3xl">
+    <>
+      <IdeNewProjectDialog
+        open={newProjectOpen}
+        creating={creatingProject}
+        templates={projectTemplates}
+        defaultTemplateId={preferences.defaultProjectTemplate}
+        onClose={() => {
+          if (creatingProject) return;
+          setNewProjectOpen(false);
+          setNewProjectError(null);
+        }}
+        onCreate={(title, templateId) => void handleCreateProject(title, templateId)}
+      />
+      {newProjectError ? (
+        <div className="pointer-events-none fixed inset-x-0 top-16 z-[1250] flex justify-center px-4">
+          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[13px] text-destructive shadow-sm">
+            {newProjectError}
+          </p>
+        </div>
+      ) : null}
+      <div className="ide-workspace flex h-full min-h-0 flex-1 flex-col overflow-hidden backdrop-blur-3xl">
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <IdeResizablePanel
           side="left"
@@ -1029,6 +1192,8 @@ export function CodeWorkspace() {
                 outputLog={deployOutput}
                 terminalLog={terminalLog}
                 ports={deployPorts}
+                changes={agentChanges}
+                onOpenChange={handleOpenAgentChange}
               />
             </IdeResizableBottomPanel>
           )}
@@ -1058,6 +1223,7 @@ export function CodeWorkspace() {
               onFileEdited={handleAgentFileEdited}
               onProjectChanged={refreshProjectFromServer}
               onTerminalOutput={handleTerminalOutput}
+              onAgentChange={handleAgentChange}
             />
           </IdeCollapsibleSidebar>
         </IdeResizablePanel>
@@ -1085,5 +1251,6 @@ export function CodeWorkspace() {
         onDeploy={() => void handleDeploy()}
       />
     </div>
+    </>
   );
 }

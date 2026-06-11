@@ -2,13 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { ArrowUp, Check, Loader2, Sparkles } from "lucide-react";
+import { ArrowUp, Loader2, Sparkles } from "lucide-react";
 import { ChatMessages } from "@/components/chat/chat-messages";
-import { ClovopsChatFileResults } from "@/components/code/clovops-chat-file-results";
-import { ClovopsChatTerminal } from "@/components/code/clovops-chat-terminal";
-import { ClovopsPlanReviewCard, type PlanReviewPayload } from "@/components/code/clovops-plan-review-card";
-import { ClovopsChatReviewResults } from "@/components/code/clovops-chat-review-results";
-import { ClovopsWorkflowPanel } from "@/components/code/clovops-workflow-panel";
+import { ClovopsAgentOutputPanel } from "@/components/code/clovops-agent-output-panel";
+import { type PlanReviewPayload } from "@/components/code/clovops-plan-review-card";
 import { buildAgentGreeting } from "@/lib/agent-greeting";
 import {
   appendWorkflowEventsFromStream,
@@ -19,6 +16,7 @@ import {
   codeWorkspaceApi,
   getApiErrorMessage,
   type ApiCodeWorkspaceAgentReview,
+  type ApiCodeWorkspaceAgentEdit,
   type ApiCodeWorkspaceSearchMatch,
   type ApiCodeWorkspaceTerminalEntry,
 } from "@/lib/orbit-api";
@@ -30,6 +28,9 @@ export const RIGHT_SIDEBAR_PANEL = {
   label: "Clovops",
   icon: Sparkles,
 };
+
+const PLAN_APPROVED_RESPONSE =
+  "Plan approved. Planning the next steps…";
 
 const CLOVOPS_SUGGESTIONS = [
   {
@@ -131,6 +132,7 @@ type IdeRightSidebarProps = {
   onFileEdited?: (fileId: string) => void;
   onProjectChanged?: () => void;
   onTerminalOutput?: (command: string, output: string, exitCode?: number | null) => void;
+  onAgentChange?: (edit: ApiCodeWorkspaceAgentEdit) => void;
 };
 
 export function IdeRightSidebar({
@@ -143,6 +145,7 @@ export function IdeRightSidebar({
   onFileEdited,
   onProjectChanged,
   onTerminalOutput,
+  onAgentChange,
 }: IdeRightSidebarProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageFiles, setMessageFiles] = useState<Record<string, ApiCodeWorkspaceSearchMatch[]>>({});
@@ -186,6 +189,23 @@ export function IdeRightSidebar({
   const displayMessages = messages.length === 0 ? [greeting] : messages;
   const showSuggestions = messages.length === 0 && !isLoading;
 
+  const activeOutputMessageId =
+    streamingMsgId ??
+    (awaitingHuman?.messageId ?? null);
+
+  const activeOutputMessage = useMemo(() => {
+    if (!activeOutputMessageId) return null;
+    return displayMessages.find((message) => message.id === activeOutputMessageId) ?? null;
+  }, [activeOutputMessageId, displayMessages]);
+
+  const threadMessages = useMemo(() => {
+    if (!activeOutputMessageId) return displayMessages;
+    return displayMessages.filter((message) => message.id !== activeOutputMessageId);
+  }, [activeOutputMessageId, displayMessages]);
+
+  const showAgentOutputPanel = Boolean(activeOutputMessageId);
+  const outputPanelLive = isLoading;
+
   const contextHint = awaitingHuman
     ? "Review the proposed plan — reply with feedback or send empty to approve."
     : activeFileLabel
@@ -225,6 +245,7 @@ export function IdeRightSidebar({
       const prompt = rawPrompt.trim();
       const resumeSessionId = options?.resumeSessionId ?? awaitingHuman?.sessionId;
       const isResume = Boolean(resumeSessionId);
+      const isPlanApproval = isResume && !prompt.trim();
       if ((!prompt && !isResume) || isLoading) return;
 
       if (!persisted || !projectId) {
@@ -289,9 +310,29 @@ export function IdeRightSidebar({
       }
       setAwaitingHuman(null);
       setIsLoading(true);
-      setAgentPhase(isResume ? "Resuming after your review…" : "Understanding request…");
+      setAgentPhase(
+        isPlanApproval
+          ? "Planning next steps…"
+          : isResume
+            ? "Resuming after your review…"
+            : "Understanding request…",
+      );
       setStreamingMsgId(assistantMsgId);
-      if (!isResume) {
+      if (isPlanApproval) {
+        streamBufferRef.current = PLAN_APPROVED_RESPONSE;
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantMsgId
+              ? { ...message, content: PLAN_APPROVED_RESPONSE }
+              : message,
+          ),
+        );
+        setMessagePlanReview((current) => {
+          const next = { ...current };
+          delete next[assistantMsgId];
+          return next;
+        });
+      } else if (!isResume) {
         streamBufferRef.current = "";
       }
       setMessageWorkflow((current) => ({
@@ -401,6 +442,23 @@ export function IdeRightSidebar({
               ),
             );
             break;
+          } else if (event.type === "workflow" && event.kind === "plan_approved") {
+            const approvalText = event.message?.trim() || PLAN_APPROVED_RESPONSE;
+            streamBufferRef.current = approvalText;
+            setAgentPhase("Planning next steps…");
+            setMessagePlanReview((current) => {
+              const next = { ...current };
+              delete next[assistantMsgId];
+              return next;
+            });
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantMsgId
+                  ? { ...message, content: approvalText }
+                  : message,
+              ),
+            );
+            await yieldToUi();
           } else if (event.type === "phase") {
             flushSync(() => setAgentPhase(event.message));
             await yieldToUi();
@@ -410,7 +468,11 @@ export function IdeRightSidebar({
             }
             await yieldToUi();
           } else if (event.type === "token") {
-            streamBufferRef.current += event.content;
+            if (streamBufferRef.current === PLAN_APPROVED_RESPONSE) {
+              streamBufferRef.current = event.content;
+            } else {
+              streamBufferRef.current += event.content;
+            }
           } else if (event.type === "files") {
             collectedFiles = dedupeFiles([...collectedFiles, ...event.files]);
             setMessageFiles((current) => ({
@@ -418,6 +480,7 @@ export function IdeRightSidebar({
               [assistantMsgId]: dedupeFiles(collectedFiles),
             }));
           } else if (event.type === "edit") {
+            onAgentChange?.(event.edit);
             if (event.edit.created) {
               onProjectChanged?.();
             }
@@ -425,7 +488,6 @@ export function IdeRightSidebar({
           } else if (event.type === "project_changed") {
             onProjectChanged?.();
           } else if (event.type === "terminal") {
-            onTerminalOutput?.(event.command, event.output, event.exitCode);
             collectedTerminals = upsertTerminalEntry(collectedTerminals, {
               command: event.command,
               output: event.output,
@@ -447,7 +509,11 @@ export function IdeRightSidebar({
             collectedTerminals = finalizeTerminalEntries(collectedTerminals);
             paintWorkflow([...collectedWorkflow]);
             paintTerminals([...collectedTerminals]);
-            if (event.content && !streamBufferRef.current) {
+            if (
+              event.content &&
+              (!streamBufferRef.current ||
+                streamBufferRef.current === PLAN_APPROVED_RESPONSE)
+            ) {
               streamBufferRef.current = event.content;
             }
             if (event.files.length) {
@@ -463,6 +529,10 @@ export function IdeRightSidebar({
                 ...current,
                 [assistantMsgId]: event.reviews,
               }));
+            }
+            for (const edit of event.edits) {
+              onAgentChange?.(edit);
+              onFileEdited?.(edit.fileId);
             }
           } else {
             await yieldToUi();
@@ -508,6 +578,7 @@ export function IdeRightSidebar({
       onFileEdited,
       onProjectChanged,
       onTerminalOutput,
+      onAgentChange,
       persisted,
       projectId,
       streamingMsgId,
@@ -561,66 +632,15 @@ export function IdeRightSidebar({
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
       <ChatMessages
-        messages={displayMessages}
-        isLoading={isLoading}
-        streamingMsgId={streamingMsgId}
+        messages={threadMessages}
+        isLoading={isLoading && !activeOutputMessageId}
+        streamingMsgId={null}
         className="max-md:pb-0 [scrollbar-width:thin]"
         style={
           mobileDockHeight > 0 ? { paddingBottom: mobileDockHeight + 8 } : undefined
         }
         contentClassName="px-2"
         threadClassName="chat-thread space-y-4 py-4"
-        renderMessageFooter={(message) => {
-          if (message.role !== "assistant") return null;
-          const files = messageFiles[message.id];
-          const reviews = messageReviews[message.id];
-          const workflow = messageWorkflow[message.id];
-          const terminals = messageTerminals[message.id];
-          const planReview = messagePlanReview[message.id];
-          const isStreamingMessage = isLoading && streamingMsgId === message.id;
-          const showPlanReview =
-            planReview &&
-            (awaitingHuman?.messageId === message.id || !awaitingHuman);
-          if (
-            !files?.length &&
-            !reviews?.length &&
-            !workflow?.length &&
-            !terminals?.length &&
-            !showPlanReview
-          ) {
-            return null;
-          }
-          return (
-            <div className="mt-2 space-y-1.5">
-              {showPlanReview ? (
-                <ClovopsPlanReviewCard
-                  review={planReview}
-                  onApprove={
-                    awaitingHuman?.messageId === message.id ? approvePlan : undefined
-                  }
-                  approving={isLoading && awaitingHuman?.messageId === message.id}
-                />
-              ) : null}
-              {workflow?.length ? (
-                <ClovopsWorkflowPanel
-                  key={isStreamingMessage ? `live-${workflowRevision}` : message.id}
-                  events={workflow}
-                  live={isStreamingMessage}
-                />
-              ) : null}
-              {terminals?.length ? (
-                <ClovopsChatTerminal
-                  entries={terminals}
-                  live={isStreamingMessage}
-                />
-              ) : null}
-              {files?.length ? (
-                <ClovopsChatFileResults files={files} onOpenFile={onOpenSearchResult} />
-              ) : null}
-              {reviews?.length ? <ClovopsChatReviewResults reviews={reviews} /> : null}
-            </div>
-          );
-        }}
         footer={
           showSuggestions ? (
             <div className="hidden px-2 pb-2 md:block">{suggestionsPanel}</div>
@@ -634,25 +654,30 @@ export function IdeRightSidebar({
           "shrink-0 w-full safe-bottom safe-x",
           "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40",
           "max-md:bg-gradient-to-t max-md:from-background max-md:via-background/95 max-md:to-transparent",
-          "border-t border-border/40 bg-background/80 pb-3 pt-2 backdrop-blur-sm max-md:border-t-0 max-md:pt-3",
+          "border-t border-border/40 bg-background/85 pb-3 pt-2 backdrop-blur-md max-md:border-t-0 max-md:pt-3",
         )}
       >
-        {awaitingHuman ? (
-          <div className="mb-2 px-1.5 md:px-2">
-            <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2">
-              <p className="text-[12px] text-foreground/90">Plan review required</p>
-              <button
-                type="button"
-                onClick={approvePlan}
-                disabled={isLoading}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-[12px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                <Check className="h-3.5 w-3.5" />
-                Approve
-              </button>
-            </div>
-          </div>
-        ) : null}
+        <ClovopsAgentOutputPanel
+          visible={showAgentOutputPanel}
+          live={outputPanelLive}
+          agentPhase={agentPhase}
+          responseMessage={activeOutputMessage}
+          workflow={activeOutputMessageId ? messageWorkflow[activeOutputMessageId] : undefined}
+          workflowRevision={workflowRevision}
+          terminals={activeOutputMessageId ? messageTerminals[activeOutputMessageId] : undefined}
+          files={activeOutputMessageId ? messageFiles[activeOutputMessageId] : undefined}
+          reviews={activeOutputMessageId ? messageReviews[activeOutputMessageId] : undefined}
+          planReview={
+            activeOutputMessageId
+              ? messagePlanReview[activeOutputMessageId] ?? null
+              : null
+          }
+          onApprovePlan={
+            awaitingHuman?.messageId === activeOutputMessageId ? approvePlan : undefined
+          }
+          approvingPlan={isLoading && awaitingHuman?.messageId === activeOutputMessageId}
+          onOpenFile={onOpenSearchResult}
+        />
         {showSuggestions ? (
           <div className="mb-2 md:hidden">{suggestionsPanel}</div>
         ) : null}

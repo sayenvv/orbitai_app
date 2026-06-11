@@ -9,6 +9,7 @@ type ClovopsChatTerminalProps = {
   entries: ApiCodeWorkspaceTerminalEntry[];
   className?: string;
   live?: boolean;
+  embedded?: boolean;
 };
 
 function exitLabel(exitCode?: number | null): string | null {
@@ -62,7 +63,12 @@ function TerminalBlock({ entry }: { entry: ApiCodeWorkspaceTerminalEntry }) {
   );
 }
 
-export function ClovopsChatTerminal({ entries, className, live = false }: ClovopsChatTerminalProps) {
+export function ClovopsChatTerminal({
+  entries,
+  className,
+  live = false,
+  embedded = false,
+}: ClovopsChatTerminalProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(true);
 
@@ -96,8 +102,11 @@ export function ClovopsChatTerminal({ entries, className, live = false }: Clovop
     <section className={cn("mt-1 w-full", className)} aria-label="Terminal output">
       <div
         className={cn(
-          "overflow-hidden rounded-lg border border-border/35 bg-muted/10",
-          live && stats.running && "border-border/50",
+          "overflow-hidden",
+          embedded
+            ? "rounded-md bg-muted/15"
+            : "rounded-lg border border-border/35 bg-muted/10",
+          !embedded && live && stats.running && "border-border/50",
         )}
       >
         <button

@@ -31,6 +31,7 @@ from app.services.code_workspace.project_store import (
     update_project_node,
     update_project_structure,
 )
+from app.services.code_workspace.project_templates import list_project_templates
 from clovai_apps.code_workspace.schemas import (
     CodeWorkspaceAgentHumanInputRequest,
     CodeWorkspaceAgentSearchRequest,
@@ -43,6 +44,8 @@ from clovai_apps.code_workspace.schemas import (
     CodeWorkspaceProjectCreateRequest,
     CodeWorkspaceProjectListResponse,
     CodeWorkspaceProjectResponse,
+    CodeWorkspaceProjectTemplate,
+    CodeWorkspaceProjectTemplateListResponse,
     CodeWorkspaceProjectUpdateRequest,
     CodeWorkspaceSearchRequest,
     CodeWorkspaceSearchResponse,
@@ -70,6 +73,25 @@ def code_workspace_list_projects(
 ):
     _ensure_enabled()
     return CodeWorkspaceProjectListResponse(data=list_projects(db, user.id, limit=limit))
+
+
+@router.get("/templates", response_model=CodeWorkspaceProjectTemplateListResponse)
+def code_workspace_list_templates(
+    user: User = Depends(require_chat_user),
+):
+    _ensure_enabled()
+    return CodeWorkspaceProjectTemplateListResponse(
+        data=[
+            CodeWorkspaceProjectTemplate(
+                id=template.id,
+                label=template.label,
+                description=template.description,
+                language=template.language,
+                framework=template.framework,
+            )
+            for template in list_project_templates()
+        ]
+    )
 
 
 @router.post("/projects", response_model=CodeWorkspaceProjectResponse, status_code=status.HTTP_201_CREATED)

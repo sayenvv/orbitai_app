@@ -6,17 +6,20 @@ import {
   Bug,
   ChevronDown,
   ChevronUp,
+  FileDiff,
   Plug,
   Terminal,
   X,
 } from "lucide-react";
+import type { ApiCodeWorkspaceAgentEdit } from "@/lib/orbit-api";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type ConsoleTab = "terminal" | "debug" | "output" | "problems" | "ports";
+type ConsoleTab = "terminal" | "changes" | "debug" | "output" | "problems" | "ports";
 
 const CONSOLE_TABS: Array<{ id: ConsoleTab; label: string; icon: LucideIcon }> = [
   { id: "terminal", label: "Terminal", icon: Terminal },
+  { id: "changes", label: "Changes", icon: FileDiff },
   { id: "debug", label: "Debug Console", icon: Bug },
   { id: "output", label: "Output", icon: Terminal },
   { id: "problems", label: "Problems", icon: AlertCircle },
@@ -56,6 +59,8 @@ type IdeBottomConsoleProps = {
   outputLog?: string;
   terminalLog?: string;
   ports?: IdeConsolePort[];
+  changes?: ApiCodeWorkspaceAgentEdit[];
+  onOpenChange?: (fileId: string) => void;
 };
 
 export function IdeBottomConsole({
@@ -66,6 +71,8 @@ export function IdeBottomConsole({
   outputLog,
   terminalLog,
   ports,
+  changes = [],
+  onOpenChange,
 }: IdeBottomConsoleProps) {
   const [activeTab, setActiveTab] = useState<ConsoleTab>(preferredTab ?? "terminal");
   const [terminalInput, setTerminalInput] = useState("");
@@ -146,6 +153,39 @@ export function IdeBottomConsole({
                 className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
               />
             </div>
+          </div>
+        )}
+
+        {activeTab === "changes" && (
+          <div className="h-full overflow-auto p-2 [scrollbar-width:thin]">
+            {changes.length === 0 ? (
+              <p className="px-2 py-3 text-[12px] text-muted-foreground">
+                No file changes from the agent yet.
+              </p>
+            ) : (
+              <ul className="space-y-0.5">
+                {changes.map((change) => (
+                  <li key={change.fileId}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenChange?.(change.fileId)}
+                      className="flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[var(--workspace-tab-inactive-bg-hover)]"
+                    >
+                      <FileDiff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/80" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-mono text-[12px] text-foreground">
+                          {change.filePath}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          {change.created ? "Created" : "Modified"}
+                          {!change.syntaxOk ? " · syntax check failed" : ""}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 

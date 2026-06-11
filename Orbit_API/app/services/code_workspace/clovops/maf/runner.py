@@ -279,7 +279,7 @@ async def _stream_clovops_maf_events(
             yield workflow_event(
                 kind="plan_approved",
                 title="Plan approved",
-                message="Continuing with implementation.",
+                message="Plan approved. Planning the next steps…",
                 agent_id="plan_changes",
                 status="success",
                 category="plan",

@@ -5,7 +5,7 @@ export type CodeWorkspacePreferences = {
   lineNumbers: boolean;
   autoSave: boolean;
   autoSaveDelayMs: 500 | 1000 | 2000 | 5000;
-  seedDemoOnCreate: boolean;
+  defaultProjectTemplate: string;
   terminalOpenOnLaunch: boolean;
   defaultGitBranch: string;
   rightSidebarOpenOnLaunch: boolean;
@@ -18,7 +18,7 @@ export const DEFAULT_CODE_WORKSPACE_PREFERENCES: CodeWorkspacePreferences = {
   lineNumbers: true,
   autoSave: true,
   autoSaveDelayMs: 1000,
-  seedDemoOnCreate: true,
+  defaultProjectTemplate: "empty",
   terminalOpenOnLaunch: true,
   defaultGitBranch: "main",
   rightSidebarOpenOnLaunch: false,
@@ -35,8 +35,19 @@ function isAutoSaveDelay(value: unknown): value is CodeWorkspacePreferences["aut
   return value === 500 || value === 1000 || value === 2000 || value === 5000;
 }
 
+function resolveDefaultTemplate(partial: Partial<CodeWorkspacePreferences> & { seedDemoOnCreate?: boolean }): string {
+  if (
+    typeof partial.defaultProjectTemplate === "string" &&
+    partial.defaultProjectTemplate.trim()
+  ) {
+    return partial.defaultProjectTemplate.trim();
+  }
+  if (partial.seedDemoOnCreate === true) return "typescript";
+  return DEFAULT_CODE_WORKSPACE_PREFERENCES.defaultProjectTemplate;
+}
+
 export function normalizePreferences(
-  partial: Partial<CodeWorkspacePreferences> | null | undefined,
+  partial: (Partial<CodeWorkspacePreferences> & { seedDemoOnCreate?: boolean }) | null | undefined,
 ): CodeWorkspacePreferences {
   const base = { ...DEFAULT_CODE_WORKSPACE_PREFERENCES };
   if (!partial) return base;
@@ -49,7 +60,7 @@ export function normalizePreferences(
   if (typeof partial.lineNumbers === "boolean") base.lineNumbers = partial.lineNumbers;
   if (typeof partial.autoSave === "boolean") base.autoSave = partial.autoSave;
   if (isAutoSaveDelay(partial.autoSaveDelayMs)) base.autoSaveDelayMs = partial.autoSaveDelayMs;
-  if (typeof partial.seedDemoOnCreate === "boolean") base.seedDemoOnCreate = partial.seedDemoOnCreate;
+  base.defaultProjectTemplate = resolveDefaultTemplate(partial);
   if (typeof partial.terminalOpenOnLaunch === "boolean") {
     base.terminalOpenOnLaunch = partial.terminalOpenOnLaunch;
   }

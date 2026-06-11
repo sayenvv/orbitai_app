@@ -84,6 +84,29 @@ def sync_structure_to_disk(
             target.write_text("", encoding="utf-8")
 
 
+def seed_template_file_contents(
+    db: Session,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    nodes: list[CodeWorkspaceNode],
+    contents_by_path: dict[str, str],
+) -> None:
+    if not contents_by_path:
+        return
+
+    root = ensure_project_directory(db, user_id, project_id)
+    for node in nodes:
+        if node.kind != "file":
+            continue
+        relative = node_relative_path(nodes, node.id)
+        content = contents_by_path.get(relative)
+        if content is None:
+            continue
+        target = resolve_node_path(root, nodes, node.id)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+
 def create_node_on_disk(
     db: Session,
     user_id: uuid.UUID,
