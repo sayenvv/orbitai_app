@@ -4,6 +4,7 @@ export const routes = {
   code: "/code",
   codeSettings: "/code/settings",
   plans: "/plans",
+  platform: "/platform",
   apps: {
     store: "/apps",
     detail: (id: string) => `/apps/${encodeURIComponent(id)}`,
@@ -39,6 +40,7 @@ export const ALLOWED_INTERNAL_REDIRECT_PREFIXES = [
   routes.code,
   routes.codeSettings,
   routes.plans,
+  routes.platform,
   routes.apps.store,
   routes.chat.root,
   "/apps/",

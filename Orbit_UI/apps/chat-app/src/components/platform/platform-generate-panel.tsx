@@ -118,7 +118,8 @@ export function PlatformGeneratePanel() {
   }, [artifactUrl, error, liveMessage, running]);
 
   return (
-    <PlatformBackdrop>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <PlatformBackdrop plain={showWorkspace} home={!showWorkspace}>
       <AnimatePresence mode="wait" initial={false}>
         {!showWorkspace ? (
           <motion.div
@@ -127,6 +128,7 @@ export function PlatformGeneratePanel() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25 }}
+            className="flex min-h-0 flex-1 flex-col"
           >
             <IdleHero
               prompt={prompt}
@@ -148,7 +150,7 @@ export function PlatformGeneratePanel() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="flex min-h-0 flex-1 flex-col"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <StudioWorkspace
               prompt={prompt}
@@ -166,5 +168,6 @@ export function PlatformGeneratePanel() {
         )}
       </AnimatePresence>
     </PlatformBackdrop>
+    </div>
   );
 }

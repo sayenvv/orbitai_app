@@ -40,14 +40,14 @@ export function EditorOptionCard({
       onClick={onClick}
       disabled={disabled || loading}
       className={cn(
-        "glass-surface glass-card-interactive group flex w-full items-center gap-3 rounded-2xl p-4 text-left transition",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "group flex w-full items-center gap-3 rounded-lg border border-border/60 bg-background p-3 text-left transition",
+        "hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50",
       )}
     >
       <span
         className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-border/50 transition",
-          "bg-foreground/[0.04] group-hover:bg-foreground/[0.06]",
+          "flex size-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30 transition",
+          "group-hover:bg-muted/50",
           iconClassName,
         )}
       >
@@ -58,7 +58,7 @@ export function EditorOptionCard({
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">{title}</span>
+        <span className="block text-[13px] font-medium text-foreground">{title}</span>
         <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">{subtitle}</span>
       </span>
     </button>

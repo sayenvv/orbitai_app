@@ -6,6 +6,7 @@ import {
   Crown,
   Folders,
   MessageCirclePlus,
+  Rocket,
   type LucideIcon,
 } from "lucide-react";
 
@@ -185,6 +186,12 @@ export function AppSidebarContent({
     onExpand?.();
   };
 
+  const handlePlatform = () => {
+    router.push(routes.platform);
+    onNavigate?.();
+  };
+
+  const isPlatformActive = pathname === routes.platform || pathname.startsWith(`${routes.platform}/`);
   const historyLoading = chatsLoading || !chatsHydrated;
   const isDrawer = variant === "drawer";
 
@@ -198,6 +205,7 @@ export function AppSidebarContent({
     ? [
         { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
         { key: "library", icon: Folders, label: "Library", onClick: handleLibrary, active: section === "library" },
+        { key: "platform", icon: Rocket, label: "Platform", onClick: handlePlatform, active: isPlatformActive },
       ]
     : [
         { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
@@ -236,6 +244,8 @@ export function AppSidebarContent({
             section={section}
             onNewChat={handleNewChat}
             onLibrary={handleLibrary}
+            onPlatform={handlePlatform}
+            platformActive={isPlatformActive}
             onPlans={handlePlans}
             onSearch={handleSearch}
             isAuthenticated={isAuthenticated}

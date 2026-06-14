@@ -18,6 +18,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Rocket,
   MessageSquare,
   Trash2,
   Upload,
@@ -71,6 +72,8 @@ type SidebarCollapsedNavProps = {
   section: SidebarSection;
   onNewChat: () => void;
   onLibrary: () => void;
+  onPlatform?: () => void;
+  platformActive?: boolean;
   onPlans: () => void;
   onSearch: () => void;
   isAuthenticated?: boolean;
@@ -80,12 +83,17 @@ export function SidebarCollapsedNav({
   section,
   onNewChat,
   onLibrary,
+  onPlatform,
+  platformActive = false,
   onPlans,
   onSearch,
   isAuthenticated = true,
 }: SidebarCollapsedNavProps) {
   const authenticatedItems: SidebarNavItem[] = [
     { key: "library", label: "Library", icon: Folders, active: section === "library", onClick: onLibrary },
+    ...(onPlatform
+      ? [{ key: "platform", label: "Platform", icon: Rocket, active: platformActive, onClick: onPlatform }]
+      : []),
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];
   const guestItems: SidebarNavItem[] = [
