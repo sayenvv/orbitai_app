@@ -128,6 +128,22 @@ async def run_code_writer(
     text = raw if isinstance(raw, str) else str(raw or "")
     parsed = _parse_writer_json(text)
 
+    goal_by_file_id: dict[str, str] = {}
+    goal_by_create_name: dict[str, str] = {}
+    for target in targets:
+        action = str(target.get("action") or "update").lower()
+        goal = str(target.get("goal") or "").strip()
+        if not goal:
+            continue
+        if action == "create":
+            name = str(target.get("name") or "").strip()
+            if name:
+                goal_by_create_name[name] = goal
+        else:
+            file_id = str(target.get("file_id") or "")
+            if file_id:
+                goal_by_file_id[file_id] = goal
+
     edits: list[dict] = []
     db = SessionLocal()
     try:
@@ -140,15 +156,17 @@ async def run_code_writer(
                 continue
 
             if action == "create":
+                name = str(item.get("name") or "untitled.txt")
                 payload = create_code_workspace_file_for_agent(
                     db,
                     user_id,
                     project_id,
-                    name=str(item.get("name") or "untitled.txt"),
+                    name=name,
                     content=content,
                     parent_path=str(item.get("parent_path") or "") or None,
                     parent_id=str(item.get("parent_id") or "") or None,
                     language=str(item.get("language") or "") or None,
+                    summary=goal_by_create_name.get(name) or str(parsed.get("summary") or ""),
                 )
             else:
                 file_id = str(item.get("file_id") or item.get("fileId") or "")
@@ -160,6 +178,7 @@ async def run_code_writer(
                     project_id,
                     file_id=file_id,
                     content=content,
+                    summary=goal_by_file_id.get(file_id) or str(parsed.get("summary") or ""),
                 )
             edits.append(payload)
     finally:

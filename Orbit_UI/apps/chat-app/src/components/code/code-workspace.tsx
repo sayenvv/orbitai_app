@@ -10,6 +10,7 @@ import {
   GitBranch,
   X,
 } from "lucide-react";
+import { IdeAgentChangeBar } from "@/components/code/ide-agent-change-bar";
 import { CodeEditor } from "@/components/code/code-editor";
 import { IdeDeployModal, type DeployResult } from "@/components/code/ide-deploy-modal";
 import { IdeFileMenu } from "@/components/code/ide-file-menu";
@@ -67,7 +68,13 @@ import {
   fetchCodeWorkspaceTemplates,
   type CodeWorkspaceProjectTemplate,
 } from "@/lib/code-workspace-templates";
-import { codeWorkspaceApi, getApiErrorMessage, type ApiCodeWorkspaceAgentEdit } from "@/lib/orbit-api";
+import { countDiffStats, getAddedLineNumbers } from "@/lib/agent-change-diff";
+import {
+  codeWorkspaceApi,
+  getApiErrorMessage,
+  type AgentChangeRecord,
+  type ApiCodeWorkspaceAgentEdit,
+} from "@/lib/orbit-api";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -111,7 +118,11 @@ export function CodeWorkspace() {
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deployOutput, setDeployOutput] = useState("");
   const [terminalLog, setTerminalLog] = useState("");
-  const [agentChanges, setAgentChanges] = useState<ApiCodeWorkspaceAgentEdit[]>([]);
+  const [agentChanges, setAgentChanges] = useState<AgentChangeRecord[]>([]);
+  const [selectedAgentChangeId, setSelectedAgentChangeId] = useState<string | null>(null);
+  const [changeReviewBusyFileId, setChangeReviewBusyFileId] = useState<string | null>(null);
+  const fileContentsRef = useRef<CodeWorkspaceFileContents>({});
+  const lastAdditionAutoScrollKeyRef = useRef<string | null>(null);
   const [deployPorts, setDeployPorts] = useState<IdeConsolePort[]>([]);
   const [consolePreferredTab, setConsolePreferredTab] = useState<
     "terminal" | "changes" | "debug" | "output" | "problems" | "ports" | undefined
@@ -146,6 +157,8 @@ export function CodeWorkspace() {
     fileId: string;
     line: number;
   } | null>(null);
+  const [activeAdditionLine, setActiveAdditionLine] = useState<number | null>(null);
+  const [additionNavIndex, setAdditionNavIndex] = useState(0);
 
   const leftPanel = useResizableWidth(240, 180, 480, "left");
   const rightPanel = useResizableWidth(320, 260, 560, "right");
@@ -178,6 +191,92 @@ export function CodeWorkspace() {
   const crumbs = useMemo(() => breadcrumbSegments(activePath), [activePath]);
   const activeFileLabel = activeFile?.name;
   const activeFilePath = activeFile ? nodePath(activeFile.id, nodes) : undefined;
+
+  useEffect(() => {
+    fileContentsRef.current = fileContents;
+  }, [fileContents]);
+
+  const activePendingChange = useMemo(
+    () =>
+      ui.activeFileId
+        ? agentChanges.find(
+            (change) => change.fileId === ui.activeFileId && change.reviewStatus === "pending",
+          )
+        : undefined,
+    [agentChanges, ui.activeFileId],
+  );
+
+  const agentChangeHighlight = useMemo(() => {
+    if (!activePendingChange) return null;
+    return {
+      previousContent: activePendingChange.previousContent ?? "",
+      newContent:
+        activePendingChange.newContent ??
+        fileContents[activePendingChange.fileId] ??
+        "",
+      focusedAddedLine: activeAdditionLine,
+    };
+  }, [activeAdditionLine, activePendingChange, fileContents]);
+
+  const activeChangeAddedLines = useMemo(() => {
+    if (!activePendingChange) return [];
+    const previousContent = activePendingChange.previousContent ?? "";
+    const newContent =
+      activePendingChange.newContent ??
+      fileContents[activePendingChange.fileId] ??
+      "";
+    return getAddedLineNumbers(previousContent, newContent);
+  }, [activePendingChange, fileContents]);
+
+  const navigateToAddedLine = useCallback(
+    (line: number) => {
+      if (!ui.activeFileId) return;
+      const index = activeChangeAddedLines.indexOf(line);
+      if (index >= 0) setAdditionNavIndex(index);
+      setActiveAdditionLine(line);
+      setEditorScrollTarget({ fileId: ui.activeFileId, line });
+    },
+    [activeChangeAddedLines, ui.activeFileId],
+  );
+
+  const navigateAddedLineBy = useCallback(
+    (direction: 1 | -1) => {
+      if (!activeChangeAddedLines.length || !ui.activeFileId) return;
+      const nextIndex =
+        (additionNavIndex + direction + activeChangeAddedLines.length) %
+        activeChangeAddedLines.length;
+      const line = activeChangeAddedLines[nextIndex];
+      setAdditionNavIndex(nextIndex);
+      setActiveAdditionLine(line);
+      setEditorScrollTarget({ fileId: ui.activeFileId, line });
+    },
+    [activeChangeAddedLines, additionNavIndex, ui.activeFileId],
+  );
+
+  useEffect(() => {
+    if (!activePendingChange || !ui.activeFileId) {
+      setActiveAdditionLine(null);
+      setAdditionNavIndex(0);
+    }
+  }, [activePendingChange, ui.activeFileId]);
+
+  useEffect(() => {
+    if (!activePendingChange || !ui.activeFileId) {
+      lastAdditionAutoScrollKeyRef.current = null;
+      return;
+    }
+    if (activePendingChange.fileId !== ui.activeFileId) return;
+    if (activeChangeAddedLines.length === 0) return;
+
+    const scrollKey = `${activePendingChange.fileId}:${activePendingChange.previousContent ?? ""}:${activePendingChange.newContent ?? ""}`;
+    if (lastAdditionAutoScrollKeyRef.current === scrollKey) return;
+    lastAdditionAutoScrollKeyRef.current = scrollKey;
+
+    const firstLine = activeChangeAddedLines[0];
+    setAdditionNavIndex(0);
+    setActiveAdditionLine(firstLine);
+    setEditorScrollTarget({ fileId: ui.activeFileId, line: firstLine });
+  }, [activeChangeAddedLines, activePendingChange, ui.activeFileId]);
 
   const allFileNodes = useMemo(
     () => nodes.filter((node) => node.kind === "file"),
@@ -981,24 +1080,133 @@ export function CodeWorkspace() {
   }, []);
 
   const handleAgentChange = useCallback((edit: ApiCodeWorkspaceAgentEdit) => {
+    const snapshotBeforeApply = fileContentsRef.current[edit.fileId];
+
     setConsoleOpen(true);
     setConsoleMaximized(false);
     setConsolePreferredTab("changes");
+    setSelectedAgentChangeId(edit.fileId);
     setAgentChanges((previous) => {
+      const existing = previous.find((item) => item.fileId === edit.fileId);
+      const previousContent =
+        existing?.reviewStatus === "pending" && existing.previousContent !== undefined
+          ? existing.previousContent
+          : (edit.previousContent ?? snapshotBeforeApply ?? "");
+      const newContent = edit.newContent ?? existing?.newContent ?? "";
+      const stats =
+        edit.linesAdded != null && edit.linesRemoved != null
+          ? { added: edit.linesAdded, removed: edit.linesRemoved }
+          : countDiffStats(previousContent, newContent);
+
+      const record: AgentChangeRecord = {
+        ...edit,
+        previousContent,
+        newContent,
+        linesAdded: stats.added,
+        linesRemoved: stats.removed,
+        reviewStatus: "pending",
+      };
+
       const index = previous.findIndex((item) => item.fileId === edit.fileId);
       if (index >= 0) {
-        return previous.map((item, idx) => (idx === index ? edit : item));
+        return previous.map((item, idx) => (idx === index ? record : item));
       }
-      return [...previous, edit];
+      return [...previous, record];
     });
+
+    if (edit.newContent !== undefined) {
+      setFileContents((previous) => ({ ...previous, [edit.fileId]: edit.newContent! }));
+      setExternalContentRevision((previous) => ({
+        ...previous,
+        [edit.fileId]: (previous[edit.fileId] ?? 0) + 1,
+      }));
+    }
   }, []);
+
+  const handleSelectAgentChange = useCallback(
+    (change: AgentChangeRecord) => {
+      setSelectedAgentChangeId((current) => {
+        const next = current === change.fileId ? null : change.fileId;
+        if (next && ui.activeFileId !== change.fileId) {
+          openSearchResult(change.fileId, 1);
+        }
+        return next;
+      });
+    },
+    [openSearchResult, ui.activeFileId],
+  );
 
   const handleOpenAgentChange = useCallback(
     (fileId: string) => {
+      setSelectedAgentChangeId(fileId);
       openSearchResult(fileId, 1);
     },
     [openSearchResult],
   );
+
+  const handleAcceptChange = useCallback((change: AgentChangeRecord) => {
+    const acceptedContent =
+      change.newContent ?? fileContentsRef.current[change.fileId] ?? "";
+
+    setChangeReviewBusyFileId(change.fileId);
+    setFileContents((previous) => ({ ...previous, [change.fileId]: acceptedContent }));
+    setAgentChanges((previous) =>
+      previous.map((item) =>
+        item.fileId === change.fileId ? { ...item, reviewStatus: "accepted" } : item,
+      ),
+    );
+    setChangeReviewBusyFileId(null);
+  }, []);
+
+  const handleRejectChange = useCallback(
+    async (change: AgentChangeRecord) => {
+      const current = projectRef.current;
+      const restoredContent = change.previousContent ?? "";
+
+      setChangeReviewBusyFileId(change.fileId);
+      try {
+        if (persisted && current) {
+          await codeWorkspaceApi.saveFileContent(current.id, change.fileId, restoredContent);
+          await reloadFileContent(change.fileId, current.id, current.state.nodes);
+        } else {
+          setFileContents((previous) => ({ ...previous, [change.fileId]: restoredContent }));
+          setExternalContentRevision((previous) => ({
+            ...previous,
+            [change.fileId]: (previous[change.fileId] ?? 0) + 1,
+          }));
+        }
+
+        setAgentChanges((previous) =>
+          previous.map((item) =>
+            item.fileId === change.fileId ? { ...item, reviewStatus: "rejected" } : item,
+          ),
+        );
+      } finally {
+        setChangeReviewBusyFileId(null);
+      }
+    },
+    [persisted, reloadFileContent],
+  );
+
+  useEffect(() => {
+    setAgentChanges((previous) => {
+      let changed = false;
+      const next = previous.map((change) => {
+        if (change.reviewStatus !== "pending" || change.newContent) return change;
+        const content = fileContents[change.fileId];
+        if (content === undefined) return change;
+        const stats = countDiffStats(change.previousContent ?? "", content);
+        changed = true;
+        return {
+          ...change,
+          newContent: content,
+          linesAdded: stats.added,
+          linesRemoved: stats.removed,
+        };
+      });
+      return changed ? next : previous;
+    });
+  }, [fileContents]);
 
   const handleAgentFileEdited = useCallback(
     (fileId: string) => {
@@ -1156,6 +1364,19 @@ export function CodeWorkspace() {
           </div>
 
           <div className="ide-editor-viewport relative flex min-h-0 flex-1 flex-col overflow-hidden">
+            {activePendingChange ? (
+              <IdeAgentChangeBar
+                change={activePendingChange}
+                addedLines={activeChangeAddedLines}
+                activeAddedLine={activeAdditionLine}
+                onNavigateAddedLine={navigateToAddedLine}
+                onNextAddition={() => navigateAddedLineBy(1)}
+                onPreviousAddition={() => navigateAddedLineBy(-1)}
+                onAccept={() => handleAcceptChange(activePendingChange)}
+                onReject={() => void handleRejectChange(activePendingChange)}
+                busy={changeReviewBusyFileId === activePendingChange.fileId}
+              />
+            ) : null}
             {activeFile && isActiveFileContentReady ? (
               <CodeEditor
                 key={`${activeFile.id}:${externalContentRevision[activeFile.id] ?? 0}`}
@@ -1171,6 +1392,7 @@ export function CodeWorkspace() {
                 }
                 onScrollToLineComplete={handleScrollToLineComplete}
                 onCursorChange={handleCursorChange}
+                agentChangeHighlight={agentChangeHighlight}
               />
             ) : activeFile ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -1193,7 +1415,12 @@ export function CodeWorkspace() {
                 terminalLog={terminalLog}
                 ports={deployPorts}
                 changes={agentChanges}
+                selectedChangeId={selectedAgentChangeId}
+                onSelectChange={handleSelectAgentChange}
                 onOpenChange={handleOpenAgentChange}
+                onAcceptChange={handleAcceptChange}
+                onRejectChange={(change) => void handleRejectChange(change)}
+                changeReviewBusyFileId={changeReviewBusyFileId}
               />
             </IdeResizableBottomPanel>
           )}

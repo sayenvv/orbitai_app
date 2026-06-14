@@ -955,6 +955,17 @@ export type ApiCodeWorkspaceAgentEdit = {
   syntaxOk: boolean;
   created?: boolean;
   status?: string;
+  summary?: string;
+  previousContent?: string;
+  newContent?: string;
+  linesAdded?: number;
+  linesRemoved?: number;
+};
+
+export type AgentChangeReviewStatus = "pending" | "accepted" | "rejected";
+
+export type AgentChangeRecord = ApiCodeWorkspaceAgentEdit & {
+  reviewStatus: AgentChangeReviewStatus;
 };
 
 export type ApiCodeWorkspaceAgentReviewIssue = {
@@ -1395,3 +1406,170 @@ export function mapMessage(raw: ApiMessage): Message {
     metadata: mapMessageMetadata(raw.metadata),
   };
 }
+
+// ─── AI Platform (`/api/platform/*`) ────────────────────────────────────────
+
+export type PlatformStreamEvent = {
+  type: string;
+  stage?: string;
+  agent?: string;
+  message?: string;
+  payload?: Record<string, unknown>;
+};
+
+export type PlatformWorkflowRun = {
+  id: string;
+  user_id: string;
+  status: string;
+  current_stage: string | null;
+  input_prompt: string;
+  intent: string | null;
+  result_summary: string | null;
+  artifact_url: string | null;
+  token_input: number;
+  token_output: number;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type PlatformPreviewStatus = {
+  active: boolean;
+  status: string | null;
+  preview_url: string | null;
+  preview_proxy_url: string | null;
+  port: number | null;
+  stack: string | null;
+  command: string | null;
+  exit_code: number | null;
+  log_tail: string[];
+};
+
+export type PlatformPreviewStreamEvent = {
+  type: string;
+  message?: string;
+  preview_url?: string;
+  preview_proxy_url?: string;
+  port?: number;
+  stack?: string;
+  command?: string;
+  status?: string;
+  exit_code?: number | null;
+};
+
+export type PlatformOpenIdeResult = {
+  project_id: string;
+  orbit_ide_url: string;
+  vscode_url: string;
+  workspace_path: string;
+  title: string;
+};
+
+export const platformApi = {
+  streamGenerate: async function* (body: {
+    prompt: string;
+    conversation_id?: string | null;
+  }): AsyncGenerator<PlatformStreamEvent> {
+    const response = await fetch(`${getApiBaseUrl()}/platform/generate/stream`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: body.prompt,
+        conversation_id: body.conversation_id ?? null,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new ApiError(
+        parseApiError(error, "Failed to start project generation"),
+        response.status,
+      );
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new ApiError("No response stream", 500);
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          yield JSON.parse(jsonStr) as PlatformStreamEvent;
+        } catch {
+          // skip malformed SSE chunk
+        }
+      }
+    }
+  },
+
+  getRun: (runId: string) =>
+    api.request<PlatformWorkflowRun>(`/platform/runs/${runId}`),
+
+  startPreview: (runId: string) =>
+    api.request<PlatformPreviewStatus>(`/platform/runs/${runId}/preview/start`, {
+      method: "POST",
+    }),
+
+  stopPreview: (runId: string) =>
+    api.request<PlatformPreviewStatus>(`/platform/runs/${runId}/preview/stop`, {
+      method: "POST",
+    }),
+
+  getPreviewStatus: (runId: string) =>
+    api.request<PlatformPreviewStatus>(`/platform/runs/${runId}/preview/status`),
+
+  openInIde: (runId: string) =>
+    api.request<PlatformOpenIdeResult>(`/platform/runs/${runId}/open-ide`, {
+      method: "POST",
+    }),
+
+  streamPreview: async function* (runId: string): AsyncGenerator<PlatformPreviewStreamEvent> {
+    const response = await fetch(`${getApiBaseUrl()}/platform/runs/${runId}/preview/stream`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new ApiError(parseApiError(error, "Failed to stream preview logs"), response.status);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new ApiError("No preview stream", 500);
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          yield JSON.parse(jsonStr) as PlatformPreviewStreamEvent;
+        } catch {
+          // skip malformed SSE chunk
+        }
+      }
+    }
+  },
+};

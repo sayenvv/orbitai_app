@@ -441,3 +441,16 @@ class CodeWorkspaceUserSettings(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="code_workspace_settings")
+
+
+from app.models.ai_platform import (  # noqa: E402, F401
+    PlatformAgentConfig,
+    PlatformAgentRun,
+    PlatformArtifact,
+    PlatformCheckpoint,
+    PlatformExecutionLog,
+    PlatformProjectFile,
+    PlatformToolConfig,
+    PlatformWorkflowConfig,
+    PlatformWorkflowRun,
+)

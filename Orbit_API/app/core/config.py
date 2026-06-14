@@ -76,6 +76,17 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
 
+    # AI coding platform (config-driven MAF workflows)
+    ai_platform_enabled: bool = True
+    ai_platform_workspace_dir: str = "data/ai_platform/workspaces"
+    ai_platform_artifact_dir: str = "data/ai_platform/artifacts"
+    ai_platform_max_zip_bytes: int = 100 * 1024 * 1024
+    ai_platform_command_timeout_seconds: int = 120
+    ai_platform_llm_timeout_seconds: int = 180
+    azure_storage_connection_string: str = ""
+    azure_storage_container: str = "orbit-artifacts"
+    azure_storage_public_base_url: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

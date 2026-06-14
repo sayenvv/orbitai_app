@@ -11,7 +11,8 @@ import {
   Terminal,
   X,
 } from "lucide-react";
-import type { ApiCodeWorkspaceAgentEdit } from "@/lib/orbit-api";
+import { IdeChangesPanel } from "@/components/code/ide-changes-panel";
+import type { AgentChangeRecord } from "@/lib/orbit-api";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,8 +60,13 @@ type IdeBottomConsoleProps = {
   outputLog?: string;
   terminalLog?: string;
   ports?: IdeConsolePort[];
-  changes?: ApiCodeWorkspaceAgentEdit[];
+  changes?: AgentChangeRecord[];
+  selectedChangeId?: string | null;
+  onSelectChange?: (change: AgentChangeRecord) => void;
   onOpenChange?: (fileId: string) => void;
+  onAcceptChange?: (change: AgentChangeRecord) => void;
+  onRejectChange?: (change: AgentChangeRecord) => void;
+  changeReviewBusyFileId?: string | null;
 };
 
 export function IdeBottomConsole({
@@ -72,7 +78,12 @@ export function IdeBottomConsole({
   terminalLog,
   ports,
   changes = [],
+  selectedChangeId = null,
+  onSelectChange,
   onOpenChange,
+  onAcceptChange,
+  onRejectChange,
+  changeReviewBusyFileId = null,
 }: IdeBottomConsoleProps) {
   const [activeTab, setActiveTab] = useState<ConsoleTab>(preferredTab ?? "terminal");
   const [terminalInput, setTerminalInput] = useState("");
@@ -157,35 +168,16 @@ export function IdeBottomConsole({
         )}
 
         {activeTab === "changes" && (
-          <div className="h-full overflow-auto p-2 [scrollbar-width:thin]">
-            {changes.length === 0 ? (
-              <p className="px-2 py-3 text-[12px] text-muted-foreground">
-                No file changes from the agent yet.
-              </p>
-            ) : (
-              <ul className="space-y-0.5">
-                {changes.map((change) => (
-                  <li key={change.fileId}>
-                    <button
-                      type="button"
-                      onClick={() => onOpenChange?.(change.fileId)}
-                      className="flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[var(--workspace-tab-inactive-bg-hover)]"
-                    >
-                      <FileDiff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/80" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-mono text-[12px] text-foreground">
-                          {change.filePath}
-                        </span>
-                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                          {change.created ? "Created" : "Modified"}
-                          {!change.syntaxOk ? " · syntax check failed" : ""}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="h-full overflow-auto [scrollbar-width:thin]">
+            <IdeChangesPanel
+              changes={changes}
+              selectedId={selectedChangeId}
+              onSelect={onSelectChange}
+              onOpenFile={onOpenChange}
+              onAccept={onAcceptChange}
+              onReject={onRejectChange}
+              busyFileId={changeReviewBusyFileId}
+            />
           </div>
         )}
 

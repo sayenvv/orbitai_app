@@ -20,21 +20,43 @@ _DOCS_CSP = (
     "object-src 'none'"
 )
 
+# Generated app previews are HTML documents with linked CSS/JS assets.
+_PREVIEW_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob: https:; "
+    "font-src 'self' data:; "
+    "connect-src 'self' ws: wss:; "
+    "frame-ancestors 'self'; "
+    "base-uri 'self'; "
+    "object-src 'none'"
+)
+
 
 def _is_interactive_docs_path(path: str) -> bool:
     return path.startswith("/docs") or path.startswith("/redoc")
+
+
+def _is_preview_proxy_path(path: str) -> bool:
+    return "/preview/proxy" in path
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
-        response.headers["Content-Security-Policy"] = (
-            _DOCS_CSP if _is_interactive_docs_path(request.url.path) else _API_CSP
-        )
+        if _is_preview_proxy_path(request.url.path):
+            response.headers["Content-Security-Policy"] = _PREVIEW_CSP
+            response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        elif _is_interactive_docs_path(request.url.path):
+            response.headers["Content-Security-Policy"] = _DOCS_CSP
+            response.headers["X-Frame-Options"] = "DENY"
+        else:
+            response.headers["Content-Security-Policy"] = _API_CSP
+            response.headers["X-Frame-Options"] = "DENY"
         if settings.use_strict_transport_security:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=63072000; includeSubDomains; preload"

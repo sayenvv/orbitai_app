@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections import Counter
 from contextlib import contextmanager
 from typing import Any, Iterator
 
@@ -83,6 +84,16 @@ def read_code_workspace_file_for_agent(
     }
 
 
+def _diff_stats(previous_content: str, new_content: str) -> tuple[int, int]:
+    old_lines = previous_content.splitlines()
+    new_lines = new_content.splitlines()
+    old_counter = Counter(old_lines)
+    new_counter = Counter(new_lines)
+    added = sum(max(0, new_counter[line] - old_counter.get(line, 0)) for line in new_counter)
+    removed = sum(max(0, old_counter[line] - new_counter.get(line, 0)) for line in old_counter)
+    return added, removed
+
+
 def create_code_workspace_file_for_agent(
     db: Session,
     user_id: uuid.UUID,
@@ -93,6 +104,7 @@ def create_code_workspace_file_for_agent(
     parent_id: str | None = None,
     parent_path: str | None = None,
     language: str | None = None,
+    summary: str | None = None,
 ) -> dict[str, Any]:
     row = get_project(db, user_id, project_id)
     state = parse_project_state(row.state)
@@ -122,6 +134,8 @@ def create_code_workspace_file_for_agent(
     write_file_content(db, user_id, project_id, state.nodes, file_id, content)
     file_path = node_relative_path(state.nodes, file_id)
     syntax = validate_source_syntax(content, language=file_language, file_path=file_path)
+    lines_added, lines_removed = _diff_stats("", content)
+    change_summary = (summary or "").strip() or f"Created {file_path}"
     return {
         "fileId": file_id,
         "filePath": file_path,
@@ -130,6 +144,11 @@ def create_code_workspace_file_for_agent(
         "bytes": len(content.encode("utf-8")),
         "syntaxOk": bool(syntax.get("ok")),
         "syntaxErrors": syntax.get("errors") or [],
+        "summary": change_summary,
+        "previousContent": "",
+        "newContent": content,
+        "linesAdded": lines_added,
+        "linesRemoved": lines_removed,
     }
 
 
@@ -140,13 +159,17 @@ def write_code_workspace_file_for_agent(
     *,
     file_id: str,
     content: str,
+    summary: str | None = None,
 ) -> dict[str, Any]:
     row = get_project(db, user_id, project_id)
     state = parse_project_state(row.state)
     node = find_file_node(state.nodes, file_id=file_id)
+    previous_content = read_file_content(db, user_id, project_id, state.nodes, node.id)
     write_file_content(db, user_id, project_id, state.nodes, node.id, content)
     file_path = node_relative_path(state.nodes, node.id)
     syntax = validate_source_syntax(content, language=node.language, file_path=file_path)
+    lines_added, lines_removed = _diff_stats(previous_content, content)
+    change_summary = (summary or "").strip() or f"Updated {file_path}"
     return {
         "fileId": node.id,
         "filePath": file_path,
@@ -155,6 +178,11 @@ def write_code_workspace_file_for_agent(
         "bytes": len(content.encode("utf-8")),
         "syntaxOk": bool(syntax.get("ok")),
         "syntaxErrors": syntax.get("errors") or [],
+        "summary": change_summary,
+        "previousContent": previous_content,
+        "newContent": content,
+        "linesAdded": lines_added,
+        "linesRemoved": lines_removed,
     }
 
 

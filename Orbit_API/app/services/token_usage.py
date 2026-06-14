@@ -87,7 +87,16 @@ def can_consume(user: User, additional_tokens: int) -> bool:
     return user.tokens_used + additional_tokens <= limit
 
 
+def bind_user_to_session(db: Session, user: User) -> User:
+    """Re-attach a User loaded in another session (e.g. request-scoped deps)."""
+    bound = db.get(User, user.id)
+    if bound is None:
+        raise ValueError(f"User {user.id} not found")
+    return bound
+
+
 def record_usage(db: Session, user: User, tokens: int) -> TokenUsageSnapshot:
+    user = bind_user_to_session(db, user)
     ensure_current_period(db, user)
     user.tokens_used += max(0, tokens)
     db.commit()

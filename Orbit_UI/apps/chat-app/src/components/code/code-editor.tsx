@@ -8,6 +8,11 @@ import { indentUnit } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { DEFAULT_CODE_WORKSPACE_PREFERENCES } from "@/lib/code-workspace-preferences";
+import {
+  agentChangeHighlightExtension,
+  reconfigureAgentChangeHighlight,
+  type AgentChangeHighlightPayload,
+} from "@/lib/ide-agent-change-highlight";
 import { useTheme } from "next-themes";
 import { getIdeCodeMirrorLanguage } from "@/lib/ide-codemirror-extensions";
 import type { IdeCursorPosition } from "@/lib/ide-cursor";
@@ -24,6 +29,7 @@ type CodeEditorProps = {
   lineNumbers?: boolean;
   scrollToLine?: number | null;
   onScrollToLineComplete?: () => void;
+  agentChangeHighlight?: AgentChangeHighlightPayload;
   className?: string;
 };
 
@@ -114,6 +120,7 @@ export function CodeEditor({
   lineNumbers = DEFAULT_CODE_WORKSPACE_PREFERENCES.lineNumbers,
   scrollToLine = null,
   onScrollToLineComplete,
+  agentChangeHighlight = null,
   className,
 }: CodeEditorProps) {
   const { resolvedTheme } = useTheme();
@@ -162,12 +169,13 @@ export function CodeEditor({
 
     const next: Extension[] = [
       ...getIdeCodeMirrorLanguage(language),
-      ...githubTheme,
+      githubTheme,
       ideEditorTheme(isDark, fontSize),
       indentUnit.of(" ".repeat(tabSize)),
       keymap.of([indentWithTab]),
       viewCapture,
       cursorListener,
+      agentChangeHighlightExtension,
     ];
 
     if (wordWrap) next.push(EditorView.lineWrapping);
@@ -216,6 +224,10 @@ export function CodeEditor({
     lastScrolledLineRef.current = scrollToLine;
     onScrollToLineCompleteRef.current?.();
   }, [scrollToLine, value]);
+
+  useEffect(() => {
+    reconfigureAgentChangeHighlight(viewRef.current, agentChangeHighlight);
+  }, [agentChangeHighlight, value]);
 
   return (
     <div className={cn("ide-editor-surface ide-codemirror-host min-h-full min-w-0", className)}>
