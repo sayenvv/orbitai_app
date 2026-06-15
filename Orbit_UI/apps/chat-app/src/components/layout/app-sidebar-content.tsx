@@ -22,7 +22,7 @@ import { useSidebarChats } from "@/hooks/use-sidebar-chats";
 import { useTokenUsage } from "@/hooks/use-token-usage";
 import { useUsageStore } from "@/store/usage-store";
 import { navigateToNewChat, conversationPath } from "@/lib/chat-navigation";
-import { routes, homeWithSection } from "@/lib/routes";
+import { routes, homeWithSection, isStudioPath, studioWithPhase } from "@/lib/routes";
 import {
   buildAppChatHref,
   isSameWorkspaceAppChat,
@@ -186,12 +186,12 @@ export function AppSidebarContent({
     onExpand?.();
   };
 
-  const handlePlatform = () => {
-    router.push(routes.platform);
+  const handleStudio = () => {
+    router.push(studioWithPhase("plan"));
     onNavigate?.();
   };
 
-  const isPlatformActive = pathname === routes.platform || pathname.startsWith(`${routes.platform}/`);
+  const isStudioActive = isStudioPath(pathname);
   const historyLoading = chatsLoading || !chatsHydrated;
   const isDrawer = variant === "drawer";
 
@@ -205,7 +205,7 @@ export function AppSidebarContent({
     ? [
         { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
         { key: "library", icon: Folders, label: "Library", onClick: handleLibrary, active: section === "library" },
-        { key: "platform", icon: Rocket, label: "Platform", onClick: handlePlatform, active: isPlatformActive },
+        { key: "studio", icon: Rocket, label: "Studio", onClick: handleStudio, active: isStudioActive },
       ]
     : [
         { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
@@ -244,8 +244,8 @@ export function AppSidebarContent({
             section={section}
             onNewChat={handleNewChat}
             onLibrary={handleLibrary}
-            onPlatform={handlePlatform}
-            platformActive={isPlatformActive}
+            onStudio={handleStudio}
+            studioActive={isStudioActive}
             onPlans={handlePlans}
             onSearch={handleSearch}
             isAuthenticated={isAuthenticated}

@@ -5,10 +5,16 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { platformApi, type PlatformStreamEvent } from "@/lib/orbit-api";
 import {
+  readRecentStudioDevelopments,
+  recordRecentStudioDevelopment,
+  type RecentStudioDevelopment,
+} from "@/lib/studio-recent-developments";
+import {
   IdleHero,
   PlatformBackdrop,
   StudioWorkspace,
 } from "@/components/platform/platform-parts";
+import { randomId } from "@/lib/utils";
 
 export function PlatformGeneratePanel() {
   const [prompt, setPrompt] = useState("");
@@ -22,10 +28,18 @@ export function PlatformGeneratePanel() {
   const [liveMessage, setLiveMessage] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
+  const [recentDevelopments, setRecentDevelopments] = useState<RecentStudioDevelopment[]>([]);
   const startedAtRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeDevelopmentIdRef = useRef<string | null>(null);
 
   const showWorkspace = hasStarted || running || logs.length > 0 || Boolean(artifactUrl) || Boolean(error);
+
+  useEffect(() => {
+    if (!showWorkspace) {
+      setRecentDevelopments(readRecentStudioDevelopments());
+    }
+  }, [showWorkspace]);
 
   useEffect(() => {
     if (!running) return;
@@ -38,39 +52,86 @@ export function PlatformGeneratePanel() {
     return () => window.clearInterval(timer);
   }, [running]);
 
-  const appendLog = useCallback((event: PlatformStreamEvent) => {
-    if (event.stage) {
-      setActiveStage(event.stage);
-    }
-    if (event.type === "agent_progress" || event.type === "heartbeat" || event.type === "agent_started") {
-      if (event.message) setLiveMessage(event.message);
-    }
-    if (event.type === "agent_completed" && event.message) {
-      setLiveMessage(event.message);
-    }
-    if (event.type === "completed" && event.message) {
-      setLiveMessage(event.message);
-    }
+  const persistDevelopment = useCallback(
+    ({
+      id,
+      prompt: savedPrompt,
+      workflowRunId: runId = null,
+      artifactUrl: artifact = null,
+      status,
+    }: {
+      id: string;
+      prompt: string;
+      workflowRunId?: string | null;
+      artifactUrl?: string | null;
+      status: RecentStudioDevelopment["status"];
+    }) => {
+      setRecentDevelopments(
+        recordRecentStudioDevelopment({
+          id,
+          prompt: savedPrompt,
+          workflowRunId: runId,
+          artifactUrl: artifact,
+          status,
+        }),
+      );
+    },
+    [],
+  );
 
-    setLogs((prev) => [...prev, event]);
+  const appendLog = useCallback(
+    (event: PlatformStreamEvent) => {
+      if (event.stage) {
+        setActiveStage(event.stage);
+      }
+      if (event.type === "agent_progress" || event.type === "heartbeat" || event.type === "agent_started") {
+        if (event.message) setLiveMessage(event.message);
+      }
+      if (event.type === "agent_completed" && event.message) {
+        setLiveMessage(event.message);
+      }
+      if (event.type === "completed" && event.message) {
+        setLiveMessage(event.message);
+      }
 
-    if (event.type === "completed") {
-      if (event.payload?.artifact_url) {
-        setArtifactUrl(String(event.payload.artifact_url));
+      setLogs((prev) => [...prev, event]);
+
+      if (event.type === "completed") {
+        const nextArtifact = event.payload?.artifact_url ? String(event.payload.artifact_url) : null;
+        const nextRunId = event.payload?.workflow_run_id ? String(event.payload.workflow_run_id) : null;
+        if (nextArtifact) setArtifactUrl(nextArtifact);
+        if (nextRunId) setWorkflowRunId(nextRunId);
+        if (activeDevelopmentIdRef.current) {
+          persistDevelopment({
+            id: activeDevelopmentIdRef.current,
+            prompt,
+            workflowRunId: nextRunId,
+            artifactUrl: nextArtifact,
+            status: "complete",
+          });
+        }
       }
-      if (event.payload?.workflow_run_id) {
-        setWorkflowRunId(String(event.payload.workflow_run_id));
+      if (event.type === "error") {
+        setError(event.message ?? "Generation failed");
+        setLiveMessage(event.message ?? "Generation failed");
+        if (activeDevelopmentIdRef.current) {
+          persistDevelopment({
+            id: activeDevelopmentIdRef.current,
+            prompt,
+            status: "failed",
+          });
+        }
       }
-    }
-    if (event.type === "error") {
-      setError(event.message ?? "Generation failed");
-      setLiveMessage(event.message ?? "Generation failed");
-    }
-  }, []);
+    },
+    [persistDevelopment, prompt],
+  );
 
   const runGeneration = useCallback(async () => {
     const trimmed = prompt.trim();
     if (!trimmed || running) return;
+
+    const developmentId = activeDevelopmentIdRef.current ?? randomId();
+    activeDevelopmentIdRef.current = developmentId;
 
     setHasStarted(true);
     setRunning(true);
@@ -81,6 +142,11 @@ export function PlatformGeneratePanel() {
     setActiveStage("");
     setLiveMessage("Starting project generation…");
     setElapsed(0);
+    persistDevelopment({
+      id: developmentId,
+      prompt: trimmed,
+      status: "in_progress",
+    });
 
     try {
       for await (const event of platformApi.streamGenerate({ prompt: trimmed })) {
@@ -90,10 +156,53 @@ export function PlatformGeneratePanel() {
       const message = err instanceof Error ? err.message : "Generation failed";
       setError(message);
       setLiveMessage(message);
+      if (activeDevelopmentIdRef.current) {
+        persistDevelopment({
+          id: activeDevelopmentIdRef.current,
+          prompt: trimmed,
+          status: "failed",
+        });
+      }
     } finally {
       setRunning(false);
     }
-  }, [appendLog, prompt, running]);
+  }, [appendLog, persistDevelopment, prompt, running]);
+
+  const openRecentDevelopment = useCallback(
+    (developmentId: string) => {
+      const project = recentDevelopments.find((item) => item.id === developmentId);
+      if (!project) return;
+
+      activeDevelopmentIdRef.current = project.id;
+      setPrompt(project.prompt);
+      setHasStarted(true);
+      setRunning(false);
+      setLogs([]);
+      setError(project.status === "failed" ? "Previous generation failed" : null);
+      setArtifactUrl(project.artifactUrl);
+      setWorkflowRunId(project.workflowRunId);
+      setActiveStage(project.status === "complete" ? "completed" : "");
+      setLiveMessage(
+        project.status === "complete"
+          ? "Your ZIP artifact is ready to download."
+          : project.status === "failed"
+            ? "Previous generation failed"
+            : "",
+      );
+      setElapsed(0);
+      setRecentDevelopments(
+        recordRecentStudioDevelopment({
+          id: project.id,
+          title: project.title,
+          prompt: project.prompt,
+          workflowRunId: project.workflowRunId,
+          artifactUrl: project.artifactUrl,
+          status: project.status,
+        }),
+      );
+    },
+    [recentDevelopments],
+  );
 
   const handleAttachClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -141,6 +250,8 @@ export function PlatformGeneratePanel() {
               onRemoveFile={handleRemoveFile}
               fileInputRef={fileInputRef}
               onFileChange={handleFileChange}
+              recentDevelopments={recentDevelopments}
+              onOpenRecentDevelopment={openRecentDevelopment}
             />
           </motion.div>
         ) : (

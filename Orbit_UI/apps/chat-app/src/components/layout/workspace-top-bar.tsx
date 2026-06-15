@@ -6,10 +6,10 @@ import { catalogAppIds, getAppWorkspaceHref } from "@orbit/clovai-apps";
 import { AuthNavTabs } from "@/components/layout/auth-nav-tabs";
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { useAuthStore } from "@/store/auth-store";
-import { routes } from "@/lib/routes";
+import { isStudioPath, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-type WorkspaceTab = "chats" | "canvas" | "projects" | "code" | "platform";
+type WorkspaceTab = "chats" | "canvas" | "projects" | "studio" | "code";
 
 const CANVAS_HREF = getAppWorkspaceHref(catalogAppIds.photoGenerator);
 const PROJECTS_HREF = getAppWorkspaceHref(catalogAppIds.projectPlanning);
@@ -18,13 +18,13 @@ const TABS: Array<{ id: WorkspaceTab; label: string; href?: string }> = [
   { id: "chats", label: "Chats", href: routes.home },
   { id: "canvas", label: "Canvas", href: CANVAS_HREF },
   { id: "projects", label: "Projects", href: PROJECTS_HREF },
-  { id: "platform", label: "Platform", href: routes.platform },
+  { id: "studio", label: "Studio", href: routes.studio },
   { id: "code", label: "Clovops", href: routes.code },
 ];
 
 function resolveActiveTab(pathname: string): WorkspaceTab {
   if (pathname === routes.code || pathname.startsWith(`${routes.code}/`)) return "code";
-  if (pathname === routes.platform || pathname.startsWith(`${routes.platform}/`)) return "platform";
+  if (isStudioPath(pathname)) return "studio";
   if (pathname.startsWith(`/apps/${catalogAppIds.photoGenerator}`)) return "canvas";
   if (pathname.startsWith(`/apps/${catalogAppIds.projectPlanning}`)) return "projects";
   return "chats";

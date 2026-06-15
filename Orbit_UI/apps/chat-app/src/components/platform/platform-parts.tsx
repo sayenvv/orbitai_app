@@ -34,6 +34,9 @@ import {
 
 import { platformApi, type PlatformOpenIdeResult, type PlatformStreamEvent } from "@/lib/orbit-api";
 import { OrbitIdeEditorCard, VsCodeEditorCard } from "@/components/platform/platform-ide-buttons";
+import { StudioRecentList } from "@/components/studio/studio-recent-list";
+import { WorkspaceResizeHandle, WorkspaceVerticalResizeHandle } from "@/components/workspace/workspace-resize";
+import type { RecentStudioDevelopment } from "@/lib/studio-recent-developments";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -908,6 +911,8 @@ export function IdleHero({
   onRemoveFile,
   fileInputRef,
   onFileChange,
+  recentDevelopments = [],
+  onOpenRecentDevelopment,
 }: {
   prompt: string;
   onPromptChange: (value: string) => void;
@@ -919,8 +924,28 @@ export function IdleHero({
   onRemoveFile: (index: number) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  recentDevelopments?: RecentStudioDevelopment[];
+  onOpenRecentDevelopment?: (developmentId: string) => void;
 }) {
   const reduceMotion = useReducedMotion();
+
+  const recentItems = recentDevelopments.map((project) => ({
+    id: project.id,
+    title: project.title,
+    openedAt: project.openedAt,
+    statusLabel:
+      project.status === "complete"
+        ? "Complete"
+        : project.status === "failed"
+          ? "Failed"
+          : "In progress",
+    statusTone:
+      project.status === "complete"
+        ? ("success" as const)
+        : project.status === "failed"
+          ? ("warning" as const)
+          : ("muted" as const),
+  }));
 
   return (
     <motion.div
@@ -940,8 +965,7 @@ export function IdleHero({
 
       <div className="w-full max-w-[680px]">
         <header className="text-center">
-          <p className="text-[13px] font-medium text-muted-foreground">Platform</p>
-          <h1 className="mt-2 text-[1.875rem] font-semibold tracking-[-0.025em] text-foreground md:text-[2.125rem] md:leading-[1.15]">
+          <h1 className="text-[1.875rem] font-semibold tracking-[-0.025em] text-foreground md:text-[2.125rem] md:leading-[1.15]">
             What should we build?
           </h1>
           <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">
@@ -966,6 +990,15 @@ export function IdleHero({
           <p className="mb-3 text-center text-[13px] text-muted-foreground">Quick start</p>
           <PlatformTemplatePills onSelect={onTemplateSelect} disabled={running} />
         </div>
+
+        <StudioRecentList
+          title="Recent projects"
+          items={recentItems}
+          emptyLabel="No development projects yet. Run your first generation above."
+          icon={Rocket}
+          disabled={running}
+          onSelect={(id) => onOpenRecentDevelopment?.(id)}
+        />
 
         <div className="mt-10">
           <PlatformHomeFooter />
@@ -1423,110 +1456,6 @@ function PipelineProgressBar({
   );
 }
 
-function attachWorkspaceDragListeners({
-  cursor,
-  onMove,
-}: {
-  cursor: string;
-  onMove: (moveEvent: MouseEvent) => void;
-}) {
-  const overlay = document.createElement("div");
-  overlay.setAttribute("aria-hidden", "true");
-  overlay.style.cssText = `position:fixed;inset:0;z-index:9999;cursor:${cursor};background:transparent`;
-  document.body.appendChild(overlay);
-
-  const handleMouseMove = (moveEvent: MouseEvent) => {
-    moveEvent.preventDefault();
-    onMove(moveEvent);
-  };
-
-  const handleMouseUp = () => {
-    overlay.remove();
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
-  };
-
-  document.body.style.cursor = cursor;
-  document.body.style.userSelect = "none";
-  window.addEventListener("mousemove", handleMouseMove);
-  window.addEventListener("mouseup", handleMouseUp);
-}
-
-function WorkspaceResizeHandle({
-  onDrag,
-  side = "right",
-  ariaLabel = "Resize panel",
-}: {
-  onDrag: (deltaX: number) => void;
-  side?: "left" | "right";
-  ariaLabel?: string;
-}) {
-  const handleMouseDown = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      let lastX = event.clientX;
-
-      attachWorkspaceDragListeners({
-        cursor: "col-resize",
-        onMove: (moveEvent) => {
-          const rawDelta = moveEvent.clientX - lastX;
-          lastX = moveEvent.clientX;
-          const delta = side === "left" ? rawDelta : -rawDelta;
-          if (delta !== 0) onDrag(delta);
-        },
-      });
-    },
-    [onDrag, side],
-  );
-
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label={ariaLabel}
-      onMouseDown={handleMouseDown}
-      className="group relative hidden w-1 shrink-0 cursor-col-resize bg-border/40 lg:block hover:bg-primary/30"
-    />
-  );
-}
-
-function WorkspaceVerticalResizeHandle({
-  onDrag,
-  ariaLabel = "Resize panel",
-}: {
-  onDrag: (deltaY: number) => void;
-  ariaLabel?: string;
-}) {
-  const handleMouseDown = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      let lastY = event.clientY;
-
-      attachWorkspaceDragListeners({
-        cursor: "row-resize",
-        onMove: (moveEvent) => {
-          const delta = moveEvent.clientY - lastY;
-          lastY = moveEvent.clientY;
-          if (delta !== 0) onDrag(delta);
-        },
-      });
-    },
-    [onDrag],
-  );
-
-  return (
-    <div
-      role="separator"
-      aria-orientation="horizontal"
-      aria-label={ariaLabel}
-      onMouseDown={handleMouseDown}
-      className="group relative h-1 shrink-0 cursor-row-resize bg-border/40 hover:bg-primary/30"
-    />
-  );
-}
-
 export function StudioWorkspace({
   prompt,
   running,
@@ -1582,7 +1511,7 @@ export function StudioWorkspace({
     <div className="platform-shell flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <header className="platform-toolbar flex h-11 shrink-0 items-center gap-3 px-4 md:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="hidden text-xs text-muted-foreground sm:inline">Platform</span>
+          <span className="hidden text-xs text-muted-foreground sm:inline">Development</span>
           <ChevronRight className="hidden size-3 text-muted-foreground/40 sm:inline" aria-hidden />
           <h1 className="truncate text-sm font-medium text-foreground">Generation</h1>
           <span

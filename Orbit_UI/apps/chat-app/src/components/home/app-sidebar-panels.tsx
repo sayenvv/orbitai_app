@@ -72,8 +72,8 @@ type SidebarCollapsedNavProps = {
   section: SidebarSection;
   onNewChat: () => void;
   onLibrary: () => void;
-  onPlatform?: () => void;
-  platformActive?: boolean;
+  onStudio?: () => void;
+  studioActive?: boolean;
   onPlans: () => void;
   onSearch: () => void;
   isAuthenticated?: boolean;
@@ -83,16 +83,16 @@ export function SidebarCollapsedNav({
   section,
   onNewChat,
   onLibrary,
-  onPlatform,
-  platformActive = false,
+  onStudio,
+  studioActive = false,
   onPlans,
   onSearch,
   isAuthenticated = true,
 }: SidebarCollapsedNavProps) {
   const authenticatedItems: SidebarNavItem[] = [
     { key: "library", label: "Library", icon: Folders, active: section === "library", onClick: onLibrary },
-    ...(onPlatform
-      ? [{ key: "platform", label: "Platform", icon: Rocket, active: platformActive, onClick: onPlatform }]
+    ...(onStudio
+      ? [{ key: "studio", label: "Studio", icon: Rocket, active: studioActive, onClick: onStudio }]
       : []),
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];

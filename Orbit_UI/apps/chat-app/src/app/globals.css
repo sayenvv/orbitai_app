@@ -816,6 +816,100 @@
   background: color-mix(in oklab, var(--workspace-tab-bg) 62%, transparent);
 }
 
+/* Studio workflow — premium pipeline header */
+.studio-shell {
+  --studio-panel: var(--card);
+  --studio-border: color-mix(in oklab, var(--border) 82%, transparent);
+  --studio-canvas: color-mix(in oklab, var(--muted) 22%, var(--background));
+  background: var(--studio-canvas);
+}
+
+.dark .studio-shell {
+  --studio-canvas: color-mix(in oklab, var(--muted) 14%, var(--background));
+}
+
+.studio-workflow-header {
+  border-bottom: 1px solid var(--studio-border);
+  background: color-mix(in oklab, var(--studio-panel) 72%, var(--background) 28%);
+}
+
+.studio-workflow-track {
+  border: 1px solid var(--studio-border);
+  background: color-mix(in oklab, var(--background) 55%, var(--studio-panel) 45%);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+.dark .studio-workflow-track {
+  background: color-mix(in oklab, var(--background) 78%, var(--studio-panel) 22%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+}
+
+.studio-workflow-segment-divider {
+  box-shadow: inset -1px 0 0 color-mix(in oklab, var(--studio-border) 88%, transparent);
+}
+
+.studio-workflow-segment-active {
+  background: color-mix(in oklab, var(--primary) 5%, var(--studio-panel) 95%);
+}
+
+.dark .studio-workflow-segment-active {
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+}
+
+.studio-workflow-badge {
+  border: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent);
+}
+
+.studio-recent-panel {
+  overflow: hidden;
+  border: 1px solid var(--studio-border);
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--studio-panel) 68%, var(--background) 32%);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+.studio-recent-row:hover {
+  background: color-mix(in oklab, var(--foreground) 2.5%, transparent);
+}
+
+.dark .studio-recent-row:hover {
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+.studio-recent-status {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.studio-recent-status-success {
+  background: color-mix(in oklab, var(--color-emerald-500, #10b981) 12%, var(--muted) 88%);
+  color: color-mix(in oklab, #10b981 75%, var(--foreground) 25%);
+}
+
+.studio-recent-status-warning {
+  background: color-mix(in oklab, var(--destructive) 10%, var(--muted) 90%);
+  color: color-mix(in oklab, var(--destructive) 70%, var(--foreground) 30%);
+}
+
+.studio-recent-status-muted {
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+  color: color-mix(in oklab, var(--muted-foreground) 90%, transparent);
+}
+
 /* Orbit Platform — professional workspace shell (Copilot / IDE aesthetic) */
 .platform-shell {
   --platform-canvas: color-mix(in oklab, var(--muted) 28%, var(--background));
