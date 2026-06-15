@@ -870,8 +870,8 @@ export function SuccessPanel({
   summary?: string;
 }) {
   return (
-    <section className="platform-center-card shrink-0">
-      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <section className="platform-center-card shrink-0 px-4 py-3.5 sm:px-5 sm:py-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <Check className="size-4" />
@@ -982,6 +982,11 @@ const AGENT_PANEL_MAX_WIDTH = 520;
 const DETAIL_PANEL_DEFAULT_WIDTH = 380;
 const DETAIL_PANEL_MIN_WIDTH = 280;
 const DETAIL_PANEL_MAX_WIDTH = 560;
+
+const PREVIEW_MIN_HEIGHT = 200;
+const TERMINAL_MIN_HEIGHT = 36;
+const TERMINAL_DEFAULT_HEIGHT = 160;
+const PREVIEW_RESIZE_HANDLE_HEIGHT = 4;
 
 export function formatStageLabel(stage: string): string {
   return stage.replaceAll("_", " ");
@@ -1124,15 +1129,23 @@ function PipelineDetailPanel({
   running,
   completed,
   failed,
+  progress,
 }: {
   activeStage: string;
   running: boolean;
   completed: boolean;
   failed: boolean;
+  progress: number;
 }) {
   return (
     <div className="rounded-md border border-border/60 bg-background/60 px-3 py-3">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <PipelineProgressBar
+        progress={progress}
+        running={running}
+        completed={completed}
+        failed={failed}
+      />
+      <p className="mt-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         Pipeline
       </p>
       <ol className="mt-3 space-y-3">
@@ -1364,78 +1377,81 @@ function pipelineProgress(
   return Math.min(100, Math.round(((idx + 1) / STAGE_ORDER.length) * 100));
 }
 
-function PhaseStepper({
-  activeStage,
+function PipelineProgressBar({
+  progress,
   running,
   completed,
   failed,
+  compact = false,
 }: {
-  activeStage: string;
+  progress: number;
   running: boolean;
   completed: boolean;
   failed: boolean;
+  compact?: boolean;
 }) {
-  const progress = pipelineProgress(activeStage, running, completed);
+  if (!running && !completed && !failed) return null;
 
   return (
-    <div className="shrink-0 border-b border-border/60 bg-card">
-      <div className="flex items-center gap-3 px-4 py-2.5 md:px-5">
+    <div className={cn("flex items-center gap-2", compact ? "min-w-0" : "gap-3")}>
+      {!compact ? (
         <span className="text-xs font-medium text-muted-foreground">Progress</span>
-        <div className="h-1.5 min-w-[120px] flex-1 overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all duration-500 ease-out",
-              failed ? "bg-destructive" : completed ? "bg-emerald-500" : "bg-foreground/80",
-            )}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <span className="w-9 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
-          {progress}%
-        </span>
+      ) : null}
+      <div
+        className={cn(
+          "overflow-hidden rounded-full bg-muted",
+          compact ? "h-1 min-w-[80px] flex-1" : "h-1.5 min-w-[120px] flex-1",
+        )}
+      >
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-500 ease-out",
+            failed ? "bg-destructive" : completed ? "bg-emerald-500" : "bg-foreground/80",
+          )}
+          style={{ width: `${progress}%` }}
+        />
       </div>
-      <ol className="flex items-center divide-x divide-border/60 overflow-x-auto border-t border-border/40 [scrollbar-width:thin]">
-        {PIPELINE_PHASES.map((phase, index) => {
-          const status = getPhaseStatus(phase.stages, activeStage, running, completed, failed);
-          return (
-            <li
-              key={phase.id}
-              className={cn(
-                "flex shrink-0 items-center gap-2 px-4 py-2.5 md:px-5",
-                status === "active" && "bg-muted/40",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex size-4 items-center justify-center rounded-full",
-                  status === "done" && "bg-emerald-500 text-white",
-                  status === "active" && "bg-foreground text-background",
-                  status === "error" && "bg-destructive text-destructive-foreground",
-                  status === "pending" && "border border-border bg-background",
-                )}
-              >
-                {status === "done" ? (
-                  <Check className="size-2.5" strokeWidth={3} />
-                ) : status === "active" ? (
-                  <span className="size-1.5 rounded-full bg-current" />
-                ) : (
-                  <span className="size-1 rounded-full bg-muted-foreground/40" />
-                )}
-              </span>
-              <span
-                className={cn(
-                  "text-xs font-medium",
-                  status === "pending" ? "text-muted-foreground" : "text-foreground",
-                )}
-              >
-                {phase.label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      <span
+        className={cn(
+          "shrink-0 text-right font-mono tabular-nums text-muted-foreground",
+          compact ? "text-[10px]" : "w-9 text-[11px]",
+        )}
+      >
+        {progress}%
+      </span>
     </div>
   );
+}
+
+function attachWorkspaceDragListeners({
+  cursor,
+  onMove,
+}: {
+  cursor: string;
+  onMove: (moveEvent: MouseEvent) => void;
+}) {
+  const overlay = document.createElement("div");
+  overlay.setAttribute("aria-hidden", "true");
+  overlay.style.cssText = `position:fixed;inset:0;z-index:9999;cursor:${cursor};background:transparent`;
+  document.body.appendChild(overlay);
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    moveEvent.preventDefault();
+    onMove(moveEvent);
+  };
+
+  const handleMouseUp = () => {
+    overlay.remove();
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+  };
+
+  document.body.style.cursor = cursor;
+  document.body.style.userSelect = "none";
+  window.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("mouseup", handleMouseUp);
 }
 
 function WorkspaceResizeHandle({
@@ -1452,24 +1468,15 @@ function WorkspaceResizeHandle({
       event.preventDefault();
       let lastX = event.clientX;
 
-      const handleMouseMove = (moveEvent: MouseEvent) => {
-        const rawDelta = moveEvent.clientX - lastX;
-        lastX = moveEvent.clientX;
-        const delta = side === "left" ? rawDelta : -rawDelta;
-        if (delta !== 0) onDrag(delta);
-      };
-
-      const handleMouseUp = () => {
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
+      attachWorkspaceDragListeners({
+        cursor: "col-resize",
+        onMove: (moveEvent) => {
+          const rawDelta = moveEvent.clientX - lastX;
+          lastX = moveEvent.clientX;
+          const delta = side === "left" ? rawDelta : -rawDelta;
+          if (delta !== 0) onDrag(delta);
+        },
+      });
     },
     [onDrag, side],
   );
@@ -1481,6 +1488,41 @@ function WorkspaceResizeHandle({
       aria-label={ariaLabel}
       onMouseDown={handleMouseDown}
       className="group relative hidden w-1 shrink-0 cursor-col-resize bg-border/40 lg:block hover:bg-primary/30"
+    />
+  );
+}
+
+function WorkspaceVerticalResizeHandle({
+  onDrag,
+  ariaLabel = "Resize panel",
+}: {
+  onDrag: (deltaY: number) => void;
+  ariaLabel?: string;
+}) {
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      let lastY = event.clientY;
+
+      attachWorkspaceDragListeners({
+        cursor: "row-resize",
+        onMove: (moveEvent) => {
+          const delta = moveEvent.clientY - lastY;
+          lastY = moveEvent.clientY;
+          if (delta !== 0) onDrag(delta);
+        },
+      });
+    },
+    [onDrag],
+  );
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label={ariaLabel}
+      onMouseDown={handleMouseDown}
+      className="group relative h-1 shrink-0 cursor-row-resize bg-border/40 hover:bg-primary/30"
     />
   );
 }
@@ -1524,6 +1566,7 @@ export function StudioWorkspace({
   const createdFiles = useMemo(() => extractCreatedFiles(logs), [logs]);
   const activeAgent = useMemo(() => getLatestAgent(logs), [logs]);
   const progress = pipelineProgress(activeStage, running, completed);
+  const previewFocus = completed && Boolean(workflowRunId);
 
   const title = completed ? "Build complete" : running ? "Generating" : "Project studio";
   const statusLabel = completed ? "Complete" : failed ? "Failed" : running ? "Running" : "Ready";
@@ -1552,7 +1595,16 @@ export function StudioWorkspace({
           </span>
         </div>
 
-        <div className="hidden min-w-0 flex-1 px-6 lg:block">
+        <div className="hidden min-w-0 flex-1 flex-col justify-center gap-1 px-6 lg:flex">
+          {!detailPanelOpen && (running || completed || failed) ? (
+            <PipelineProgressBar
+              progress={progress}
+              running={running}
+              completed={completed}
+              failed={failed}
+              compact
+            />
+          ) : null}
           <p className="truncate text-center text-xs text-muted-foreground">
             {running ? liveMessage : prompt || title}
           </p>
@@ -1592,22 +1644,25 @@ export function StudioWorkspace({
               New generation
             </button>
           ) : null}
+          {downloadHref && previewFocus ? (
+            <a
+              href={downloadHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+            >
+              <Download className="size-3.5" />
+              Download ZIP
+            </a>
+          ) : null}
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <PhaseStepper
-            activeStage={activeStage}
-            running={running}
-            completed={completed}
-            failed={failed}
-          />
-          <div className="platform-canvas flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+      <div className="platform-canvas flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
             {detailPanelOpen ? (
               <>
                 <aside
-                  className="platform-detail-panel flex max-h-[42vh] w-full shrink-0 flex-col overflow-hidden border-b border-border/60 lg:max-h-none lg:w-[var(--detail-panel-width)] lg:border-b-0 lg:border-r"
+                  className="platform-detail-panel flex max-h-[42vh] w-full shrink-0 flex-col overflow-hidden border-b border-border/60 lg:max-h-none lg:w-[var(--detail-panel-width)] lg:border-b-0"
                   style={{ ["--detail-panel-width" as string]: `${detailPanelWidth}px` }}
                 >
                   <div className="flex h-9 shrink-0 items-center justify-between border-b border-border/60 px-3">
@@ -1643,6 +1698,7 @@ export function StudioWorkspace({
                       running={running}
                       completed={completed}
                       failed={failed}
+                      progress={progress}
                     />
                     <GeneratedFilesPanel files={createdFiles} />
                   </div>
@@ -1666,7 +1722,7 @@ export function StudioWorkspace({
                 onClick={() => setDetailPanelOpen(true)}
                 title="Open details panel"
                 aria-label="Open details panel"
-                className="hidden shrink-0 items-center border-r border-border/60 px-2 text-muted-foreground hover:bg-muted/30 hover:text-foreground lg:flex"
+                className="hidden shrink-0 items-center px-2 text-muted-foreground hover:bg-muted/30 hover:text-foreground lg:flex"
               >
                 <ChevronRight className="size-4" />
               </button>
@@ -1676,7 +1732,7 @@ export function StudioWorkspace({
               <div
                 className={cn(
                   "platform-center-stack flex min-h-0 flex-1 flex-col overflow-hidden",
-                  !completed && "overflow-y-auto [scrollbar-width:thin]",
+                  !previewFocus && !completed && "overflow-y-auto [scrollbar-width:thin]",
                 )}
               >
                 {running ? (
@@ -1703,17 +1759,18 @@ export function StudioWorkspace({
                   </div>
                 ) : null}
 
-                {downloadHref ? (
+                {downloadHref && !previewFocus ? (
                   <SuccessPanel
                     downloadHref={downloadHref}
                     summary={completedEvent?.message ?? undefined}
                   />
                 ) : null}
 
-                {completed && workflowRunId ? (
+                {previewFocus ? (
                   <PreviewLaunchPanel
-                    runId={workflowRunId}
+                    runId={workflowRunId!}
                     fillHeight
+                    resizable
                     className="platform-center-card min-h-0 flex-1"
                   />
                 ) : null}
@@ -1736,8 +1793,6 @@ export function StudioWorkspace({
                 ) : null}
               </div>
             </div>
-          </div>
-        </main>
 
         {agentPanelOpen ? (
           <>
@@ -1751,7 +1806,7 @@ export function StudioWorkspace({
               }
             />
             <aside
-              className="platform-side-panel flex min-h-[240px] w-full shrink-0 flex-col border-t lg:min-h-0 lg:w-[var(--agent-panel-width)] lg:border-l lg:border-t-0"
+              className="platform-side-panel flex min-h-[240px] w-full shrink-0 flex-col overflow-hidden border-t lg:min-h-0 lg:w-[var(--agent-panel-width)] lg:border-t-0"
               style={{ ["--agent-panel-width" as string]: `${agentPanelWidth}px` }}
             >
               <div className="flex h-9 shrink-0 items-center justify-between border-b border-border/60 px-3">
@@ -1783,7 +1838,7 @@ export function StudioWorkspace({
             onClick={() => setAgentPanelOpen(true)}
             title="Open activity panel"
             aria-label="Open activity panel"
-            className="hidden shrink-0 items-center border-l border-border/60 px-2 text-muted-foreground hover:bg-muted/30 hover:text-foreground lg:flex"
+            className="hidden shrink-0 items-center px-2 text-muted-foreground hover:bg-muted/30 hover:text-foreground lg:flex"
           >
             <ChevronLeft className="size-4" />
           </button>
@@ -1951,10 +2006,12 @@ export function PreviewLaunchPanel({
   runId,
   className,
   fillHeight = false,
+  resizable = false,
 }: {
   runId: string;
   className?: string;
   fillHeight?: boolean;
+  resizable?: boolean;
 }) {
   const router = useRouter();
   const [previewActive, setPreviewActive] = useState(false);
@@ -1971,8 +2028,10 @@ export function PreviewLaunchPanel({
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
+  const [terminalHeight, setTerminalHeight] = useState(TERMINAL_DEFAULT_HEIGHT);
   const logScrollRef = useRef<HTMLDivElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+  const previewBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (previewActive && !previewReady) setConsoleOpen(true);
@@ -1981,6 +2040,48 @@ export function PreviewLaunchPanel({
   useEffect(() => {
     if (previewReady) setConsoleOpen(false);
   }, [previewReady]);
+
+  const getMaxTerminalHeight = useCallback(() => {
+    const body = previewBodyRef.current;
+    if (!body) return TERMINAL_DEFAULT_HEIGHT;
+    const handle = resizable ? PREVIEW_RESIZE_HANDLE_HEIGHT : 0;
+    return Math.max(
+      TERMINAL_MIN_HEIGHT,
+      body.clientHeight - PREVIEW_MIN_HEIGHT - handle,
+    );
+  }, [resizable]);
+
+  useEffect(() => {
+    if (!fillHeight || !resizable) {
+      setTerminalHeight(TERMINAL_DEFAULT_HEIGHT);
+      return;
+    }
+
+    const body = previewBodyRef.current;
+    if (!body) return;
+
+    const applyBounds = () => {
+      const max = getMaxTerminalHeight();
+      if (max <= 0) return;
+      setTerminalHeight((height) => Math.min(max, Math.max(TERMINAL_MIN_HEIGHT, height)));
+    };
+
+    applyBounds();
+    const observer = new ResizeObserver(applyBounds);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, [consoleOpen, fillHeight, getMaxTerminalHeight, resizable]);
+
+  const handleTerminalResize = useCallback(
+    (delta: number) => {
+      setTerminalHeight((height) => {
+        const max = getMaxTerminalHeight();
+        return Math.min(max, Math.max(TERMINAL_MIN_HEIGHT, height - delta));
+      });
+      if (!consoleOpen) setConsoleOpen(true);
+    },
+    [consoleOpen, getMaxTerminalHeight],
+  );
 
   useEffect(() => {
     const node = logScrollRef.current;
@@ -2175,7 +2276,7 @@ export function PreviewLaunchPanel({
     <section
       className={cn(
         "platform-preview-shell flex min-h-0 flex-col overflow-hidden",
-        fillHeight && "flex-1",
+        fillHeight && "h-full flex-1",
         className,
       )}
     >
@@ -2252,20 +2353,21 @@ export function PreviewLaunchPanel({
         </div>
       </div>
 
-      {previewUrl && previewReady ? (
+      {previewUrl && previewReady && !fillHeight ? (
         <PreviewUrlBar url={previewUrl} onCopy={handleCopyUrl} copied={urlCopied} />
       ) : null}
 
       <div
+        ref={previewBodyRef}
         className={cn(
-          "flex min-h-0 flex-col overflow-hidden",
-          fillHeight ? "flex-1" : "min-h-[360px]",
+          "flex min-h-0 flex-1 flex-col overflow-hidden",
+          !fillHeight && "min-h-[360px]",
         )}
       >
-        <div className="platform-preview-viewport relative min-h-0 flex-1 overflow-hidden bg-[#f6f8fa] dark:bg-[#0d1117]">
+        <div className="platform-preview-viewport flex min-h-0 flex-1 flex-col overflow-hidden bg-[#f6f8fa] dark:bg-[#0d1117]">
           {previewUrl && previewReady ? (
             <>
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] flex h-7 items-center gap-1.5 border-b border-black/[0.06] bg-white/90 px-3 backdrop-blur-sm dark:border-white/[0.06] dark:bg-[#161b22]/90">
+              <div className="flex h-7 shrink-0 items-center gap-1.5 border-b border-black/[0.06] bg-white/90 px-3 backdrop-blur-sm dark:border-white/[0.06] dark:bg-[#161b22]/90">
                 <span className="size-2 rounded-full bg-[#ff5f57]" />
                 <span className="size-2 rounded-full bg-[#febc2e]" />
                 <span className="size-2 rounded-full bg-[#28c840]" />
@@ -2277,7 +2379,7 @@ export function PreviewLaunchPanel({
                 key={iframeKey}
                 title="Generated app preview"
                 src={previewUrl}
-                className="absolute inset-x-0 bottom-0 top-7 w-full border-0 bg-white"
+                className="min-h-0 w-full flex-1 border-0 bg-white"
                 sandbox="allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
               />
             </>
@@ -2291,11 +2393,24 @@ export function PreviewLaunchPanel({
           )}
         </div>
 
-        <div className="flex shrink-0 flex-col border-t border-border/60">
+        {fillHeight && resizable ? (
+          <WorkspaceVerticalResizeHandle
+            ariaLabel="Resize terminal"
+            onDrag={handleTerminalResize}
+          />
+        ) : null}
+
+        <div
+          className={cn(
+            "flex shrink-0 flex-col border-t border-border/60",
+            fillHeight && resizable && "min-h-0 overflow-hidden",
+          )}
+          style={fillHeight && resizable ? { height: terminalHeight } : undefined}
+        >
           <button
             type="button"
             onClick={() => setConsoleOpen((open) => !open)}
-            className="flex w-full items-center justify-between gap-3 bg-muted/20 px-4 py-1.5 text-left transition hover:bg-muted/35"
+            className="flex w-full shrink-0 items-center justify-between gap-3 bg-muted/20 px-4 py-1.5 text-left transition hover:bg-muted/35"
           >
             <div className="flex items-center gap-2">
               <Terminal className="size-3.5 text-muted-foreground" />
@@ -2326,8 +2441,8 @@ export function PreviewLaunchPanel({
             <div
               ref={logScrollRef}
               className={cn(
-                "platform-terminal overflow-y-auto p-3 text-[11px] leading-5 [scrollbar-width:thin]",
-                fillHeight ? "max-h-[min(28vh,220px)] min-h-[120px]" : "min-h-[160px] max-h-[220px]",
+                "platform-terminal min-h-0 flex-1 overflow-y-auto p-3 text-[11px] leading-5 [scrollbar-width:thin]",
+                !fillHeight || !resizable ? "min-h-[160px] max-h-[220px]" : "",
               )}
             >
               {previewLogs.length === 0 ? (

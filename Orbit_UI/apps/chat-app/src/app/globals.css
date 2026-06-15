@@ -834,6 +834,7 @@
 
 .platform-shell .platform-canvas {
   background: var(--platform-canvas);
+  padding: 0.5px;
 }
 
 .platform-shell .platform-side-panel {
@@ -846,15 +847,14 @@
 }
 
 .platform-shell .platform-center-stack {
-  background: var(--platform-canvas);
-  gap: 2px;
-  padding: 2px;
+  gap: 0.5px;
+  min-height: 0;
 }
 
 .platform-shell .platform-center-card {
   background: var(--platform-panel);
   border: 1px solid var(--platform-border);
-  border-radius: 0.375rem;
+  border-radius: 0;
   box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent);
   overflow: hidden;
 }
