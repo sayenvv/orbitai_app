@@ -4,6 +4,8 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Palette, Sparkles } from "lucide-react";
 
 import { PlanBackdrop } from "@/components/plan/plan-parts";
+import { studioButtonSecondary } from "@/components/studio/studio-ui";
+import { cn } from "@/lib/utils";
 
 export function DesignComingSoon({ projectPrompt }: { projectPrompt?: string }) {
   const reduceMotion = useReducedMotion();
@@ -14,7 +16,7 @@ export function DesignComingSoon({ projectPrompt }: { projectPrompt?: string }) 
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-10 md:px-6 md:py-14"
+        className="flex w-full flex-col items-center px-4 pb-10 pt-6 md:px-6 md:pb-14 md:pt-8"
       >
         <div className="w-full max-w-[520px] text-center">
           <span className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 text-muted-foreground">
@@ -45,7 +47,7 @@ export function DesignComingSoon({ projectPrompt }: { projectPrompt?: string }) 
             type="button"
             disabled
             title="Available after Design launches"
-            className="mt-8 inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-muted px-4 py-2 text-[13px] font-medium text-muted-foreground"
+            className={cn(studioButtonSecondary("cursor-not-allowed px-4 py-2 text-[13px]"))}
           >
             <Sparkles className="size-4" />
             Generate design from plan

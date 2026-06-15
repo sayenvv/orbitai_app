@@ -1,16 +1,21 @@
 import {
+  BookOpen,
   Boxes,
   Calendar,
   ClipboardList,
+  Cpu,
+  Database,
   FileText,
   GitBranch,
+  HardDrive,
   Layers,
   Lightbulb,
+  ListChecks,
+  Monitor,
   Network,
-  Shield,
+  ScrollText,
+  Sparkles,
   Target,
-  TestTube,
-  Users,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -26,181 +31,244 @@ export type SynopsisDeliverable = {
 
 export type SynopsisSection = {
   id: string;
+  number: number;
   label: string;
+  description: string;
   icon: LucideIcon;
-  summary: string;
-  deliverables: SynopsisDeliverable[];
+  deliverables: [SynopsisDeliverable];
+  /** User-added section appended after the standard 22-section structure. */
+  custom?: boolean;
 };
 
-function deliverable(
+function sectionDeliverable(
   sectionId: string,
   label: string,
   format: SynopsisDeliverableFormat,
   description: string,
 ): SynopsisDeliverable {
-  const slug = label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return { id: `${sectionId}--${slug}`, label, format, description };
+  return { id: sectionId, label, format, description };
 }
 
-/** Core sections every project synopsis should cover. */
+/** Standard 22-section academic project proposal structure (PDF table of contents). */
 export const PROJECT_SYNOPSIS_SECTIONS: SynopsisSection[] = [
   {
-    id: "overview",
-    label: "Executive Overview",
+    id: "title",
+    number: 1,
+    label: "Title of the Project",
+    description: "A clear and meaningful project title.",
     icon: FileText,
-    summary: "One-page summary of what the project is, why it exists, and what success looks like.",
     deliverables: [
-      deliverable("overview", "Project Summary", "document", "Concise narrative of the initiative."),
-      deliverable("overview", "Vision & Goals", "document", "North-star outcomes and measurable objectives."),
-      deliverable("overview", "Success Metrics", "matrix", "KPIs, targets, and acceptance criteria."),
-      deliverable("overview", "Elevator Pitch", "document", "Short stakeholder-facing description."),
+      sectionDeliverable("title", "Title of the Project", "document", "A clear and meaningful project title."),
     ],
   },
   {
-    id: "problem",
-    label: "Problem & Opportunity",
-    icon: Lightbulb,
-    summary: "Context for the problem space, users affected, and the opportunity being pursued.",
+    id: "introduction",
+    number: 2,
+    label: "Introduction",
+    description: "Brief overview of the project domain and background.",
+    icon: ScrollText,
     deliverables: [
-      deliverable("problem", "Problem Statement", "document", "Clear articulation of the pain or gap."),
-      deliverable("problem", "Opportunity Analysis", "document", "Market or organizational opportunity."),
-      deliverable("problem", "SWOT Analysis", "matrix", "Strengths, weaknesses, opportunities, threats."),
-      deliverable("problem", "Feasibility Notes", "document", "High-level viability and constraints."),
+      sectionDeliverable("introduction", "Introduction", "document", "Brief overview of the project domain and background."),
+    ],
+  },
+  {
+    id: "problem-statement",
+    number: 3,
+    label: "Problem Statement",
+    description: "The specific problem the project aims to solve.",
+    icon: Lightbulb,
+    deliverables: [
+      sectionDeliverable("problem-statement", "Problem Statement", "document", "The specific problem the project aims to solve."),
+    ],
+  },
+  {
+    id: "objectives",
+    number: 4,
+    label: "Objectives",
+    description: "Main goals and expected outcomes of the project.",
+    icon: Target,
+    deliverables: [
+      sectionDeliverable("objectives", "Objectives", "document", "Main goals and expected outcomes of the project."),
+    ],
+  },
+  {
+    id: "existing-system",
+    number: 5,
+    label: "Existing System",
+    description: "Description of current solutions and their limitations.",
+    icon: Monitor,
+    deliverables: [
+      sectionDeliverable("existing-system", "Existing System", "document", "Description of current solutions and their limitations."),
+    ],
+  },
+  {
+    id: "proposed-system",
+    number: 6,
+    label: "Proposed System",
+    description: "Explanation of your proposed solution and its advantages.",
+    icon: Layers,
+    deliverables: [
+      sectionDeliverable("proposed-system", "Proposed System", "document", "Explanation of your proposed solution and its advantages."),
     ],
   },
   {
     id: "scope",
-    label: "Scope & Constraints",
-    icon: Target,
-    summary: "What is in and out of scope, plus assumptions that shape delivery.",
+    number: 7,
+    label: "Scope of the Project",
+    description: "What is included and excluded from the project.",
+    icon: ListChecks,
     deliverables: [
-      deliverable("scope", "Scope Diagram", "diagram", "Visual in-scope vs out-of-scope boundaries."),
-      deliverable("scope", "In / Out of Scope", "document", "Explicit scope lists."),
-      deliverable("scope", "Assumptions", "document", "Working assumptions the plan depends on."),
-      deliverable("scope", "Constraints", "document", "Budget, timeline, regulatory, or technical limits."),
+      sectionDeliverable("scope", "Scope of the Project", "document", "What is included and excluded from the project."),
     ],
   },
   {
-    id: "stakeholders",
-    label: "Stakeholders & Users",
-    icon: Users,
-    summary: "Who is involved, who benefits, and how responsibilities are divided.",
+    id: "literature-survey",
+    number: 8,
+    label: "Literature Survey",
+    description: "Summary of related research papers or existing technologies.",
+    icon: BookOpen,
     deliverables: [
-      deliverable("stakeholders", "Stakeholder Map", "diagram", "Influence and interest mapping."),
-      deliverable("stakeholders", "User Personas", "document", "Primary and secondary user profiles."),
-      deliverable("stakeholders", "RACI Matrix", "matrix", "Responsible, accountable, consulted, informed."),
-      deliverable("stakeholders", "Communication Plan", "document", "Cadence and channels for updates."),
+      sectionDeliverable("literature-survey", "Literature Survey", "document", "Summary of related research papers or existing technologies."),
     ],
   },
   {
-    id: "requirements",
-    label: "Requirements",
-    icon: ClipboardList,
-    summary: "Functional and non-functional needs that the solution must satisfy.",
-    deliverables: [
-      deliverable("requirements", "Functional Requirements", "document", "Capabilities the system must provide."),
-      deliverable("requirements", "Non-Functional Requirements", "document", "Performance, scale, reliability, UX."),
-      deliverable("requirements", "Use Case Diagram", "diagram", "Actors and primary system interactions."),
-      deliverable("requirements", "User Story Map", "document", "Prioritized user journeys and backlog slices."),
-    ],
-  },
-  {
-    id: "architecture",
-    label: "Solution Architecture",
-    icon: Boxes,
-    summary: "High-level technical shape of the solution and major components.",
-    deliverables: [
-      deliverable("architecture", "High-Level Architecture", "diagram", "System context and major subsystems."),
-      deliverable("architecture", "Component Diagram", "diagram", "Services, modules, and dependencies."),
-      deliverable("architecture", "Technology Stack", "document", "Languages, frameworks, infra choices."),
-      deliverable("architecture", "Deployment Overview", "diagram", "Runtime environments and hosting model."),
-    ],
-  },
-  {
-    id: "experience",
-    label: "Experience & Process",
+    id: "methodology",
+    number: 9,
+    label: "Methodology",
+    description: "Development approach, workflow, algorithms, and process.",
     icon: Workflow,
-    summary: "How users move through the product and how key business processes flow.",
     deliverables: [
-      deliverable("experience", "User Journey Map", "diagram", "End-to-end user experience stages."),
-      deliverable("experience", "User Flow", "diagram", "Screen or step-level navigation paths."),
-      deliverable("experience", "Process Flow", "diagram", "Core business or operational workflows."),
-      deliverable("experience", "Information Architecture", "document", "Content structure and navigation model."),
+      sectionDeliverable("methodology", "Methodology", "document", "Development approach, workflow, algorithms, and process."),
     ],
   },
   {
-    id: "data",
-    label: "Data & Integrations",
+    id: "system-architecture",
+    number: 10,
+    label: "System Architecture",
+    description: "High-level architecture diagram and component interactions.",
+    icon: Boxes,
+    deliverables: [
+      sectionDeliverable("system-architecture", "System Architecture", "diagram", "High-level architecture diagram and component interactions."),
+    ],
+  },
+  {
+    id: "technologies-used",
+    number: 11,
+    label: "Technologies Used",
+    description: "Programming languages, frameworks, databases, cloud services, APIs, etc.",
     icon: Network,
-    summary: "Data model, movement, and connections to external systems.",
     deliverables: [
-      deliverable("data", "Entity Relationship Diagram", "diagram", "Core entities and relationships."),
-      deliverable("data", "Data Flow Diagram", "diagram", "How data moves between components."),
-      deliverable("data", "API Overview", "document", "Key endpoints, contracts, and consumers."),
-      deliverable("data", "Integration Map", "diagram", "Third-party systems and event flows."),
+      sectionDeliverable("technologies-used", "Technologies Used", "matrix", "Programming languages, frameworks, databases, cloud services, APIs, etc."),
     ],
   },
   {
-    id: "security",
-    label: "Security & Compliance",
-    icon: Shield,
-    summary: "Trust boundaries, access control, and risk posture for the solution.",
+    id: "hardware-requirements",
+    number: 12,
+    label: "Hardware Requirements",
+    description: "Processor, RAM, storage, and other hardware needs.",
+    icon: HardDrive,
     deliverables: [
-      deliverable("security", "Authentication Flow", "diagram", "Sign-in, session, and identity lifecycle."),
-      deliverable("security", "Authorization Model", "diagram", "Roles, permissions, and policy enforcement."),
-      deliverable("security", "Threat Model Summary", "document", "Top threats and mitigations."),
-      deliverable("security", "Compliance Notes", "document", "Regulatory or policy requirements."),
+      sectionDeliverable("hardware-requirements", "Hardware Requirements", "matrix", "Processor, RAM, storage, and other hardware needs."),
     ],
   },
   {
-    id: "delivery",
-    label: "Delivery & Roadmap",
-    icon: Calendar,
-    summary: "How the work will be phased, scheduled, and released.",
+    id: "software-requirements",
+    number: 13,
+    label: "Software Requirements",
+    description: "Operating system, IDE, libraries, frameworks, and tools.",
+    icon: Cpu,
     deliverables: [
-      deliverable("delivery", "Roadmap Diagram", "diagram", "Phases, themes, and milestone timeline."),
-      deliverable("delivery", "Work Breakdown Structure", "diagram", "Hierarchy of deliverables and work packages."),
-      deliverable("delivery", "Milestone Plan", "document", "Key dates, gates, and release points."),
-      deliverable("delivery", "Resource Overview", "document", "Team roles and capacity assumptions."),
+      sectionDeliverable("software-requirements", "Software Requirements", "matrix", "Operating system, IDE, libraries, frameworks, and tools."),
     ],
   },
   {
-    id: "quality",
-    label: "Risks & Quality",
-    icon: TestTube,
-    summary: "Delivery risks, dependencies, and how quality will be validated.",
+    id: "modules-description",
+    number: 14,
+    label: "Modules Description",
+    description: "Breakdown of the project into functional modules.",
+    icon: ClipboardList,
     deliverables: [
-      deliverable("quality", "Risk Matrix", "matrix", "Likelihood vs impact with mitigations."),
-      deliverable("quality", "Dependency Diagram", "diagram", "Cross-team or external dependencies."),
-      deliverable("quality", "Test Strategy", "document", "Testing levels, coverage, and environments."),
-      deliverable("quality", "Traceability Matrix", "matrix", "Requirements mapped to tests and deliverables."),
+      sectionDeliverable("modules-description", "Modules Description", "document", "Breakdown of the project into functional modules."),
     ],
   },
   {
-    id: "devops",
-    label: "Operations & DevOps",
+    id: "database-design",
+    number: 15,
+    label: "Database Design",
+    description: "ER diagram, tables, and relationships (if applicable).",
+    icon: Database,
+    deliverables: [
+      sectionDeliverable("database-design", "Database Design", "diagram", "ER diagram, tables, and relationships (if applicable)."),
+    ],
+  },
+  {
+    id: "uml-diagrams",
+    number: 16,
+    label: "UML Diagrams",
+    description: "Use Case, Class, Sequence, Activity, and other relevant diagrams.",
     icon: GitBranch,
-    summary: "How the system is built, deployed, monitored, and operated.",
     deliverables: [
-      deliverable("devops", "CI/CD Pipeline", "diagram", "Build, test, and release automation flow."),
-      deliverable("devops", "Environment Diagram", "diagram", "Dev, staging, production topology."),
-      deliverable("devops", "Monitoring Architecture", "diagram", "Observability, alerts, and logging."),
-      deliverable("devops", "Runbook Outline", "document", "Operational procedures and on-call expectations."),
+      sectionDeliverable("uml-diagrams", "UML Diagrams", "diagram", "Use Case, Class, Sequence, Activity, and other relevant diagrams."),
     ],
   },
   {
-    id: "diagrams",
-    label: "Diagram Appendix",
-    icon: Layers,
-    summary: "Consolidated gallery of all diagrams referenced across the synopsis.",
+    id: "project-timeline",
+    number: 17,
+    label: "Project Timeline",
+    description: "Development schedule (Gantt chart or milestone plan).",
+    icon: Calendar,
     deliverables: [
-      deliverable("diagrams", "Architecture Gallery", "diagram", "All architecture and system diagrams."),
-      deliverable("diagrams", "Process Gallery", "diagram", "User, business, and workflow diagrams."),
-      deliverable("diagrams", "Data Gallery", "diagram", "ERD, data flow, and integration diagrams."),
-      deliverable("diagrams", "Delivery Gallery", "diagram", "Roadmap, WBS, and dependency visuals."),
+      sectionDeliverable("project-timeline", "Project Timeline", "diagram", "Development schedule (Gantt chart or milestone plan)."),
+    ],
+  },
+  {
+    id: "expected-results",
+    number: 18,
+    label: "Expected Results",
+    description: "Anticipated output and benefits of the project.",
+    icon: Target,
+    deliverables: [
+      sectionDeliverable("expected-results", "Expected Results", "document", "Anticipated output and benefits of the project."),
+    ],
+  },
+  {
+    id: "future-enhancements",
+    number: 19,
+    label: "Future Enhancements",
+    description: "Features that can be added later.",
+    icon: Sparkles,
+    deliverables: [
+      sectionDeliverable("future-enhancements", "Future Enhancements", "document", "Features that can be added later."),
+    ],
+  },
+  {
+    id: "applications",
+    number: 20,
+    label: "Applications",
+    description: "Real-world use cases of the project.",
+    icon: Layers,
+    deliverables: [
+      sectionDeliverable("applications", "Applications", "document", "Real-world use cases of the project."),
+    ],
+  },
+  {
+    id: "conclusion",
+    number: 21,
+    label: "Conclusion",
+    description: "Brief summary of the project proposal.",
+    icon: FileText,
+    deliverables: [
+      sectionDeliverable("conclusion", "Conclusion", "document", "Brief summary of the project proposal."),
+    ],
+  },
+  {
+    id: "references",
+    number: 22,
+    label: "References",
+    description: "Books, journals, research papers, and websites used.",
+    icon: BookOpen,
+    deliverables: [
+      sectionDeliverable("references", "References", "document", "Books, journals, research papers, and websites used."),
     ],
   },
 ];
@@ -241,10 +309,13 @@ export function getSynopsisSection(id: string): SynopsisSection | undefined {
 }
 
 export function getDefaultSynopsisSectionId(): string {
-  return PROJECT_SYNOPSIS_SECTIONS[0]?.id ?? "overview";
+  return PROJECT_SYNOPSIS_SECTIONS[0]?.id ?? "title";
 }
 
-export const SYNOPSIS_DELIVERABLE_COUNT = PROJECT_SYNOPSIS_SECTIONS.reduce(
-  (count, section) => count + section.deliverables.length,
-  0,
-);
+export function getSectionDeliverable(section: SynopsisSection): SynopsisDeliverable {
+  return section.deliverables[0];
+}
+
+export const SYNOPSIS_SECTION_COUNT = PROJECT_SYNOPSIS_SECTIONS.length;
+
+export const SYNOPSIS_DELIVERABLE_COUNT = PROJECT_SYNOPSIS_SECTIONS.length;

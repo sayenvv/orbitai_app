@@ -35,6 +35,7 @@ import {
 import { platformApi, type PlatformOpenIdeResult, type PlatformStreamEvent } from "@/lib/orbit-api";
 import { OrbitIdeEditorCard, VsCodeEditorCard } from "@/components/platform/platform-ide-buttons";
 import { StudioRecentList } from "@/components/studio/studio-recent-list";
+import { studioButtonPrimary, studioButtonSecondary, studioRadius } from "@/components/studio/studio-ui";
 import { WorkspaceResizeHandle, WorkspaceVerticalResizeHandle } from "@/components/workspace/workspace-resize";
 import type { RecentStudioDevelopment } from "@/lib/studio-recent-developments";
 import { routes } from "@/lib/routes";
@@ -244,7 +245,7 @@ export function PlatformBackdrop({
 
   if (home) {
     return (
-      <div className="platform-home-backdrop relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="platform-home-backdrop relative flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin]">
         {children}
       </div>
     );
@@ -316,42 +317,40 @@ function PlatformHomeComposer({
             onSubmit();
           }
         }}
-        rows={3}
+        rows={4}
         disabled={disabled}
         placeholder="Describe the project you want to build…"
         className="block w-full resize-none bg-transparent px-5 pb-2 pt-4 text-[15px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50 md:min-h-[6.5rem] md:text-base"
       />
 
-      <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/15 px-3 py-2.5 sm:px-4">
+      <div className="flex items-center justify-between gap-3 border-t border-border/60 px-4 py-3">
         <div className="flex min-w-0 items-center gap-1">
           <button
             type="button"
             onClick={onAttachClick}
             disabled={disabled}
             title="Attach reference files"
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-background hover:text-foreground disabled:opacity-50"
+            className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground transition hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
           >
             <Paperclip className="size-4" />
           </button>
-          <span className="hidden truncate text-[12px] text-muted-foreground sm:inline">
-            {running ? "Generation in progress" : "Enter to generate"}
-          </span>
+          <p className="hidden text-[12px] text-muted-foreground sm:block">
+            Architecture through export in one run
+          </p>
         </div>
         <button
           type="button"
           onClick={onSubmit}
           disabled={!canSubmit}
           className={cn(
-            "inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-4 text-[13px] font-medium transition-all",
-            canSubmit
-              ? "bg-foreground text-background hover:opacity-90"
-              : "cursor-not-allowed bg-muted text-muted-foreground/50",
+            studioButtonPrimary("h-9 shrink-0 px-4 text-[13px]"),
+            !canSubmit && "cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted",
           )}
         >
           {running ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Running
+              Generating…
             </>
           ) : (
             <>
@@ -382,16 +381,22 @@ function PlatformTemplatePills({
             type="button"
             disabled={disabled}
             onClick={() => onSelect(template.prompt)}
-            className="group flex items-center gap-3 rounded-lg border border-border/70 bg-card px-3.5 py-3 text-left shadow-sm transition hover:border-border hover:bg-muted/20 disabled:cursor-not-allowed disabled:opacity-50"
+            className={cn(
+              studioRadius,
+              "group flex items-start gap-3 border border-border/60 bg-card px-3.5 py-3 text-left transition hover:bg-muted/20 disabled:cursor-not-allowed disabled:opacity-50",
+            )}
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/40 text-muted-foreground transition group-hover:text-foreground">
+            <span
+              className={cn(
+                studioRadius,
+                "mt-0.5 flex size-8 shrink-0 items-center justify-center bg-muted/30 text-muted-foreground transition group-hover:text-foreground",
+              )}
+            >
               <Icon className="size-4" />
             </span>
             <span className="min-w-0">
               <span className="block text-[13px] font-medium text-foreground">{template.title}</span>
-              <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                {template.subtitle}
-              </span>
+              <span className="mt-0.5 block text-[11px] text-muted-foreground">{template.subtitle}</span>
             </span>
           </button>
         );
@@ -443,7 +448,8 @@ export function StudioComposer({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-shadow focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/10",
+        studioRadius,
+        "overflow-hidden border border-border bg-card shadow-sm transition-shadow focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/10",
         compact ? "px-4 pb-3 pt-3" : "px-4 pb-3.5 pt-4",
       )}
     >
@@ -513,12 +519,10 @@ export function StudioComposer({
           type="button"
           onClick={onSubmit}
           disabled={!canSubmit}
-        className={cn(
-          "inline-flex shrink-0 items-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-medium transition-colors",
-          canSubmit
-            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-            : "cursor-not-allowed bg-muted text-muted-foreground/50",
-        )}
+          className={cn(
+            studioButtonPrimary("shrink-0 px-3.5 py-2 text-[13px]"),
+            !canSubmit && "cursor-not-allowed bg-muted text-muted-foreground/50 hover:bg-muted",
+          )}
         >
           {running ? (
             <>
@@ -554,9 +558,17 @@ export function TemplateGrid({
             type="button"
             disabled={disabled}
             onClick={() => onSelect(template.prompt)}
-            className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card p-4 text-left transition-colors hover:border-border hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-50"
+            className={cn(
+              studioRadius,
+              "group flex items-start gap-3 border border-border/60 bg-card p-4 text-left transition-colors hover:border-border hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-50",
+            )}
           >
-            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/40 text-muted-foreground transition-colors group-hover:bg-muted/60 group-hover:text-foreground">
+            <span
+              className={cn(
+                studioRadius,
+                "mt-0.5 flex size-9 shrink-0 items-center justify-center border border-border/60 bg-muted/40 text-muted-foreground transition-colors group-hover:bg-muted/60 group-hover:text-foreground",
+              )}
+            >
               <Icon className="size-4" />
             </span>
             <span className="min-w-0">
@@ -890,7 +902,7 @@ export function SuccessPanel({
           href={downloadHref}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground transition hover:opacity-90"
+          className={studioButtonPrimary("shrink-0 px-4 py-2 text-[13px] transition hover:opacity-90")}
         >
           <Download className="size-4" />
           Download ZIP
@@ -952,7 +964,7 @@ export function IdleHero({
       initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-4 py-10 md:px-6 md:py-14"
+      className="flex w-full flex-col items-center px-4 pb-10 pt-6 md:px-6 md:pb-14 md:pt-8"
     >
       <input
         ref={fileInputRef}
@@ -994,9 +1006,10 @@ export function IdleHero({
         <StudioRecentList
           title="Recent projects"
           items={recentItems}
-          emptyLabel="No development projects yet. Run your first generation above."
+          emptyLabel="No projects yet. Describe what you want to build above."
           icon={Rocket}
           disabled={running}
+          className="mt-8"
           onSelect={(id) => onOpenRecentDevelopment?.(id)}
         />
 
@@ -1549,7 +1562,7 @@ export function StudioWorkspace({
             <button
               type="button"
               onClick={() => setDetailPanelOpen(true)}
-              className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted/50"
+              className={studioButtonSecondary("px-2.5 py-1 text-xs")}
             >
               Details
             </button>
@@ -1558,7 +1571,7 @@ export function StudioWorkspace({
             <button
               type="button"
               onClick={() => setAgentPanelOpen(true)}
-              className="hidden rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted/50 lg:inline-flex"
+              className={cn(studioButtonSecondary("px-2.5 py-1 text-xs"), "hidden lg:inline-flex")}
             >
               Activity
             </button>
@@ -1568,7 +1581,7 @@ export function StudioWorkspace({
               type="button"
               onClick={onRunAgain}
               disabled={!prompt.trim()}
-              className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className={studioButtonPrimary("px-3 py-1 text-xs")}
             >
               New generation
             </button>
@@ -1578,7 +1591,7 @@ export function StudioWorkspace({
               href={downloadHref}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+              className={studioButtonPrimary("px-3 py-1 text-xs transition hover:opacity-90")}
             >
               <Download className="size-3.5" />
               Download ZIP
@@ -1858,7 +1871,7 @@ function PreviewUrlBar({
       <button
         type="button"
         onClick={onCopy}
-        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+        className={studioButtonSecondary("shrink-0 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground")}
         title="Copy preview URL"
       >
         {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
@@ -1868,7 +1881,7 @@ function PreviewUrlBar({
         href={url}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+        className={studioButtonSecondary("shrink-0 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground")}
       >
         <ExternalLink className="size-3" />
         Open
@@ -1922,7 +1935,7 @@ function PreviewEmptyState({
         type="button"
         onClick={onStart}
         disabled={starting}
-        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+        className={studioButtonPrimary("px-4 py-2 text-[13px] transition hover:opacity-90")}
       >
         {starting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4 fill-current" />}
         Start preview
@@ -2232,7 +2245,7 @@ export function PreviewLaunchPanel({
               <button
                 type="button"
                 onClick={handleRefreshPreview}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-[12px] font-medium text-foreground transition hover:bg-muted/50"
+                className={studioButtonSecondary("px-2.5 py-1.5 text-[12px]")}
                 title="Refresh preview"
               >
                 <RefreshCw className="size-3.5" />
@@ -2242,7 +2255,7 @@ export function PreviewLaunchPanel({
                 href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-[12px] font-medium text-foreground transition hover:bg-muted/50"
+                className={studioButtonSecondary("px-2.5 py-1.5 text-[12px]")}
               >
                 <ExternalLink className="size-3.5" />
                 New tab
@@ -2255,7 +2268,10 @@ export function PreviewLaunchPanel({
               type="button"
               onClick={handleStopPreview}
               disabled={previewStopping}
-              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/[0.04] px-3 py-1.5 text-[12px] font-medium text-destructive transition hover:bg-destructive/10 disabled:opacity-50"
+              className={cn(
+                studioButtonSecondary("px-3 py-1.5 text-[12px]"),
+                "border-destructive/30 bg-destructive/[0.04] text-destructive hover:bg-destructive/10",
+              )}
             >
               {previewStopping ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -2269,7 +2285,7 @@ export function PreviewLaunchPanel({
               type="button"
               onClick={handleStartPreview}
               disabled={previewStarting}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+              className={studioButtonPrimary("px-3 py-1.5 text-[12px] transition hover:opacity-90")}
             >
               {previewStarting ? (
                 <Loader2 className="size-3.5 animate-spin" />

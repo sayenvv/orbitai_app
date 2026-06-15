@@ -101,6 +101,8 @@ function AppShellLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (pathname === routes.plans) {
       setSection("plans");
+    } else if (pathname === routes.agents || pathname.startsWith(`${routes.agents}/`)) {
+      setSection("agents");
     } else if (pathname.startsWith("/apps")) {
       setSection("apps");
     } else if (pathname !== routes.home) {

@@ -20,6 +20,7 @@ export function StudioRecentList({
   icon: Icon,
   onSelect,
   disabled = false,
+  className,
 }: {
   title: string;
   items: StudioRecentItem[];
@@ -27,17 +28,18 @@ export function StudioRecentList({
   icon: LucideIcon;
   onSelect: (id: string) => void;
   disabled?: boolean;
+  className?: string;
 }) {
   if (items.length === 0) {
     return (
-      <section className="studio-recent-panel mt-8">
+      <section className={cn("studio-recent-panel", className)}>
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {title}
           </p>
         </div>
         <div className="border-t border-border/50 px-4 py-5 text-center">
-          <span className="mx-auto mb-2 flex size-8 items-center justify-center rounded-lg border border-border/60 bg-muted/25 text-muted-foreground">
+          <span className="mx-auto mb-2 flex size-8 items-center justify-center border border-border/50 bg-muted/20 text-muted-foreground">
             <Icon className="size-3.5" strokeWidth={1.75} />
           </span>
           <p className="text-[12px] text-muted-foreground">{emptyLabel}</p>
@@ -47,7 +49,7 @@ export function StudioRecentList({
   }
 
   return (
-    <section className="studio-recent-panel mt-8">
+    <section className={cn("studio-recent-panel", className)}>
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {title}
@@ -66,7 +68,7 @@ export function StudioRecentList({
               onClick={() => onSelect(item.id)}
               className="studio-recent-row group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/55 bg-background/80 text-muted-foreground transition-colors group-hover:border-border group-hover:text-foreground">
+              <span className="flex size-8 shrink-0 items-center justify-center border border-border/50 bg-background/80 text-muted-foreground transition-colors group-hover:text-foreground">
                 <Icon className="size-3.5" strokeWidth={1.75} />
               </span>
               <span className="min-w-0 flex-1">

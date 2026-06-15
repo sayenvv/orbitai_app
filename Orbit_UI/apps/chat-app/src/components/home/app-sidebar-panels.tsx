@@ -72,6 +72,8 @@ type SidebarCollapsedNavProps = {
   section: SidebarSection;
   onNewChat: () => void;
   onLibrary: () => void;
+  onAgents?: () => void;
+  agentsActive?: boolean;
   onStudio?: () => void;
   studioActive?: boolean;
   onPlans: () => void;
@@ -83,6 +85,8 @@ export function SidebarCollapsedNav({
   section,
   onNewChat,
   onLibrary,
+  onAgents,
+  agentsActive = false,
   onStudio,
   studioActive = false,
   onPlans,
@@ -91,6 +95,9 @@ export function SidebarCollapsedNav({
 }: SidebarCollapsedNavProps) {
   const authenticatedItems: SidebarNavItem[] = [
     { key: "library", label: "Library", icon: Folders, active: section === "library", onClick: onLibrary },
+    ...(onAgents
+      ? [{ key: "agents", label: "Agents", icon: Bot, active: agentsActive, onClick: onAgents }]
+      : []),
     ...(onStudio
       ? [{ key: "studio", label: "Studio", icon: Rocket, active: studioActive, onClick: onStudio }]
       : []),

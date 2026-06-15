@@ -1,72 +1,17 @@
 "use client";
 
-import { ClipboardList, Palette, Rocket, type LucideIcon } from "lucide-react";
-
 import { type StudioPhase } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-type PhaseConfig = {
+const WORKFLOW_PHASES: Array<{
   id: StudioPhase;
   label: string;
-  icon: LucideIcon;
   comingSoon?: boolean;
-};
-
-const WORKFLOW_PHASES: PhaseConfig[] = [
-  { id: "plan", label: "Plan", icon: ClipboardList },
-  { id: "design", label: "Design", icon: Palette, comingSoon: true },
-  { id: "development", label: "Development", icon: Rocket },
+}> = [
+  { id: "plan", label: "Plan" },
+  { id: "design", label: "Design", comingSoon: true },
+  { id: "development", label: "Development" },
 ];
-
-function PhaseSegment({
-  phase,
-  active,
-  isLast,
-  onSelect,
-}: {
-  phase: PhaseConfig;
-  active: boolean;
-  isLast: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = phase.icon;
-
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onSelect}
-      className={cn(
-        "studio-workflow-segment group flex min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 text-left transition-colors duration-150 sm:gap-2 sm:px-3 sm:py-2",
-        !isLast && "studio-workflow-segment-divider",
-        active ? "studio-workflow-segment-active" : "hover:bg-foreground/[0.02] dark:hover:bg-white/[0.03]",
-      )}
-    >
-      <span
-        className={cn(
-          "flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors",
-          active
-            ? "border-primary/20 bg-primary/[0.08] text-primary"
-            : "border-border/50 bg-background/80 text-muted-foreground group-hover:text-foreground/80",
-        )}
-      >
-        <Icon className="size-3" strokeWidth={1.75} />
-      </span>
-      <span
-        className={cn(
-          "truncate text-[11px] font-medium sm:text-[12px]",
-          active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/90",
-        )}
-      >
-        {phase.label}
-      </span>
-      {phase.comingSoon ? (
-        <span className="studio-workflow-badge shrink-0">Soon</span>
-      ) : null}
-    </button>
-  );
-}
 
 export function StudioWorkflowHeader({
   activePhase,
@@ -77,21 +22,44 @@ export function StudioWorkflowHeader({
   hasLinkedPlan?: boolean;
 }) {
   return (
-    <header className="studio-workflow-header shrink-0 px-3 py-1.5 md:px-5">
+    <header className="studio-workflow-header shrink-0 px-3 md:px-5">
       <nav
         role="tablist"
         aria-label="Studio workflow"
-        className="studio-workflow-track grid w-full grid-cols-3 overflow-hidden rounded-lg"
+        className="grid w-full grid-cols-3"
       >
-        {WORKFLOW_PHASES.map((phase, index) => (
-          <PhaseSegment
-            key={phase.id}
-            phase={phase}
-            active={activePhase === phase.id}
-            isLast={index === WORKFLOW_PHASES.length - 1}
-            onSelect={() => onPhaseChange(phase.id)}
-          />
-        ))}
+        {WORKFLOW_PHASES.map((phase) => {
+          const active = activePhase === phase.id;
+          return (
+            <button
+              key={phase.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onPhaseChange(phase.id)}
+              className={cn(
+                "relative flex min-w-0 items-center justify-center gap-1.5 px-2 py-2.5 text-[12px] font-medium transition-colors",
+                active
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground/80",
+              )}
+            >
+              <span className="truncate">{phase.label}</span>
+              {phase.comingSoon ? (
+                <span className="shrink-0 text-[10px] font-normal text-muted-foreground/70">
+                  Soon
+                </span>
+              ) : null}
+              <span
+                className={cn(
+                  "absolute inset-x-3 bottom-0 h-px bg-foreground transition-opacity",
+                  active ? "opacity-100" : "opacity-0",
+                )}
+                aria-hidden
+              />
+            </button>
+          );
+        })}
       </nav>
     </header>
   );

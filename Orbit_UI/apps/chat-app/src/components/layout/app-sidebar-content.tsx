@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  Bot,
   Crown,
   Folders,
   MessageCirclePlus,
@@ -22,7 +23,7 @@ import { useSidebarChats } from "@/hooks/use-sidebar-chats";
 import { useTokenUsage } from "@/hooks/use-token-usage";
 import { useUsageStore } from "@/store/usage-store";
 import { navigateToNewChat, conversationPath } from "@/lib/chat-navigation";
-import { routes, homeWithSection, isStudioPath, studioWithPhase } from "@/lib/routes";
+import { routes, homeWithSection, isAgentsPath, isStudioPath, studioWithPhase } from "@/lib/routes";
 import {
   buildAppChatHref,
   isSameWorkspaceAppChat,
@@ -139,6 +140,8 @@ export function AppSidebarContent({
       router.push(routes.apps.store);
     } else if (next === "library") {
       router.push(homeWithSection("library"));
+    } else if (next === "agents") {
+      router.push(routes.agents);
     }
     onNavigate?.();
   };
@@ -186,12 +189,17 @@ export function AppSidebarContent({
     onExpand?.();
   };
 
+  const handleAgents = () => {
+    handleSectionChange("agents");
+  };
+
   const handleStudio = () => {
     router.push(studioWithPhase("plan"));
     onNavigate?.();
   };
 
   const isStudioActive = isStudioPath(pathname);
+  const isAgentsActive = isAgentsPath(pathname);
   const historyLoading = chatsLoading || !chatsHydrated;
   const isDrawer = variant === "drawer";
 
@@ -205,6 +213,7 @@ export function AppSidebarContent({
     ? [
         { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
         { key: "library", icon: Folders, label: "Library", onClick: handleLibrary, active: section === "library" },
+        { key: "agents", icon: Bot, label: "Agents", onClick: handleAgents, active: isAgentsActive },
         { key: "studio", icon: Rocket, label: "Studio", onClick: handleStudio, active: isStudioActive },
       ]
     : [
@@ -244,6 +253,8 @@ export function AppSidebarContent({
             section={section}
             onNewChat={handleNewChat}
             onLibrary={handleLibrary}
+            onAgents={handleAgents}
+            agentsActive={isAgentsActive}
             onStudio={handleStudio}
             studioActive={isStudioActive}
             onPlans={handlePlans}

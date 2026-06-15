@@ -6,8 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PlanPanel } from "@/components/plan/plan-panel";
 import { PlatformGeneratePanel } from "@/components/platform/platform-generate-panel";
 import { DesignComingSoon } from "@/components/studio/design-coming-soon";
-import { StudioWorkflowHeader } from "@/components/studio/studio-workflow-header";
-import { parseStudioPhase, studioWithPhase, type StudioPhase } from "@/lib/routes";
+import { parseStudioPhase, studioPlanWorkspace, studioWithPhase, type StudioPhase } from "@/lib/routes";
 
 const STUDIO_PLAN_PROMPT_KEY = "orbit-studio-plan-prompt";
 
@@ -40,23 +39,15 @@ export function StudioPanel({ initialPhase }: { initialPhase?: StudioPhase }) {
     setLinkedPlanPrompt(prompt);
   }, []);
 
-  const handlePhaseChange = useCallback(
-    (nextPhase: StudioPhase) => {
-      router.push(studioWithPhase(nextPhase));
-    },
-    [router],
-  );
-
   useEffect(() => {
     if (phase === "plan" && searchParams.get("phase") === "plan") {
-      router.replace(studioWithPhase("plan"));
+      const planId = searchParams.get("planId");
+      router.replace(planId ? studioPlanWorkspace(planId) : studioWithPhase("plan"));
     }
   }, [phase, router, searchParams]);
 
   return (
     <div className="studio-shell flex min-h-0 flex-1 flex-col overflow-hidden">
-      <StudioWorkflowHeader activePhase={phase} onPhaseChange={handlePhaseChange} />
-
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {phase === "design" ? (
           <DesignComingSoon projectPrompt={linkedPlanPrompt || undefined} />

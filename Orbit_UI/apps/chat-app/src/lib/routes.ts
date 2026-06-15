@@ -4,6 +4,7 @@ export const routes = {
   code: "/code",
   codeSettings: "/code/settings",
   plans: "/plans",
+  agents: "/agents",
   /** Unified Plan → Design → Development workflow home */
   studio: "/studio",
   /** @deprecated Use routes.studio with phase=plan */
@@ -32,6 +33,19 @@ export function studioWithPhase(phase: StudioPhase = "plan"): string {
   return phase === "plan" ? routes.studio : `${routes.studio}?phase=${phase}`;
 }
 
+export function studioPlanWorkspace(planId: string, phase: StudioPhase = "plan"): string {
+  const params = new URLSearchParams();
+  if (phase !== "plan") params.set("phase", phase);
+  params.set("planId", planId);
+  const query = params.toString();
+  return query ? `${routes.studio}?${query}` : routes.studio;
+}
+
+export function parseStudioPlanId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export function parseStudioPhase(value: string | null | undefined): StudioPhase {
   if (value && STUDIO_PHASES.includes(value as StudioPhase)) {
     return value as StudioPhase;
@@ -48,6 +62,10 @@ export function isStudioPath(pathname: string): boolean {
     pathname === routes.platform ||
     pathname.startsWith(`${routes.platform}/`)
   );
+}
+
+export function isAgentsPath(pathname: string): boolean {
+  return pathname === routes.agents || pathname.startsWith(`${routes.agents}/`);
 }
 
 export function homeWithSection(section: HomeSection): string {
@@ -71,6 +89,7 @@ export const ALLOWED_INTERNAL_REDIRECT_PREFIXES = [
   routes.code,
   routes.codeSettings,
   routes.plans,
+  routes.agents,
   routes.studio,
   routes.plan,
   routes.platform,
