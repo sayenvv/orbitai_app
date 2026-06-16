@@ -15,7 +15,6 @@ import { SupportModal } from "@/components/home/support-modal";
 import { AppShellProvider, useAppShell } from "@/components/layout/app-shell-context";
 import { AuthNavTabs } from "@/components/layout/auth-nav-tabs";
 import { CodeCollapsedRail } from "@/components/code/code-collapsed-rail";
-import { WorkspaceTopBar } from "@/components/layout/workspace-top-bar";
 import { ChatHistoryRail } from "@/components/chat/chat-history-rail";
 import { NavbarBrand } from "@/components/layout/navbar-brand";
 import { MobileAppDrawer } from "@/components/layout/mobile-app-drawer";
@@ -199,10 +198,6 @@ function AppShellLayout({ children }: { children: ReactNode }) {
         </div>
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="hidden shrink-0 md:block">
-            <WorkspaceTopBar />
-          </div>
-
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden">
               {showSectionPanel ? (

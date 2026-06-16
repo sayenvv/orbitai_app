@@ -838,6 +838,9 @@ export const projectPlanningApi = {
       start: number;
       end: number;
     } | null;
+    contextScope?: "plan" | "section";
+    focusedSectionLabel?: string;
+    focusedSectionContent?: string;
   }) =>
     request<{
       reply: string;

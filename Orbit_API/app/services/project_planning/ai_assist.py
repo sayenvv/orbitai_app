@@ -20,6 +20,18 @@ _WORKSHEET_FENCE = re.compile(
 
 def _system_prompt(req: ProjectPlanningAiAssistRequest) -> str:
     worksheet_json = json.dumps(req.worksheet.model_dump(by_alias=True), indent=2)
+    if req.context_scope == "section" and (req.focused_section_content or "").strip():
+        context_block = (
+            "Context mode: SECTION FOCUS\n"
+            f"Focused section: {req.focused_section_label or req.phase_label}\n"
+            "Use the project summary for background; prioritize the focused section snapshot below.\n\n"
+            f"Section snapshot:\n{(req.focused_section_content or '').strip()[:8000]}\n"
+        )
+    else:
+        context_block = (
+            "Context mode: FULL PLAN\n"
+            "Use the entire project summary and brief holistically across deliverables.\n"
+        )
     return (
         "You are an expert product and software planning assistant for Clovai Project Studio.\n"
         f"Project: {req.project_name}\n"
@@ -27,6 +39,7 @@ def _system_prompt(req: ProjectPlanningAiAssistRequest) -> str:
         f"Phase: {req.phase_label}\n"
         f"Deliverable: {req.artifact_label} ({req.artifact_format})\n"
         f"Description: {req.artifact_description}\n\n"
+        f"{context_block}\n"
         "The user is editing a deliverable worksheet with blocks: heading, paragraph, caption, "
         "link (label, url), image (url, alt, caption), table (headers + rows), "
         "flowchart (nodes), and matrix (headers + rows). "
@@ -106,5 +119,5 @@ async def run_project_planning_ai_assist(
     return ProjectPlanningAiAssistResponse(
         reply=visible,
         worksheet=worksheet,
-        worksheetUpdated=worksheet is not None,
+        worksheet_updated=worksheet is not None,
     )

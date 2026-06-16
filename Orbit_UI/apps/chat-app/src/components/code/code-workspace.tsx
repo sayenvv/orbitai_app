@@ -96,7 +96,7 @@ export function CodeWorkspace() {
   const router = useRouter();
   const projectIdParam = searchParams.get("projectId");
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const { setHeader, openAuthPrompt } = useAppShell();
+  const { openAuthPrompt } = useAppShell();
   const { preferences, ready: preferencesReady } = useCodeWorkspacePreferences();
   const prefsAppliedRef = useRef(false);
 
@@ -1063,12 +1063,6 @@ export function CodeWorkspace() {
     ],
   );
 
-  useEffect(() => {
-    setHeader({ leading: headerLeading });
-  }, [headerLeading, setHeader]);
-
-  useEffect(() => () => setHeader(null), [setHeader]);
-
   const handleTerminalOutput = useCallback((command: string, output: string) => {
     setConsoleOpen(true);
     setConsoleMaximized(false);
@@ -1248,6 +1242,9 @@ export function CodeWorkspace() {
         </div>
       ) : null}
       <div className="ide-workspace flex h-full min-h-0 flex-1 flex-col overflow-hidden backdrop-blur-3xl">
+      <div className="hidden shrink-0 items-center border-b border-[var(--code-chrome-divider)] px-3 py-1.5 md:flex">
+        {headerLeading}
+      </div>
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <IdeResizablePanel
           side="left"

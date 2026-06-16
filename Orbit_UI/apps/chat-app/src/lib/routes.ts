@@ -33,12 +33,33 @@ export function studioWithPhase(phase: StudioPhase = "plan"): string {
   return phase === "plan" ? routes.studio : `${routes.studio}?phase=${phase}`;
 }
 
-export function studioPlanWorkspace(planId: string, phase: StudioPhase = "plan"): string {
+export function studioPlanWorkspace(
+  planId: string,
+  phase: StudioPhase = "plan",
+  sectionId?: string | null,
+): string {
   const params = new URLSearchParams();
   if (phase !== "plan") params.set("phase", phase);
   params.set("planId", planId);
-  const query = params.toString();
-  return query ? `${routes.studio}?${query}` : routes.studio;
+  const section = sectionId?.trim();
+  if (section) params.set("section", section);
+  return `${routes.studio}?${params.toString()}`;
+}
+
+export function studioPlanShareUrl(
+  planId: string,
+  options?: { phase?: StudioPhase; sectionId?: string | null; origin?: string },
+): string {
+  const phase = options?.phase ?? "plan";
+  const path = studioPlanWorkspace(planId, phase, options?.sectionId);
+  const origin =
+    options?.origin ?? (typeof window !== "undefined" ? window.location.origin : "");
+  return `${origin}${path}`;
+}
+
+export function parseStudioPlanSectionId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
 export function parseStudioPlanId(value: string | null | undefined): string | null {

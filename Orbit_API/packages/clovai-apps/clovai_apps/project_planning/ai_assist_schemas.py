@@ -34,6 +34,9 @@ class ProjectPlanningAiAssistRequest(BaseModel):
     worksheet: ProjectPlanningWorksheetContent
     history: list[ProjectPlanningAiHistoryTurn] = Field(default_factory=list)
     text_selection: ProjectPlanningAiTextSelection | None = Field(default=None, alias="textSelection")
+    context_scope: Literal["plan", "section"] = Field(default="plan", alias="contextScope")
+    focused_section_label: str | None = Field(default=None, alias="focusedSectionLabel")
+    focused_section_content: str | None = Field(default=None, alias="focusedSectionContent")
 
     model_config = {"populate_by_name": True}
 

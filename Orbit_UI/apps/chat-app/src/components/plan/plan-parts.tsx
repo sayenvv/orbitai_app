@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   KeyboardSensor,
@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 
 import { PlanDeliverableEditor } from "@/components/plan/plan-deliverable-editor";
+import { PlanShareMenu } from "@/components/plan/plan-share-menu";
 import { PlanStudioChat } from "@/components/plan/plan-studio-chat";
 import { PlatformBackdrop } from "@/components/platform/platform-parts";
 import { WorkspaceResizeHandle } from "@/components/workspace/workspace-resize";
@@ -47,7 +48,6 @@ import {
   filterSectionsByIncluded,
   getDefaultSectionId,
   getPlanSections,
-  PLAN_WORKSPACE_VIEWS,
   resolvePlanSection,
   TOTAL_PLAN_SECTION_COUNT,
   type PlanWorkspaceView,
@@ -70,7 +70,11 @@ import {
 import { exportPlanProposalPdf } from "@/lib/plan-pdf-export";
 import { reorderSynopsisSectionOrder } from "@/lib/plan-synopsis-section-order";
 import type { RecentStudioPlan } from "@/lib/studio-recent-plans";
-import { studioWithPhase } from "@/lib/routes";
+import {
+  parseStudioPlanSectionId,
+  studioPlanWorkspace,
+  studioWithPhase,
+} from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { StudioRecentList } from "@/components/studio/studio-recent-list";
 import { studioButtonPrimary, studioButtonSecondary, studioRadius } from "@/components/studio/studio-ui";
@@ -81,7 +85,7 @@ const OUTLINE_PANEL_DEFAULT_WIDTH = 300;
 const OUTLINE_PANEL_MIN_WIDTH = 240;
 const OUTLINE_PANEL_MAX_WIDTH = 480;
 
-const ASSIST_PANEL_DEFAULT_WIDTH = 320;
+const ASSIST_PANEL_DEFAULT_WIDTH = 360;
 const ASSIST_PANEL_MIN_WIDTH = 280;
 const ASSIST_PANEL_MAX_WIDTH = 520;
 
@@ -619,10 +623,21 @@ function SynopsisSectionPanel({
 }) {
   const deliverable = getSectionDeliverable(section);
   const content = getSectionContent(contentByDeliverableId, section, projectPrompt);
+  const isDiagram = deliverable.format === "diagram";
 
   return (
-    <div className="platform-center-stack w-full">
-      <div className="platform-center-card plan-synopsis-preview shrink-0">
+    <div
+      className={cn(
+        "platform-center-stack w-full",
+        isDiagram && "flex min-h-0 min-h-full flex-1 flex-col",
+      )}
+    >
+      <div
+        className={cn(
+          "platform-center-card plan-synopsis-preview",
+          isDiagram ? "flex min-h-0 flex-1 flex-col" : "shrink-0",
+        )}
+      >
         <div className="border-b border-border/60 px-4 py-3.5 sm:px-5">
           <div className="flex items-start gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-border/60 bg-muted/30 font-mono text-xs font-semibold text-muted-foreground">
@@ -638,11 +653,13 @@ function SynopsisSectionPanel({
           </div>
         </div>
 
-        <PlanDeliverableEditor
-          deliverable={deliverable}
-          content={content}
-          onChange={(next) => onContentChange(deliverable.id, next)}
-        />
+        <div className={cn(isDiagram && "flex min-h-0 flex-1 flex-col")}>
+          <PlanDeliverableEditor
+            deliverable={deliverable}
+            content={content}
+            onChange={(next) => onContentChange(deliverable.id, next)}
+          />
+        </div>
       </div>
     </div>
   );
@@ -675,9 +692,11 @@ export function PlanWorkspace({
   onRemoveCustomSection: (sectionId: string) => void;
   onReorderSynopsisSections: (orderedIds: string[]) => void;
 }) {
-  const [workspaceView, setWorkspaceView] = useState<PlanWorkspaceView>(
-    planScope?.target ?? "synopsis",
-  );
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const workspaceView: PlanWorkspaceView = planScope?.target ?? "synopsis";
+  const workspaceLabel =
+    workspaceView === "synopsis" ? "Project Synopsis" : "Project Documentation";
   const [outlineOpen, setOutlineOpen] = useState(true);
   const [outlinePanelWidth, setOutlinePanelWidth] = useState(OUTLINE_PANEL_DEFAULT_WIDTH);
   const [chatOpen, setChatOpen] = useState(true);
@@ -689,25 +708,41 @@ export function PlanWorkspace({
     let sections = getPlanSections(workspaceView, customSynopsisSections, synopsisSectionOrder);
 
     if (planScope) {
-      if (workspaceView === planScope.target) {
-        sections = filterSectionsByIncluded(sections, planScope.includedSectionIds);
-      } else {
-        sections = [];
-      }
+      sections = filterSectionsByIncluded(sections, planScope.includedSectionIds);
     }
 
     return sections;
   }, [workspaceView, customSynopsisSections, synopsisSectionOrder, planScope]);
 
   useEffect(() => {
+    const sectionFromUrl = parseStudioPlanSectionId(searchParams.get("section"));
+    if (sectionFromUrl && visibleSections.some((section) => section.id === sectionFromUrl)) {
+      setActiveSectionId(sectionFromUrl);
+    }
+  }, [planId, searchParams, visibleSections]);
+
+  useEffect(() => {
     if (!planScope) return;
-    setWorkspaceView(planScope.target);
     const sections = filterSectionsByIncluded(
       getPlanSections(planScope.target, customSynopsisSections, synopsisSectionOrder),
       planScope.includedSectionIds,
     );
-    setActiveSectionId(sections[0]?.id ?? getDefaultSectionId(planScope.target));
-  }, [planScope, customSynopsisSections, synopsisSectionOrder]);
+    setActiveSectionId((current) => {
+      if (sections.some((section) => section.id === current)) return current;
+      const sectionFromUrl = parseStudioPlanSectionId(searchParams.get("section"));
+      if (sectionFromUrl && sections.some((section) => section.id === sectionFromUrl)) {
+        return sectionFromUrl;
+      }
+      return sections[0]?.id ?? getDefaultSectionId(planScope.target);
+    });
+  }, [planScope, customSynopsisSections, synopsisSectionOrder, searchParams]);
+
+  useEffect(() => {
+    if (!planId || !activeSectionId) return;
+    const sectionFromUrl = parseStudioPlanSectionId(searchParams.get("section"));
+    if (sectionFromUrl === activeSectionId) return;
+    router.replace(studioPlanWorkspace(planId, "plan", activeSectionId), { scroll: false });
+  }, [activeSectionId, planId, router, searchParams]);
 
   const activeSection = useMemo(() => {
     if (!visibleSections.length) return undefined;
@@ -725,10 +760,10 @@ export function PlanWorkspace({
       onRemoveCustomSection(sectionId);
       if (activeSectionId === sectionId) {
         const remaining = visibleSections.filter((section) => section.id !== sectionId);
-        setActiveSectionId(remaining[remaining.length - 1]?.id ?? getDefaultSectionId("synopsis"));
+        setActiveSectionId(remaining[remaining.length - 1]?.id ?? getDefaultSectionId(workspaceView));
       }
     },
-    [activeSectionId, onRemoveCustomSection, visibleSections],
+    [activeSectionId, onRemoveCustomSection, visibleSections, workspaceView],
   );
 
   const projectTitle = useMemo(
@@ -755,11 +790,7 @@ export function PlanWorkspace({
   const activeDeliverableContent = activeSection
     ? getSectionContent(contentByDeliverableId, activeSection, projectPrompt)
     : null;
-
-  const handleWorkspaceViewChange = useCallback((view: PlanWorkspaceView) => {
-    setWorkspaceView(view);
-    setActiveSectionId(getDefaultSectionId(view));
-  }, []);
+  const activeIsDiagram = activeDeliverable?.format === "diagram";
 
   const handleExportPdf = useCallback(async () => {
     setExportingPdf(true);
@@ -777,13 +808,12 @@ export function PlanWorkspace({
     }
   }, [contentByDeliverableId, customSynopsisSections, projectTitle, synopsisSectionOrder]);
 
-  const router = useRouter();
   const handleCreateDesign = useCallback(() => {
     router.push(studioWithPhase("design"));
   }, [router]);
 
   return (
-    <div className="platform-shell flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div className="platform-shell plan-workspace-shell flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <header className="platform-toolbar flex h-11 shrink-0 items-center gap-3 px-4 md:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="hidden text-xs text-muted-foreground sm:inline">Workspace</span>
@@ -801,23 +831,9 @@ export function PlanWorkspace({
         </div>
 
         <div className="hidden min-w-0 flex-1 px-4 lg:flex lg:justify-center">
-          <div className="inline-flex items-center gap-1 rounded-sm border border-border/60 bg-muted/20 p-0.5">
-            {PLAN_WORKSPACE_VIEWS.map((view) => (
-              <button
-                key={view.id}
-                type="button"
-                onClick={() => handleWorkspaceViewChange(view.id)}
-                className={cn(
-                  "rounded-sm px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  workspaceView === view.id
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {view.label}
-              </button>
-            ))}
-          </div>
+          <span className="rounded-sm border border-border/60 bg-muted/20 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            {workspaceLabel}
+          </span>
         </div>
 
         <div className="hidden min-w-0 flex-1 px-2 xl:block">
@@ -831,6 +847,13 @@ export function PlanWorkspace({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          <PlanShareMenu
+            context={{
+              planId,
+              projectTitle,
+              planType: workspaceView,
+            }}
+          />
           {workspaceView === "synopsis" ? (
             <button
               type="button"
@@ -875,22 +898,6 @@ export function PlanWorkspace({
           ) : null}
         </div>
       </header>
-
-      <div className="flex gap-1 border-b border-border/60 px-4 py-2 lg:hidden">
-        {PLAN_WORKSPACE_VIEWS.map((view) => (
-          <button
-            key={view.id}
-            type="button"
-            onClick={() => handleWorkspaceViewChange(view.id)}
-            className={cn(
-              studioButtonSecondary("flex-1 px-2 py-1 text-[10px]"),
-              workspaceView === view.id && "border-primary/30 bg-primary/[0.05] text-foreground",
-            )}
-          >
-            {view.label}
-          </button>
-        ))}
-      </div>
 
       <div className="platform-canvas flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         {outlineOpen ? (
@@ -948,7 +955,12 @@ export function PlanWorkspace({
               <p className="mt-1 truncate">{generateProgress.label}</p>
             </div>
           ) : null}
-          <div className="plan-synopsis-scroll h-0 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]">
+          <div
+            className={cn(
+              "plan-synopsis-scroll h-0 min-h-0 flex-1 overscroll-contain [scrollbar-width:thin]",
+              activeIsDiagram ? "flex flex-col overflow-hidden" : "overflow-y-auto",
+            )}
+          >
             {activeSection ? (
               <SynopsisSectionPanel
                 section={activeSection}
@@ -959,9 +971,7 @@ export function PlanWorkspace({
             ) : (
               <div className="flex min-h-[280px] items-center justify-center px-6 py-10 text-center">
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  {planScope && workspaceView !== planScope.target
-                    ? `This plan was generated with the ${planScope.target === "synopsis" ? "synopsis" : "documentation"} package only.`
-                    : "No sections are included in this plan."}
+                  No sections are included in this plan.
                 </p>
               </div>
             )}
