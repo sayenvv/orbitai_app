@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import AsyncIterator
 from typing import Any
 
 from clovai_apps.project_planning.ai_assist_schemas import (
     ProjectPlanningAiAssistRequest,
     ProjectPlanningAiAssistResponse,
+    ProjectPlanningAiAssistStreamEvent,
 )
 from clovai_apps.project_planning.schemas import ProjectPlanningWorksheetContent
 from orbit_orchestration.config import get_orchestration_settings
-from orbit_orchestration.langchain.direct_chat import direct_chat_reply
+from orbit_orchestration.langchain.direct_chat import direct_chat_reply, direct_chat_stream
 
 _WORKSHEET_FENCE = re.compile(
     r"```(?:worksheet|json)?\s*\n([\s\S]*?)\n```",
@@ -43,7 +45,7 @@ def _system_prompt(req: ProjectPlanningAiAssistRequest) -> str:
         "The user is editing a deliverable worksheet with blocks: heading, paragraph, caption, "
         "link (label, url), image (url, alt, caption), table (headers + rows), "
         "flowchart (nodes), and matrix (headers + rows). "
-        "Paragraphs may include inline links as [label](url) and colors as <c:#hex>text</c>.\n\n"
+        "Paragraphs may include inline links as [label](url) and colors as <c>#hex>text</c>.\n\n"
         "Rules:\n"
         "1. Reply in clear Markdown for the user (explain what you did or answer questions).\n"
         "2. When the user asks you to write, revise, expand, or update the deliverable content, "
@@ -108,6 +110,30 @@ def _extract_worksheet_from_reply(reply: str) -> tuple[str, ProjectPlanningWorks
     return visible or "I've updated the deliverable worksheet.", worksheet
 
 
+def _section_target(req: ProjectPlanningAiAssistRequest) -> str:
+    if req.context_scope == "section" and (req.focused_section_label or "").strip():
+        return (req.focused_section_label or req.artifact_label).strip()
+    return req.artifact_label
+
+
+def _generate_patch_label(req: ProjectPlanningAiAssistRequest) -> str:
+    if req.artifact_format == "diagram":
+        return "Generating diagram patch"
+    if req.artifact_format == "matrix":
+        return "Generating matrix patch"
+    return "Generating content patch"
+
+
+def _generate_patch_done_label(req: ProjectPlanningAiAssistRequest) -> str:
+    if req.artifact_format == "diagram":
+        return "Diagram patch ready"
+    return "Content patch ready"
+
+
+def _emit(event: ProjectPlanningAiAssistStreamEvent) -> dict[str, Any]:
+    return event.to_sse()
+
+
 async def run_project_planning_ai_assist(
     req: ProjectPlanningAiAssistRequest,
 ) -> ProjectPlanningAiAssistResponse:
@@ -121,3 +147,126 @@ async def run_project_planning_ai_assist(
         worksheet=worksheet,
         worksheet_updated=worksheet is not None,
     )
+
+
+async def stream_project_planning_ai_assist(
+    req: ProjectPlanningAiAssistRequest,
+) -> AsyncIterator[dict[str, Any]]:
+    try:
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="stage_start",
+                stage="read_brief",
+                message="Reading project brief",
+            )
+        )
+        if not req.project_summary.strip():
+            raise ValueError("Project brief is empty.")
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="stage_done",
+                stage="read_brief",
+                message="Read project brief",
+            )
+        )
+
+        section_target = _section_target(req)
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="stage_start",
+                stage="load_section",
+                message=f"Loading section file · {section_target}",
+            )
+        )
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="stage_done",
+                stage="load_section",
+                message=f"Loaded {req.phase_label}",
+            )
+        )
+
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="stage_start",
+                stage="parse_request",
+                message="Parsing edit request",
+            )
+        )
+        user_message = _build_user_message(req)
+        if not user_message.strip():
+            raise ValueError("Edit request is empty.")
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="stage_done",
+                stage="parse_request",
+                message="Parsed edit request",
+            )
+        )
+
+        settings = get_orchestration_settings()
+        history = _history_pairs(req)
+        composed = f"{_system_prompt(req)}\n\n---\n\nUser request:\n{user_message}"
+
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="stage_start",
+                stage="generate_patch",
+                message=_generate_patch_label(req),
+            )
+        )
+
+        token_parts: list[str] = []
+        async for chunk in direct_chat_stream(composed, history, settings):
+            token_parts.append(chunk)
+            yield _emit(
+                ProjectPlanningAiAssistStreamEvent(
+                    type="token",
+                    stage="generate_patch",
+                    content=chunk,
+                )
+            )
+
+        raw_reply = "".join(token_parts)
+        visible, worksheet = _extract_worksheet_from_reply(raw_reply)
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="stage_done",
+                stage="generate_patch",
+                message=_generate_patch_done_label(req),
+            )
+        )
+
+        worksheet_updated = worksheet is not None
+        if worksheet_updated:
+            yield _emit(
+                ProjectPlanningAiAssistStreamEvent(
+                    type="stage_start",
+                    stage="apply_edits",
+                    message=f"Applying edits to {req.artifact_label}",
+                )
+            )
+            yield _emit(
+                ProjectPlanningAiAssistStreamEvent(
+                    type="stage_done",
+                    stage="apply_edits",
+                    message=f"Updated {req.phase_label}",
+                )
+            )
+
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="done",
+                message="Done",
+                reply=visible,
+                worksheet=worksheet,
+                worksheet_updated=worksheet_updated,
+            )
+        )
+    except Exception as exc:
+        yield _emit(
+            ProjectPlanningAiAssistStreamEvent(
+                type="error",
+                message=str(exc),
+            )
+        )

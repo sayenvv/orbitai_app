@@ -7,27 +7,34 @@ import {
 } from "@/lib/plan-synopsis-catalog";
 import { randomId } from "@/lib/utils";
 
+export type CustomSynopsisSectionFormat = "document" | "diagram";
+
 export type CustomSynopsisSection = {
   id: string;
   label: string;
-  format: Extract<SynopsisDeliverableFormat, "document" | "diagram">;
+  format: CustomSynopsisSectionFormat;
   description: string;
 };
 
 export function createCustomSynopsisSection(
   label: string,
-  format: CustomSynopsisSection["format"],
+  format: CustomSynopsisSectionFormat,
 ): CustomSynopsisSection {
   const trimmed = label.trim();
+  const description =
+    format === "diagram"
+      ? "Mermaid diagram section added to your synopsis."
+      : "Custom section added to your synopsis.";
+
   return {
     id: `custom-${randomId()}`,
     label: trimmed || "New section",
     format,
-    description: "Custom section added to your synopsis.",
+    description,
   };
 }
 
-function customSectionIcon(format: CustomSynopsisSection["format"]): LucideIcon {
+function customSectionIcon(format: CustomSynopsisSectionFormat): LucideIcon {
   return format === "diagram" ? GitBranch : FileText;
 }
 

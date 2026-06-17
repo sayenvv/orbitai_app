@@ -1,10 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Pencil } from "lucide-react";
 
 import { PlanDiagramViewport } from "@/components/plan/plan-diagram-viewport";
 import { PlanMarkdownContent } from "@/components/plan/plan-markdown-content";
-import { studioRadius } from "@/components/studio/studio-ui";
+import { studioRadius, studioButtonSecondary } from "@/components/studio/studio-ui";
 import {
   coerceDiagramContent,
   type PlanDeliverableContent,
@@ -15,6 +17,14 @@ import {
 import { normalizeMermaidSource } from "@/lib/normalize-mermaid-source";
 import type { SynopsisDeliverable } from "@/lib/plan-synopsis-catalog";
 import { cn } from "@/lib/utils";
+
+const PlanDiagramCanvasSheet = dynamic(
+  () =>
+    import("@/components/plan/plan-diagram-canvas-sheet").then(
+      (module) => module.PlanDiagramCanvasSheet,
+    ),
+  { ssr: false },
+);
 
 type EditorProps = {
   deliverable: SynopsisDeliverable;
@@ -141,7 +151,7 @@ function PlanPreviewSurface({
 }: {
   onEdit: () => void;
   className?: string;
-  children: ReactNode;
+  children?: ReactNode;
   empty?: boolean;
   emptyLabel?: string;
 }) {
@@ -199,57 +209,93 @@ function EditModeShell({
 
 function DiagramEditor({
   deliverableId,
+  deliverableLabel,
   content,
   onChange,
 }: {
   deliverableId: string;
+  deliverableLabel: string;
   content: PlanDiagramContent;
   onChange: (content: PlanDiagramContent) => void;
 }) {
   const { isEditing, enterEdit, exitEdit } = usePreviewEditMode(deliverableId);
+  const [canvasOpen, setCanvasOpen] = useState(false);
   const source = normalizeMermaidSource(content.mermaid);
   const isEmpty = !source.trim();
+  const openCanvas = useCallback(() => setCanvasOpen(true), []);
+  const closeCanvas = useCallback(() => setCanvasOpen(false), []);
 
   return (
-    <PlanDeliverableModeFrame
-      resetKey={deliverableId}
-      contentRevision={source}
-      isEditing={isEditing}
-      onEnterEdit={enterEdit}
-      onExitEdit={exitEdit}
-      fill
-      renderPreview={(startEdit) =>
-        isEmpty ? (
-          <PlanPreviewSurface
-            onEdit={startEdit}
-            empty
-            emptyLabel="Double-click to add a diagram"
-            className="plan-ws-diagram-canvas flex-1 p-4 sm:p-5"
-          />
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <PlanDiagramViewport source={source} onEdit={startEdit} className="plan-ws-diagram-canvas" fill />
-          </div>
-        )
-      }
-      renderEditor={(editRef) => (
-        <EditModeShell editRef={editRef} label="Edit diagram">
-          <textarea
-            autoFocus
-            value={content.mermaid}
-            onChange={(event) =>
-              onChange({ format: "diagram", mermaid: normalizeMermaidSource(event.target.value) })
-            }
-            spellCheck={false}
-            className={cn(
-              studioRadius,
-              "h-full min-h-0 w-full resize-none overflow-y-auto border border-border/60 bg-muted/10 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-foreground outline-none focus:border-primary/40",
-            )}
-            placeholder="flowchart LR&#10;  start[Start] --> end[End]"
-          />
-        </EditModeShell>
-      )}
-    />
+    <>
+      <PlanDeliverableModeFrame
+        resetKey={deliverableId}
+        contentRevision={source}
+        isEditing={isEditing}
+        onEnterEdit={enterEdit}
+        onExitEdit={exitEdit}
+        fill
+        renderPreview={(startEdit) =>
+          isEmpty ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <PlanPreviewSurface
+                onEdit={startEdit}
+                empty
+                emptyLabel="Double-click to edit Mermaid source"
+                className="plan-ws-diagram-canvas flex-1 p-4 sm:p-5"
+              />
+              <div className="flex shrink-0 justify-center border-t border-border/50 bg-muted/10 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={openCanvas}
+                  className={cn(studioButtonSecondary("inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"))}
+                >
+                  <Pencil className="size-3.5" />
+                  Open in editor
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <PlanDiagramViewport
+                source={source}
+                onEdit={startEdit}
+                onOpenEditor={openCanvas}
+                className="plan-ws-diagram-canvas min-h-0 flex-1"
+                fill
+                canvasLabel="Diagram"
+              />
+            </div>
+          )
+        }
+        renderEditor={(editRef) => (
+          <EditModeShell editRef={editRef} label="Edit diagram source">
+            <textarea
+              autoFocus
+              value={content.mermaid}
+              onChange={(event) =>
+                onChange({ format: "diagram", mermaid: normalizeMermaidSource(event.target.value) })
+              }
+              spellCheck={false}
+              className={cn(
+                studioRadius,
+                "h-full min-h-0 w-full resize-none overflow-y-auto border border-border/60 bg-muted/10 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-foreground outline-none focus:border-primary/40",
+              )}
+              placeholder="flowchart LR&#10;  start[Start] --> end[End]"
+            />
+          </EditModeShell>
+        )}
+      />
+      <PlanDiagramCanvasSheet
+        open={canvasOpen}
+        title={deliverableLabel}
+        mermaid={content.mermaid}
+        onSave={(nextMermaid) => {
+          onChange({ format: "diagram", mermaid: nextMermaid });
+          setCanvasOpen(false);
+        }}
+        onClose={closeCanvas}
+      />
+    </>
   );
 }
 
@@ -264,7 +310,8 @@ function DocumentEditor({
 }) {
   const { isEditing, enterEdit, exitEdit } = usePreviewEditMode(deliverable.id);
   const isTitle = deliverable.id === "title";
-  const isEmpty = !content.text.trim();
+  const text = content.text ?? "";
+  const isEmpty = !text.trim();
 
   return (
     <PlanDeliverableModeFrame
@@ -284,11 +331,11 @@ function DocumentEditor({
           {!isEmpty ? (
             isTitle ? (
               <p className="text-lg font-semibold tracking-tight text-foreground">
-                {content.text.trim()}
+                {text.trim()}
               </p>
             ) : (
               <div className="plan-ws-chat-turn-prose plan-ws-document-preview min-w-0">
-                <PlanMarkdownContent content={content.text} />
+                <PlanMarkdownContent content={text} />
               </div>
             )
           ) : null}
@@ -301,7 +348,7 @@ function DocumentEditor({
         >
           <textarea
             autoFocus
-            value={content.text}
+            value={text}
             onChange={(event) => onChange({ format: "document", text: event.target.value })}
             className={cn(
               studioRadius,
@@ -455,7 +502,11 @@ function MatrixEditor({
   );
 }
 
-export function PlanDeliverableEditor({ deliverable, content, onChange }: EditorProps) {
+export function PlanDeliverableEditor({
+  deliverable,
+  content,
+  onChange,
+}: EditorProps) {
   if (deliverable.format === "diagram") {
     const diagramContent =
       content.format === "diagram"
@@ -465,6 +516,7 @@ export function PlanDeliverableEditor({ deliverable, content, onChange }: Editor
       return (
         <DiagramEditor
           deliverableId={deliverable.id}
+          deliverableLabel={deliverable.label}
           content={diagramContent}
           onChange={onChange}
         />

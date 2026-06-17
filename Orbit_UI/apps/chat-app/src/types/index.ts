@@ -28,6 +28,13 @@ export type AdaptiveCard = {
   badges?: string[];
 };
 
+export type PlanChatRunLogEntry = {
+  id: string;
+  at: number;
+  level: "info" | "active" | "success" | "error";
+  message: string;
+};
+
 export type MessageRoutingMetadata = {
   routing?: {
     primary_agent: string;
@@ -40,6 +47,9 @@ export type MessageRoutingMetadata = {
   human_prompt?: string | null;
   images?: WebSearchImage[];
   cards?: AdaptiveCard[];
+  planChatRun?: {
+    logs: PlanChatRunLogEntry[];
+  } | null;
 };
 
 export type Message = {

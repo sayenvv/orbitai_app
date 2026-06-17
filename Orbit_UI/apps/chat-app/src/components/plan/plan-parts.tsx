@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   KeyboardSensor,
@@ -72,6 +72,8 @@ import { reorderSynopsisSectionOrder } from "@/lib/plan-synopsis-section-order";
 import type { RecentStudioPlan } from "@/lib/studio-recent-plans";
 import {
   parseStudioPlanSectionId,
+  replaceBrowserUrl,
+  readBrowserSearchParam,
   studioPlanWorkspace,
   studioWithPhase,
 } from "@/lib/routes";
@@ -304,7 +306,7 @@ function AddSynopsisSectionForm({
           )}
         >
           <GitBranch className="size-3" />
-          Diagram
+          Mermaid
         </button>
       </div>
       <div className="flex items-center gap-1.5">
@@ -386,7 +388,7 @@ function SynopsisOutlineSectionRow({
             <span className="block text-xs font-medium text-foreground">{section.label}</span>
             {section.custom ? (
               <span className="rounded bg-muted px-1 py-px text-[9px] text-muted-foreground">
-                custom
+                {section.deliverables[0]?.format === "diagram" ? "mermaid" : "custom"}
               </span>
             ) : null}
           </span>
@@ -629,7 +631,7 @@ function SynopsisSectionPanel({
     <div
       className={cn(
         "platform-center-stack w-full",
-        isDiagram && "flex min-h-0 min-h-full flex-1 flex-col",
+        isDiagram && "flex h-full min-h-0 flex-1 flex-col",
       )}
     >
       <div
@@ -693,7 +695,6 @@ export function PlanWorkspace({
   onReorderSynopsisSections: (orderedIds: string[]) => void;
 }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const workspaceView: PlanWorkspaceView = planScope?.target ?? "synopsis";
   const workspaceLabel =
     workspaceView === "synopsis" ? "Project Synopsis" : "Project Documentation";
@@ -701,8 +702,11 @@ export function PlanWorkspace({
   const [outlinePanelWidth, setOutlinePanelWidth] = useState(OUTLINE_PANEL_DEFAULT_WIDTH);
   const [chatOpen, setChatOpen] = useState(true);
   const [chatPanelWidth, setChatPanelWidth] = useState(ASSIST_PANEL_DEFAULT_WIDTH);
-  const [activeSectionId, setActiveSectionId] = useState(getDefaultSectionId("synopsis"));
+  const [activeSectionId, setActiveSectionId] = useState(() =>
+    getDefaultSectionId(workspaceView),
+  );
   const [exportingPdf, setExportingPdf] = useState(false);
+  const initializedPlanIdRef = useRef<string | null>(null);
 
   const visibleSections = useMemo(() => {
     let sections = getPlanSections(workspaceView, customSynopsisSections, synopsisSectionOrder);
@@ -714,35 +718,44 @@ export function PlanWorkspace({
     return sections;
   }, [workspaceView, customSynopsisSections, synopsisSectionOrder, planScope]);
 
+  const syncSectionUrl = useCallback(
+    (sectionId: string) => {
+      if (!planId || !sectionId) return;
+      replaceBrowserUrl(studioPlanWorkspace(planId, "plan", sectionId, workspaceView));
+    },
+    [planId, workspaceView],
+  );
+
+  const handleSelectSection = useCallback(
+    (sectionId: string) => {
+      setActiveSectionId(sectionId);
+      syncSectionUrl(sectionId);
+    },
+    [syncSectionUrl],
+  );
+
   useEffect(() => {
-    const sectionFromUrl = parseStudioPlanSectionId(searchParams.get("section"));
-    if (sectionFromUrl && visibleSections.some((section) => section.id === sectionFromUrl)) {
-      setActiveSectionId(sectionFromUrl);
+    if (!planId || !visibleSections.length) return;
+
+    if (initializedPlanIdRef.current !== planId) {
+      initializedPlanIdRef.current = planId;
+      const sectionFromUrl = parseStudioPlanSectionId(readBrowserSearchParam("section"));
+      const next =
+        sectionFromUrl && visibleSections.some((section) => section.id === sectionFromUrl)
+          ? sectionFromUrl
+          : visibleSections[0].id;
+      setActiveSectionId(next);
+      syncSectionUrl(next);
+      return;
     }
-  }, [planId, searchParams, visibleSections]);
 
-  useEffect(() => {
-    if (!planScope) return;
-    const sections = filterSectionsByIncluded(
-      getPlanSections(planScope.target, customSynopsisSections, synopsisSectionOrder),
-      planScope.includedSectionIds,
-    );
     setActiveSectionId((current) => {
-      if (sections.some((section) => section.id === current)) return current;
-      const sectionFromUrl = parseStudioPlanSectionId(searchParams.get("section"));
-      if (sectionFromUrl && sections.some((section) => section.id === sectionFromUrl)) {
-        return sectionFromUrl;
-      }
-      return sections[0]?.id ?? getDefaultSectionId(planScope.target);
+      if (visibleSections.some((section) => section.id === current)) return current;
+      const next = visibleSections[0].id;
+      syncSectionUrl(next);
+      return next;
     });
-  }, [planScope, customSynopsisSections, synopsisSectionOrder, searchParams]);
-
-  useEffect(() => {
-    if (!planId || !activeSectionId) return;
-    const sectionFromUrl = parseStudioPlanSectionId(searchParams.get("section"));
-    if (sectionFromUrl === activeSectionId) return;
-    router.replace(studioPlanWorkspace(planId, "plan", activeSectionId), { scroll: false });
-  }, [activeSectionId, planId, router, searchParams]);
+  }, [planId, visibleSections, syncSectionUrl]);
 
   const activeSection = useMemo(() => {
     if (!visibleSections.length) return undefined;
@@ -760,10 +773,13 @@ export function PlanWorkspace({
       onRemoveCustomSection(sectionId);
       if (activeSectionId === sectionId) {
         const remaining = visibleSections.filter((section) => section.id !== sectionId);
-        setActiveSectionId(remaining[remaining.length - 1]?.id ?? getDefaultSectionId(workspaceView));
+        const nextSectionId =
+          remaining[remaining.length - 1]?.id ?? getDefaultSectionId(workspaceView);
+        setActiveSectionId(nextSectionId);
+        syncSectionUrl(nextSectionId);
       }
     },
-    [activeSectionId, onRemoveCustomSection, visibleSections, workspaceView],
+    [activeSectionId, onRemoveCustomSection, syncSectionUrl, visibleSections, workspaceView],
   );
 
   const projectTitle = useMemo(
@@ -907,7 +923,7 @@ export function PlanWorkspace({
               panelTitle={workspaceView === "synopsis" ? "Synopsis contents" : "Documentation"}
               activeSectionId={activeSectionId}
               sectionStatus={sectionStatus}
-              onSelectSection={setActiveSectionId}
+              onSelectSection={handleSelectSection}
               onClose={() => setOutlineOpen(false)}
               width={outlinePanelWidth}
               allowCustomSections={workspaceView === "synopsis"}
@@ -962,12 +978,19 @@ export function PlanWorkspace({
             )}
           >
             {activeSection ? (
-              <SynopsisSectionPanel
-                section={activeSection}
-                projectPrompt={projectPrompt}
-                contentByDeliverableId={contentByDeliverableId}
-                onContentChange={onContentChange}
-              />
+              <div
+                className={cn(
+                  "w-full",
+                  activeIsDiagram && "flex h-full min-h-0 flex-1 flex-col",
+                )}
+              >
+                <SynopsisSectionPanel
+                  section={activeSection}
+                  projectPrompt={projectPrompt}
+                  contentByDeliverableId={contentByDeliverableId}
+                  onContentChange={onContentChange}
+                />
+              </div>
             ) : (
               <div className="flex min-h-[280px] items-center justify-center px-6 py-10 text-center">
                 <p className="max-w-sm text-sm text-muted-foreground">

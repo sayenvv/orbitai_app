@@ -856,7 +856,7 @@
 }
 
 .plan-diagram-viewport-stage {
-  contain: strict;
+  contain: layout paint style;
   background: color-mix(in oklab, var(--muted) 12%, transparent);
 }
 
@@ -868,7 +868,7 @@
 .plan-diagram-viewport-content .plan-mermaid-diagram-host {
   width: max-content;
   max-width: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .plan-diagram-viewport-content svg {
@@ -1474,6 +1474,13 @@
   background: var(--plan-ws-preview);
 }
 
+.plan-diagram-canvas-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--border) 72%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 72%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
 .plan-workspace-shell .plan-diagram-viewport-toolbar {
   background: color-mix(in oklab, var(--plan-ws-panel-raised, var(--background)) 88%, var(--plan-ws-muted, var(--muted)));
 }
@@ -1606,6 +1613,124 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
   background: color-mix(in oklab, var(--plan-ws-panel, var(--card)) 92%, var(--plan-ws-canvas, var(--background)));
+}
+
+/* Plan workspace chat — inline run timeline */
+.plan-ws-chat-timeline {
+  position: relative;
+  padding-left: 1.125rem;
+}
+
+.plan-ws-chat-timeline-rail {
+  position: absolute;
+  left: 0.3125rem;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--border) 55%, transparent) 0%,
+    color-mix(in oklab, var(--border) 85%, transparent) 50%,
+    color-mix(in oklab, var(--border) 40%, transparent) 100%
+  );
+}
+
+.plan-ws-chat-timeline-step {
+  position: relative;
+  padding-bottom: 0.65rem;
+}
+
+.plan-ws-chat-timeline-step:last-child {
+  padding-bottom: 0;
+}
+
+.plan-ws-chat-timeline-node {
+  position: absolute;
+  left: -1.125rem;
+  top: 0.2rem;
+  z-index: 1;
+  display: flex;
+  width: 0.6875rem;
+  height: 0.6875rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1.5px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: var(--card);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.plan-ws-chat-timeline-step--success .plan-ws-chat-timeline-node {
+  border-color: color-mix(in oklab, #10b981 55%, var(--border));
+  background: color-mix(in oklab, #10b981 18%, var(--card));
+}
+
+.plan-ws-chat-timeline-step--error .plan-ws-chat-timeline-node {
+  border-color: color-mix(in oklab, #ef4444 60%, var(--border));
+  background: color-mix(in oklab, #ef4444 14%, var(--card));
+}
+
+.plan-ws-chat-timeline-step--active .plan-ws-chat-timeline-node {
+  border-color: color-mix(in oklab, var(--primary) 70%, var(--border));
+  background: color-mix(in oklab, var(--primary) 22%, var(--card));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 12%, transparent);
+  animation: plan-ws-chat-node-pulse 1.6s ease-in-out infinite;
+}
+
+.plan-ws-chat-timeline-label {
+  display: block;
+  font-size: 11px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: color-mix(in oklab, var(--muted-foreground) 88%, var(--foreground));
+}
+
+.plan-ws-chat-timeline-step--success .plan-ws-chat-timeline-label {
+  color: color-mix(in oklab, var(--muted-foreground) 72%, var(--foreground));
+}
+
+.plan-ws-chat-timeline-step--error .plan-ws-chat-timeline-label {
+  color: color-mix(in oklab, #ef4444 78%, var(--foreground));
+}
+
+.plan-ws-chat-timeline-step--active .plan-ws-chat-timeline-label {
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.plan-ws-chat-timeline-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--muted-foreground) 55%, transparent) 0%,
+    color-mix(in oklab, var(--muted-foreground) 55%, transparent) 35%,
+    var(--foreground) 50%,
+    color-mix(in oklab, var(--muted-foreground) 55%, transparent) 65%,
+    color-mix(in oklab, var(--muted-foreground) 55%, transparent) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: plan-ws-chat-timeline-shimmer 2.1s ease-in-out infinite;
+}
+
+@keyframes plan-ws-chat-timeline-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@keyframes plan-ws-chat-node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 10%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--primary) 18%, transparent);
+  }
 }
 
 .plan-ws-chat-empty {

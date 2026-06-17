@@ -53,7 +53,7 @@ import {
   readStudioPlanContent,
   writeStudioPlanContent,
 } from "@/lib/studio-plan-content-storage";
-import { parseStudioPlanId, studioPlanWorkspace } from "@/lib/routes";
+import { parseStudioPlanId, parseStudioPlanTarget, readBrowserSearchParam, studioPlanWorkspace } from "@/lib/routes";
 import { useAuthStore } from "@/store/auth-store";
 
 import { randomId } from "@/lib/utils";
@@ -78,6 +78,24 @@ function appendGenerateLog(
       at: Date.now(),
     },
   ];
+}
+
+function resolvePlanScopeForOpen(
+  planId: string,
+  options?: { urlTarget?: PlanGenerateTarget | null; recentTarget?: PlanGenerateTarget | null },
+): PlanScopeConfig | null {
+  const stored = readStudioPlanScope(planId);
+  if (stored) return stored;
+
+  const target = options?.urlTarget ?? options?.recentTarget;
+  if (!target) return null;
+
+  const scope: PlanScopeConfig = {
+    target,
+    includedSectionIds: resolveIncludedSectionIds(target, []),
+  };
+  writeStudioPlanScope(planId, scope);
+  return scope;
 }
 
 export function PlanPanel({ onProjectPromptChange }: { onProjectPromptChange?: (prompt: string) => void }) {
@@ -167,7 +185,32 @@ export function PlanPanel({ onProjectPromptChange }: { onProjectPromptChange?: (
   );
 
   const openPlanWorkspace = useCallback(
-    (planId: string, planPrompt: string, options?: { replaceUrl?: boolean }) => {
+    (
+      planId: string,
+      planPrompt: string,
+      options?: {
+        replaceUrl?: boolean;
+        content?: Record<string, PlanDeliverableContent>;
+        scope?: PlanScopeConfig | null;
+        target?: PlanGenerateTarget | null;
+      },
+    ) => {
+      const recent = readRecentStudioPlans().find((item) => item.id === planId);
+      const urlTarget = parseStudioPlanTarget(readBrowserSearchParam("target"));
+      const scope =
+        options?.scope ??
+        resolvePlanScopeForOpen(planId, {
+          urlTarget,
+          recentTarget: options?.target ?? recent?.target ?? null,
+        });
+      const content =
+        options?.content ??
+        readStudioPlanContent(planId) ??
+        buildInitialPlanContent(planPrompt);
+
+      if (scope) writeStudioPlanScope(planId, scope);
+      writeStudioPlanContent(planId, content);
+
       setActivePlanId(planId);
       setProjectPrompt(planPrompt);
       setPrompt(planPrompt);
@@ -175,12 +218,11 @@ export function PlanPanel({ onProjectPromptChange }: { onProjectPromptChange?: (
       setHasStarted(true);
       setIsGenerating(false);
       setGenerateProgress(null);
-      setContentByDeliverableId(
-        readStudioPlanContent(planId) ?? buildInitialPlanContent(planPrompt),
-      );
+      setContentByDeliverableId(content);
+      setPlanScope(scope);
       loadPlanLayout(planId);
       if (options?.replaceUrl !== false) {
-        router.replace(studioPlanWorkspace(planId));
+        router.replace(studioPlanWorkspace(planId, "plan", null, scope?.target ?? null));
       }
     },
     [loadPlanLayout, onProjectPromptChange, router],
@@ -204,12 +246,19 @@ export function PlanPanel({ onProjectPromptChange }: { onProjectPromptChange?: (
     openedFromUrlRef.current = planIdFromUrl;
     const recent = readRecentStudioPlans().find((item) => item.id === planIdFromUrl);
     const planPrompt = recent?.prompt ?? projectPrompt;
-    openPlanWorkspace(planIdFromUrl, planPrompt, { replaceUrl: false });
+    const urlTarget = parseStudioPlanTarget(readBrowserSearchParam("target"));
+    openPlanWorkspace(planIdFromUrl, planPrompt, {
+      replaceUrl: false,
+      target: urlTarget ?? recent?.target ?? null,
+    });
   }, [openPlanWorkspace, planIdFromUrl, projectPrompt]);
 
   useEffect(() => {
     if (!activePlanId || !Object.keys(contentByDeliverableId).length) return;
-    writeStudioPlanContent(activePlanId, contentByDeliverableId);
+    const handle = window.setTimeout(() => {
+      writeStudioPlanContent(activePlanId, contentByDeliverableId);
+    }, 350);
+    return () => window.clearTimeout(handle);
   }, [activePlanId, contentByDeliverableId]);
 
   useEffect(() => {
@@ -308,6 +357,7 @@ export function PlanPanel({ onProjectPromptChange }: { onProjectPromptChange?: (
         id: planId,
         prompt: trimmed,
         status: "draft",
+        target: generateTarget,
       }),
     );
 
@@ -316,7 +366,7 @@ export function PlanPanel({ onProjectPromptChange }: { onProjectPromptChange?: (
     generateAbortRef.current = controller;
 
     try {
-      await generatePlanBundleFromPrompt({
+      const output = await generatePlanBundleFromPrompt({
         planId,
         projectPrompt: trimmed,
         initialContent,
@@ -337,20 +387,23 @@ export function PlanPanel({ onProjectPromptChange }: { onProjectPromptChange?: (
           id: planId,
           prompt: trimmed,
           status: "complete",
+          target: generateTarget,
         }),
       );
 
-      window.setTimeout(() => {
-        openPlanWorkspace(planId, trimmed);
-      }, 700);
+      openPlanWorkspace(planId, trimmed, {
+        content: output,
+        scope,
+        target: generateTarget,
+      });
     } catch {
       setGenerateLogs((current) =>
         appendGenerateLog(current, {
           level: "error",
-          message: "Planning agent failed. Template content was kept — open a recent plan or retry.",
+          message: "Planning agent failed. Template content was kept — opening workspace with draft.",
         }),
       );
-      setIsGenerating(false);
+      openPlanWorkspace(planId, trimmed, { scope, target: generateTarget });
     } finally {
       generateAbortRef.current = null;
     }
@@ -379,9 +432,10 @@ export function PlanPanel({ onProjectPromptChange }: { onProjectPromptChange?: (
           title: plan.title,
           prompt: plan.prompt,
           status: plan.status,
+          target: plan.target,
         }),
       );
-      openPlanWorkspace(plan.id, plan.prompt);
+      openPlanWorkspace(plan.id, plan.prompt, { target: plan.target ?? null });
     },
     [openPlanWorkspace, recentPlans],
   );

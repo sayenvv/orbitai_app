@@ -61,6 +61,7 @@ export function getPlanTypeDescription(planType: PlanWorkspaceView): string {
 export function buildPlanShareUrl(context: PlanShareContext): string {
   return studioPlanShareUrl(context.planId, {
     phase: context.phase ?? "plan",
+    target: context.planType,
   });
 }
 

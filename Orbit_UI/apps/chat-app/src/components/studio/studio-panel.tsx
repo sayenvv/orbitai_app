@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PlanPanel } from "@/components/plan/plan-panel";
 import { PlatformGeneratePanel } from "@/components/platform/platform-generate-panel";
 import { DesignComingSoon } from "@/components/studio/design-coming-soon";
-import { parseStudioPhase, studioPlanWorkspace, studioWithPhase, type StudioPhase } from "@/lib/routes";
+import { parseStudioPhase, parseStudioPlanTarget, studioPlanWorkspace, studioWithPhase, type StudioPhase } from "@/lib/routes";
 
 const STUDIO_PLAN_PROMPT_KEY = "orbit-studio-plan-prompt";
 
@@ -42,7 +42,10 @@ export function StudioPanel({ initialPhase }: { initialPhase?: StudioPhase }) {
   useEffect(() => {
     if (phase === "plan" && searchParams.get("phase") === "plan") {
       const planId = searchParams.get("planId");
-      router.replace(planId ? studioPlanWorkspace(planId) : studioWithPhase("plan"));
+      const target = parseStudioPlanTarget(searchParams.get("target"));
+      router.replace(
+        planId ? studioPlanWorkspace(planId, "plan", null, target) : studioWithPhase("plan"),
+      );
     }
   }, [phase, router, searchParams]);
 

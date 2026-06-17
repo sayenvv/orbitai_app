@@ -47,3 +47,35 @@ class ProjectPlanningAiAssistResponse(BaseModel):
     worksheet_updated: bool = Field(default=False, alias="worksheetUpdated")
 
     model_config = {"populate_by_name": True}
+
+
+ProjectPlanningAiAssistStage = Literal[
+    "read_brief",
+    "load_section",
+    "parse_request",
+    "generate_patch",
+    "apply_edits",
+]
+
+ProjectPlanningAiAssistStreamEventType = Literal[
+    "stage_start",
+    "stage_done",
+    "token",
+    "done",
+    "error",
+]
+
+
+class ProjectPlanningAiAssistStreamEvent(BaseModel):
+    type: ProjectPlanningAiAssistStreamEventType
+    stage: ProjectPlanningAiAssistStage | None = None
+    message: str | None = None
+    content: str | None = None
+    reply: str | None = None
+    worksheet: ProjectPlanningWorksheetContent | None = None
+    worksheet_updated: bool | None = Field(default=None, alias="worksheetUpdated")
+
+    model_config = {"populate_by_name": True}
+
+    def to_sse(self) -> dict[str, Any]:
+        return self.model_dump(by_alias=True, exclude_none=True)

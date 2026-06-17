@@ -99,7 +99,9 @@ export function PlanMermaidDiagram({ source, className, onRendered }: PlanMermai
         svgHostRef.current.innerHTML = normalizeRenderedSvg(rendered);
         setError(null);
         setRendering(false);
-        onRenderedRef.current?.();
+        window.requestAnimationFrame(() => {
+          onRenderedRef.current?.();
+        });
       } catch (cause) {
         if (!cancelled) {
           if (svgHostRef.current) svgHostRef.current.innerHTML = "";

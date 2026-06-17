@@ -1,3 +1,4 @@
+import type { PlanGenerateTarget } from "@/lib/plan-catalog";
 import { randomId } from "@/lib/utils";
 
 export type RecentStudioPlan = {
@@ -6,6 +7,7 @@ export type RecentStudioPlan = {
   prompt: string;
   openedAt: number;
   status: "draft" | "complete";
+  target?: PlanGenerateTarget;
 };
 
 const STORAGE_KEY = "orbit:studio-recent-plans";
@@ -54,11 +56,13 @@ export function recordRecentStudioPlan({
   title,
   prompt,
   status = "draft",
+  target,
 }: {
   id?: string;
   title?: string;
   prompt: string;
   status?: RecentStudioPlan["status"];
+  target?: PlanGenerateTarget;
 }): RecentStudioPlan[] {
   const entry: RecentStudioPlan = {
     id: id?.trim() || randomId(),
@@ -66,6 +70,7 @@ export function recordRecentStudioPlan({
     prompt: prompt.trim(),
     openedAt: Date.now(),
     status,
+    ...(target ? { target } : {}),
   };
 
   if (!entry.prompt) return readRecentStudioPlans();

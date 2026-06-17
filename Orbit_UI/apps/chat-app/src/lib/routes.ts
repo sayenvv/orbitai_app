@@ -1,3 +1,5 @@
+import type { PlanGenerateTarget } from "@/lib/plan-catalog";
+
 /** Central route paths for the chat app — use instead of hardcoded strings. */
 export const routes = {
   home: "/",
@@ -37,21 +39,46 @@ export function studioPlanWorkspace(
   planId: string,
   phase: StudioPhase = "plan",
   sectionId?: string | null,
+  target?: PlanGenerateTarget | null,
 ): string {
   const params = new URLSearchParams();
   if (phase !== "plan") params.set("phase", phase);
   params.set("planId", planId);
   const section = sectionId?.trim();
   if (section) params.set("section", section);
+  if (target === "documentation") params.set("target", target);
   return `${routes.studio}?${params.toString()}`;
+}
+
+export function parseStudioPlanTarget(
+  value: string | null | undefined,
+): PlanGenerateTarget | null {
+  if (value === "synopsis" || value === "documentation") return value;
+  return null;
+}
+
+/** Update the URL without a Next.js navigation cycle (avoids layout flicker). */
+export function replaceBrowserUrl(path: string): void {
+  if (typeof window === "undefined") return;
+  window.history.replaceState(window.history.state, "", path);
+}
+
+export function readBrowserSearchParam(name: string): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get(name);
 }
 
 export function studioPlanShareUrl(
   planId: string,
-  options?: { phase?: StudioPhase; sectionId?: string | null; origin?: string },
+  options?: {
+    phase?: StudioPhase;
+    sectionId?: string | null;
+    target?: PlanGenerateTarget | null;
+    origin?: string;
+  },
 ): string {
   const phase = options?.phase ?? "plan";
-  const path = studioPlanWorkspace(planId, phase, options?.sectionId);
+  const path = studioPlanWorkspace(planId, phase, options?.sectionId, options?.target);
   const origin =
     options?.origin ?? (typeof window !== "undefined" ? window.location.origin : "");
   return `${origin}${path}`;

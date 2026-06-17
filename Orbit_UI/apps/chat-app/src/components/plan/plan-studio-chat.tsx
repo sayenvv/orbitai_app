@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, ChevronRight, Loader2, Plus, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ArrowUp, Check, ChevronRight, Loader2, Plus, Sparkles } from "lucide-react";
 
 import { useAppShell } from "@/components/layout/app-shell-context";
 import { PlanMarkdownContent } from "@/components/plan/plan-markdown-content";
@@ -17,13 +17,23 @@ import {
   type PlanChatContextPin,
   type PlanChatContextScope,
 } from "@/lib/plan-chat-context";
-import { ApiError, projectPlanningApi } from "@/lib/orbit-api";
+import {
+  applyPlanningAssistStreamEvent,
+  finalizePlanningAssistStreamLogs,
+  type PlanChatLogEntry,
+} from "@/lib/plan-chat-stream";
+import { ApiError, projectPlanningApi, type ApiProjectPlanningWorksheetContent } from "@/lib/orbit-api";
+import {
+  readStudioPlanChat,
+  writeStudioPlanChat,
+  type StoredPlanChatTurn,
+} from "@/lib/studio-plan-chat-storage";
 import type { SynopsisDeliverable, SynopsisSection } from "@/lib/plan-synopsis-catalog";
 import { useAuthStore } from "@/store/auth-store";
 import { cn, randomId } from "@/lib/utils";
-import type { Message } from "@/types";
+import type { Message, PlanChatRunLogEntry } from "@/types";
 
-type HistoryTurn = { role: "user" | "assistant"; content: string };
+type HistoryTurn = StoredPlanChatTurn;
 
 type PlanStudioChatProps = {
   planId: string;
@@ -37,6 +47,26 @@ type PlanStudioChatProps = {
 };
 
 type Suggestion = { label: string; prompt: string };
+
+function hydrateChatState(planId: string): { messages: Message[]; history: HistoryTurn[] } {
+  const stored = readStudioPlanChat(planId);
+  if (!stored) {
+    return { messages: [], history: [] };
+  }
+
+  return {
+    messages: stored.messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      timestamp: new Date(message.timestamp),
+      ...(message.runLogs?.length
+        ? { metadata: { planChatRun: { logs: message.runLogs } } }
+        : {}),
+    })),
+    history: stored.history,
+  };
+}
 
 function buildSuggestions(deliverable: SynopsisDeliverable): Suggestion[] {
   if (deliverable.format === "diagram") {
@@ -87,15 +117,105 @@ function buildSuggestions(deliverable: SynopsisDeliverable): Suggestion[] {
   ];
 }
 
-function PlanChatTypingIndicator() {
+function PlanChatRunTimeline({
+  logs,
+  live = false,
+}: {
+  logs: PlanChatRunLogEntry[];
+  live?: boolean;
+}) {
+  const endRef = useRef<HTMLDivElement>(null);
+  const activeIndex = logs.findLastIndex((entry) => entry.level === "active");
+
+  useEffect(() => {
+    if (!live) return;
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [live, logs.length, activeIndex]);
+
+  if (!logs.length) return null;
+
   return (
-    <div className="py-1.5" aria-live="polite" aria-label="Assistant is typing">
-      <div className="inline-flex items-center gap-1 rounded-xl border border-border/50 bg-card/70 px-3 py-2 dark:border-white/[0.06] dark:bg-white/[0.03]">
-        <span className="plan-ws-chat-typing">
-          <span />
-          <span />
-          <span />
-        </span>
+    <div
+      className="plan-ws-chat-timeline"
+      aria-live={live ? "polite" : undefined}
+      aria-label="Edit progress"
+    >
+      <div className="plan-ws-chat-timeline-rail" aria-hidden />
+      <ol className="m-0 list-none p-0">
+        {logs.map((entry, index) => {
+          const isActive = live && entry.level === "active";
+          const isLast = index === logs.length - 1;
+
+          return (
+            <li
+              key={entry.id}
+              className={cn(
+                "plan-ws-chat-timeline-step",
+                entry.level === "success" && "plan-ws-chat-timeline-step--success",
+                entry.level === "error" && "plan-ws-chat-timeline-step--error",
+                isActive && "plan-ws-chat-timeline-step--active",
+                isLast && entry.level === "success" && "plan-ws-chat-timeline-step--done",
+              )}
+            >
+              <span className="plan-ws-chat-timeline-node" aria-hidden>
+                {entry.level === "success" ? (
+                  <Check className="size-2 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
+                ) : null}
+              </span>
+              <span
+                className={cn(
+                  "plan-ws-chat-timeline-label",
+                  isActive && "plan-ws-chat-timeline-shimmer",
+                )}
+              >
+                {entry.message}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <div ref={endRef} />
+    </div>
+  );
+}
+
+function PlanChatAssistantBody({
+  logs,
+  content,
+  live = false,
+  isStreaming = false,
+}: {
+  logs: PlanChatRunLogEntry[];
+  content?: string;
+  live?: boolean;
+  isStreaming?: boolean;
+}) {
+  const hasLogs = logs.length > 0;
+  const hasContent = Boolean(content?.trim());
+
+  if (!hasLogs && !hasContent) return null;
+
+  return (
+    <div className="py-1">
+      <div
+        className={cn(
+          "max-w-[92%] rounded-2xl rounded-bl-md",
+          hasContent
+            ? "border border-border/45 bg-card/75 px-3 py-2.5 dark:border-white/[0.06] dark:bg-white/[0.03]"
+            : "bg-transparent px-1 py-0.5",
+        )}
+      >
+        {hasLogs ? <PlanChatRunTimeline logs={logs} live={live} /> : null}
+        {hasContent ? (
+          <div
+            className={cn(
+              "plan-ws-chat-turn-prose min-w-0",
+              hasLogs && "mt-2.5 border-t border-border/40 pt-2.5 dark:border-white/[0.06]",
+            )}
+          >
+            <PlanMarkdownContent content={content ?? ""} isStreaming={isStreaming} />
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -109,6 +229,7 @@ function PlanChatTurn({
   isStreaming?: boolean;
 }) {
   const isUser = message.role === "user";
+  const runLogs = message.metadata?.planChatRun?.logs ?? [];
 
   if (isUser) {
     return (
@@ -123,13 +244,11 @@ function PlanChatTurn({
   }
 
   return (
-    <div className="py-1">
-      <div className="rounded-2xl rounded-bl-md border border-border/45 bg-card/75 px-3 py-2 dark:border-white/[0.06] dark:bg-white/[0.03]">
-        <div className="plan-ws-chat-turn-prose min-w-0">
-          <PlanMarkdownContent content={message.content} isStreaming={isStreaming} />
-        </div>
-      </div>
-    </div>
+    <PlanChatAssistantBody
+      logs={runLogs}
+      content={message.content}
+      isStreaming={isStreaming}
+    />
   );
 }
 
@@ -177,21 +296,50 @@ export function PlanStudioChat({
 }: PlanStudioChatProps) {
   const { openAuthPrompt } = useAppShell();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const loadedPlanIdRef = useRef<string | null>(null);
+  const initialChat = useMemo(() => hydrateChatState(planId), [planId]);
+  const [messages, setMessages] = useState<Message[]>(initialChat.messages);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [history, setHistory] = useState<HistoryTurn[]>([]);
+  const [history, setHistory] = useState<HistoryTurn[]>(initialChat.history);
   const [pinnedContext, setPinnedContext] = useState<PlanChatContextPin | null>(null);
+  const [runLogs, setRunLogs] = useState<PlanChatLogEntry[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const runLogsRef = useRef<PlanChatLogEntry[]>([]);
 
   const suggestions = useMemo(() => buildSuggestions(deliverable), [deliverable]);
   const isEmpty = messages.length === 0;
 
+  useLayoutEffect(() => {
+    if (loadedPlanIdRef.current === planId) return;
+    loadedPlanIdRef.current = planId;
+    const stored = hydrateChatState(planId);
+    setMessages(stored.messages);
+    setHistory(stored.history);
+  }, [planId]);
+
   useEffect(() => {
-    setMessages([]);
-    setHistory([]);
+    if (!planId || loadedPlanIdRef.current !== planId) return;
+    const handle = window.setTimeout(() => {
+      writeStudioPlanChat(planId, {
+        messages: messages.map((message) => ({
+          id: message.id,
+          role: message.role,
+          content: message.content,
+          timestamp: message.timestamp.getTime(),
+          ...(message.metadata?.planChatRun?.logs?.length
+            ? { runLogs: message.metadata.planChatRun.logs }
+            : {}),
+        })),
+        history,
+      });
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [history, messages, planId]);
+
+  useEffect(() => {
     setInput("");
     setPinnedContext(null);
   }, [deliverable.id, section.id]);
@@ -223,7 +371,7 @@ export function PlanStudioChat({
       behavior: isLoading ? "instant" : "smooth",
       block: "end",
     });
-  }, [messages, isLoading]);
+  }, [messages, isLoading, runLogs.length]);
 
   const handleSend = useCallback(
     async (message: string) => {
@@ -243,6 +391,8 @@ export function PlanStudioChat({
       };
       setMessages((current) => [...current, userMessage]);
       setIsLoading(true);
+      setRunLogs([]);
+      runLogsRef.current = [];
 
       const diagramHint =
         deliverable.format === "diagram"
@@ -257,7 +407,14 @@ export function PlanStudioChat({
           sectionContent: content,
         });
 
-        const result = await projectPlanningApi.aiAssist({
+        let streamLogs: PlanChatLogEntry[] = [];
+        let streamResult: {
+          reply: string;
+          worksheet?: Record<string, unknown>;
+          worksheetUpdated: boolean;
+        } | null = null;
+
+        for await (const event of projectPlanningApi.aiAssistStream({
           projectId: planId,
           artifactId: deliverable.id,
           message: trimmed + diagramHint,
@@ -270,10 +427,39 @@ export function PlanStudioChat({
           worksheet: contentToWorksheet(content, deliverable.label),
           history,
           ...contextPayload,
-        });
+        })) {
+          if (event.type === "stage_start" || event.type === "stage_done" || event.type === "error") {
+            streamLogs = applyPlanningAssistStreamEvent(streamLogs, event);
+            runLogsRef.current = streamLogs;
+            setRunLogs(streamLogs);
+          }
 
-        if (result.worksheetUpdated && result.worksheet) {
-          const next = worksheetToContent(result.worksheet, deliverable.format, content);
+          if (event.type === "error") {
+            throw new ApiError(event.message ?? "Edit failed", 500);
+          }
+
+          if (event.type === "done") {
+            streamResult = {
+              reply: event.reply?.trim() ?? "",
+              worksheet: event.worksheet,
+              worksheetUpdated: Boolean(event.worksheetUpdated),
+            };
+            streamLogs = finalizePlanningAssistStreamLogs(streamLogs);
+            runLogsRef.current = streamLogs;
+            setRunLogs(streamLogs);
+          }
+        }
+
+        if (!streamResult) {
+          throw new ApiError("Planning assist stream ended without a result", 500);
+        }
+
+        if (streamResult.worksheetUpdated && streamResult.worksheet) {
+          const next = worksheetToContent(
+            streamResult.worksheet as ApiProjectPlanningWorksheetContent,
+            deliverable.format,
+            content,
+          );
           onContentChange(
             deliverable.format === "diagram"
               ? coerceDiagramContent(deliverable, next, projectPrompt)
@@ -282,8 +468,8 @@ export function PlanStudioChat({
         }
 
         const assistantText =
-          result.reply.trim() ||
-          (result.worksheetUpdated
+          streamResult.reply ||
+          (streamResult.worksheetUpdated
             ? `I've updated **${deliverable.label}** in the center panel.`
             : "Done.");
 
@@ -292,6 +478,9 @@ export function PlanStudioChat({
           role: "assistant",
           content: assistantText,
           timestamp: new Date(),
+          metadata: {
+            planChatRun: { logs: finalizePlanningAssistStreamLogs(streamLogs) },
+          },
         };
 
         setMessages((current) => [...current, assistantMessage]);
@@ -312,10 +501,14 @@ export function PlanStudioChat({
             role: "assistant",
             content: errorText,
             timestamp: new Date(),
+            metadata: runLogsRef.current.length
+              ? { planChatRun: { logs: runLogsRef.current as PlanChatRunLogEntry[] } }
+              : undefined,
           },
         ]);
       } finally {
         setIsLoading(false);
+        setRunLogs([]);
       }
     },
     [
@@ -372,7 +565,9 @@ export function PlanStudioChat({
             {messages.map((message) => (
               <PlanChatTurn key={message.id} message={message} />
             ))}
-            {isLoading ? <PlanChatTypingIndicator /> : null}
+            {isLoading && runLogs.length ? (
+              <PlanChatAssistantBody logs={runLogs} live />
+            ) : null}
             <div ref={bottomRef} />
           </div>
         )}

@@ -15,6 +15,7 @@ from clovai_apps.project_planning.ai_assist_schemas import (
     ProjectPlanningAiAssistResponse,
 )
 from clovai_apps.project_planning.schemas import ProjectPlanningDocument, ProjectPlanningSaveResponse
+from app.services.code_workspace.sse import code_workspace_sse_response
 
 router = APIRouter(prefix="/apps/project-planning", tags=["project-planning"])
 
@@ -33,6 +34,16 @@ async def project_planning_ai_assist(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AI assist failed: {exc}",
         ) from exc
+
+
+@router.post("/ai-assist/stream")
+async def project_planning_ai_assist_stream(
+    body: ProjectPlanningAiAssistRequest,
+    _user: User = Depends(require_chat_user),
+):
+    from app.services.project_planning.ai_assist import stream_project_planning_ai_assist
+
+    return code_workspace_sse_response(stream_project_planning_ai_assist(body))
 
 
 @router.get("/templates")

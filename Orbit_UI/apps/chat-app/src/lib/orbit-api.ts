@@ -850,6 +850,72 @@ export const projectPlanningApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  aiAssistStream: async function* (
+    body: {
+      projectId: string;
+      artifactId: string;
+      message: string;
+      projectName: string;
+      projectSummary: string;
+      phaseLabel: string;
+      artifactLabel: string;
+      artifactDescription: string;
+      artifactFormat: "diagram" | "document" | "matrix";
+      worksheet: ApiProjectPlanningWorksheetContent;
+      history?: Array<{ role: "user" | "assistant"; content: string }>;
+      textSelection?: {
+        blockId: string;
+        selectedText: string;
+        start: number;
+        end: number;
+      } | null;
+      contextScope?: "plan" | "section";
+      focusedSectionLabel?: string;
+      focusedSectionContent?: string;
+    },
+  ): AsyncGenerator<import("@/lib/plan-chat-stream").ProjectPlanningAiAssistStreamEvent> {
+    const response = await fetch(`${getApiBaseUrl()}/apps/project-planning/ai-assist/stream`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new ApiError(
+        parseApiError(error, "Failed to start planning assist stream"),
+        response.status,
+      );
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new ApiError("No response stream", 500);
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          yield JSON.parse(jsonStr) as import("@/lib/plan-chat-stream").ProjectPlanningAiAssistStreamEvent;
+        } catch {
+          // skip malformed SSE chunk
+        }
+      }
+    }
+  },
 };
 
 // ─── Code workspace (`/apps/code-workspace/*`) ───────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { Pencil, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 
 import { PlanMermaidDiagram } from "@/components/plan/plan-mermaid-diagram";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,10 @@ const PAN_THRESHOLD = 5;
 type PlanDiagramViewportProps = {
   source: string;
   onEdit?: () => void;
+  onOpenEditor?: () => void;
   className?: string;
   fill?: boolean;
+  canvasLabel?: string;
 };
 
 function getSvgNaturalSize(svg: SVGSVGElement) {
@@ -35,7 +37,14 @@ function getSvgNaturalSize(svg: SVGSVGElement) {
   return { width: 1, height: 1 };
 }
 
-export function PlanDiagramViewport({ source, onEdit, className, fill = false }: PlanDiagramViewportProps) {
+export function PlanDiagramViewport({
+  source,
+  onEdit,
+  onOpenEditor,
+  className,
+  fill = false,
+  canvasLabel = "Diagram",
+}: PlanDiagramViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const userAdjustedRef = useRef(false);
@@ -112,6 +121,9 @@ export function PlanDiagramViewport({ source, onEdit, className, fill = false }:
 
     const resize = new ResizeObserver(onResize);
     resize.observe(viewport);
+    if (diagramReady) {
+      window.requestAnimationFrame(() => fitToView(!userAdjustedRef.current));
+    }
     return () => resize.disconnect();
   }, [diagramReady, fitToView, source]);
 
@@ -201,13 +213,26 @@ export function PlanDiagramViewport({ source, onEdit, className, fill = false }:
         onDoubleClick={stopBubble}
       >
         <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Diagram
+          {canvasLabel}
         </span>
-        <div
-          className="plan-diagram-viewport-controls inline-flex items-center gap-0.5 rounded-lg border border-border/70 bg-background p-0.5 shadow-sm"
-          role="toolbar"
-          aria-label="Diagram zoom controls"
-        >
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          {onOpenEditor ? (
+            <button
+              type="button"
+              onClick={onOpenEditor}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-[11px] font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+              aria-label="Open advanced diagram editor"
+              title="Open in editor"
+            >
+              <Pencil className="size-3.5" />
+              Open in editor
+            </button>
+          ) : null}
+          <div
+            className="plan-diagram-viewport-controls inline-flex items-center gap-0.5 rounded-lg border border-border/70 bg-background p-0.5 shadow-sm"
+            role="toolbar"
+            aria-label="Diagram zoom controls"
+          >
           <button
             type="button"
             onClick={zoomOut}
@@ -249,6 +274,7 @@ export function PlanDiagramViewport({ source, onEdit, className, fill = false }:
           >
             <RotateCcw className="size-4" />
           </button>
+        </div>
         </div>
       </div>
 

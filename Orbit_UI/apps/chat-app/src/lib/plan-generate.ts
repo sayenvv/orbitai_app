@@ -153,8 +153,12 @@ export async function generatePlanBundleFromPrompt({
           });
           return { section, sectionId: deliverable.id, content, error: null as string | null };
         } catch (error) {
-          if (error instanceof ApiError) throw error;
-          const message = error instanceof Error ? error.message : "Section generation failed";
+          const message =
+            error instanceof ApiError
+              ? error.message
+              : error instanceof Error
+                ? error.message
+                : "Section generation failed";
           return { section, sectionId: deliverable.id, content: fallback, error: message };
         }
       }),
