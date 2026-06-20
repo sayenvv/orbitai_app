@@ -278,7 +278,520 @@
   .glass-card-interactive:hover,
   .premium-btn-primary:hover:not(:disabled),
   .premium-btn-secondary:hover:not(:disabled),
-  .dark .glass-composer:focus-within {
+  .dark .glass-composer:focus-within,
+  .premium-composer:focus-within {
     transform: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Phase 2 — Enterprise design system extensions
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Typography scale (semantic) ──────────────────────────────── */
+.text-ds-display {
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.text-ds-h1 {
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.text-ds-h2 {
+  font-size: clamp(1.375rem, 2.5vw, 1.75rem);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.text-ds-h3 {
+  font-size: 1.25rem;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.text-ds-title {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.text-ds-subtitle {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+}
+
+.text-ds-body {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  letter-spacing: -0.011em;
+  color: var(--ds-text-primary);
+}
+
+.text-ds-caption {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  letter-spacing: -0.008em;
+  color: var(--ds-text-muted);
+}
+
+.text-ds-label {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+
+.text-ds-code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+/* ─── Light theme parity ───────────────────────────────────────── */
+.premium-btn-primary {
+  background: var(--premium-gradient);
+}
+
+.premium-btn-secondary {
+  background: var(--premium-hover);
+  border: 1px solid var(--premium-border);
+}
+
+.premium-btn-secondary:hover:not(:disabled) {
+  background: var(--premium-hover);
+  border-color: var(--ds-border-strong);
+}
+
+:root:not(.dark) .premium-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 20px -6px oklch(0.52 0.19 256 / 0.4);
+}
+
+:root:not(.dark) .glass-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: oklch(0.52 0.19 256 / 0.2);
+  box-shadow:
+    0 4px 16px -6px oklch(0 0 0 / 0.08),
+    0 12px 32px -12px oklch(0 0 0 / 0.12);
+}
+
+:root:not(.dark) .sidebar-nav-item-active {
+  background: var(--sidebar-nav-active-bg);
+  box-shadow: var(--premium-glow-accent);
+}
+
+:root:not(.dark) .sidebar-nav-item-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 55%;
+  border-radius: 0 4px 4px 0;
+  background: var(--premium-gradient);
+}
+
+/* ─── Premium composer (chat) ──────────────────────────────────── */
+.premium-composer,
+.glass-composer.premium-composer {
+  border: 1px solid var(--ds-border-subtle);
+  background: color-mix(in oklab, var(--ds-surface-primary) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition:
+    box-shadow var(--premium-duration-slow) var(--premium-ease),
+    border-color var(--premium-duration-slow) var(--premium-ease),
+    transform var(--premium-duration) var(--premium-ease);
+}
+
+.premium-composer:focus-within,
+.glass-composer.premium-composer:focus-within {
+  border-color: color-mix(in oklab, var(--ds-accent-primary) 45%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--ds-accent-primary) 18%, transparent),
+    0 0 28px -8px color-mix(in oklab, var(--ds-accent-primary) 32%, transparent),
+    0 12px 40px -16px rgb(0 0 0 / 0.18);
+  transform: translateY(-1px);
+}
+
+.dark .premium-composer:focus-within,
+.dark .glass-composer.premium-composer:focus-within {
+  box-shadow:
+    0 0 0 1px rgb(91 127 255 / 0.2),
+    0 0 32px -8px rgb(91 127 255 / 0.4),
+    0 16px 48px -16px rgb(0 0 0 / 0.55);
+}
+
+/* ─── Premium inputs & selects ─────────────────────────────────── */
+.premium-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ds-border-subtle);
+  background: var(--ds-surface-primary);
+  color: var(--ds-text-primary);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  outline: none;
+  transition:
+    border-color var(--premium-duration) var(--premium-ease),
+    box-shadow var(--premium-duration) var(--premium-ease);
+}
+
+.premium-input:hover {
+  border-color: var(--ds-border-strong);
+}
+
+.premium-input:focus {
+  border-color: color-mix(in oklab, var(--ds-accent-primary) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ds-accent-primary) 14%, transparent);
+}
+
+.premium-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+}
+
+/* ─── Premium header (sticky glass) ─────────────────────────────── */
+.premium-header {
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  background: color-mix(in oklab, var(--ds-bg-primary) 82%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.premium-header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--ds-accent-primary) 25%, transparent) 50%,
+    transparent
+  );
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ─── Premium workspace toolbar ──────────────────────────────────── */
+.premium-workspace .platform-toolbar,
+.premium-workspace .premium-header {
+  min-height: 2.75rem;
+}
+
+.premium-workspace .platform-toolbar {
+  background: color-mix(in oklab, var(--ds-bg-primary) 90%, transparent);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+/* ─── Premium document viewer ────────────────────────────────────── */
+.premium-document-viewer {
+  background: color-mix(in oklab, var(--ds-bg-primary) 96%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
+.premium-document-viewer .premium-header {
+  padding-inline: 1rem;
+}
+
+.premium-document-viewer .ide-tab-bar {
+  background: color-mix(in oklab, var(--ds-surface-secondary) 50%, transparent);
+  border-bottom-color: var(--ds-border-subtle);
+}
+
+.premium-document-viewer .ide-tab-active {
+  background: var(--ds-surface-primary);
+  border-color: var(--ds-border-subtle);
+  box-shadow: var(--premium-shadow-sm);
+}
+
+.premium-document-viewer .plan-pdf-page-sheet {
+  transition:
+    box-shadow var(--premium-duration-slow) var(--premium-ease),
+    transform var(--premium-duration) var(--premium-ease);
+}
+
+.premium-document-viewer .plan-pdf-page-sheet:hover {
+  box-shadow:
+    0 4px 16px -4px rgb(0 0 0 / 0.14),
+    0 16px 40px -12px rgb(0 0 0 / 0.18);
+}
+
+/* ─── Premium HTML editor shell ──────────────────────────────────── */
+.premium-html-editor {
+  background: color-mix(in oklab, var(--ds-bg-primary) 96%, transparent);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+}
+
+.premium-html-editor .premium-header {
+  padding-inline: 1.25rem;
+}
+
+/* ─── Premium badges & chips ─────────────────────────────────────── */
+.premium-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border-subtle);
+  background: color-mix(in oklab, var(--ds-surface-secondary) 80%, transparent);
+  padding: 0.125rem 0.5rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+
+.premium-badge-live {
+  border-color: color-mix(in oklab, var(--ds-success) 35%, transparent);
+  background: color-mix(in oklab, var(--ds-success) 12%, transparent);
+  color: color-mix(in oklab, var(--ds-success) 85%, var(--ds-text-primary));
+}
+
+.premium-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 0.625rem;
+  border: 1px solid var(--ds-border-subtle);
+  background: var(--ds-surface-primary);
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+  transition:
+    border-color var(--premium-duration) var(--premium-ease),
+    background-color var(--premium-duration) var(--premium-ease);
+}
+
+.premium-chip:hover {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-surface-elevated);
+}
+
+/* ─── Premium empty states ───────────────────────────────────────── */
+.premium-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+.premium-empty-icon {
+  display: flex;
+  size: 3.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  border: 1px solid var(--ds-border-subtle);
+  background: var(--premium-gradient-subtle);
+  color: var(--ds-accent-primary);
+  box-shadow: var(--premium-shadow-sm);
+}
+
+.premium-empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ds-text-primary);
+}
+
+.premium-empty-desc {
+  max-width: 20rem;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--ds-text-muted);
+}
+
+/* ─── Premium execution log ──────────────────────────────────────── */
+.premium-execution-log {
+  border: 1px solid var(--ds-border-subtle);
+  background: color-mix(in oklab, var(--ds-surface-primary) 92%, transparent);
+  box-shadow: var(--premium-shadow-sm);
+}
+
+.premium-execution-log .premium-exec-step {
+  position: relative;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  animation: premium-message-in 0.24s var(--premium-ease-out) both;
+}
+
+.premium-execution-log .premium-exec-step::before {
+  content: "";
+  position: absolute;
+  left: 1.375rem;
+  top: 2rem;
+  bottom: -0.25rem;
+  width: 1px;
+  background: var(--ds-border-subtle);
+}
+
+.premium-execution-log .premium-exec-step:last-child::before {
+  display: none;
+}
+
+.premium-execution-log .premium-exec-dot {
+  z-index: 1;
+  margin-top: 0.25rem;
+  size: 0.5rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--ds-border-strong);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ds-surface-primary) 95%, transparent);
+}
+
+.premium-execution-log .premium-exec-dot-active {
+  background: var(--ds-accent-primary);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--ds-accent-primary) 18%, transparent),
+    0 0 12px color-mix(in oklab, var(--ds-accent-primary) 45%, transparent);
+}
+
+.premium-execution-log .premium-exec-dot-success {
+  background: var(--ds-success);
+}
+
+.premium-execution-log .premium-exec-dot-error {
+  background: var(--ds-error);
+}
+
+/* ─── Premium agent / app cards ──────────────────────────────────── */
+.premium-agent-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid var(--ds-border-subtle);
+  background: color-mix(in oklab, var(--ds-surface-primary) 95%, transparent);
+  transition:
+    transform var(--premium-duration-slow) var(--premium-ease),
+    box-shadow var(--premium-duration-slow) var(--premium-ease),
+    border-color var(--premium-duration) var(--premium-ease);
+}
+
+.premium-agent-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--premium-gradient-subtle);
+  opacity: 0;
+  transition: opacity var(--premium-duration-slow) var(--premium-ease);
+  pointer-events: none;
+}
+
+.premium-agent-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in oklab, var(--ds-accent-primary) 22%, transparent);
+  box-shadow:
+    var(--premium-glow-accent),
+    var(--premium-shadow-md);
+}
+
+.premium-agent-card:hover::before {
+  opacity: 1;
+}
+
+/* ─── Premium skeleton blocks ────────────────────────────────────── */
+.premium-skeleton {
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--ds-text-muted) 12%, transparent);
+}
+
+.premium-skeleton-shimmer {
+  border-radius: 0.5rem;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--ds-text-muted) 8%, transparent) 0%,
+    color-mix(in oklab, var(--ds-text-muted) 16%, transparent) 50%,
+    color-mix(in oklab, var(--ds-text-muted) 8%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: premium-shimmer 1.8s ease-in-out infinite;
+}
+
+/* ─── 8pt spacing grid helpers ───────────────────────────────────── */
+.premium-stack-2 > * + * { margin-top: 0.5rem; }
+.premium-stack-3 > * + * { margin-top: 0.75rem; }
+.premium-stack-4 > * + * { margin-top: 1rem; }
+.premium-stack-6 > * + * { margin-top: 1.5rem; }
+.premium-stack-8 > * + * { margin-top: 2rem; }
+
+/* ─── Light theme chat bubbles ───────────────────────────────────── */
+:root:not(.dark) .chat-user-bubble {
+  background: color-mix(in oklab, var(--ds-accent-primary) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--ds-accent-primary) 18%, transparent);
+  border-radius: 1.25rem 1.25rem 0.375rem 1.25rem;
+  box-shadow: 0 4px 16px -8px color-mix(in oklab, var(--ds-accent-primary) 25%, transparent);
+}
+
+:root:not(.dark) .chat-assistant-row {
+  animation: premium-message-in 0.28s var(--premium-ease-out) both;
+}
+
+:root:not(.dark) .chat-assistant-avatar {
+  background: var(--premium-gradient-subtle);
+  border: 1px solid color-mix(in oklab, var(--ds-accent-primary) 16%, transparent);
+}
+
+/* ─── Scrollbars — light theme ───────────────────────────────────── */
+:root:not(.dark) * {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0 0 0 / 0.14) transparent;
+}
+
+:root:not(.dark) *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+:root:not(.dark) *::-webkit-scrollbar-thumb {
+  background: oklch(0 0 0 / 0.12);
+  border-radius: 999px;
+}
+
+:root:not(.dark) *::-webkit-scrollbar-thumb:hover {
+  background: oklch(0 0 0 / 0.2);
 }

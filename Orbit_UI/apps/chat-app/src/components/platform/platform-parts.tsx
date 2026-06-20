@@ -736,7 +736,7 @@ export function ExecutionLog({
         "flex min-h-0 flex-col overflow-hidden rounded-2xl",
         isTerminal
           ? "border border-white/10 bg-[#0b0f14] text-[#e6edf3] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-          : "glass-surface glass-card h-[min(420px,52vh)]",
+          : "glass-surface glass-card premium-execution-log h-[min(420px,52vh)]",
         className,
       )}
     >
@@ -1521,8 +1521,8 @@ export function StudioWorkspace({
         : "bg-muted text-muted-foreground";
 
   return (
-    <div className="platform-shell flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="platform-toolbar flex h-11 shrink-0 items-center gap-3 px-4 md:px-5">
+    <div className="platform-shell premium-workspace flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <header className="platform-toolbar premium-header flex h-11 shrink-0 items-center gap-3 px-4 md:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="hidden text-xs text-muted-foreground sm:inline">Development</span>
           <ChevronRight className="hidden size-3 text-muted-foreground/40 sm:inline" aria-hidden />

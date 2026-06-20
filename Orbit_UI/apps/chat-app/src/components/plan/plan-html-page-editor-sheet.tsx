@@ -1020,8 +1020,8 @@ export function PlanHtmlPageEditorSheet({
     : DEFAULT_PLAN_HTML_PAGE_STYLE;
 
   return createPortal(
-    <div className="plan-html-page-editor-sheet fixed inset-0 z-[1300] flex flex-col bg-background/95 backdrop-blur-sm">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
+    <div className="plan-html-page-editor-sheet premium-html-editor fixed inset-0 z-[1300] flex flex-col bg-background/95 backdrop-blur-sm">
+      <header className="premium-header flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
             <Code2 className="size-4" />

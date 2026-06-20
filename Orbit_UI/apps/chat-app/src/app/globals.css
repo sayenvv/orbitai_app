@@ -111,6 +111,43 @@
   --sidebar-expand-duration: 260ms;
   --sidebar-collapse-easing: cubic-bezier(0.22, 1, 0.36, 1);
   --sidebar-expand-easing: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Semantic design tokens — light */
+  --ds-bg-primary: var(--background);
+  --ds-bg-secondary: oklch(0.97 0.003 264);
+  --ds-surface-primary: var(--card);
+  --ds-surface-secondary: var(--secondary);
+  --ds-surface-elevated: oklch(0.998 0.001 264);
+  --ds-border-subtle: oklch(0.92 0.004 264 / 0.75);
+  --ds-border-strong: oklch(0.84 0.006 264 / 0.9);
+  --ds-text-primary: var(--foreground);
+  --ds-text-secondary: oklch(0.38 0.012 264);
+  --ds-text-muted: var(--muted-foreground);
+  --ds-accent-primary: oklch(0.52 0.19 256);
+  --ds-accent-secondary: oklch(0.58 0.17 280);
+  --ds-success: oklch(0.58 0.15 152);
+  --ds-warning: oklch(0.72 0.14 75);
+  --ds-error: var(--destructive);
+  --ds-info: oklch(0.55 0.17 256);
+
+  /* Premium surface tokens — light */
+  --premium-bg: oklch(0.985 0.003 264);
+  --premium-surface: oklch(0.97 0.004 264);
+  --premium-card: oklch(0.998 0.001 264);
+  --premium-accent: oklch(0.52 0.19 256);
+  --premium-accent-secondary: oklch(0.58 0.17 280);
+  --premium-success: oklch(0.55 0.15 152);
+  --premium-danger: oklch(0.58 0.22 25);
+  --premium-border: oklch(0.88 0.006 264 / 0.7);
+  --premium-hover: oklch(0 0 0 / 0.04);
+  --premium-gradient: linear-gradient(135deg, oklch(0.52 0.19 256) 0%, oklch(0.58 0.17 280) 100%);
+  --premium-gradient-subtle: linear-gradient(
+    135deg,
+    oklch(0.52 0.19 256 / 0.1) 0%,
+    oklch(0.58 0.17 280 / 0.08) 100%
+  );
+  --premium-glow-accent: 0 0 0 1px oklch(0.52 0.19 256 / 0.18), 0 0 20px -4px oklch(0.52 0.19 256 / 0.22);
+  --sidebar-nav-active-bg: oklch(0.52 0.19 256 / 0.1);
 }
 
 .dark {
@@ -125,8 +162,25 @@
   --premium-border: rgb(255 255 255 / 0.08);
   --premium-hover: rgb(255 255 255 / 0.05);
   --premium-gradient: linear-gradient(135deg, #5b7fff 0%, #8b5cf6 100%);
-  --premium-gradient: linear-gradient(135deg, #5b7fff 0%, #8b5cf6 100%);
   --premium-glow-accent: 0 0 0 1px rgb(91 127 255 / 0.22), 0 0 20px -4px rgb(91 127 255 / 0.35);
+
+  /* Semantic design tokens — dark */
+  --ds-bg-primary: var(--premium-bg);
+  --ds-bg-secondary: var(--premium-surface);
+  --ds-surface-primary: var(--premium-card);
+  --ds-surface-secondary: #1e1e24;
+  --ds-surface-elevated: #222228;
+  --ds-border-subtle: var(--premium-border);
+  --ds-border-strong: rgb(255 255 255 / 0.14);
+  --ds-text-primary: #f4f4f5;
+  --ds-text-secondary: #d4d4d8;
+  --ds-text-muted: #a1a1aa;
+  --ds-accent-primary: var(--premium-accent);
+  --ds-accent-secondary: var(--premium-accent-secondary);
+  --ds-success: var(--premium-success);
+  --ds-warning: #f59e0b;
+  --ds-error: var(--premium-danger);
+  --ds-info: var(--premium-accent);
 
   --background: var(--premium-bg);
   --foreground: #f4f4f5;
@@ -646,6 +700,7 @@
 
 /* Sidebar nav — flat tabs, no border or shadow */
 .sidebar-nav-item {
+  position: relative;
   border: none;
   border-radius: 0.5rem;
   box-shadow: none;

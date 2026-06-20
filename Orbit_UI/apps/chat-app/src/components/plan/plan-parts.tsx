@@ -203,7 +203,7 @@ export function PlanIdleHero({
     >
       <div className="w-full max-w-[680px]">
         <header className="text-center">
-          <h1 className="text-[1.875rem] font-semibold tracking-[-0.025em] text-foreground md:text-[2.125rem] md:leading-[1.15]">
+          <h1 className="text-ds-h1 text-[1.875rem] md:text-[2.125rem] md:leading-[1.15]">
             What should we plan?
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
@@ -1073,8 +1073,8 @@ export function PlanWorkspace({
   );
 
   return (
-    <div className="platform-shell plan-workspace-shell flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="platform-toolbar flex h-11 shrink-0 items-center gap-3 px-4 md:px-5">
+    <div className="platform-shell plan-workspace-shell premium-workspace flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <header className="platform-toolbar premium-header flex h-11 shrink-0 items-center gap-3 px-4 md:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <WorkspaceMenuBar menus={workspaceMenus} className="hidden sm:flex" />
           <span className="hidden h-4 w-px shrink-0 bg-border/60 sm:block" aria-hidden />

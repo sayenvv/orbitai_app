@@ -75,7 +75,7 @@ export function AppStoreCard({
   };
 
   return (
-    <article className="group glass-surface glass-card glass-card-interactive flex h-full flex-col overflow-hidden rounded-2xl sm:min-h-[340px] sm:rounded-3xl">
+    <article className="premium-agent-card group glass-surface glass-card glass-card-interactive flex h-full flex-col overflow-hidden rounded-2xl sm:min-h-[340px] sm:rounded-3xl">
       <Link
         href={getAppDetailHref(app)}
         className="block min-h-0 flex-1"

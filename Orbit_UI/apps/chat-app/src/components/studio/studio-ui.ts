@@ -20,3 +20,25 @@ export function studioButtonSecondary(className?: string) {
     className,
   );
 }
+
+/** Semantic typography helpers */
+export const studioTypography = {
+  display: "text-ds-display",
+  h1: "text-ds-h1",
+  h2: "text-ds-h2",
+  h3: "text-ds-h3",
+  title: "text-ds-title",
+  subtitle: "text-ds-subtitle",
+  body: "text-ds-body",
+  caption: "text-ds-caption",
+  label: "text-ds-label",
+  code: "text-ds-code",
+} as const;
+
+export function studioInput(className?: string) {
+  return cn("premium-input", className);
+}
+
+export function studioSelect(className?: string) {
+  return cn("premium-input premium-select", className);
+}

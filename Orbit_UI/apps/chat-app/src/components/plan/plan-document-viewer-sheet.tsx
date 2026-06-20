@@ -72,8 +72,8 @@ export function PlanDocumentViewerSheet({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="plan-document-viewer-sheet fixed inset-0 z-[118] flex flex-col bg-background/95 backdrop-blur-sm">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
+    <div className="plan-document-viewer-sheet premium-document-viewer fixed inset-0 z-[118] flex flex-col bg-background/95 backdrop-blur-sm">
+      <header className="premium-header flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
             {resolvedTab === "pdf" ? <FileText className="size-4" /> : <Code2 className="size-4" />}
@@ -99,7 +99,7 @@ export function PlanDocumentViewerSheet({
                   onChange={(event) => setPageFormat(event.target.value as PlanPdfPageFormatId)}
                   className={cn(
                     studioRadius,
-                    "max-w-[11rem] border border-border/60 bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/40 sm:max-w-none",
+                    "premium-input premium-select max-w-[11rem] border border-border/60 bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/40 sm:max-w-none",
                   )}
                   aria-label="Page size"
                 >

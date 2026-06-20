@@ -136,7 +136,7 @@ function AppShellLayout({ children }: { children: ReactNode }) {
       </Suspense>
 
       {/* Mobile header */}
-      <header className="safe-top safe-x relative z-10 flex shrink-0 items-center justify-between gap-2 bg-background/80 px-4 pb-3 pt-2 backdrop-blur-sm md:hidden">
+      <header className="premium-header safe-top safe-x relative z-10 flex shrink-0 items-center justify-between gap-2 bg-background/80 px-4 pb-3 pt-2 backdrop-blur-sm md:hidden">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <button
             type="button"
