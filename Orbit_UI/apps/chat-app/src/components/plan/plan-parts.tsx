@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -41,8 +42,14 @@ import {
 import { PlanDeliverableEditor } from "@/components/plan/plan-deliverable-editor";
 import { PlanShareMenu } from "@/components/plan/plan-share-menu";
 import { PlanStudioChat } from "@/components/plan/plan-studio-chat";
+import { PlanHtmlPageEditorSheet } from "@/components/plan/plan-html-page-editor-sheet";
 import { PlatformBackdrop } from "@/components/platform/platform-parts";
 import { WorkspaceResizeHandle } from "@/components/workspace/workspace-resize";
+import type { PlanDocumentViewerTab } from "@/components/plan/plan-document-viewer-sheet";
+import {
+  WorkspaceMenuBar,
+  type WorkspaceMenuDefinition,
+} from "@/components/workspace/workspace-menu-bar";
 import { DOCUMENTATION_SECTION_COUNT } from "@/lib/plan-documentation-catalog";
 import {
   filterSectionsByIncluded,
@@ -67,7 +74,13 @@ import {
   sectionHasContent,
   type PlanDeliverableContent,
 } from "@/lib/plan-deliverable-content";
-import { exportPlanProposalPdf } from "@/lib/plan-pdf-export";
+import { exportPlanProposalPdf, buildPlanProposalPreviewHtml } from "@/lib/plan-pdf-export";
+import type { PlanPdfPageFormatId } from "@/lib/plan-pdf-page-format";
+import { mergePlanHtmlPageStyles, mergePlanHtmlSidebarStyle, type PlanHtmlPageStylesMap, type PlanHtmlSidebarStyle } from "@/lib/plan-html-page-editor";
+import {
+  readStudioPlanHtmlEditorStorage,
+  writeStudioPlanHtmlEditorStorage,
+} from "@/lib/studio-plan-html-page-styles-storage";
 import { reorderSynopsisSectionOrder } from "@/lib/plan-synopsis-section-order";
 import type { RecentStudioPlan } from "@/lib/studio-recent-plans";
 import {
@@ -82,6 +95,14 @@ import { StudioRecentList } from "@/components/studio/studio-recent-list";
 import { studioButtonPrimary, studioButtonSecondary, studioRadius } from "@/components/studio/studio-ui";
 
 export type SynopsisSectionStatus = "empty" | "draft" | "complete";
+
+const PlanDocumentViewerSheet = dynamic(
+  () =>
+    import("@/components/plan/plan-document-viewer-sheet").then(
+      (module) => module.PlanDocumentViewerSheet,
+    ),
+  { ssr: false },
+);
 
 const OUTLINE_PANEL_DEFAULT_WIDTH = 300;
 const OUTLINE_PANEL_MIN_WIDTH = 240;
@@ -706,6 +727,17 @@ export function PlanWorkspace({
     getDefaultSectionId(workspaceView),
   );
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
+  const [documentViewerTabs, setDocumentViewerTabs] = useState<PlanDocumentViewerTab[]>([]);
+  const [activeDocumentViewerTab, setActiveDocumentViewerTab] =
+    useState<PlanDocumentViewerTab | null>(null);
+  const [documentPreviewHtml, setDocumentPreviewHtml] = useState<string | null>(null);
+  const [documentPreviewLoading, setDocumentPreviewLoading] = useState(false);
+  const [htmlPageEditorOpen, setHtmlPageEditorOpen] = useState(false);
+  const [pageStyles, setPageStyles] = useState<PlanHtmlPageStylesMap>({});
+  const [sidebarStyle, setSidebarStyle] = useState<PlanHtmlSidebarStyle>(
+    mergePlanHtmlSidebarStyle(null),
+  );
   const initializedPlanIdRef = useRef<string | null>(null);
 
   const visibleSections = useMemo(() => {
@@ -787,6 +819,33 @@ export function PlanWorkspace({
     [contentByDeliverableId, projectPrompt],
   );
 
+  useEffect(() => {
+    setDocumentPreviewHtml(null);
+  }, [contentByDeliverableId, projectTitle, synopsisSectionOrder, visibleSections]);
+
+  useEffect(() => {
+    const sectionIds = visibleSections.map((section) => section.id);
+    const stored = readStudioPlanHtmlEditorStorage(planId);
+    setPageStyles(mergePlanHtmlPageStyles(sectionIds, stored?.pageStyles ?? null));
+    setSidebarStyle(mergePlanHtmlSidebarStyle(stored?.sidebarStyle ?? null));
+  }, [planId, visibleSections]);
+
+  const handlePageStylesChange = useCallback(
+    (styles: PlanHtmlPageStylesMap) => {
+      setPageStyles(styles);
+      writeStudioPlanHtmlEditorStorage(planId, { pageStyles: styles, sidebarStyle });
+    },
+    [planId, sidebarStyle],
+  );
+
+  const handleSidebarStyleChange = useCallback(
+    (style: PlanHtmlSidebarStyle) => {
+      setSidebarStyle(style);
+      writeStudioPlanHtmlEditorStorage(planId, { pageStyles, sidebarStyle: style });
+    },
+    [pageStyles, planId],
+  );
+
   const sectionStatus = useMemo(() => {
     const status: Record<string, SynopsisSectionStatus> = {};
     for (const section of visibleSections) {
@@ -828,22 +887,211 @@ export function PlanWorkspace({
     router.push(studioWithPhase("design"));
   }, [router]);
 
+  const handleAddSectionFromMenu = useCallback(() => {
+    if (workspaceView !== "synopsis") return;
+    setOutlineOpen(true);
+    const label = window.prompt("New section name");
+    if (!label?.trim()) return;
+    const sectionId = onAddCustomSection(label.trim(), "document");
+    if (sectionId) handleSelectSection(sectionId);
+  }, [handleSelectSection, onAddCustomSection, workspaceView]);
+
+  const loadDocumentPreviewHtml = useCallback(async () => {
+    setDocumentPreviewLoading(true);
+    try {
+      const html = await buildPlanProposalPreviewHtml({
+        projectTitle,
+        contentById: contentByDeliverableId,
+        sections: visibleSections,
+      });
+      setDocumentPreviewHtml(html);
+      return html;
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Failed to prepare document preview.");
+      return null;
+    } finally {
+      setDocumentPreviewLoading(false);
+    }
+  }, [contentByDeliverableId, projectTitle, visibleSections]);
+
+  const openDocumentViewerTab = useCallback(
+    async (tab: PlanDocumentViewerTab) => {
+      setDocumentViewerTabs((current) => (current.includes(tab) ? current : [...current, tab]));
+      setActiveDocumentViewerTab(tab);
+      setDocumentViewerOpen(true);
+      if (tab === "pdf" && !documentPreviewHtml) {
+        await loadDocumentPreviewHtml();
+      }
+    },
+    [documentPreviewHtml, loadDocumentPreviewHtml],
+  );
+
+  useEffect(() => {
+    if (!documentViewerOpen || documentPreviewHtml || documentPreviewLoading) return;
+    if (!documentViewerTabs.includes("pdf")) return;
+    void loadDocumentPreviewHtml();
+  }, [
+    documentPreviewHtml,
+    documentPreviewLoading,
+    documentViewerOpen,
+    documentViewerTabs,
+    loadDocumentPreviewHtml,
+  ]);
+
+  const handleCloseDocumentViewerTab = useCallback((tab: PlanDocumentViewerTab) => {
+    setDocumentViewerTabs((current) => {
+      const next = current.filter((item) => item !== tab);
+      setActiveDocumentViewerTab((active) => {
+        if (active !== tab) return active;
+        return next[next.length - 1] ?? null;
+      });
+      if (next.length === 0) {
+        setDocumentViewerOpen(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const handlePrintDocumentPreview = useCallback(
+    async (pageFormat: PlanPdfPageFormatId) => {
+      try {
+        const html = await buildPlanProposalPreviewHtml({
+          projectTitle,
+          contentById: contentByDeliverableId,
+          sections: visibleSections,
+          pageFormat,
+        });
+        const printWindow = window.open("", "_blank", "noopener,noreferrer,width=1024,height=768");
+        if (!printWindow) {
+          window.alert("Pop-up blocked. Allow pop-ups to print or save as PDF.");
+          return;
+        }
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.addEventListener("load", () => {
+          printWindow.print();
+        });
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "Failed to prepare document for printing.");
+      }
+    },
+    [contentByDeliverableId, projectTitle, visibleSections],
+  );
+
+  const workspaceMenus = useMemo<WorkspaceMenuDefinition[]>(
+    () => [
+      {
+        label: "File",
+        items: [
+          {
+            type: "submenu",
+            label: "Open",
+            items: [
+              {
+                label: "HTML View",
+                checked: documentViewerTabs.includes("html"),
+                onClick: () => void openDocumentViewerTab("html"),
+              },
+              {
+                label: "PDF Viewer",
+                checked: documentViewerTabs.includes("pdf"),
+                onClick: () => void openDocumentViewerTab("pdf"),
+              },
+              {
+                label: "HTML Editor",
+                checked: htmlPageEditorOpen,
+                onClick: () => setHtmlPageEditorOpen(true),
+              },
+            ],
+          },
+          { type: "divider" },
+          {
+            label: exportingPdf ? "Exporting PDF…" : "Export PDF",
+            disabled: workspaceView !== "synopsis" || exportingPdf,
+            onClick: () => void handleExportPdf(),
+          },
+          {
+            label: "Create Design",
+            disabled: running,
+            onClick: handleCreateDesign,
+          },
+        ],
+      },
+      {
+        label: "Edit",
+        items: [
+          {
+            label: "Add Section",
+            disabled: workspaceView !== "synopsis",
+            onClick: handleAddSectionFromMenu,
+          },
+          {
+            label: "Remove Section",
+            disabled:
+              workspaceView !== "synopsis" ||
+              !activeSection?.custom ||
+              running,
+            onClick: () => {
+              if (!activeSection?.custom) return;
+              handleRemoveCustomSection(activeSection.id);
+            },
+          },
+        ],
+      },
+      {
+        label: "View",
+        items: [
+          {
+            label: "Show Outline",
+            checked: outlineOpen,
+            onClick: () => setOutlineOpen((open) => !open),
+          },
+          {
+            label: "Show Assistant",
+            checked: chatOpen,
+            onClick: () => setChatOpen((open) => !open),
+          },
+        ],
+      },
+    ],
+    [
+      activeSection,
+      chatOpen,
+      documentViewerTabs,
+      exportingPdf,
+      handleAddSectionFromMenu,
+      handleCreateDesign,
+      handleExportPdf,
+      handleRemoveCustomSection,
+      htmlPageEditorOpen,
+      openDocumentViewerTab,
+      outlineOpen,
+      running,
+      workspaceView,
+    ],
+  );
+
   return (
     <div className="platform-shell plan-workspace-shell flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <header className="platform-toolbar flex h-11 shrink-0 items-center gap-3 px-4 md:px-5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="hidden text-xs text-muted-foreground sm:inline">Workspace</span>
-          <ChevronRight className="hidden size-3 text-muted-foreground/40 sm:inline" aria-hidden />
-          <h1 className="truncate text-sm font-medium text-foreground">{projectTitle}</h1>
-          <span className="inline-flex shrink-0 items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {running && generateProgress
-              ? `${generateProgress.done}/${generateProgress.total}`
-              : workspaceView === "synopsis"
-                ? customSynopsisSections.length
-                  ? `${visibleSections.length} sections`
-                  : `${SYNOPSIS_SECTION_COUNT} sections`
-                : `${DOCUMENTATION_SECTION_COUNT} docs`}
-          </span>
+        <div className="flex min-w-0 items-center gap-3">
+          <WorkspaceMenuBar menus={workspaceMenus} className="hidden sm:flex" />
+          <span className="hidden h-4 w-px shrink-0 bg-border/60 sm:block" aria-hidden />
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="hidden text-xs text-muted-foreground md:inline">Workspace</span>
+            <ChevronRight className="hidden size-3 text-muted-foreground/40 md:inline" aria-hidden />
+            <h1 className="truncate text-sm font-medium text-foreground">{projectTitle}</h1>
+            <span className="inline-flex shrink-0 items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {running && generateProgress
+                ? `${generateProgress.done}/${generateProgress.total}`
+                : workspaceView === "synopsis"
+                  ? customSynopsisSections.length
+                    ? `${visibleSections.length} sections`
+                    : `${SYNOPSIS_SECTION_COUNT} sections`
+                  : `${DOCUMENTATION_SECTION_COUNT} docs`}
+            </span>
+          </div>
         </div>
 
         <div className="hidden min-w-0 flex-1 px-4 lg:flex lg:justify-center">
@@ -1038,6 +1286,38 @@ export function PlanWorkspace({
           </button>
         )}
       </div>
+
+      <PlanDocumentViewerSheet
+        open={documentViewerOpen}
+        tabs={documentViewerTabs}
+        activeTab={activeDocumentViewerTab}
+        projectTitle={projectTitle}
+        sections={visibleSections}
+        contentByDeliverableId={contentByDeliverableId}
+        projectPrompt={projectPrompt}
+        pageStyles={pageStyles}
+        sidebarStyle={sidebarStyle}
+        previewHtml={documentPreviewHtml}
+        loading={documentPreviewLoading}
+        onActiveTabChange={setActiveDocumentViewerTab}
+        onCloseTab={handleCloseDocumentViewerTab}
+        onClose={() => setDocumentViewerOpen(false)}
+        onPrint={handlePrintDocumentPreview}
+      />
+
+      <PlanHtmlPageEditorSheet
+        open={htmlPageEditorOpen}
+        projectTitle={projectTitle}
+        sections={visibleSections}
+        contentByDeliverableId={contentByDeliverableId}
+        projectPrompt={projectPrompt}
+        pageStyles={pageStyles}
+        sidebarStyle={sidebarStyle}
+        onPageStylesChange={handlePageStylesChange}
+        onSidebarStyleChange={handleSidebarStyleChange}
+        onContentChange={onContentChange}
+        onClose={() => setHtmlPageEditorOpen(false)}
+      />
     </div>
   );
 }

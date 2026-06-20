@@ -1,24 +1,22 @@
 import { cn } from "@/lib/utils";
 
-/** Shared corner radius for Studio shell buttons and panels (matches rounded-sm). */
-export const studioRadius = "rounded-sm";
+/** Shared corner radius for Studio shell buttons and panels */
+export const studioRadius = "rounded-xl";
 
 export function studioButtonPrimary(className?: string) {
   return cn(
+    "premium-btn premium-btn-primary",
     studioRadius,
-    "inline-flex items-center justify-center gap-1.5 font-medium transition-colors",
-    "bg-primary text-primary-foreground hover:bg-primary/90",
-    "disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium",
     className,
   );
 }
 
 export function studioButtonSecondary(className?: string) {
   return cn(
+    "premium-btn premium-btn-secondary",
     studioRadius,
-    "inline-flex items-center justify-center font-medium transition-colors",
-    "border border-border text-foreground hover:bg-muted/50",
-    "disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium",
     className,
   );
 }

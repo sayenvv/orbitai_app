@@ -16,6 +16,10 @@ import { IdeDeployModal, type DeployResult } from "@/components/code/ide-deploy-
 import { IdeFileMenu } from "@/components/code/ide-file-menu";
 import { IdeNewProjectDialog } from "@/components/code/ide-new-project-dialog";
 import { IdeProjectMenu } from "@/components/code/ide-project-menu";
+import {
+  WorkspaceMenuBar,
+  type WorkspaceMenuDefinition,
+} from "@/components/workspace/workspace-menu-bar";
 import { IdeBottomConsole, type IdeConsolePort } from "@/components/code/ide-bottom-console";
 import {
   IDE_SIDEBAR_ICON_RAIL_WIDTH_PX,
@@ -1025,6 +1029,83 @@ export function CodeWorkspace() {
     handleSaveAs,
   };
 
+  const codeWorkspaceMenus = useMemo<WorkspaceMenuDefinition[]>(
+    () => [
+      {
+        label: "Edit",
+        items: [
+          {
+            label: saving ? "Saving…" : "Save",
+            disabled: !canSaveFile || !persisted || saving,
+            onClick: () => void fileMenuHandlersRef.current.handleSave(),
+          },
+          {
+            label: "Save As…",
+            disabled: !canSaveFile || !persisted,
+            onClick: () => void fileMenuHandlersRef.current.handleSaveAs(),
+          },
+          { type: "divider" },
+          {
+            label: "Find in Files",
+            onClick: () => {
+              setLeftSidebarTab("search");
+              setLeftSidebarCollapsed(false);
+            },
+          },
+        ],
+      },
+      {
+        label: "View",
+        items: [
+          {
+            label: "Explorer",
+            checked: !leftSidebarCollapsed && leftSidebarTab === "files",
+            onClick: () => {
+              setLeftSidebarCollapsed(false);
+              setLeftSidebarTab("files");
+            },
+          },
+          {
+            label: "Search",
+            checked: !leftSidebarCollapsed && leftSidebarTab === "search",
+            onClick: () => {
+              setLeftSidebarCollapsed(false);
+              setLeftSidebarTab("search");
+            },
+          },
+          {
+            label: "Source Control",
+            checked: !leftSidebarCollapsed && leftSidebarTab === "branch",
+            onClick: () => {
+              setLeftSidebarCollapsed(false);
+              setLeftSidebarTab("branch");
+            },
+          },
+          { type: "divider" },
+          {
+            label: "Terminal",
+            checked: consoleOpen,
+            onClick: () => setConsoleOpen((open) => !open),
+          },
+          {
+            label: "Right Sidebar",
+            checked: !rightSidebarCollapsed,
+            onClick: () => setRightSidebarCollapsed((collapsed) => !collapsed),
+          },
+        ],
+      },
+    ],
+    [
+      canSaveFile,
+      consoleOpen,
+      leftSidebarCollapsed,
+      leftSidebarTab,
+      persisted,
+      rightSidebarCollapsed,
+      saving,
+    ],
+  );
+
   const headerLeading = useMemo(
     () => (
       <div className="flex min-w-0 items-center gap-0.5">
@@ -1047,10 +1128,12 @@ export function CodeWorkspace() {
           onSaveAs={() => void fileMenuHandlersRef.current.handleSaveAs()}
           onDeploy={fileMenuHandlersRef.current.handleOpenDeploy}
         />
+        <WorkspaceMenuBar menus={codeWorkspaceMenus} />
       </div>
     ),
     [
       canSaveFile,
+      codeWorkspaceMenus,
       handleOpenRecentProject,
       handleRequestNewProject,
       loadingRecents,

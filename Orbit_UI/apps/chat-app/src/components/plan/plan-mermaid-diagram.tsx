@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 type PlanMermaidDiagramProps = {
   source: string;
   className?: string;
+  theme?: "dark" | "neutral";
   onRendered?: () => void;
 };
 
@@ -60,7 +61,7 @@ function normalizeRenderedSvg(svg: string): string {
   return root.outerHTML;
 }
 
-export function PlanMermaidDiagram({ source, className, onRendered }: PlanMermaidDiagramProps) {
+export function PlanMermaidDiagram({ source, className, theme, onRendered }: PlanMermaidDiagramProps) {
   const renderId = useId().replace(/:/g, "");
   const attemptRef = useRef(0);
   const svgHostRef = useRef<HTMLDivElement>(null);
@@ -91,7 +92,8 @@ export function PlanMermaidDiagram({ source, className, onRendered }: PlanMermai
       setError(null);
 
       try {
-        const mermaid = await getMermaid(resolvedTheme === "dark" ? "dark" : "neutral");
+        const mermaidTheme = theme ?? (resolvedTheme === "dark" ? "dark" : "neutral");
+        const mermaid = await getMermaid(mermaidTheme);
         const uniqueId = `plan-mermaid-${renderId}-${attemptRef.current++}`;
         const { svg: rendered } = await mermaid.render(uniqueId, diagramSource);
         if (cancelled || !svgHostRef.current) return;
@@ -115,7 +117,7 @@ export function PlanMermaidDiagram({ source, className, onRendered }: PlanMermai
     return () => {
       cancelled = true;
     };
-  }, [diagramSource, renderId, resolvedTheme]);
+  }, [diagramSource, renderId, resolvedTheme, theme]);
 
   return (
     <div className={cn("plan-mermaid-diagram-host relative", className)}>

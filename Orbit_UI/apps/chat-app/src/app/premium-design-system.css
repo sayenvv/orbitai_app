@@ -1,0 +1,284 @@
+/* Premium AI platform design system — motion, surfaces, components */
+
+:root {
+  --premium-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --premium-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --premium-duration: 200ms;
+  --premium-duration-slow: 320ms;
+  --premium-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.12), 0 4px 12px -4px rgb(0 0 0 / 0.18);
+  --premium-shadow-md: 0 4px 16px -6px rgb(0 0 0 / 0.28), 0 12px 32px -12px rgb(0 0 0 / 0.38);
+  --premium-shadow-lg: 0 8px 28px -8px rgb(0 0 0 / 0.45), 0 24px 48px -16px rgb(0 0 0 / 0.55);
+  --premium-glow-accent: 0 0 0 1px rgb(91 127 255 / 0.22), 0 0 20px -4px rgb(91 127 255 / 0.35);
+  --premium-gradient-subtle: linear-gradient(
+    135deg,
+    rgb(91 127 255 / 0.14) 0%,
+    rgb(139 92 246 / 0.1) 100%
+  );
+}
+
+.dark {
+  --premium-gradient: linear-gradient(135deg, #5b7fff 0%, #8b5cf6 100%);
+}
+
+/* ─── Typography scale ─────────────────────────────────────────── */
+.text-premium-hero {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+.text-premium-heading {
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+.text-premium-subheading {
+  font-size: 1.5rem;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+
+.text-premium-body {
+  font-size: 1rem;
+  line-height: 1.65;
+  letter-spacing: -0.011em;
+}
+
+.text-premium-caption {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  letter-spacing: -0.008em;
+}
+
+.text-premium-small {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+
+/* ─── Scrollbars ───────────────────────────────────────────────── */
+.dark * {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.14) transparent;
+}
+
+.dark *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.12);
+  border-radius: 999px;
+  transition: background var(--premium-duration) var(--premium-ease);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.22);
+}
+
+/* ─── Premium buttons ──────────────────────────────────────────── */
+.premium-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  transition:
+    transform var(--premium-duration) var(--premium-ease),
+    box-shadow var(--premium-duration) var(--premium-ease),
+    background-color var(--premium-duration) var(--premium-ease),
+    border-color var(--premium-duration) var(--premium-ease),
+    opacity var(--premium-duration) var(--premium-ease);
+}
+
+.premium-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.premium-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.premium-btn-primary {
+  background: var(--premium-gradient);
+  color: #fff;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow: 0 2px 8px -2px rgb(91 127 255 / 0.45);
+}
+
+.premium-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px -6px rgb(91 127 255 / 0.55);
+}
+
+.premium-btn-secondary {
+  background: var(--premium-hover);
+  color: var(--foreground);
+  border: 1px solid var(--premium-border);
+}
+
+.premium-btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgb(255 255 255 / 0.08);
+  border-color: rgb(255 255 255 / 0.14);
+}
+
+/* ─── Premium cards ────────────────────────────────────────────── */
+.dark .glass-card {
+  border-radius: 1rem;
+}
+
+.dark .glass-card-interactive:hover {
+  transform: translateY(-3px) scale(1.005);
+  border-color: rgb(91 127 255 / 0.22);
+  box-shadow:
+    var(--premium-glow-accent),
+    var(--premium-shadow-md);
+}
+
+/* ─── Sidebar active glow ──────────────────────────────────────── */
+.dark .sidebar-nav-item {
+  position: relative;
+  border-radius: 0.625rem;
+}
+
+.dark .sidebar-nav-item-active {
+  background: var(--sidebar-nav-active-bg);
+  box-shadow: var(--premium-glow-accent);
+}
+
+.dark .sidebar-nav-item-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 55%;
+  border-radius: 0 4px 4px 0;
+  background: var(--premium-gradient);
+  box-shadow: 0 0 12px rgb(91 127 255 / 0.6);
+}
+
+/* ─── Composer focus ───────────────────────────────────────────── */
+.dark .glass-composer {
+  border: 1px solid var(--premium-border);
+  background: rgb(26 26 32 / 0.72);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  transition:
+    box-shadow var(--premium-duration-slow) var(--premium-ease),
+    border-color var(--premium-duration-slow) var(--premium-ease),
+    transform var(--premium-duration) var(--premium-ease);
+}
+
+.dark .glass-composer:focus-within {
+  border-color: rgb(91 127 255 / 0.45);
+  box-shadow:
+    0 0 0 1px rgb(91 127 255 / 0.2),
+    0 0 32px -8px rgb(91 127 255 / 0.4),
+    0 16px 48px -16px rgb(0 0 0 / 0.55);
+  transform: translateY(-1px);
+}
+
+/* ─── Chat bubbles ─────────────────────────────────────────────── */
+.dark .chat-user-bubble {
+  background: rgb(91 127 255 / 0.16);
+  border: 1px solid rgb(91 127 255 / 0.22);
+  border-radius: 1.25rem 1.25rem 0.375rem 1.25rem;
+  box-shadow: 0 4px 16px -8px rgb(91 127 255 / 0.35);
+}
+
+.dark .chat-assistant-avatar {
+  background: var(--premium-gradient-subtle);
+  border: 1px solid rgb(91 127 255 / 0.2);
+  box-shadow: 0 0 16px -6px rgb(91 127 255 / 0.35);
+}
+
+.dark .chat-assistant-row {
+  animation: premium-message-in 0.28s var(--premium-ease-out) both;
+}
+
+@keyframes premium-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Canvas & shells ──────────────────────────────────────────── */
+.dark .home-warm-canvas {
+  background: var(--premium-bg);
+}
+
+.dark .sidebar-glass {
+  background: rgb(20 20 24 / 0.78);
+  border-right-color: var(--premium-border);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+}
+
+.dark .glass-surface {
+  background: rgb(26 26 32 / 0.65);
+  border-color: var(--premium-border);
+}
+
+.dark .glass-modal {
+  border: 1px solid var(--premium-border);
+  box-shadow: var(--premium-shadow-lg);
+}
+
+/* ─── Shimmer / skeleton ─────────────────────────────────────────── */
+@keyframes premium-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.premium-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.04) 0%,
+    rgb(255 255 255 / 0.1) 50%,
+    rgb(255 255 255 / 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: premium-shimmer 1.8s ease-in-out infinite;
+}
+
+/* ─── Reduced motion ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .glass-card-interactive:hover,
+  .premium-btn-primary:hover:not(:disabled),
+  .premium-btn-secondary:hover:not(:disabled),
+  .dark .glass-composer:focus-within {
+    transform: none;
+  }
+}

@@ -204,7 +204,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         <form onSubmit={handleSubmit} className="w-full">
           <div
             className={cn(
-              "glass-surface glass-composer w-full rounded-[1.5rem] px-4 pb-3 pt-3 transition-all",
+              "glass-surface glass-composer premium-composer w-full rounded-[1.5rem] px-4 pb-3 pt-3 transition-all",
             )}
           >
             {webpageInputMode ? (

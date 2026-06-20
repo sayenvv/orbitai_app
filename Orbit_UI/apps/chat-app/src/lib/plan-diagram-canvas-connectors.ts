@@ -67,6 +67,79 @@ export function findNodeAtPoint(
   return null;
 }
 
+export type SelectionRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export function normalizeSelectionRect(rect: SelectionRect): SelectionRect {
+  const width = rect.width;
+  const height = rect.height;
+  return {
+    x: width < 0 ? rect.x + width : rect.x,
+    y: height < 0 ? rect.y + height : rect.y,
+    width: Math.abs(width),
+    height: Math.abs(height),
+  };
+}
+
+export function nodeIntersectsSelectionRect(
+  node: PlanDiagramCanvasNode,
+  rect: SelectionRect,
+): boolean {
+  const box = normalizeSelectionRect(rect);
+  return (
+    node.x < box.x + box.width &&
+    node.x + node.width > box.x &&
+    node.y < box.y + box.height &&
+    node.y + node.height > box.y
+  );
+}
+
+export function findNodesInSelectionRect(
+  nodes: PlanDiagramCanvasNode[],
+  rect: SelectionRect,
+): PlanDiagramCanvasNode[] {
+  const box = normalizeSelectionRect(rect);
+  if (box.width < 3 && box.height < 3) return [];
+  return nodes.filter((node) => nodeIntersectsSelectionRect(node, rect));
+}
+
+export type NodesBoundingBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export function getNodesBoundingBox(
+  nodes: PlanDiagramCanvasNode[],
+  padding = 10,
+): NodesBoundingBox | null {
+  if (nodes.length === 0) return null;
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const node of nodes) {
+    minX = Math.min(minX, node.x);
+    minY = Math.min(minY, node.y);
+    maxX = Math.max(maxX, node.x + node.width);
+    maxY = Math.max(maxY, node.y + node.height);
+  }
+
+  return {
+    x: minX - padding,
+    y: minY - padding,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
+  };
+}
+
 export type ConnectorDraft = {
   fromNodeId: string;
   fromAnchor: ConnectorAnchor;

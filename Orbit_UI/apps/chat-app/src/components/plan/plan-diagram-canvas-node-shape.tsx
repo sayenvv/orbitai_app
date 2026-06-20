@@ -55,9 +55,22 @@ function parallelogramPoints(width: number, height: number) {
   return [skew, 0, width, 0, width - skew, height, 0, height];
 }
 
+const SHAPE_FILL = "#ffffff";
+const SHAPE_STROKE = "#a1a1aa";
+const SHAPE_STROKE_SELECTED = "#2563eb";
+const LABEL_FILL = "#18181b";
+const LABEL_FILL_SELECTED = "#09090b";
+
+function getShapeCornerRadius(node: PlanDiagramCanvasNode) {
+  if (node.type === "api") return 10;
+  if (node.type === "rect" || node.type === "brand" || node.type === "rounded") return 8;
+  return 0;
+}
+
 export function CanvasNodeShape({
   node,
   selected,
+  showSelectionRing = false,
   connectSource,
   connectHover = false,
   draggable = true,
@@ -68,10 +81,11 @@ export function CanvasNodeShape({
 }: {
   node: PlanDiagramCanvasNode;
   selected: boolean;
+  showSelectionRing?: boolean;
   connectSource: boolean;
   connectHover?: boolean;
   draggable?: boolean;
-  onSelect: () => void;
+  onSelect: (additive?: boolean) => void;
   onDragStart?: () => void;
   onDragMove?: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
@@ -81,14 +95,17 @@ export function CanvasNodeShape({
     : connectHover
       ? "#16a34a"
       : selected
-        ? "#e4e4e7"
-        : "#71717a";
+        ? SHAPE_STROKE_SELECTED
+        : SHAPE_STROKE;
   const fill = connectSource
-    ? "rgba(37, 99, 235, 0.12)"
+    ? "rgba(37, 99, 235, 0.08)"
     : connectHover
-      ? "rgba(22, 163, 74, 0.12)"
-      : "rgba(255, 255, 255, 0.98)";
-  const strokeWidth = selected || connectSource || connectHover ? 2 : 1.5;
+      ? "rgba(22, 163, 74, 0.08)"
+      : SHAPE_FILL;
+  const strokeWidth = selected || connectSource || connectHover ? 2 : 1.25;
+  const shapeShadow = selected
+    ? { shadowColor: "rgba(37, 99, 235, 0.2)", shadowBlur: 12, shadowOffsetY: 3 }
+    : { shadowColor: "rgba(15, 23, 42, 0.07)", shadowBlur: 8, shadowOffsetY: 2 };
   const isBrand = node.type === "brand" && node.accentColor;
   const hasLabel = Boolean(node.label?.trim());
   const labelOffsetY = isBrand && hasLabel ? 30 : 0;
@@ -100,8 +117,19 @@ export function CanvasNodeShape({
       x={node.x}
       y={node.y}
       draggable={draggable}
-      onClick={onSelect}
-      onTap={onSelect}
+      {...shapeShadow}
+      onMouseDown={(event: Konva.KonvaEventObject<MouseEvent>) => {
+        event.cancelBubble = true;
+      }}
+      onClick={(event: Konva.KonvaEventObject<MouseEvent>) => {
+        event.cancelBubble = true;
+        const additive = event.evt.shiftKey || event.evt.metaKey || event.evt.ctrlKey;
+        onSelect(additive);
+      }}
+      onTap={(event: Konva.KonvaEventObject<TouchEvent>) => {
+        event.cancelBubble = true;
+        onSelect(false);
+      }}
       onDragStart={() => onDragStart?.()}
       onDragMove={(event: Konva.KonvaEventObject<DragEvent>) => {
         if (!onDragMove) return;
@@ -344,6 +372,21 @@ export function CanvasNodeShape({
         </>
       ) : null}
 
+      {showSelectionRing ? (
+        <Rect
+          x={-1}
+          y={-1}
+          width={node.width + 2}
+          height={node.height + 2}
+          cornerRadius={getShapeCornerRadius(node) + 1}
+          stroke={SHAPE_STROKE_SELECTED}
+          strokeWidth={1.25}
+          fill="transparent"
+          opacity={0.85}
+          listening={false}
+        />
+      ) : null}
+
       {hasLabel ? (
         <Text
           text={node.label}
@@ -352,9 +395,10 @@ export function CanvasNodeShape({
           height={labelHeight}
           align="center"
           verticalAlign="middle"
-          fontSize={isBrand ? 11 : 12}
+          fontSize={isBrand ? 11 : selected ? 12.5 : 12}
+          fontStyle={selected ? "bold" : "normal"}
           fontFamily="Inter, ui-sans-serif, system-ui, sans-serif"
-          fill="#18181b"
+          fill={selected ? LABEL_FILL_SELECTED : LABEL_FILL}
           listening={false}
           padding={isBrand ? 6 : 10}
         />

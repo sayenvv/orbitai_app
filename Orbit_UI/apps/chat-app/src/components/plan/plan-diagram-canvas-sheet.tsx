@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Waypoints, X, Shapes, SlidersHorizontal } from "lucide-react";
-import { Arrow, Group, Layer, Stage, Text, Transformer } from "react-konva";
+import { Arrow, Group, Layer, Rect, Stage, Text, Transformer } from "react-konva";
 import type Konva from "konva";
 
 import { CanvasNodeShape } from "@/components/plan/plan-diagram-canvas-node-shape";
-import { CanvasNodeSelectionChrome } from "@/components/plan/plan-diagram-canvas-connector-handles";
+import { CanvasNodeSelectionChrome, CanvasGroupSelectionChrome } from "@/components/plan/plan-diagram-canvas-connector-handles";
 import { PlanDiagramCanvasInspector } from "@/components/plan/plan-diagram-canvas-inspector";
 import { PlanDiagramCanvasPanel } from "@/components/plan/plan-diagram-canvas-panel";
 import { PlanDiagramCanvasSidebar } from "@/components/plan/plan-diagram-canvas-sidebar";
@@ -29,18 +29,49 @@ import {
 import {
   buildConnectorRoutePoints,
   findNodeAtPoint,
+  findNodesInSelectionRect,
   getBestAnchorsBetweenNodes,
   getConnectorAnchorStagePosition,
   getConnectorRouteMidpoint,
   getNearestConnectorAnchor,
+  normalizeSelectionRect,
   resolveEdgeAnchors,
   type ConnectorAnchor,
   type ConnectorDraft,
+  type SelectionRect,
 } from "@/lib/plan-diagram-canvas-connectors";
 import { normalizeMermaidSource } from "@/lib/normalize-mermaid-source";
 import { cn } from "@/lib/utils";
 
 type SidebarMode = "select" | "connect" | "place";
+
+const MARQUEE_CLICK_THRESHOLD = 6;
+
+function getCanvasNodeIdFromTarget(target: Konva.Node): string | null {
+  let node: Konva.Node | null = target;
+  while (node) {
+    const id = node.id();
+    if (typeof id === "string" && id.startsWith("canvas-node-")) {
+      return id.slice("canvas-node-".length);
+    }
+    node = node.getParent();
+  }
+  return null;
+}
+
+function isCanvasBackgroundTarget(target: Konva.Node): boolean {
+  if (getCanvasNodeIdFromTarget(target) !== null) return false;
+
+  let node: Konva.Node | null = target;
+  while (node) {
+    const className = node.getClassName();
+    if (className === "Transformer") return false;
+    if (className === "Stage" || className === "Layer") return true;
+    node = node.getParent();
+  }
+
+  return false;
+}
 
 function getEdgeEndpoints(
   from: PlanDiagramCanvasNode,
@@ -69,7 +100,7 @@ function CanvasEdges({ nodes, edges }: { nodes: PlanDiagramCanvasNode[]; edges: 
         const routePoints = buildConnectorRoutePoints(start, end, fromAnchor, toAnchor);
         const midpoint = getConnectorRouteMidpoint(start, end, fromAnchor, toAnchor);
         return (
-          <Group key={edge.id}>
+          <Group key={edge.id} listening={false}>
             <Arrow
               points={routePoints}
               stroke="#71717a"
@@ -79,6 +110,7 @@ function CanvasEdges({ nodes, edges }: { nodes: PlanDiagramCanvasNode[]; edges: 
               lineJoin="round"
               pointerLength={8}
               pointerWidth={8}
+              listening={false}
             />
             {edge.label?.trim() ? (
               <Text
@@ -121,7 +153,8 @@ export function PlanDiagramCanvasSheet({
   const [state, setState] = useState<PlanDiagramCanvasState>({ nodes: [], edges: [] });
   const stateRef = useRef(state);
   stateRef.current = state;
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [marqueeRect, setMarqueeRect] = useState<SelectionRect | null>(null);
   const [connectFromId, setConnectFromId] = useState<string | null>(null);
   const [connectorDraft, setConnectorDraft] = useState<ConnectorDraft | null>(null);
   const [connectHoverId, setConnectHoverId] = useState<string | null>(null);
@@ -133,11 +166,27 @@ export function PlanDiagramCanvasSheet({
   const rightPanel = useResizableWidth(240, 200, 400, "right");
   const shapeGridColumns: 4 | 5 = leftPanel.width >= 248 ? 5 : 4;
   const nodeDragMovedRef = useRef(false);
+  const marqueeActiveRef = useRef(false);
+  const marqueeCompletedRef = useRef(false);
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const canvasPointerHandledRef = useRef(false);
+  const suppressNodeClickRef = useRef(false);
+  const marqueeListenersRef = useRef<{
+    move: (event: MouseEvent) => void;
+    up: (event: MouseEvent) => void;
+  } | null>(null);
+  const multiDragRef = useRef<{
+    anchorId: string;
+    origins: Map<string, { x: number; y: number }>;
+  } | null>(null);
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const primarySelectedId = selectedIds[selectedIds.length - 1] ?? null;
 
   useEffect(() => {
     if (!open) return;
     setState(mermaidToCanvasState(normalizeMermaidSource(mermaid)));
-    setSelectedId(null);
+    setSelectedIds([]);
     setConnectFromId(null);
     setConnectorDraft(null);
     setConnectHoverId(null);
@@ -175,23 +224,24 @@ export function PlanDiagramCanvasSheet({
         }
         onClose();
       }
-      if ((event.key === "Delete" || event.key === "Backspace") && selectedId) {
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedIds.length > 0) {
         const target = event.target as HTMLElement | null;
         if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
         event.preventDefault();
+        const remove = new Set(selectedIds);
         setState((current) => ({
-          nodes: current.nodes.filter((node) => node.id !== selectedId),
+          nodes: current.nodes.filter((node) => !remove.has(node.id)),
           edges: current.edges.filter(
-            (edge) => edge.fromId !== selectedId && edge.toId !== selectedId,
+            (edge) => !remove.has(edge.fromId) && !remove.has(edge.toId),
           ),
         }));
-        setSelectedId(null);
+        setSelectedIds([]);
         setConnectFromId(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mode, onClose, open, selectedId]);
+  }, [mode, onClose, open, selectedIds]);
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -201,14 +251,19 @@ export function PlanDiagramCanvasSheet({
       transformer?.getLayer()?.batchDraw();
       return;
     }
-    const node = selectedId ? stage.findOne(`#canvas-node-${selectedId}`) : null;
+    if (selectedIds.length !== 1) {
+      transformer.nodes([]);
+      transformer.getLayer()?.batchDraw();
+      return;
+    }
+    const node = stage.findOne(`#canvas-node-${selectedIds[0]}`);
     if (node) {
       transformer.nodes([node]);
     } else {
       transformer.nodes([]);
     }
     transformer.getLayer()?.batchDraw();
-  }, [mode, selectedId, state.nodes, connectorDraft]);
+  }, [mode, selectedIds, state.nodes, connectorDraft]);
 
   const getStagePointerFromClient = useCallback((clientX: number, clientY: number) => {
     const stage = stageRef.current;
@@ -220,6 +275,27 @@ export function PlanDiagramCanvasSheet({
       y: clientY - rect.top,
     };
   }, []);
+
+  const getStagePointerFromWindowEvent = useCallback((event: MouseEvent) => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+    stage.setPointersPositions(event);
+    return stage.getPointerPosition();
+  }, []);
+
+  const cleanupMarqueeListeners = useCallback(() => {
+    const listeners = marqueeListenersRef.current;
+    if (!listeners) return;
+    window.removeEventListener("mousemove", listeners.move);
+    window.removeEventListener("mouseup", listeners.up, true);
+    marqueeListenersRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cleanupMarqueeListeners();
+    };
+  }, [cleanupMarqueeListeners]);
 
   useEffect(() => {
     if (!connectorDraft) return;
@@ -287,6 +363,51 @@ export function PlanDiagramCanvasSheet({
     };
   }, [connectorDraft, edgeLabel, getStagePointerFromClient]);
 
+  const finishMarqueeGesture = useCallback(
+    (event: MouseEvent) => {
+      const pointer = getStagePointerFromWindowEvent(event);
+      const start = marqueeStartRef.current;
+      marqueeActiveRef.current = false;
+      marqueeStartRef.current = null;
+      setMarqueeRect(null);
+
+      if (!pointer || !start) return;
+
+      const finalRect: SelectionRect = {
+        x: start.x,
+        y: start.y,
+        width: pointer.x - start.x,
+        height: pointer.y - start.y,
+      };
+      const box = normalizeSelectionRect(finalRect);
+      const isClick =
+        box.width < MARQUEE_CLICK_THRESHOLD && box.height < MARQUEE_CLICK_THRESHOLD;
+      const hits = findNodesInSelectionRect(stateRef.current.nodes, finalRect);
+
+      if (hits.length === 0) {
+        if (isClick && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
+          canvasPointerHandledRef.current = true;
+          setSelectedIds([]);
+          setConnectFromId(null);
+        }
+        return;
+      }
+
+      marqueeCompletedRef.current = true;
+      suppressNodeClickRef.current = true;
+      const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+      const hitIds = hits.map((node) => node.id);
+      setSelectedIds((current) => {
+        if (!additive) return hitIds;
+        const merged = new Set(current);
+        for (const id of hitIds) merged.add(id);
+        return [...merged];
+      });
+      setConnectFromId(null);
+    },
+    [getStagePointerFromWindowEvent],
+  );
+
   const handleConnectorDragStart = useCallback(
     (
       nodeId: string,
@@ -337,7 +458,7 @@ export function PlanDiagramCanvasSheet({
     (preset: PlanDiagramShapePreset, x: number, y: number) => {
       const next = createCanvasNodeFromPreset(preset, x, y, state.nodes.length);
       setState((current) => ({ ...current, nodes: [...current.nodes, next] }));
-      setSelectedId(next.id);
+      setSelectedIds([next.id]);
       setMode("select");
       setSelectedPreset(null);
       setConnectFromId(null);
@@ -345,24 +466,64 @@ export function PlanDiagramCanvasSheet({
     [state.nodes.length],
   );
 
-  const handleStageClick = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (event.target !== event.target.getStage()) return;
-    if (nodeDragMovedRef.current) {
-      nodeDragMovedRef.current = false;
-      return;
-    }
+  const handleCanvasMouseDown = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!isCanvasBackgroundTarget(event.target)) return;
+    if (mode !== "select" || connectorDraft) return;
 
     const stage = event.target.getStage();
     if (!stage) return;
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    if (mode === "select") {
-      if (connectorDraft) return;
-      setSelectedId(null);
-      setConnectFromId(null);
+    cleanupMarqueeListeners();
+    canvasPointerHandledRef.current = false;
+    marqueeCompletedRef.current = false;
+    marqueeActiveRef.current = true;
+    marqueeStartRef.current = { x: pointer.x, y: pointer.y };
+    setMarqueeRect({ x: pointer.x, y: pointer.y, width: 0, height: 0 });
+
+    const onPointerMove = (moveEvent: MouseEvent) => {
+      const movePointer = getStagePointerFromWindowEvent(moveEvent);
+      const start = marqueeStartRef.current;
+      if (!movePointer || !start) return;
+      setMarqueeRect({
+        x: start.x,
+        y: start.y,
+        width: movePointer.x - start.x,
+        height: movePointer.y - start.y,
+      });
+    };
+
+    const onPointerUp = (upEvent: MouseEvent) => {
+      cleanupMarqueeListeners();
+      finishMarqueeGesture(upEvent);
+    };
+
+    marqueeListenersRef.current = { move: onPointerMove, up: onPointerUp };
+    window.addEventListener("mousemove", onPointerMove);
+    window.addEventListener("mouseup", onPointerUp, true);
+  };
+
+  const handleCanvasClick = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!isCanvasBackgroundTarget(event.target)) return;
+    if (nodeDragMovedRef.current) {
+      nodeDragMovedRef.current = false;
       return;
     }
+    if (canvasPointerHandledRef.current) {
+      canvasPointerHandledRef.current = false;
+      return;
+    }
+    if (marqueeCompletedRef.current) {
+      marqueeCompletedRef.current = false;
+      return;
+    }
+    if (marqueeActiveRef.current) return;
+
+    const stage = event.target.getStage();
+    if (!stage) return;
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
 
     if (mode === "connect") {
       setConnectFromId(null);
@@ -399,7 +560,11 @@ export function PlanDiagramCanvasSheet({
     placePreset(preset, x, y);
   };
 
-  const handleNodeSelect = (nodeId: string) => {
+  const handleNodeSelect = (nodeId: string, additive = false) => {
+    if (suppressNodeClickRef.current) {
+      suppressNodeClickRef.current = false;
+      return;
+    }
     if (mode === "connect") {
       if (!connectFromId) {
         setConnectFromId(nodeId);
@@ -435,19 +600,37 @@ export function PlanDiagramCanvasSheet({
       setMode("select");
       return;
     }
-    setSelectedId(nodeId);
+    setSelectedIds((current) => {
+      if (additive) {
+        return current.includes(nodeId)
+          ? current.filter((id) => id !== nodeId)
+          : [...current, nodeId];
+      }
+      return [nodeId];
+    });
   };
 
   const deleteSelected = () => {
-    if (!selectedId) return;
+    if (selectedIds.length === 0) return;
+    const remove = new Set(selectedIds);
     setState((current) => ({
-      nodes: current.nodes.filter((node) => node.id !== selectedId),
+      nodes: current.nodes.filter((node) => !remove.has(node.id)),
       edges: current.edges.filter(
-        (edge) => edge.fromId !== selectedId && edge.toId !== selectedId,
+        (edge) => !remove.has(edge.fromId) && !remove.has(edge.toId),
       ),
     }));
-    setSelectedId(null);
+    setSelectedIds([]);
   };
+
+  const selectedNode = primarySelectedId
+    ? state.nodes.find((node) => node.id === primarySelectedId) ?? null
+    : null;
+  const selectedNodes = useMemo(
+    () => state.nodes.filter((node) => selectedIdSet.has(node.id)),
+    [state.nodes, selectedIdSet],
+  );
+  const allDiagramSelected =
+    selectedIds.length > 1 && selectedIds.length === state.nodes.length;
 
   const statusHint =
     mode === "connect"
@@ -459,9 +642,13 @@ export function PlanDiagramCanvasSheet({
         : mode === "select"
           ? connectorDraft
             ? "Release on a shape to connect"
-            : selectedId
-              ? "Drag direction arrows to connect · corners to resize · drag shape to move"
-              : "Select a shape · drag from sidebar · or click canvas to deselect"
+            : selectedIds.length > 1
+              ? allDiagramSelected
+                ? "Entire diagram selected · drag to move · Delete to remove"
+                : `${selectedIds.length} shapes selected · drag to move together · Delete to remove`
+              : primarySelectedId
+                ? "Drag direction arrows to connect · corners to resize · drag shape to move"
+                : "Drag on canvas to box-select · click shapes · Shift-click to multi-select"
           : "Click or drag a shape from the sidebar onto the canvas";
 
   const connectorPreview = useMemo(() => {
@@ -493,9 +680,6 @@ export function PlanDiagramCanvasSheet({
     };
   }, [connectHoverId, connectorDraft, state.nodes]);
 
-  const selectedNode = selectedId
-    ? state.nodes.find((node) => node.id === selectedId) ?? null
-    : null;
   const selectedEdge = useMemo(() => {
     if (!selectedNode) return null;
     return (
@@ -556,7 +740,7 @@ export function PlanDiagramCanvasSheet({
           <PlanDiagramCanvasSidebar
             mode={mode}
             selectedPreset={selectedPreset}
-            canDelete={Boolean(selectedId)}
+            canDelete={selectedIds.length > 0}
             gridColumns={shapeGridColumns}
             onSelectMode={(next) => {
               setMode(next);
@@ -606,8 +790,9 @@ export function PlanDiagramCanvasSheet({
               ref={stageRef}
               width={size.width}
               height={size.height}
-              onClick={handleStageClick}
-              onTap={handleStageClick}
+              onMouseDown={handleCanvasMouseDown}
+              onClick={handleCanvasClick}
+              onTap={handleCanvasClick}
             >
               <Layer>
                 <CanvasEdges nodes={state.nodes} edges={state.edges} />
@@ -625,28 +810,71 @@ export function PlanDiagramCanvasSheet({
                     listening={false}
                   />
                 ) : null}
+                {marqueeRect ? (
+                  <Rect
+                    x={marqueeRect.width < 0 ? marqueeRect.x + marqueeRect.width : marqueeRect.x}
+                    y={marqueeRect.height < 0 ? marqueeRect.y + marqueeRect.height : marqueeRect.y}
+                    width={Math.abs(marqueeRect.width)}
+                    height={Math.abs(marqueeRect.height)}
+                    fill="rgba(37, 99, 235, 0.08)"
+                    stroke="#2563eb"
+                    strokeWidth={1}
+                    dash={[5, 4]}
+                    listening={false}
+                  />
+                ) : null}
                 {state.nodes.map((node) => (
                   <CanvasNodeShape
                     key={node.id}
                     node={node}
-                    selected={selectedId === node.id}
+                    selected={selectedIdSet.has(node.id)}
+                    showSelectionRing={selectedIdSet.has(node.id) && selectedIds.length > 1}
                     connectSource={connectFromId === node.id}
                     connectHover={connectHoverId === node.id}
                     draggable={!connectorDraft || connectorDraft.fromNodeId !== node.id}
-                    onSelect={() => handleNodeSelect(node.id)}
+                    onSelect={(additive) => handleNodeSelect(node.id, additive)}
                     onDragStart={() => {
                       nodeDragMovedRef.current = false;
+                      if (selectedIdSet.has(node.id) && selectedIds.length > 1) {
+                        const origins = new Map<string, { x: number; y: number }>();
+                        for (const id of selectedIds) {
+                          const item = stateRef.current.nodes.find((entry) => entry.id === id);
+                          if (item) origins.set(id, { x: item.x, y: item.y });
+                        }
+                        multiDragRef.current = { anchorId: node.id, origins };
+                      } else {
+                        multiDragRef.current = null;
+                      }
                     }}
                     onDragMove={(x, y) => {
                       nodeDragMovedRef.current = true;
+                      const multi = multiDragRef.current;
+                      if (multi && multi.anchorId === node.id) {
+                        const origin = multi.origins.get(node.id);
+                        if (!origin) return;
+                        const dx = x - origin.x;
+                        const dy = y - origin.y;
+                        setState((current) => ({
+                          ...current,
+                          nodes: current.nodes.map((entry) => {
+                            const start = multi.origins.get(entry.id);
+                            if (!start) return entry;
+                            return { ...entry, x: start.x + dx, y: start.y + dy };
+                          }),
+                        }));
+                        return;
+                      }
                       updateNode(node.id, { x, y });
                     }}
-                    onDragEnd={(x, y) => {
-                      updateNode(node.id, { x, y });
+                    onDragEnd={() => {
+                      multiDragRef.current = null;
                     }}
                   />
                 ))}
-                {mode === "select" && selectedNode && !connectorDraft ? (
+                {mode === "select" && selectedIds.length > 1 && !connectorDraft ? (
+                  <CanvasGroupSelectionChrome nodes={selectedNodes} count={selectedIds.length} />
+                ) : null}
+                {mode === "select" && selectedNode && selectedIds.length === 1 && !connectorDraft ? (
                   <CanvasNodeSelectionChrome
                     node={selectedNode}
                     onStartDrag={handleConnectorDragStart}
@@ -663,7 +891,7 @@ export function PlanDiagramCanvasSheet({
                   }}
                   onTransform={() => {
                     const stage = stageRef.current;
-                    const id = selectedId;
+                    const id = selectedIds[0];
                     if (!stage || !id) return;
                     const group = stage.findOne(`#canvas-node-${id}`) as Konva.Group | null;
                     if (!group) return;
@@ -682,7 +910,7 @@ export function PlanDiagramCanvasSheet({
                   }}
                   onTransformEnd={() => {
                     const stage = stageRef.current;
-                    const id = selectedId;
+                    const id = selectedIds[0];
                     if (!stage || !id) return;
                     const group = stage.findOne(`#canvas-node-${id}`) as Konva.Group | null;
                     if (!group) return;
@@ -709,6 +937,7 @@ export function PlanDiagramCanvasSheet({
             nodes={state.nodes}
             edges={state.edges}
             selectedNode={selectedNode}
+            selectedCount={selectedIds.length}
             selectedEdge={selectedEdge}
             onUpdateNode={updateNode}
             onUpdateEdge={updateEdge}

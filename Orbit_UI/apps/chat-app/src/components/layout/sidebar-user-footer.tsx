@@ -67,7 +67,7 @@ export function SidebarUserFooter({
             aria-label="Settings & Help"
             className={cn(
               SIDEBAR_ICON_SLOT_CLASS,
-              "rounded-lg bg-[var(--workspace-tab-inactive-bg-hover)] text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground",
+              "rounded-lg bg-[var(--workspace-tab-inactive-bg-hover)] text-muted-foreground transition-colors hover:bg-[var(--workspace-tab-active-bg)] hover:text-[var(--workspace-tab-active-fg)]",
             )}
           >
             <Settings className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
@@ -85,7 +85,7 @@ export function SidebarUserFooter({
             type="button"
             onClick={onProfile}
             aria-label={`Open profile for ${name}`}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1.5 text-left transition-colors hover:bg-sidebar-accent/80"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-1.5 text-left transition-colors hover:bg-[var(--workspace-tab-inactive-bg-hover)]"
           >
             <ProfileAvatar initials={initials} />
             <div className="min-w-0 flex-1">
@@ -103,9 +103,9 @@ export function SidebarUserFooter({
             type="button"
             onClick={onSettings}
             aria-label="Settings & Help"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--workspace-tab-inactive-bg-hover)] text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--workspace-tab-inactive-bg-hover)] text-muted-foreground transition-colors hover:bg-[var(--workspace-tab-active-bg)] hover:text-[var(--workspace-tab-active-fg)]"
           >
-            <Settings className="h-4 w-4" strokeWidth={1.75} />
+            <Settings className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
           </button>
         </SidebarTooltip>
       </div>

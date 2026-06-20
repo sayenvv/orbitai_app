@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Arrow, Ellipse, Group, Rect } from "react-konva";
+import { Arrow, Ellipse, Group, Rect, Text } from "react-konva";
 import type Konva from "konva";
 
 import {
   CONNECTOR_ANCHORS,
   getConnectorAnchorLocalPosition,
+  getNodesBoundingBox,
   type ConnectorAnchor,
 } from "@/lib/plan-diagram-canvas-connectors";
 import type { PlanDiagramCanvasNode } from "@/lib/plan-diagram-canvas-mermaid";
@@ -18,6 +19,9 @@ const ARROW_STROKE = "rgba(59, 130, 246, 0.7)";
 const ARROW_STROKE_HOVER = "rgba(37, 99, 235, 0.95)";
 const HALO_FILL = "rgba(148, 163, 184, 0.16)";
 const HALO_STROKE = "rgba(59, 130, 246, 0.28)";
+
+const SELECTION_STROKE = "#2563eb";
+const SELECTION_GLOW = "rgba(37, 99, 235, 0.2)";
 
 function getNodeCornerRadius(node: PlanDiagramCanvasNode) {
   if (node.type === "api") return 10;
@@ -169,14 +173,28 @@ export function CanvasNodeSelectionChrome({
   return (
     <Group x={node.x} y={node.y}>
       <Rect
+        x={-2}
+        y={-2}
+        width={node.width + 4}
+        height={node.height + 4}
+        cornerRadius={cornerRadius + 2}
+        fill="transparent"
+        stroke={SELECTION_STROKE}
+        strokeWidth={1.25}
+        dash={[5, 4]}
+        shadowColor={SELECTION_GLOW}
+        shadowBlur={10}
+        shadowOffsetY={2}
+        listening={false}
+      />
+      <Rect
         x={0}
         y={0}
         width={node.width}
         height={node.height}
         cornerRadius={cornerRadius}
-        stroke="#3b82f6"
+        stroke={SELECTION_STROKE}
         strokeWidth={1.5}
-        dash={[6, 4]}
         listening={false}
       />
       {CONNECTOR_ANCHORS.map((anchor) => (
@@ -187,6 +205,104 @@ export function CanvasNodeSelectionChrome({
           onStartDrag={onStartDrag}
         />
       ))}
+    </Group>
+  );
+}
+
+export function CanvasGroupSelectionChrome({
+  nodes,
+  count,
+}: {
+  nodes: PlanDiagramCanvasNode[];
+  count: number;
+}) {
+  const bounds = getNodesBoundingBox(nodes, 14);
+  if (!bounds) return null;
+
+  const label =
+    count === nodes.length && nodes.length > 1 ? `${count} shapes · all` : `${count} selected`;
+  const badgeWidth = Math.max(72, label.length * 6.5 + 20);
+  const badgeX = bounds.x + bounds.width / 2 - badgeWidth / 2;
+  const badgeY = bounds.y - 28;
+  const corners = [
+    { x: bounds.x, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x, y: bounds.y + bounds.height },
+    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+  ];
+
+  return (
+    <Group listening={false}>
+      <Rect
+        x={bounds.x - 2}
+        y={bounds.y - 2}
+        width={bounds.width + 4}
+        height={bounds.height + 4}
+        cornerRadius={10}
+        fill="transparent"
+        stroke={SELECTION_STROKE}
+        strokeWidth={1}
+        dash={[6, 5]}
+        opacity={0.45}
+        listening={false}
+      />
+      <Rect
+        x={bounds.x}
+        y={bounds.y}
+        width={bounds.width}
+        height={bounds.height}
+        cornerRadius={8}
+        stroke={SELECTION_STROKE}
+        strokeWidth={1.75}
+        fill="rgba(255, 255, 255, 0.02)"
+        shadowColor={SELECTION_GLOW}
+        shadowBlur={18}
+        shadowOffsetY={3}
+        listening={false}
+      />
+      {corners.map((corner, index) => (
+        <Rect
+          key={index}
+          x={corner.x - 4}
+          y={corner.y - 4}
+          width={8}
+          height={8}
+          cornerRadius={2}
+          fill="#ffffff"
+          stroke={SELECTION_STROKE}
+          strokeWidth={1.25}
+          shadowColor="rgba(15, 23, 42, 0.12)"
+          shadowBlur={4}
+          shadowOffsetY={1}
+          listening={false}
+        />
+      ))}
+      <Rect
+        x={badgeX}
+        y={badgeY}
+        width={badgeWidth}
+        height={22}
+        cornerRadius={11}
+        fill="#1d4ed8"
+        stroke="rgba(255, 255, 255, 0.35)"
+        strokeWidth={1}
+        shadowColor="rgba(29, 78, 216, 0.45)"
+        shadowBlur={10}
+        shadowOffsetY={2}
+        listening={false}
+      />
+      <Text
+        x={badgeX}
+        y={badgeY + 5}
+        width={badgeWidth}
+        text={label}
+        fontSize={10}
+        fontStyle="bold"
+        fontFamily="Inter, ui-sans-serif, system-ui, sans-serif"
+        fill="#f8fafc"
+        align="center"
+        listening={false}
+      />
     </Group>
   );
 }

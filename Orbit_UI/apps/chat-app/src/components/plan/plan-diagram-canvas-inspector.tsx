@@ -11,6 +11,7 @@ export function PlanDiagramCanvasInspector({
   nodes,
   edges,
   selectedNode,
+  selectedCount,
   selectedEdge,
   onUpdateNode,
   onUpdateEdge,
@@ -19,6 +20,7 @@ export function PlanDiagramCanvasInspector({
   nodes: PlanDiagramCanvasNode[];
   edges: PlanDiagramCanvasEdge[];
   selectedNode: PlanDiagramCanvasNode | null;
+  selectedCount: number;
   selectedEdge: PlanDiagramCanvasEdge | null;
   onUpdateNode: (nodeId: string, patch: Partial<PlanDiagramCanvasNode>) => void;
   onUpdateEdge: (edgeId: string, patch: Partial<PlanDiagramCanvasEdge>) => void;
@@ -42,7 +44,23 @@ export function PlanDiagramCanvasInspector({
         </div>
       </section>
 
-      {selectedNode ? (
+      {selectedCount > 1 ? (
+        <section className="mb-4 space-y-2">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Selection
+          </p>
+          <div className="rounded-md border border-primary/25 bg-primary/8 px-3 py-3 text-[11px] text-foreground">
+            <p className="font-semibold text-primary">
+              {selectedCount === nodes.length && nodes.length > 1
+                ? "Entire diagram selected"
+                : `${selectedCount} shapes selected`}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Drag any highlighted shape to move the group together, or press Delete to remove them.
+            </p>
+          </div>
+        </section>
+      ) : selectedNode ? (
         <section className="mb-4 space-y-2">
           <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
             Selected shape

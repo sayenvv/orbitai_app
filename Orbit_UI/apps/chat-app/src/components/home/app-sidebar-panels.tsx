@@ -18,7 +18,6 @@ import {
   Plus,
   Search,
   Sparkles,
-  Rocket,
   MessageSquare,
   Trash2,
   Upload,
@@ -33,6 +32,7 @@ import {
   SIDEBAR_ICON_SLOT_CLASS,
   SIDEBAR_NAV_GLYPH_CLASS,
   sidebarNavRowClassName,
+  SIDEBAR_NAV_RADIUS,
 } from "@/components/layout/sidebar-layout";
 import { cn } from "@/lib/utils";
 import { chatApi, mapConversationSummary } from "@/lib/orbit-api";
@@ -57,7 +57,8 @@ export type SidebarSection = "home" | "library" | "agents" | "apps" | "plans";
 
 const collapsedNavBtnClass = cn(
   SIDEBAR_ICON_SLOT_CLASS,
-  "rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground",
+  SIDEBAR_NAV_RADIUS,
+  "sidebar-nav-item text-muted-foreground",
 );
 
 type SidebarNavItem = {
@@ -74,8 +75,6 @@ type SidebarCollapsedNavProps = {
   onLibrary: () => void;
   onAgents?: () => void;
   agentsActive?: boolean;
-  onStudio?: () => void;
-  studioActive?: boolean;
   onPlans: () => void;
   onSearch: () => void;
   isAuthenticated?: boolean;
@@ -87,8 +86,6 @@ export function SidebarCollapsedNav({
   onLibrary,
   onAgents,
   agentsActive = false,
-  onStudio,
-  studioActive = false,
   onPlans,
   onSearch,
   isAuthenticated = true,
@@ -97,9 +94,6 @@ export function SidebarCollapsedNav({
     { key: "library", label: "Library", icon: Folders, active: section === "library", onClick: onLibrary },
     ...(onAgents
       ? [{ key: "agents", label: "Agents", icon: Bot, active: agentsActive, onClick: onAgents }]
-      : []),
-    ...(onStudio
-      ? [{ key: "studio", label: "Studio", icon: Rocket, active: studioActive, onClick: onStudio }]
       : []),
     { key: "search", label: "Search chats", icon: Search, active: false, onClick: onSearch },
   ];
@@ -129,10 +123,8 @@ export function SidebarCollapsedNav({
               type="button"
               onClick={onClick}
               aria-label={label}
-              className={cn(
-                collapsedNavBtnClass,
-                active && "workspace-tab-active",
-              )}
+              aria-current={active ? "page" : undefined}
+              className={collapsedNavBtnClass}
             >
               <Icon className={SIDEBAR_NAV_GLYPH_CLASS} strokeWidth={1.75} />
             </button>
@@ -370,7 +362,7 @@ export function SidebarRecentsList({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search"
-            className="h-8 w-full rounded-lg border-0 bg-transparent pl-7 pr-7 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/50 transition-colors hover:bg-sidebar-accent/50 focus:bg-sidebar-accent/70 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+            className="sidebar-recents-search h-8 w-full pl-7 pr-7 text-[13px] text-foreground placeholder:text-muted-foreground/50 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
           />
           {(awaitingSearch || searchLoading) && (
             <Loader2 className="absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-muted-foreground/60" />
@@ -379,7 +371,7 @@ export function SidebarRecentsList({
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-foreground"
+              className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground/60 transition-colors hover:bg-[var(--workspace-tab-inactive-bg-hover)] hover:text-foreground"
               aria-label="Clear search"
             >
               <X className="h-3 w-3" strokeWidth={2} />
@@ -476,8 +468,9 @@ function RecentChatItem({
   return (
     <div
       className={cn(
-        "group flex w-full items-center gap-0.5 rounded-lg pr-1 transition-colors",
-        isActive ? "workspace-tab-active" : "hover:bg-sidebar-accent/50",
+        "sidebar-nav-item group flex w-full items-center gap-0.5 pr-1",
+        SIDEBAR_NAV_RADIUS,
+        isActive && "sidebar-nav-item-active",
       )}
     >
       <button
@@ -485,8 +478,8 @@ function RecentChatItem({
         onClick={() => onSelect(conversation.id)}
         disabled={isOpening}
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left",
-          isActive ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
+          "flex min-w-0 flex-1 items-center gap-2 px-3 py-0.5 text-left",
+          isActive ? "font-medium" : "text-muted-foreground",
           isOpening && "opacity-70",
         )}
       >
@@ -509,8 +502,8 @@ function RecentChatItem({
           className={cn(
             "inline-flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors",
             isActive
-              ? "bg-background/70 text-foreground hover:bg-background"
-              : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground",
+              ? "bg-[var(--workspace-tab-inactive-bg-hover)] text-[var(--workspace-tab-inactive-fg-hover)] dark:text-[var(--workspace-tab-active-fg)] dark:hover:bg-[var(--workspace-tab-active-bg)]"
+              : "bg-[var(--workspace-tab-inactive-bg-hover)] text-muted-foreground hover:text-foreground",
           )}
         >
           <MessageSquare className="h-3.5 w-3.5" />

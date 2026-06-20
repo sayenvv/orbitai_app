@@ -10,6 +10,11 @@ import {
   getSectionDeliverable,
   type SynopsisSection,
 } from "@/lib/plan-synopsis-catalog";
+import {
+  DEFAULT_PLAN_PDF_PAGE_FORMAT,
+  getPlanPdfPageFormat,
+  type PlanPdfPageFormatId,
+} from "@/lib/plan-pdf-page-format";
 
 function escapeHtml(value: string): string {
   return value
@@ -85,7 +90,9 @@ function buildDocumentHtml(
   contentById: Record<string, PlanDeliverableContent>,
   diagramSvgs: Record<string, string>,
   sections: SynopsisSection[],
+  pageFormat: PlanPdfPageFormatId = DEFAULT_PLAN_PDF_PAGE_FORMAT,
 ): string {
+  const format = getPlanPdfPageFormat(pageFormat);
   const tocRows = sections.map(
     (section) => `
       <tr>
@@ -113,7 +120,7 @@ function buildDocumentHtml(
   <meta charset="utf-8" />
   <title>${escapeHtml(projectTitle)} — Project Proposal</title>
   <style>
-    @page { margin: 20mm 18mm; }
+    @page { size: ${format.cssPageSize}; margin: 20mm 18mm; }
     * { box-sizing: border-box; }
     body {
       font-family: "Times New Roman", Times, serif;
@@ -235,6 +242,21 @@ function buildDocumentHtml(
   </script>
 </body>
 </html>`;
+}
+
+export async function buildPlanProposalPreviewHtml({
+  projectTitle,
+  contentById,
+  sections,
+  pageFormat = DEFAULT_PLAN_PDF_PAGE_FORMAT,
+}: {
+  projectTitle: string;
+  contentById: Record<string, PlanDeliverableContent>;
+  sections: SynopsisSection[];
+  pageFormat?: PlanPdfPageFormatId;
+}): Promise<string> {
+  const diagramSvgs = await renderMermaidDiagrams(contentById, sections);
+  return buildDocumentHtml(projectTitle, contentById, diagramSvgs, sections, pageFormat);
 }
 
 export async function exportPlanProposalPdf({

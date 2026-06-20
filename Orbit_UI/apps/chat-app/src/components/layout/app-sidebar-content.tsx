@@ -7,7 +7,6 @@ import {
   Crown,
   Folders,
   MessageCirclePlus,
-  Rocket,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,7 +22,7 @@ import { useSidebarChats } from "@/hooks/use-sidebar-chats";
 import { useTokenUsage } from "@/hooks/use-token-usage";
 import { useUsageStore } from "@/store/usage-store";
 import { navigateToNewChat, conversationPath } from "@/lib/chat-navigation";
-import { routes, homeWithSection, isAgentsPath, isStudioPath, studioWithPhase } from "@/lib/routes";
+import { routes, homeWithSection, isAgentsPath } from "@/lib/routes";
 import {
   buildAppChatHref,
   isSameWorkspaceAppChat,
@@ -35,6 +34,7 @@ import { cn } from "@/lib/utils";
 import {
   SIDEBAR_COLLAPSED_COLUMN_CLASS,
   SIDEBAR_PADDING_X,
+  SIDEBAR_NAV_PADDING_X,
   SIDEBAR_ICON_SLOT_CLASS,
   SIDEBAR_NAV_GLYPH_CLASS,
   sidebarNavRowClassName,
@@ -61,10 +61,8 @@ function SidebarNavRow({
       title={label}
       aria-label={label}
       className={cn(
-        sidebarNavRowClassName("w-full rounded-full text-[13px] font-medium transition-all"),
-        active
-          ? "workspace-tab-active"
-          : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground dark:hover:bg-white/[0.06]",
+        sidebarNavRowClassName("w-full text-[13px] font-medium"),
+        active && "sidebar-nav-item-active",
       )}
     >
       <span className={SIDEBAR_ICON_SLOT_CLASS}>
@@ -193,12 +191,6 @@ export function AppSidebarContent({
     handleSectionChange("agents");
   };
 
-  const handleStudio = () => {
-    router.push(studioWithPhase("plan"));
-    onNavigate?.();
-  };
-
-  const isStudioActive = isStudioPath(pathname);
   const isAgentsActive = isAgentsPath(pathname);
   const historyLoading = chatsLoading || !chatsHydrated;
   const isDrawer = variant === "drawer";
@@ -214,7 +206,6 @@ export function AppSidebarContent({
         { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
         { key: "library", icon: Folders, label: "Library", onClick: handleLibrary, active: section === "library" },
         { key: "agents", icon: Bot, label: "Agents", onClick: handleAgents, active: isAgentsActive },
-        { key: "studio", icon: Rocket, label: "Studio", onClick: handleStudio, active: isStudioActive },
       ]
     : [
         { key: "new", icon: MessageCirclePlus, label: "New chat", onClick: handleNewChat },
@@ -232,7 +223,7 @@ export function AppSidebarContent({
       <div
         className={cn(
           "shrink-0",
-          expanded ? cn(SIDEBAR_PADDING_X, "py-3") : cn(SIDEBAR_COLLAPSED_COLUMN_CLASS, "py-3"),
+          expanded ? cn(SIDEBAR_NAV_PADDING_X, "py-2") : cn(SIDEBAR_COLLAPSED_COLUMN_CLASS, "py-2"),
         )}
       >
         {expanded ? (
@@ -255,8 +246,6 @@ export function AppSidebarContent({
             onLibrary={handleLibrary}
             onAgents={handleAgents}
             agentsActive={isAgentsActive}
-            onStudio={handleStudio}
-            studioActive={isStudioActive}
             onPlans={handlePlans}
             onSearch={handleSearch}
             isAuthenticated={isAuthenticated}
@@ -265,8 +254,12 @@ export function AppSidebarContent({
       </div>
 
       {expanded && isAuthenticated && (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-3">
-          <p className="mb-1 shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <div className="mx-1.5 mb-2 h-px shrink-0 bg-[var(--workspace-tab-border)]" />
+      )}
+
+      {expanded && isAuthenticated && (
+        <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden pt-1", SIDEBAR_NAV_PADDING_X)}>
+          <p className="sidebar-recents-label mb-2 shrink-0">
             Recents
           </p>
           <SidebarRecentsList
